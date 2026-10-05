@@ -149,6 +149,7 @@ label.opt { display: inline-flex; gap: 7px; align-items: center; font-size: 14px
 .m-hint > div { margin-top: 6px; font-size: 14.5px; color: var(--ink-2); }
 .g-out.m-fail { border-left: 3px solid var(--critical); }
 .g-out.m-win { border-left: 3px solid var(--good); }
+.m-bet .btn { white-space: normal; text-align: left; line-height: 1.35; }
 .m-bet .btn.bet-right { border-color: var(--good); background: var(--good-soft); color: var(--ink); }
 .m-bet .btn.bet-wrong { border-color: var(--critical); background: var(--critical-soft); color: var(--ink); }
 .m-bet .btn.bet-right::after { content: ' ✓'; }
