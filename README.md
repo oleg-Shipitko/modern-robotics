@@ -54,6 +54,7 @@ node tools/lesson12.js         # урок 1.2
 ## Публикация
 - Какие уроки опубликованы, задаёт `site/config.json` → `PUBLISHED`: по этому списку главная отмечает уроки «доступен», строится `sitemap.xml`, и только они попадают в выкладку.
 - `tools/deploy.sh` собирает всё в `dist/` и синхронизирует с бакетом `modernrobotics.ru` через AWS CLI (профиль `mr`, endpoint `storage.yandexcloud.net`). Флаги: `--build-only`, `--dryrun`.
+- Облако настраивается через `yc` скриптом `tools/cloud-setup.sh`: бакеты сайта и www, зона DNS, сертификат Let's Encrypt, HTTPS и ключ для выкладки (шаги `buckets`, `dns`, `cert`, `https`, `deploy-key`, `status`).
 - Шрифты Inter и JetBrains Mono лежат на своём сервере: `site/assets/fonts/` (SIL Open Font License).
 - Картинка превью ссылок `site/assets/og.png` рисуется скриптом `node tools/og_image.js`.
 - Кнопка «Сказать спасибо» на главной и в конце уроков показывает общий счётчик. Его хранит функция в Yandex Cloud: `server/thanks/deploy.sh` создаёт базу YDB serverless, сервисный аккаунт и функцию и записывает её адрес в `config.json` → `THANKS_API`. В базе только число, о читателях ничего не хранится. Проверка логики без облака: `python3 server/thanks/test_index.py` (нужен пакет `ydb`).
