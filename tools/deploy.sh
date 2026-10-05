@@ -31,6 +31,12 @@ for p in cfg['PUBLISHED']:
 files = [x for x in dist.rglob('*') if x.is_file()]
 print(f'dist/: {len(files)} файлов, {sum(x.stat().st_size for x in files) / 1e6:.1f} МБ, уроков: {len(cfg["PUBLISHED"])}')
 if not cfg.get('THANKS_API'): print('ВНИМАНИЕ: THANKS_API пуст — на сайте не будет числа у кнопки «Сказать спасибо». Сначала server/thanks/deploy.sh')
+# ссылки из опубликованных уроков на ещё не опубликованные уроки
+import re
+pub = {pathlib.Path(q['file']).name for q in cfg['PUBLISHED']}
+for q in cfg['PUBLISHED']:
+    for ref in sorted(set(re.findall(r'href="([0-9]-[0-9]-[a-z0-9-]+\.html)', (dist / q['file']).read_text(encoding='utf-8')))):
+        if ref not in pub: print(f'ВНИМАНИЕ: урок {q["n"]} ссылается на неопубликованный {ref}')
 PY
 [ "$MODE" = "--build-only" ] && exit 0
 
