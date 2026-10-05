@@ -1,0 +1,59 @@
+/* ---------- урок 1.2: свои стили поверх shared/lab.css ---------- */
+.lab [hidden], .scene-card [hidden] { display: none !important; }
+.scene-card .ctl-row { margin-top: 12px; }
+.ctl-row .seg button { font-size: 13.5px; padding: 6px 10px; }
+#duelLegend { margin-top: 10px; }
+
+/* сетка исходов ✓/✗ под сценой */
+.trip-grid { display: grid; gap: 6px; margin-top: 12px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface-2); }
+.tg-row { display: grid; grid-template-columns: minmax(118px, 0.9fr) auto auto; align-items: center; gap: 6px 12px; }
+.tg-label { display: inline-flex; align-items: center; gap: 7px; font-size: 13.5px; font-weight: 650; color: var(--ink-2); min-width: 0; }
+.tg-label i { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.tg-cells { display: inline-flex; gap: 3px; }
+.tg-cell { width: 20px; height: 20px; border-radius: 5px; display: inline-grid; place-items: center; font-size: 12px; font-weight: 800; background: var(--surface); border: 1px solid var(--line-2); color: var(--ink-3); }
+.tg-cell.run { border-color: var(--e2e); }
+.tg-cell.ok { background: var(--good-soft); border-color: var(--good); color: var(--good-ink); }
+.tg-cell.no { background: var(--critical-soft); border-color: var(--critical); color: var(--critical); }
+.tg-sum { font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--ink); min-width: 52px; text-align: right; }
+
+/* свободный режим под сценой */
+.free-panel { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line-2); display: grid; gap: 10px; }
+.free-panel .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.free-panel #history { margin: 0; max-height: 150px; overflow: auto; }
+
+/* кривая, которую строишь сам */
+.curve-ctl { display: grid; gap: 10px; }
+.cc-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.cc-name { display: inline-flex; align-items: center; gap: 7px; font-weight: 650; font-size: 14px; color: var(--ink-2); min-width: 150px; }
+.cc-name i { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.cc-row .seg button { min-width: 40px; font-variant-numeric: tabular-nums; }
+.cc-row .seg button[aria-pressed="true"] { color: var(--ink); }
+.curve-lab #curveChart { margin-top: 12px; }
+.curve-lab .sq-stats { min-height: 22px; }
+
+/* бюджет внимания */
+.budget-lab #ensScene { margin: 0; }
+.ens-range input { width: 230px; }
+.ens-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 12px 0 8px; }
+.ens-kpis .kpi b { font-size: 24px; }
+
+/* одиночная миссия: полоска шагов не нужна */
+.m-solo .m-steps { display: none; }
+/* живые миссии: невыполненный критерий — нейтральная точка, а не красный крест */
+.m-card:not(:has(.g-go)) .m-crit li.no i { border-color: var(--line-2); background: var(--surface-2); color: var(--ink-3); }
+.m-card:not(:has(.g-go)) .m-crit li.no i::before { content: '·'; }
+
+.sort-card { margin-top: 14px; }
+
+@media (max-width: 640px) {
+  #curveChart { aspect-ratio: 760 / 460; }
+  .tg-row { grid-template-columns: 1fr auto; }
+  .tg-label { grid-column: 1 / -1; }
+  .tg-cell { width: 19px; height: 19px; font-size: 11px; }
+  .ctl-row .seg { width: 100%; }
+  .ctl-row .seg button { flex: 1 1 auto; padding: 6px 6px; }
+  .ens-range { width: 100%; }
+  .ens-range input { flex: 1; width: auto; }
+  .ens-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cc-name { min-width: 0; width: 100%; }
+}

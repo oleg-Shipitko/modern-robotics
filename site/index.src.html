@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Modern Robotics и Physical AI — бесплатный онлайн-курс</title>
+<meta name="description" content="Бесплатный онлайн-курс о современной робототехнике: от классического управления и behavior cloning до VLA-моделей и гуманоидов. Лабораторные работы в браузере.">
+<script>(function(){try{var t=localStorage.getItem('mr-theme');if(t)document.documentElement.dataset.theme=t;else if(matchMedia('(prefers-color-scheme: dark)').matches)document.documentElement.dataset.theme='dark';}catch(e){}})();</script>
+<link rel="stylesheet" href="assets/fonts/fonts.css">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Modern Robotics и Physical AI">
+<meta property="og:title" content="Modern Robotics и Physical AI — бесплатный онлайн-курс">
+<meta property="og:description" content="От классического управления и behavior cloning до VLA-моделей и гуманоидов. Лабораторные работы прямо в браузере.">
+<meta property="og:url" content="{{SITE_URL}}/">
+<meta property="og:image" content="{{SITE_URL}}/assets/og.png">
+<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+<meta property="og:locale" content="ru_RU">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" href="{{SITE_URL}}/">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="stylesheet" href="assets/site.css">
+<link rel="stylesheet" href="assets/thanks.css">
+<link rel="stylesheet" href="assets/hero/hero.css">
+<style>
+/* ---------- Первый экран ---------- */
+.hero { padding: 64px 0 76px; position: relative; overflow: hidden; }
+.hero::before { content: ""; position: absolute; inset: -30% -10% auto; height: 120%; pointer-events: none; background: radial-gradient(38% 50% at 15% 30%, rgba(42,120,214,.10), transparent 70%), radial-gradient(38% 50% at 85% 25%, rgba(235,104,52,.11), transparent 70%), radial-gradient(30% 40% at 55% 70%, rgba(74,58,167,.08), transparent 70%); }
+.hero .wrap { position: relative; display: grid; grid-template-columns: 1.05fr 1fr; gap: 44px; align-items: center; }
+.hero .wrap > * { min-width: 0; }
+@media (max-width: 400px) { .hero .lead { font-size: 19px; } .chips span { font-size: 13px; } }
+.hero h1 { font-size: clamp(44px, 6.2vw, 78px); font-weight: 820; letter-spacing: -0.04em; line-height: 1.02; margin-bottom: 20px; }
+.hero h1 em { font-style: normal; background: linear-gradient(90deg, var(--classic), var(--hybrid) 55%, var(--e2e)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.hero .lead { font-size: 21.5px; }
+.cta { display: flex; flex-wrap: wrap; gap: 12px; margin: 26px 0 22px; }
+/* ---------- Как устроен урок ---------- */
+.feature { padding: 22px 22px 20px; }
+.feature .ic { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; background: var(--surface-2); border: 1px solid var(--line); margin-bottom: 14px; }
+.feature .ic svg { width: 23px; height: 23px; }
+.feature p { font-size: 15.5px; margin: 0; }
+
+/* ---------- Программа ---------- */
+.legend { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 14.5px; color: var(--ink-2); margin: 6px 0 22px; }
+.parts { display: grid; gap: 12px; }
+.part { padding: 0; overflow: hidden; }
+.part summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: 56px 1fr auto; gap: 16px; align-items: center; padding: 16px 20px; }
+.part summary::-webkit-details-marker { display: none; }
+.part .num { width: 48px; height: 48px; border-radius: 14px; display: grid; place-items: center; font-weight: 800; font-size: 19px; background: var(--ink); color: var(--bg); }
+.part .t { font-size: 19.5px; font-weight: 720; letter-spacing: -0.015em; line-height: 1.25; }
+.part .q { font-size: 14.5px; color: var(--ink-3); margin-top: 3px; }
+.part .count { font-size: 13.5px; font-weight: 650; color: var(--ink-3); text-align: right; white-space: nowrap; }
+.part .chev { display: inline-block; transition: transform .2s; margin-left: 8px; }
+.part[open] .chev { transform: rotate(90deg); }
+.lessons { list-style: none; margin: 0; padding: 0 20px 18px 92px; display: grid; gap: 6px; }
+.lessons li { display: grid; grid-template-columns: 44px 1fr auto; gap: 10px; align-items: baseline; font-size: 16px; padding: 7px 0; border-top: 1px solid var(--line); }
+.lessons .n { color: var(--ink-3); font-variant-numeric: tabular-nums; font-weight: 600; font-size: 14.5px; }
+.lessons .tag { font-size: 12.5px; font-weight: 650; padding: 2px 9px; border-radius: 999px; white-space: nowrap; }
+.tag.core { background: var(--hybrid-soft); color: var(--hybrid); }
+.tag.deep { background: var(--bg-2); color: var(--ink-3); }
+.tag.primer { background: rgba(250,178,25,.16); color: #8a5a00; }
+.tag.ready { background: color-mix(in srgb, var(--good) 14%, transparent); color: var(--good); }
+.lessons a { color: var(--ink); font-weight: 650; }
+:root[data-theme="dark"] .tag.primer { color: #fab219; }
+
+/* ---------- Аудитория и результат ---------- */
+.aud { padding: 24px 24px 20px; }
+.aud ul { margin: 0; padding-left: 1.1em; color: var(--ink-2); font-size: 16.5px; }
+.aud li { margin: .3em 0; }
+.outcome { padding: 20px 22px; display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: start; }
+.outcome svg { width: 26px; height: 26px; color: var(--hybrid); margin-top: 2px; }
+.outcome p { margin: 4px 0 0; font-size: 15.5px; }
+
+/* ---------- Автор ---------- */
+html { scroll-padding-top: 76px; scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+.nav-links a.on { background: var(--bg-2); color: var(--ink); }
+.about-sec .wrap { display: grid; grid-template-columns: auto 1fr; gap: 36px; align-items: center; }
+.about-sec .photo { width: 196px; height: 196px; border-radius: 50%; object-fit: cover; border: 1px solid var(--line-2); background: var(--bg-2); }
+.about-name { font-size: clamp(34px, 4.6vw, 52px); font-weight: 820; letter-spacing: -0.03em; margin: 0 0 6px; }
+.about-sec .role { font-size: 20px; color: var(--ink-3); font-weight: 600; margin-bottom: 18px; }
+.about-sec .contacts { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
+.about-sec .thanks { margin-top: 26px; }
+.about-sec .disclaimer { margin-top: 24px; padding: 14px 18px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line); font-size: 15px; color: var(--ink-3); }
+
+/* ---------- Вопросы ---------- */
+.faq { display: grid; gap: 10px; max-width: 860px; }
+.faq details { padding: 0; }
+.faq summary { list-style: none; cursor: pointer; padding: 17px 20px; font-weight: 680; font-size: 17.5px; display: flex; justify-content: space-between; gap: 14px; }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after { content: "+"; font-weight: 500; color: var(--ink-3); font-size: 22px; line-height: 1; }
+.faq details[open] summary::after { content: "−"; }
+.faq .a { padding: 0 20px 18px; font-size: 16.5px; color: var(--ink-2); }
+@media (max-width: 960px) { .hero .wrap { grid-template-columns: 1fr; } .lessons { padding-left: 20px; } .part summary { grid-template-columns: 48px 1fr; } .part .count { grid-column: 2; text-align: left; } .about-sec .wrap { grid-template-columns: 1fr; gap: 22px; } .about-sec .photo { width: 140px; height: 140px; } }
+</style>
+</head>
+<body>
+<!--SPRITE-->
+<header class="nav"><div class="nav-in">
+  <a class="logo" href="index.html">Modern Robotics и Physical AI</a>
+  <nav class="nav-links" aria-label="Разделы">
+    <a href="#how">Формат</a><a href="#program">Программа</a><a href="#who">Аудитория</a><a href="#about">Об авторе</a>
+  </nav>
+  <a class="icon-btn" href="{{REPO}}" title="Исходный код на GitHub" aria-label="Исходный код на GitHub"><svg><use href="#i-github"/></svg></a>
+  <button class="icon-btn" id="themeBtn" type="button" aria-label="Переключить тему"><svg><use href="#i-moon"/></svg></button>
+</div></header>
+
+<main>
+<section class="hero"><div class="wrap">
+  <div>
+    <div class="kicker">Бесплатный онлайн-курс · 2026</div>
+    <h1>Modern Robotics <em>и Physical AI</em></h1>
+    <p class="lead">Курс о том, как устроены современные роботы: от классического управления и behavior cloning до VLA-моделей и гуманоидов. Каждую тему сопровождают лабораторные работы в браузере, где небольшие нейросети обучаются за несколько секунд.</p>
+    <div class="cta">
+      <a class="btn primary" href="lessons/0-1-dve-paradigmy.html"><svg><use href="#i-play"/></svg>Начать курс</a>
+      <a class="btn" href="#program">Программа курса<svg><use href="#i-arrow"/></svg></a>
+    </div>
+    <div class="chips">
+      <span><svg><use href="#i-free"/></svg>Бесплатно и без регистрации</span>
+      <span><svg><use href="#i-lab"/></svg>Лабораторные работы в браузере</span>
+      <span><svg><use href="#i-phone"/></svg>Работает на телефоне</span>
+    </div>
+  </div>
+  <div class="card demo" id="heroDemo">
+    <div class="demo-tabs" role="tablist" aria-label="Интерактивы курса"></div>
+    <div class="demo-head"><span class="demo-title"></span><span class="hint"><svg><use href="#i-hand"/></svg><span class="hint-t"></span></span></div>
+    <div class="demo-body"></div>
+    <div class="demo-ctrl"></div>
+    <div class="demo-status"></div>
+  </div>
+</div></section>
+
+<section class="section alt" id="how"><div class="wrap">
+  <div class="kicker">Формат</div>
+  <h2>Как устроен урок</h2>
+  <p class="lead">Урок занимает 30–45 минут и посвящён одной идее. Он начинается с задачи, которую не решили предыдущие методы, затем разбирает идею и ключевую статью, а потом даёт проверить всё на практике.</p>
+  <div class="grid-4" style="margin-top:26px">
+    <div class="card feature"><div class="ic"><svg style="color:var(--classic)"><use href="#i-bulb"/></svg></div><h3>Теория в два уровня</h3><p>Основной текст опирается на интуицию и схемы. Формулы, размерности и код вынесены в раскрывающиеся блоки.</p></div>
+    <div class="card feature"><div class="ic"><svg style="color:var(--e2e)"><use href="#i-lab"/></svg></div><h3>Лабораторные работы</h3><p>Эксперименты с небольшими моделями прямо на странице. Перед запуском ты делаешь прогноз, после — сравниваешь его с результатом.</p></div>
+    <div class="card feature"><div class="ic"><svg style="color:var(--hybrid)"><use href="#i-paper"/></svg></div><h3>Работа со статьями</h3><p>Каждый урок опирается на одну-две ключевые работы. К ним есть путеводитель: что читать внимательно, а что можно пропустить.</p></div>
+    <div class="card feature"><div class="ic"><svg style="color:var(--good)"><use href="#i-ok"/></svg></div><h3>Проверка понимания</h3><p>Тест с разбором ответов и открытые вопросы с эталонными решениями.</p></div>
+  </div>
+</div></section>
+
+<section class="section" id="program"><div class="wrap">
+  <div class="kicker">Программа</div>
+  <h2>Программа</h2>
+  <p class="lead">9 частей, 54 урока. Части идут в логическом порядке: каждая отвечает на ограничения подходов из предыдущей. 34 урока составляют ядро курса, остальные 20 — углубления по отдельным темам.</p>
+  <div class="legend"><span><span class="tag core">ядро</span> 34 урока</span><span><span class="tag deep">углубление</span> 20 уроков</span><span><span class="tag primer">основы</span> можно пропустить, если тема знакома</span></div>
+  <div class="parts" id="parts"></div>
+</div></section>
+
+<section class="section alt" id="who"><div class="wrap">
+  <div class="kicker">Аудитория</div>
+  <h2>Для кого этот курс</h2>
+  <p class="lead">Курс рассчитан на инженеров с опытом в одной из двух областей. Нужны Python и базовые знания машинного обучения. Трансформеры, диффузионные модели и основы теории управления разобраны внутри курса.</p>
+  <div class="grid-2" style="margin-top:24px">
+    <div class="card aud"><h3><span class="dot" style="background:var(--e2e)"></span>ML-инженерам, которые переходят в робототехнику</h3><ul><li>кинематика, управление и планирование в объёме, нужном для работы с обучаемыми моделями</li><li>особенности данных в робототехнике и способы их сбора</li><li>задачи, в которых классические методы по-прежнему работают лучше нейросетей</li></ul></div>
+    <div class="card aud"><h3><span class="dot" style="background:var(--classic)"></span>Робототехникам, которые осваивают машинное обучение</h3><ul><li>последовательный путь от behavior cloning до VLA и моделей мира</li><li>устройство π0, GR00T и Gemini Robotics</li><li>способы совмещать обучаемые модели с классическим стеком</li></ul></div>
+  </div>
+  <h3 style="margin:44px 0 16px">Результаты обучения</h3>
+  <div class="grid-2">
+    <div class="card outcome"><svg><use href="#i-paper"/></svg><div><b>Читать новые работы</b><p>Разбирать архитектуру, данные и ограничения новых статей по robot learning.</p></div></div>
+    <div class="card outcome"><svg><use href="#i-compass"/></svg><div><b>Проектировать системы</b><p>Выбирать между обучаемыми, классическими и гибридными решениями и обосновывать выбор.</p></div></div>
+    <div class="card outcome"><svg><use href="#i-data"/></svg><div><b>Планировать сбор данных</b><p>Оценивать, сколько нужно телеоперации, симуляции и видео людей и как выстроить маховик данных.</p></div></div>
+    <div class="card outcome"><svg><use href="#i-eye"/></svg><div><b>Оценивать решения на рынке</b><p>Отличать демонстрацию от готового продукта и понимать стратегии компаний.</p></div></div>
+  </div>
+</div></section>
+
+<section class="section about-sec" id="about"><div class="wrap">
+  <img class="photo" src="assets/img/author.jpg" alt="Олег Шипитько" width="196" height="196" loading="lazy">
+  <div>
+    <div class="kicker">Автор курса</div>
+    <h2 class="about-name">Олег Шипитько</h2>
+    <div class="role">CEO Yandex Robotics</div>
+    <p class="lead" style="margin:0 0 18px">Больше десяти лет занимается робототехникой. Этот курс — то, что хотелось бы прочитать самому, когда нейросети пришли в роботов.</p>
+    <div class="contacts">
+      <a class="btn" href="{{CHANNEL}}" target="_blank" rel="noopener"><svg><use href="#i-telegram"/></svg>Канал «Продакт роботов»</a>
+      <a class="btn" href="{{LINKEDIN}}" target="_blank" rel="noopener"><svg><use href="#i-linkedin"/></svg>LinkedIn</a>
+      <a class="btn" href="{{GITHUB}}" target="_blank" rel="noopener"><svg><use href="#i-github"/></svg>GitHub</a>
+    </div>
+    <div class="thanks" data-thanks data-channel="{{CHANNEL}}"><span class="thanks-text">Курс бесплатный. Если он пригодился, скажи спасибо — так автор узнает, что курс читают.</span></div>
+    <div class="disclaimer">Курс — личный проект автора. Мнения в нём личные и не обязательно совпадают с позицией работодателя.</div>
+  </div>
+</div></section>
+
+<section class="section alt"><div class="wrap">
+  <div class="kicker">FAQ</div>
+  <h2>Вопросы и ответы</h2>
+  <div class="faq">
+    <details class="card"><summary>Курс платный?</summary><div class="a">Нет. Все материалы доступны бесплатно и без регистрации, прогресс сохраняется в браузере. Тексты распространяются по лицензии CC BY-NC 4.0, код — по лицензии MIT.</div></details>
+    <details class="card"><summary>Нужен ли робот?</summary><div class="a">Нет. Все лабораторные работы выполняются в браузере.</div></details>
+    <details class="card"><summary>Какая нужна подготовка?</summary><div class="a">Python и базовые знания машинного обучения. Формулы и код вынесены в отдельные блоки и не обязательны для понимания основного текста.</div></details>
+    <details class="card"><summary>Сколько времени займёт курс?</summary><div class="a">Урок занимает 30–45 минут. Ядро курса — 34 урока; углубления можно проходить выборочно.</div></details>
+    <details class="card"><summary>Когда выйдут остальные уроки?</summary><div class="a">Уроки выходят по мере готовности, без фиксированного графика: сначала ядро, затем углубления. Доступные уроки отмечены в программе.</div></details>
+    <details class="card"><summary>Можно ли использовать материалы в преподавании?</summary><div class="a">Да, с указанием источника и в некоммерческих целях. Код лабораторных работ можно использовать без ограничений по лицензии MIT.</div></details>
+  </div>
+</div></section>
+</main>
+
+<footer class="foot"><div class="wrap">
+  <span>© 2026 Олег Шипитько</span><span>Тексты — CC BY-NC 4.0</span><span>Код — MIT</span><a href="{{REPO}}">Исходный код</a><a href="#about">Об авторе</a>
+</div></footer>
+
+<script src="assets/hero/kit.js"></script>
+<script src="assets/hero/modes.js"></script>
+<script src="assets/hero/cspace.js"></script>
+<script src="assets/hero/walk.js"></script>
+<script>window.MR_THANKS_API = {{THANKS_API_JSON}};</script>
+<script src="assets/thanks.js"></script>
+<script>
+'use strict';
+/* ---------- Тема ---------- */
+(function () {
+  const btn = document.getElementById('themeBtn');
+  const sync = () => { btn.querySelector('use').setAttribute('href', document.documentElement.dataset.theme === 'dark' ? '#i-sun' : '#i-moon'); };
+  btn.addEventListener('click', () => { const t = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.theme = t; try { localStorage.setItem('mr-theme', t); } catch (e) {} sync(); });
+  sync();
+})();
+
+/* ---------- Меню: подсветка раздела на экране ---------- */
+(function () {
+  const links = [...document.querySelectorAll('.nav-links a[href^="#"]')], secs = links.map((a) => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+  const onScroll = () => { let cur = null; for (const s of secs) if (s.getBoundingClientRect().top < 140) cur = s.id;
+    if (window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 4) { const last = secs[secs.length - 1]; if (last.getBoundingClientRect().top < window.innerHeight) cur = last.id; } links.forEach((a) => a.classList.toggle('on', a.getAttribute('href') === '#' + cur)); };
+  window.addEventListener('scroll', onScroll, { passive: true }); onScroll();
+})();
+
+/* ---------- Программа ---------- */
+const READY = {{READY_JSON}}; // опубликованные уроки — список в site/config.json, PUBLISHED
+const PARTS = [
+  { t: 'Введение: классический стек и его пределы', q: 'Как устроены роботы без обучения и где этот подход перестаёт работать', L: [['0.1', 'Две парадигмы: правила и данные', 'core'], ['0.2', 'Устройство робота: приводы и сенсоры', 'core'], ['0.3', 'Кинематика и управление', 'core', 1], ['0.4', 'Оценка состояния и планирование', 'deep', 1]] },
+  { t: 'Обучение по демонстрациям', q: 'Как получить поведение из демонстраций и с какими проблемами это связано', L: [['1.1', 'Behavior Cloning', 'core'], ['1.2', 'DAgger и обучение с вмешательствами', 'core'], ['1.3', 'Мультимодальность действий', 'core'], ['1.4', 'Диффузионные модели', 'core', 1], ['1.5', 'Diffusion Policy', 'core'], ['1.6', 'Трансформер', 'core', 1], ['1.7', 'ACT: action chunking', 'core'], ['1.8', 'Flow matching', 'deep']] },
+  { t: 'Пространственные представления, язык и планирование', q: 'Как связать действия робота с геометрией сцены и естественным языком', L: [['2.1', 'Transporter и CLIPort', 'core'], ['2.2', 'PerAct: 3D-представления и язык', 'deep'], ['2.3', 'LLM-планировщики и VoxPoser', 'core']] },
+  { t: 'Foundation-модели для роботов', q: 'Как перенести масштабирование языковых моделей в управление роботами', L: [['3.1', 'RT-1', 'core'], ['3.2', 'Vision-language модели', 'core', 1], ['3.3', 'RT-2', 'core'], ['3.4', 'Open X-Embodiment', 'deep'], ['3.5', 'Открытые VLA: Octo, OpenVLA', 'deep'], ['3.6', 'π0', 'core'], ['3.7', 'Двухуровневые архитектуры: Helix, GR00T, Gemini Robotics', 'core'], ['3.8', 'Обобщение и рассуждение: от π0.5 до π0.7', 'core']] },
+  { t: 'Данные для обучения роботов', q: 'Откуда брать данные в объёмах, которые нужны современным моделям', L: [['4.1', 'Масштаб данных в робототехнике', 'core'], ['4.2', 'Телеоперация и устройства сбора', 'deep'], ['4.3', 'Датасеты роботов', 'deep'], ['4.4', 'Обучение на видео людей', 'core'], ['4.5', 'Симуляция и синтетические данные', 'deep'], ['4.6', 'Пирамида данных и маховик', 'core']] },
+  { t: 'Обучение с подкреплением', q: 'Как превзойти качество демонстраций и учиться на собственном опыте', L: [['5.1', 'Основы RL: награда, ценность, преимущество', 'core'], ['5.2', 'Policy gradient и PPO', 'core'], ['5.3', 'Off-policy и SAC', 'deep'], ['5.4', 'Перенос из симуляции: рандомизация', 'core'], ['5.5', 'Обучение с привилегированной информацией', 'deep'], ['5.6', 'Offline RL', 'deep'], ['5.7', 'RL на реальных роботах и дообучение VLA', 'core']] },
+  { t: 'Гуманоидные роботы', q: 'Как управлять человекоподобным телом целиком', L: [['6.1', 'Локомоция на основе RL', 'core'], ['6.2', 'Имитация движений человека', 'deep'], ['6.3', 'Управление всем телом', 'core'], ['6.4', 'Локоманипуляция', 'deep'], ['6.5', 'Аппаратная часть гуманоида', 'deep'], ['6.6', 'Обзор гуманоидных платформ', 'deep']] },
+  { t: 'Модели мира', q: 'Можно ли обучать и проверять политики в выученной модели среды', L: [['7.1', 'World Models и Dreamer', 'core'], ['7.2', 'JEPA и V-JEPA 2', 'deep'], ['7.3', 'Генеративные модели мира', 'deep'], ['7.4', 'World Action Models', 'core'], ['7.5', 'Модели мира для оценки политик и генерации данных', 'deep']] },
+  { t: 'От прототипа к продукту', q: 'Как построить надёжную систему и оценить её готовность к работе', L: [['8.1', 'Классические методы в контуре управления', 'core'], ['8.2', 'Безопасность', 'core'], ['8.3', 'Надёжность', 'core'], ['8.4', 'Оценка качества', 'core'], ['8.5', 'Задержки и работа в реальном времени', 'deep'], ['8.6', 'Рынок: компании и стратегии', 'core'], ['8.7', 'Экономика внедрения', 'deep']] },
+];
+(function () {
+  const box = document.getElementById('parts');
+  PARTS.forEach((p, i) => {
+    const core = p.L.filter((l) => l[2] === 'core').length;
+    const d = document.createElement('details'); d.className = 'card part'; if (i === 0) d.open = true;
+    const s = document.createElement('summary');
+    s.innerHTML = `<span class="num">${i}</span><span><div class="t"></div><div class="q"></div></span><span class="count">${p.L.length} ${p.L.length < 5 ? 'урока' : 'уроков'} · ядро ${core}<span class="chev">›</span></span>`;
+    s.querySelector('.t').textContent = p.t; s.querySelector('.q').textContent = p.q;
+    const ul = document.createElement('ul'); ul.className = 'lessons';
+    p.L.forEach(([n, title, kind, primer]) => {
+      const li = document.createElement('li');
+      li.innerHTML = `<span class="n">${n}</span><span></span><span>${READY[n] ? '<span class="tag ready">доступен</span> ' : ''}${primer ? '<span class="tag primer">основы</span> ' : ''}<span class="tag ${kind}">${kind === 'core' ? 'ядро' : 'углубление'}</span></span>`;
+      if (READY[n]) { const a = document.createElement('a'); a.href = READY[n]; a.textContent = title; li.children[1].append(a); } else li.children[1].textContent = title;
+      ul.append(li);
+    });
+    d.append(s, ul); box.append(d);
+  });
+})();
+
+/* ---------- Интерактив первого экрана: три вкладки ---------- */
+(function () {
+  const order = ['modes', 'cspace', 'walk'];
+  const card = document.getElementById('heroDemo'), tabs = card.querySelector('.demo-tabs');
+  const body = card.querySelector('.demo-body'), ctrl = card.querySelector('.demo-ctrl'), status = card.querySelector('.demo-status');
+  let cur = null, curKey = null;
+  function show(key, focus) {
+    const D = HeroDemos[key] || HeroDemos[order[0]];
+    if (D.key === curKey) return;
+    if (cur) cur.destroy();
+    curKey = D.key;
+    body.className = 'demo-body'; body.innerHTML = ''; ctrl.innerHTML = ''; status.innerHTML = '';
+    body.id = 'heroPanel'; body.setAttribute('role', 'tabpanel');
+    card.querySelector('.demo-title').textContent = D.title;
+    card.querySelector('.hint-t').textContent = D.hint;
+    cur = D.mount({ body, ctrl, status });
+    tabs.querySelectorAll('[role="tab"]').forEach((b) => { const on = b.dataset.k === D.key; b.setAttribute('aria-selected', String(on)); b.tabIndex = on ? 0 : -1; if (on && focus) b.focus(); });
+  }
+  order.forEach((k) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.dataset.k = k; b.setAttribute('role', 'tab'); b.setAttribute('aria-controls', 'heroPanel');
+    b.textContent = HeroDemos[k].tab;
+    b.addEventListener('click', () => show(k));
+    tabs.append(b);
+  });
+  tabs.addEventListener('keydown', (e) => {
+    const i = order.indexOf(curKey);
+    if (e.key === 'ArrowRight') { e.preventDefault(); show(order[(i + 1) % order.length], true); }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); show(order[(i + order.length - 1) % order.length], true); }
+  });
+  let start = order[0]; try { start = new URLSearchParams(location.search).get('hero') || start; } catch (e) { /* без параметров */ }
+  show(start);
+  window.__hero = () => cur;
+  window.__heroShow = show;
+})();
+</script>
+</body>
+</html>

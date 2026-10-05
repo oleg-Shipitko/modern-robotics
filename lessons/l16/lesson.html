@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>1.6 Трансформер — Modern Robotics и Physical AI</title>
+<meta name="description" content="Урок 1.6 курса «Modern Robotics и Physical AI»: токены, внимание, маски и позиции на шести токенах, которые можно двигать руками. Сколько токенов у RT-1, ACT, Octo и π0, что даёт KV-кэш и почему частота управления не равна частоте вывода.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<script>
+  (function () { try { var t = localStorage.getItem('mr-theme'); if (t) document.documentElement.dataset.theme = t; else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme = 'dark'; } catch (e) {} })();
+</script>
+<style>
+/*@@CSS@@*/
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html#program" title="К программе курса"><div>Modern Robotics и Physical AI<small>Урок 1.6 · Трансформер</small></div></a>
+    <nav class="toc" aria-label="Разделы урока">
+      <a href="#inputs">Входы</a>
+      <a href="#tokens">Токены</a>
+      <a href="#lab">Внимание</a>
+      <a href="#order">Порядок</a>
+      <a href="#cost">Стоимость</a>
+      <a href="#kv">KV-кэш</a>
+      <a href="#models">Модели</a>
+      <a href="#quiz">Проверка</a>
+      <a href="#finale">Итог</a>
+    </nav>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Переключить тему">◐</button>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main>
+
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="kicker"><span class="num">1.6</span> Часть 1 · Ядро · основы</div>
+    <h1><span class="amp">Трансформер</span></h1>
+    <p class="lead">Политике нужно одновременно читать несколько камер, команду и состояние суставов, а на выходе выдавать последовательность действий. RT-1, ACT, Octo, π0 и GR00T делают это трансформером. В уроке мы разберём внимание на шести токенах, которые можно двигать руками, а потом посчитаем, во что обходятся токены у настоящих политик и почему частота управления не равна частоте вывода. Если трансформер знаком, урок можно пропустить.</p>
+    <div class="hero-meta"><span>≈ 45 минут</span><span>1 лаборатория и 5 интерактивов</span><span>10 задач с целью</span><span>формулы — в блоках «Под капотом»</span><span>работает офлайн</span></div>
+    <div class="hero-list">
+      <div><b>ТОКЕНЫ</b>Нарежь кадр кухни на патчи и посчитай, во сколько раз дорожает внимание</div>
+      <div><b>ВНИМАНИЕ</b>Наведи запрос на чашку, найди ответ между предметами и не дай softmax схлопнуться</div>
+      <div><b>МАСКА И ГОЛОВЫ</b>Собери маску π0 по клеткам и настрой две головы на одной сцене</div>
+      <div><b>ПОРЯДОК</b>Найди команды, которые без позиционных кодировок неразличимы</div>
+      <div><b>СТОИМОСТЬ</b>Добавь π0 четвёртую камеру и уложись в прежний бюджет внимания</div>
+      <div><b>ВЫВОД π0</b>Найди, куда уходят 73 мс и как они дают управление на 50 Гц</div>
+    </div>
+    <p style="margin-top:28px"><a class="btn primary" href="#inputs">Начать урок ↓</a></p>
+  </div>
+</section>
+
+<section class="section alt" id="inputs">
+  <div class="prose">
+    <div class="kicker"><span class="num">1</span> Входы политики</div>
+    <h2>Сколько входов у политики</h2>
+    <p>Возьмём π0. На каждом шаге модель получает кадры трёх камер, текстовую команду вроде «убери чашку в раковину» и состояние робота, а выдаёт пачку из 50 действий. Кадр — это тысячи пикселей, команда — несколько слов, состояние — короткий вектор чисел. Входы разной природы и разного размера, и прочитать их должна одна сеть.</p>
+    <p>Трансформер решает это одним приёмом: всё превращается в <strong>токены</strong>, векторы одинаковой длины. Кадр режут на квадратные патчи, команду — на слова и их части, состояние проходит через линейный слой и становится одним токеном. Дальше сеть работает с цепочкой токенов. Связи между ними устанавливает <strong>внимание</strong>: каждый токен решает, на какие другие ему смотреть и что у них взять.</p>
+  </div>
+  <div class="wrap">
+    <figure class="card seq-fig" id="seqFig">
+      <figcaption><b>Вход π0 в токенах</b><span>около 870 токенов на шаг (расчёт по коду openpi)</span></figcaption>
+      <div class="seq-bar" aria-hidden="true">
+        <i class="tk-img" style="flex-grow:256"><span>кадр 1</span></i><i class="tk-img" style="flex-grow:256"><span>кадр 2</span></i><i class="tk-img" style="flex-grow:256"><span>кадр 3</span></i><i class="tk-txt" style="flex-grow:48"></i><i class="tk-st" style="flex-grow:1"></i><i class="tk-act" style="flex-grow:50"></i>
+      </div>
+      <ul class="seq-legend">
+        <li><i class="tk-img"></i><b>768</b> кадры трёх камер, по 256 токенов на картинку 224 px</li>
+        <li><i class="tk-txt"></i><b>до 48</b> команда</li>
+        <li><i class="tk-st"></i><b>1</b> состояние робота</li>
+        <li><i class="tk-act"></i><b>50</b> действий пачки</li>
+      </ul>
+    </figure>
+  </div>
+</section>
+
+<section class="section" id="tokens">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">2</span> Токены</div>
+      <h2>Как картинка становится токенами</h2>
+      <p>Vision Transformer (ViT, 2021) режет картинку на квадратные патчи, вытягивает каждый в вектор и проецирует линейным слоем. Патч становится токеном, как слово в предложении. Чем мельче патч, тем больше токенов и тем лучше сеть видит детали. Но внимание сравнивает каждый токен с каждым, поэтому число пар растёт как квадрат числа токенов.</p>
+      <p>Перед тобой кадр со стола Ады, 224 × 224 пикселя. Сделай ставку, потом переключай размер патча и наводи курсор на кадр.</p>
+    </div>
+    <div class="card lab-card tok-card">
+      <div class="tok-grid">
+        <div class="tok-view">
+          <canvas id="tokCv" width="420" height="420" class="sq-cv" role="img" aria-label="Кадр камеры над столом, разрезанный на патчи"></canvas>
+          <div class="readout" id="tokOut"></div>
+        </div>
+        <div class="tok-side">
+          <div class="tok-ctl">
+            <div class="seg" role="group" aria-label="Размер патча" id="tokPatch">
+              <button type="button" data-p="32" aria-pressed="true">Патч 32 px</button><button type="button" data-p="16" aria-pressed="false">16 px</button><button type="button" data-p="14" aria-pressed="false">14 px</button>
+            </div>
+            <label class="toggle" id="tokTLWrap"><input type="checkbox" id="tokTL"><span class="box"></span>Сжать до 8 токенов, как TokenLearner в RT-1</label>
+          </div>
+          <div class="tok-kpis">
+            <div class="kpi"><b id="tokN">49</b><span>токенов на картинку</span></div>
+            <div class="kpi"><b id="tokN2">2 401</b><span>пар для внимания, n²</span></div>
+          </div>
+          <div class="tok-bars" id="tokBars"></div>
+          <div class="t16-task" id="tokTask"></div>
+        </div>
+      </div>
+    </div>
+    <details class="deep"><summary>Под капотом: ViT и откуда 196 токенов</summary><div class="body">
+      <div class="formula">N = H·W / P²
+z₀ = [x_class; x¹E; x²E; …; xᴺE] + E_pos,   E ∈ ℝ^((P²·C) × D)</div>
+      <p>Картинка H × W с C каналами режется на N патчей P × P. Каждый патч вытягивается в вектор из P²·C чисел и умножается на матрицу E, спереди добавляется токен [class], к каждому токену — обучаемая позиция. Для 224 × 224 и P = 16 выходит 14 × 14 = 196 патчей и ещё [class] (расчёт). ViT-B — 12 слоёв, D = 768, 12 голов, 86M параметров.</p>
+      <p>Трансформер не всегда лучше свёрточной сети. На ImageNet без сильной регуляризации ViT на несколько пунктов хуже ResNet и догоняет лучшие модели только при 14–300 млн картинок для обучения. Поэтому в RT-1 и ACT картинки кодирует свёрточная сеть: RT-1 получает из кадра 300 × 300 81 токен, а TokenLearner сжимает её до 8 токенов на кадр. Вывод от этого ускоряется в 2,4 раза.</p>
+    </div></details>
+  </div>
+</section>
+
+<section class="section alt" id="lab">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Лаборатория</div>
+    <h2>Найди чашку: внимание по шагам</h2>
+    <p class="lead lab-intro">Ада ищет на столе чашку. Каждый из шести предметов — токен. У токена есть <strong>ключ</strong>: вектор, по которому его находят. И есть <strong>значение</strong>: то, что токен отдаёт, если его выбрали. У нас значение предмета — его место на столе. Запрос «где чашка» сравнивается с каждым ключом скалярным произведением, softmax превращает оценки в веса, а ответ внимания — сумма значений с этими весами. Всё считается вручную на двумерных векторах, которые ты двигаешь сам. Ручки появляются от миссии к миссии.</p>
+    <div class="lab">
+      <div class="card scene-card att-card">
+        <div class="att-duo">
+          <div class="att-pane">
+            <div class="np-head"><b>Стол Ады</b><span>вид сверху; кольцо — вес предмета</span></div>
+            <canvas id="attTable" width="420" height="420" role="img" aria-label="Стол сверху: шесть предметов, их веса внимания и ответ внимания"></canvas>
+            <div class="np-stat" id="attTableStat"></div>
+            <div class="cv-legend att-legend" id="attLegend"></div>
+          </div>
+          <div class="att-pane">
+            <div class="np-head"><b id="attPlaneTitle">Ключи и запрос</b><span id="attPlaneSub">тяни конец толстой стрелки</span></div>
+            <div class="att-heads" id="wrapHead2" hidden>
+              <div class="seg" role="group" aria-label="Какой головой управлять" id="attHeadSeg">
+                <button type="button" data-h="0" aria-pressed="true">Голова «цвет»</button><button type="button" data-h="1" aria-pressed="false">Голова «место»</button>
+              </div>
+            </div>
+            <canvas id="attPlane" width="420" height="420" role="img" aria-label="Плоскость ключей: стрелки ключей предметов и стрелка запроса"></canvas>
+            <div class="att-barbox">
+              <div class="att-barhead"><span id="attBarsTitle">Веса softmax</span>
+                <div class="seg sm-seg" role="group" aria-label="Что показывают столбики" id="wrapBars">
+                  <button type="button" data-v="w" aria-pressed="true">веса</button><button type="button" data-v="s" aria-pressed="false">q·k</button>
+                </div>
+              </div>
+              <div class="att-bars" id="attBars"></div>
+            </div>
+          </div>
+        </div>
+        <div class="ctl-row att-ctl">
+          <label class="hd-range" id="wrapDk"><span>d_k</span><input id="attDk" type="range" min="0" max="7" step="1" value="0" aria-label="Размерность ключей d_k"><output>2</output></label>
+          <label class="opt" id="wrapDiv"><input type="checkbox" id="attDiv"> делить на √d_k</label>
+        </div>
+        <div class="mask-panel" id="wrapMask" hidden>
+          <div class="mask-head"><b>Маска: кто кого видит</b><span>строка — кто смотрит, столбец — на кого. Нажми клетку, чтобы открыть или закрыть её.</span></div>
+          <div class="mask-body">
+            <div class="mask-grid" id="maskGrid" role="grid" aria-label="Матрица маски 6 на 6"></div>
+            <div class="mask-side">
+              <div class="mask-presets"><span class="muted-s">Образцы:</span><button class="btn sm" type="button" data-mask="full">Полная</button><button class="btn sm" type="button" data-mask="causal">Каузальная</button></div>
+              <div class="mask-note" id="maskNote"></div>
+              <p class="muted-s mask-key">К — кадр камеры, Т — текстовая команда, С — состояние робота, Д — действие. Цветом отмечены блоки π0.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card guide-card"><div id="attMis"></div></div>
+    </div>
+    <details class="deep"><summary>Под капотом: формулы внимания, головы и маски</summary><div class="body">
+      <div class="formula">Attention(Q, K, V) = softmax(Q·Kᵀ / √d_k + M) · V
+Q ∈ ℝ^(n × d_k),  K ∈ ℝ^(m × d_k),  V ∈ ℝ^(m × d_v)</div>
+      <p>Softmax берётся по строкам: у каждого запроса веса в сумме дают 1. Зачем делить на √d_k: если компоненты q и k независимы, со средним 0 и дисперсией 1, то дисперсия q·k равна d_k. При больших d_k оценки разбегаются, softmax уходит в область, где почти весь вес у одного токена, а градиенты крошечные.</p>
+      <div class="formula">MultiHead(Q, K, V) = Concat(head₁, …, head_h) · W^O
+head_i = Attention(Q·W_i^Q, K·W_i^K, V·W_i^V)
+W_i^Q, W_i^K ∈ ℝ^(d_model × d_k),  W_i^V ∈ ℝ^(d_model × d_v),  W^O ∈ ℝ^(h·d_v × d_model),  d_k = d_v = d_model / h</div>
+      <p>У каждой головы свои матрицы, поэтому головы смотрят на разные признаки. Ширина головы — d_model/h, так что все головы вместе стоят почти как одна голова полной размерности. Self-attention: Q, K и V берутся из одной последовательности. Cross-attention: Q из одной, K и V из другой. Так запросы действий в ACT читают признаки картинок, а DiT в GR00T N1 — признаки VLM.</p>
+      <p>Маска M: 0 там, где токену i можно смотреть на токен j, и −∞ там, где нельзя. Каузальная маска закрывает всё правее диагонали: M_ij = −∞ при j &gt; i. Блочная маска π0 и prefix-LM в PaliGemma открывает клетку, если номер блока у j не больше, чем у i: внутри блока внимание идёт в обе стороны, между блоками — только назад. Маска паддинга закрывает столбцы пустых токенов.</p>
+      <div class="formula">x ← LayerNorm(x + Sublayer(x))          (блок 2017 года)
+FFN(x) = max(0, x·W₁ + b₁)·W₂ + b₂
+x ← x + Sublayer(Norm(x))               (ViT и Gemma: норма до подслоя)</div>
+      <p>Как устроена лаборатория. У предмета два признака: цвет (красный, синий, белый) и место (у переднего края, в середине, в глубине стола). Ключ общей головы — вектор цвета плюс 0,7 вектора места, поэтому все шесть ключей разные. Голова «цвет» видит только цвет, голова «место» — только место, у них ключи длиной 1,4. Значение предмета — его координаты на столе 1 × 1 м. Длина запроса — до 3. При d_k &gt; 2 к двум видимым компонентам добавляются d_k − 2 скрытых: случайные числа с дисперсией 1, одни и те же при каждом запуске (зерно 169). Пороги миссий: вес чашки больше 0,5; ответ дальше 15 см от центров предметов при весах не больше 0,6; наибольший вес меньше 0,9; у пар больше 0,8 и у чашки больше 0,3 в обеих головах.</p>
+    </div></details>
+  </div>
+</section>
+
+<section class="section" id="order">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">3</span> Позиции</div>
+      <h2>Внимание не знает порядка</h2>
+      <p>Сумма с весами не зависит от того, в каком порядке стоят слагаемые. Если переставить токены, каждый унесёт свой вес с собой, и ответ не изменится. Для робота это проблема: «возьми чашку, потом миску» и «возьми миску, потом чашку» — разные команды. Поэтому к токенам добавляют <strong>позиционные кодировки</strong>: векторы, которые зависят только от номера позиции. В статье 2017 года это синусоиды разных частот.</p>
+      <p>Ниже — команда из четырёх токенов-слов. Токен действия спрашивает у них: какой предмет взять первым? Переставляй слова и ищи команды, на которых Ада ошибётся.</p>
+    </div>
+    <div class="card lab-card ord-card">
+      <div class="ord-grid">
+        <div class="ord-main">
+          <div class="ord-h">Команда <span class="muted-s">— перетащи слово или нажми два слова, чтобы поменять их местами</span></div>
+          <div class="ord-cmd" id="ordCmd" role="list" aria-label="Слова команды"></div>
+          <div class="ord-ctl">
+            <label class="toggle" id="ordPEWrap"><input type="checkbox" id="ordPE"><span class="box"></span>Добавить синусоидальные позиции</label>
+            <button class="btn sm" type="button" id="ordReset">Вернуть команду</button>
+          </div>
+          <div class="ord-ans" id="ordAns" aria-live="polite"></div>
+          <div class="ord-vec"><span class="muted-s">Выход внимания: 4 числа содержания и 16 чисел позиции</span><div class="ord-strip" id="ordStrip"></div><div class="muted-s" id="ordSame"></div></div>
+          <div class="ord-count"><b id="ordFails">0</b><span>найдено отказов: команд, где Ада берёт первым не тот предмет</span></div>
+          <ol class="m-log" id="ordLog" hidden></ol>
+        </div>
+        <div class="ord-side">
+          <div class="ord-h">Сходство позиционных кодировок</div>
+          <canvas id="peCv" width="420" height="420" class="sq-cv" role="img" aria-label="Тепловая карта сходства синусоидальных кодировок позиций 0–23"></canvas>
+          <div class="heat-scale" aria-hidden="true"><span>меньше</span><i id="peScale"></i><span>больше</span></div>
+          <p class="muted-s" id="peOut">Каждая клетка — косинусное сходство кодировок двух позиций, 16 чисел на позицию. Наведи курсор на клетку. Рамкой отмечены позиции 0–3, на которых стоит команда.</p>
+        </div>
+      </div>
+      <div class="t16-task" id="ordTask"></div>
+    </div>
+    <details class="deep"><summary>Под капотом: синусоиды, RoPE и наша игрушечная команда</summary><div class="body">
+      <div class="formula">PE(pos, 2i)     = sin(pos / 10000^(2i / d_model))
+PE(pos, 2i + 1) = cos(pos / 10000^(2i / d_model))</div>
+      <p>Каждая пара чисел — синусоида своей частоты: от одного оборота за 6,3 позиции до очень медленных. Соседние позиции получают похожие векторы, далёкие — менее похожие. Синусоиды в статье 2017 года выбрали в расчёте на последовательности длиннее, чем при обучении. Обученные позиционные эмбеддинги дали почти тот же результат. В ACT позиции картинок — двумерные синусоиды, в Decision Transformer — эмбеддинг шага по времени, в Gemma — RoPE: он поворачивает векторы запроса и ключа на угол, который зависит от позиции.</p>
+      <p>Наша команда. Токен слова — 4 числа содержания (по одному на слово) и 16 чисел позиции; без позиций они нулевые. Запрос токена действия любит предметы, чашку чуть больше миски: так вышло при «обучении». Ещё он любит начало команды: его позиционная часть совпадает с кодировкой позиции 0. Ответ — предмет с большим весом. Без позиций чашка выигрывает всегда, и Ада ошибается во всех 12 командах из 24, где миска идёт раньше чашки. С позициями ранний предмет получает больший вес, и ошибок нет ни в одной из 24 перестановок.</p>
+    </div></details>
+  </div>
+</section>
+
+<section class="section alt" id="cost">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">4</span> Стоимость</div>
+      <h2>Сколько стоят токены</h2>
+      <p>Внимание сравнивает каждый токен с каждым: удвой число токенов — пар станет вчетверо больше. Но квадратично дорожает только этот член. Проекции Q, K, V и полносвязный блок обрабатывают токены по одному, их стоимость растёт линейно. У π0 около 870 токенов при ширине модели 2048, и большую часть вычислений слоя пока забирают именно они. Камеры и разрешение — это бюджет: каждая новая камера добавляет сотни токенов.</p>
+      <p>Калькулятор считает длину последовательности, грубую стоимость прохода и размер KV-кэша. Пресеты задают входы настоящих политик. Ширину и глубину модели выбираешь сам, поэтому все пресеты сравниваются на модели одного размера, по умолчанию как у π0.</p>
+    </div>
+    <div class="card lab-card cost-card">
+      <div class="cost-top">
+        <span class="muted-s">Пресет:</span>
+        <div class="seg" role="group" aria-label="Пресет" id="costPresets">
+          <button type="button" data-k="rt1" aria-pressed="false">RT-1</button><button type="button" data-k="act" aria-pressed="false">ACT</button><button type="button" data-k="octo" aria-pressed="false">Octo</button><button type="button" data-k="pi0" aria-pressed="true">π0</button>
+        </div>
+      </div>
+      <div class="cost-grid">
+        <div class="cost-ctl">
+          <div class="cost-grp">Вход</div>
+          <label class="hd-range"><span>Картинок</span><input id="cImg" type="range" min="1" max="8" step="1" value="3"><output></output></label>
+          <label class="hd-range"><span>Разрешение</span><input id="cRes" type="range" min="0" max="6" step="1" value="0"><output></output></label>
+          <div class="cost-cut"><span class="cost-lbl">Нарезка</span><div class="seg" role="group" aria-label="Как картинка становится токенами" id="cCut"></div></div>
+          <div class="cost-grp">Выход</div>
+          <label class="hd-range"><span>Действий</span><input id="cChunk" type="range" min="0" max="100" step="1" value="50"><output></output></label>
+          <div class="cost-grp">Модель</div>
+          <label class="hd-range"><span>d_model</span><input id="cD" type="range" min="0" max="5" step="1" value="4"><output></output></label>
+          <label class="hd-range"><span>Слоёв</span><input id="cL" type="range" min="1" max="48" step="1" value="18"><output></output></label>
+        </div>
+        <div class="cost-out">
+          <div class="cost-n"><b id="costN">867</b><span>токенов в последовательности</span></div>
+          <div class="cost-seq" id="costSeq"></div>
+          <p class="muted-s cost-break" id="costBreak"></p>
+          <div class="cost-flops" id="costFlops"></div>
+          <div class="cost-kv" id="costKv"></div>
+          <p class="muted-s" id="costNote"></p>
+        </div>
+      </div>
+      <div class="t16-task" id="costTask"></div>
+    </div>
+    <details class="deep"><summary>Под капотом: что считает калькулятор</summary><div class="body">
+      <div class="formula">внимание:          4 · n² · d · L      FLOPs   (Q·Kᵀ и смесь V)
+проекции и FFN:   24 · n · d² · L      FLOPs   (Q, K, V, O и FFN шириной 4d)
+KV-кэш:          2 · L · H_kv · d_head · T  чисел, по 2 байта в bf16</div>
+      <p>Это грубая оценка для обычного блока трансформера: умножение и сложение считаем за две операции, FFN шириной 4·d_model, нормы и softmax не считаем. В настоящих моделях FFN бывает шире, тогда доля внимания ещё меньше. Vaswani и соавторы сравнивали так же: слой self-attention стоит O(n²·d), рекуррентный — O(n·d²), и внимание дешевле, пока n &lt; d. У π0 n ≈ 870 при d_model 2048 (расчёт).</p>
+      <p>FlashAttention квадратичность не убирает: FLOPs остаются O(n²·d), зато дополнительная память — O(n), а ускорение получается за счёт меньшего числа обращений к памяти GPU. KV-кэш считаем для префикса — токенов наблюдения. У Gemma 2B в π0 18 слоёв, одна KV-голова и d_head = 256: около 18 КБ на токен в bf16, а префикс из 816 токенов — около 15 МБ (расчёт). Калькулятор держит одну KV-голову с d_head 256 для любой ширины модели. Памяти кэш у π0 берёт мало, дорого время: энкодеры и проход по наблюдению занимают 46 мс из 73.</p>
+    </div></details>
+  </div>
+</section>
+
+<section class="section" id="kv">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">5</span> KV-кэш и пачки</div>
+      <h2>Почему 73 мс дают 50 Гц</h2>
+      <p>Когда модель строит выход за несколько шагов, ключи и значения уже обработанных токенов не меняются. Их считают один раз и сохраняют. Это <strong>KV-кэш</strong>. В π0 так кэшируют наблюдение — картинки и команду: блочная маска из лаборатории гарантирует, что оно не зависит от действий. Пачку действий модель уточняет за 10 шагов flow matching (урок 1.8), и каждый шаг читает готовые K и V вместо того, чтобы снова прогонять 816 токенов наблюдения.</p>
+      <p>Вторая идея — пачки. π0 выдаёт сразу 50 действий, а модель перезапускают раз в 0,5 с. Робот получает новое действие каждые 20 мс, хотя модель вызывают дважды в секунду. Ниже — вывод π0 на RTX 4090 с тремя камерами. Нажимай на блоки и на ленту тиков.</p>
+    </div>
+    <div class="card lab-card pi-card">
+      <div class="pi-top">
+        <label class="toggle" id="piNoCacheWrap"><input type="checkbox" id="piNoCache"><span class="box"></span>Без KV-кэша</label>
+        <label class="toggle"><input type="checkbox" id="piRemote"><span class="box"></span>Модель вне робота</label>
+        <span class="pi-total"><span class="muted-s">Вывод:</span> <b id="piTotal">73 мс</b></span>
+      </div>
+      <div class="pi-bar" id="piBar" role="group" aria-label="Блоки вывода π0 по времени"></div>
+      <div class="pi-axis" id="piAxis" aria-hidden="true"></div>
+      <div class="pi-cursor" id="piCursor" aria-live="polite"></div>
+      <div class="pi-info" id="piInfo"></div>
+      <div class="pi-tape-h"><b>Лента управления</b><span class="muted-s">каждая клетка — тик 20 мс; нажми на тик</span></div>
+      <canvas id="piTape" width="760" height="150" class="pi-tape" role="img" aria-label="Лента тиков 50 Гц: какие пачки исполняет робот и когда запускается модель"></canvas>
+      <div class="cv-legend" id="piLegend"></div>
+      <div class="readout" id="piTick"></div>
+      <div class="t16-task" id="piTask"></div>
+    </div>
+    <details class="deep"><summary>Под капотом: цифры вывода и как устроены другие системы</summary><div class="body">
+      <p>π0 — 3,3B параметров: Gemma 2B с энкодером картинок SigLIP и action expert на 300M. Вывод на RTX 4090 с тремя камерами: энкодеры картинок 14 мс, проход по наблюдению 32 мс, 10 шагов flow matching 27 мс, всего 73 мс. Если модель работает не на компьютере робота, добавляется сеть: 86 мс. Время «без кэша» — наша оценка по той же схеме: 14 + 10 × (32 + 2,7) ≈ 361 мс. KV-кэш работает только на выводе: при обучении и в первом проходе считать всё равно нужно.</p>
+      <p>В работе о real-time chunking (Black, Galliker, Levine, 2025) prefill KV-кэша π0 занимает 46 мс при шаге управления 20 мс: за один вывод проходит больше двух тиков. Как стыковать пачки без пауз и рывков, разберём в уроке 1.7.</p>
+      <p>Другие системы. π0-FAST тратит на пачку около 750 мс против ~100 мс у π0: 30–60 токенов действий 2B-модель декодирует по одному. GR00T N1 (2,2B, из них 1,34B — VLM) выдаёт пачку из 16 действий за 63,9 мс на L40; VLM работает на 10 Гц, действия — на 120 Гц. В Helix медленная VLM S2 на 7B работает на 7–9 Гц, быстрая политика S1 на 80M — на 200 Гц и управляет 35 степенями свободы.</p>
+    </div></details>
+  </div>
+</section>
+
+<section class="section alt" id="models">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">6</span> Модели</div>
+      <h2>Как модели выдают действия</h2>
+      <p>Трансформер внутри у всех, а действия выдают по-разному. Можно записать действие строкой токенов и генерировать их по одному, как текст. Можно выдать всю пачку за один проход декодера. А можно получить пачку из шума за несколько шагов диффузии или flow matching. От способа зависит, сколько проходов модели нужно на одну пачку.</p>
+    </div>
+    <div class="prose sort-intro">
+      <div class="lab-badge"><i>🧩</i> Задача</div>
+      <h3>Разложи модели по способу выдачи действий</h3>
+      <p>Перетащи карточку в корзину или нажми карточку, а потом корзину.</p>
+    </div>
+    <div class="card pad" id="modelSort"></div>
+    <h3 class="tbl-h">Как модели превращают наблюдения и действия в токены</h3>
+    <div class="tbl-wrap">
+      <table class="trade tok-table">
+        <thead><tr><th>Модель</th><th>Наблюдения → токены</th><th>Действия</th><th>Внимание</th></tr></thead>
+        <tbody>
+          <tr><td>Decision Transformer</td><td>состояние через линейный слой (Atari — CNN) плюс токен return-to-go</td><td>1 токен на шаг, предсказывается из токена состояния</td><td>GPT, каузальная маска; K шагов — 3K токенов</td></tr>
+          <tr><td>RT-1, 35M</td><td>6 кадров 300 × 300 → FiLM-EfficientNet-B3, язык через USE → 81 → TokenLearner → 8 на кадр, всего 48</td><td>11 измерений (7 рука, 3 база, 1 режим) × 256 бинов</td><td>только декодер, 8 слоёв, 19M</td></tr>
+          <tr><td>RT-2, 55B / 12B</td><td>картинка и текст через VLM</td><td>строка из 8 целых, 256 бинов</td><td>как в исходной VLM</td></tr>
+          <tr><td>OpenVLA, 7B</td><td>224 × 224, DINOv2 + SigLIP → проектор → Llama 2</td><td>7 измерений × 256 бинов вместо 256 редких токенов словаря</td><td>авторегрессия</td></tr>
+          <tr><td>ACT, ~80M</td><td>4 камеры 480 × 640 → ResNet18 → 300 на камеру, плюс суставы и z — 1202</td><td>100 фиксированных запросов → cross-attention → 100 × 14</td><td>энкодер 4 слоя, декодер 7, CVAE</td></tr>
+          <tr><td>Octo, 27M / 93M</td><td>CNN и патчи 16 × 16: 256 (256 × 256) + 64 (запястье 128 × 128), 2 кадра; язык T5 → 16</td><td>readout-токены → диффузионная голова → пачка</td><td>блочная маска; readout только читает</td></tr>
+          <tr><td>π0, 3,3B</td><td>SigLIP: 256 на кадр (224 px, openpi); состояние → 1 токен</td><td>50 токенов через action expert 300M, flow matching, 10 шагов</td><td>3 блока: [картинки + текст], [состояние], [действия]</td></tr>
+          <tr><td>GR00T N1, 2,2B</td><td>224 × 224 → SigLIP-2 и pixel shuffle → 64 на кадр; признаки 12-го слоя LLM</td><td>16 действий, flow matching, 4 шага</td><td>DiT: self-attention по действиям, cross-attention к VLM</td></tr>
+          <tr><td>Helix, 7B + 80M</td><td>S2 сжимает сцену и команду в один латентный вектор; у S1 свёрточный энкодер</td><td>35 степеней свободы на 200 Гц</td><td>S1 — энкодер-декодер с cross-attention</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="quiz">
+  <div class="prose">
+    <div class="kicker"><span class="num">7</span> Проверь себя</div>
+    <h2>Восемь вопросов о типичных заблуждениях</h2>
+    <div class="quiz" id="quizBox"></div>
+    <p class="score" id="quizScore" style="margin-top:14px"></p>
+  </div>
+</section>
+
+<section class="section alt" id="finale">
+  <div class="prose">
+    <div class="kicker"><span class="num">8</span> Итог</div>
+    <h2>Что унести с собой</h2>
+    <ol class="takeaways">
+      <li><span>Политика превращает всё в <strong>токены</strong>: патчи картинок, слова команды, состояние, действия. Число токенов — главный рычаг стоимости.</span></li>
+      <li><span>Внимание: запрос сравнивается с ключами, softmax даёт веса, ответ — <strong>смесь значений</strong>. Длина запроса задаёт резкость, а при размазанных весах ответ оказывается между вариантами.</span></li>
+      <li><span>Деление на <strong>√d_k</strong> держит оценки в рабочем диапазоне: без него softmax схлопывается в один пик.</span></li>
+      <li><span><strong>Маска</strong> решает, кто кого видит. Блочная маска π0 отделяет наблюдение от действий, поэтому его можно кэшировать. <strong>Головы</strong> смотрят на разные признаки, и вместе различают то, что каждая путает.</span></li>
+      <li><span>Внимание само не знает порядка: его задают <strong>позиционные кодировки</strong>.</span></li>
+      <li><span>Квадратичен только член внимания. <strong>KV-кэш</strong> ускоряет вывод, а <strong>пачки</strong> отделяют частоту управления от частоты вывода: 73 мс на вывод и 50 Гц на робота.</span></li>
+    </ol>
+    <h3 style="margin-top:40px">Открытые вопросы</h3>
+    <details class="card pad open-q"><summary>Хочешь добавить политике четвёртую камеру высокого разрешения. Что посчитаешь, прежде чем решить?</summary><p>Сколько токенов даст камера: у PaliGemma картинка 224 / 448 / 896 px — это 256 / 1024 / 4096 токенов. Как вырастет член внимания и его доля в стоимости слоя. Сколько добавится KV-кэша и, главное, времени до первого шага flow: у π0 это уже 46 мс из 73. Уложится ли вывод в интервал между запусками пачек. И сколько будет стоить обучение: OpenVLA на 384 px вместо 224 обучалась в 3 раза дольше без прироста качества. Часто дешевле сжать токены, как TokenLearner в RT-1 или 64 токена на кадр в GR00T N1.</p></details>
+    <details class="card pad open-q"><summary>Почему π0 может управлять на 50 Гц, если один вывод занимает 73 мс?</summary><p>Потому что модель выдаёт пачку из 50 действий, а робот исполняет 25 из них по 20 мс: модель нужна раз в 0,5 с, и 73 мс в этот интервал укладываются. Сам вывод быстрый благодаря KV-кэшу: наблюдение проходится один раз, а 10 шагов flow стоят 27 мс. Helix и GR00T идут дальше и разделяют медленную VLM (7–10 Гц) и быструю политику (120–200 Гц).</p></details>
+    <h3 style="margin-top:34px">Гид по статье</h3>
+    <p><a href="https://arxiv.org/abs/1706.03762" target="_blank" rel="noopener">A. Vaswani и соавторы, «Attention Is All You Need», NeurIPS 2017</a>.</p>
+    <ul class="links">
+      <li><strong>Читать внимательно</strong><span>Разделы о scaled dot-product attention, multi-head attention и positional encoding, а также «Why Self-Attention» с таблицей стоимости слоёв.</span></li>
+      <li><strong>Можно пропустить</strong><span>Детали обучения перевода и таблицы BLEU: base-модель на 65M параметров училась 12 часов на 8 P100, big на 213M — 3,5 дня и дала 28,4 BLEU на EN→DE.</span></li>
+      <li><strong>Вопрос по ходу</strong><span>В таблице self-attention дешевле рекуррентного слоя, пока n &lt; d. Выполняется ли это для π0, где n ≈ 870, а d_model = 2048? Что изменится, если дать π0 картинки 448 px?</span></li>
+    </ul>
+    <h3 style="margin-top:34px">Материалы</h3>
+    <ul class="links">
+      <li><a href="https://jalammar.github.io/illustrated-transformer/" target="_blank" rel="noopener">The Illustrated Transformer</a><span>Джей Аламмар — трансформер в картинках; есть и <a href="https://jalammar.github.io/illustrated-gpt2/" target="_blank" rel="noopener">The Illustrated GPT-2</a></span></li>
+      <li><a href="https://nlp.seas.harvard.edu/annotated-transformer/" target="_blank" rel="noopener">The Annotated Transformer</a><span>Harvard NLP — статья 2017 года построчно с кодом</span></li>
+      <li><a href="https://www.youtube.com/watch?v=kCc8FmEb1nY" target="_blank" rel="noopener">Let's build GPT: from scratch, in code, spelled out</a><span>Андрей Карпатый — трансформер с нуля, строка за строкой; код — <a href="https://github.com/karpathy/nanoGPT" target="_blank" rel="noopener">nanoGPT</a></span></li>
+      <li><a href="https://www.youtube.com/watch?v=eMlx5fFNoYc" target="_blank" rel="noopener">Attention in transformers, step-by-step</a><span>3Blue1Brown, глава DL6; вводная — <a href="https://www.youtube.com/watch?v=wjZofJX0v4M" target="_blank" rel="noopener">DL5</a>, текстовая версия — <a href="https://www.3blue1brown.com/lessons/attention" target="_blank" rel="noopener">на сайте</a></span></li>
+      <li><a href="https://lilianweng.github.io/posts/2023-01-27-the-transformer-family-v2/" target="_blank" rel="noopener">The Transformer Family Version 2.0</a><span>Лилиан Венг — обзор вариантов; раньше — <a href="https://lilianweng.github.io/posts/2018-06-24-attention/" target="_blank" rel="noopener">Attention? Attention!</a></span></li>
+      <li><a href="https://poloclub.github.io/transformer-explainer/" target="_blank" rel="noopener">Transformer Explainer</a><span>Интерактивный разбор GPT-2 в браузере; ещё — <a href="https://bbycroft.net/llm" target="_blank" rel="noopener">LLM Visualization</a></span></li>
+      <li><a href="https://huggingface.co/docs/transformers/en/cache_explanation" target="_blank" rel="noopener">How caching works</a><span>Hugging Face — как устроен KV-кэш на выводе</span></li>
+    </ul>
+    <div class="callout insight" style="margin-top:34px"><span class="ico">➡️</span><div><p><strong>Дальше: пачка действий за один проход.</strong> ACT — трансформер, который выдаёт пачку из 100 действий за один проход декодера. Почему пачки помогают, сколько действий брать и что делать на стыках — <a href="1-7-act.html">урок 1.7 «ACT»</a>.</p></div></div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Урок 1.6 курса «Modern Robotics и Physical AI». Все вычисления работают локально в браузере.
+</footer>
+<div class="tooltip" id="tooltip" role="tooltip"></div>
+<script>
+/*@@JS@@*/
+</script>
+</body>
+</html>

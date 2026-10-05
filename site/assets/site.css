@@ -1,0 +1,79 @@
+/* =====================================================================
+   Modern Robotics и Physical AI — стиль сайта «Тёплый лист»
+   Смысловые цвета: классика — синий, нейросеть — оранжевый, гибрид — фиолетовый
+   ===================================================================== */
+:root {
+  color-scheme: light;
+  --bg: #f6f5f1; --bg-2: #efede6; --surface: #fffefb; --surface-2: #f9f8f4;
+  --ink: #0b0b0b; --ink-2: #3d3c38; --ink-3: #6b6a65; --muted: #898781;
+  --line: rgba(11,11,11,.1); --line-2: rgba(11,11,11,.16);
+  --shadow: 0 1px 2px rgba(30,28,20,.05), 0 8px 28px rgba(30,28,20,.07);
+  --classic: #2a78d6; --e2e: #eb6834; --hybrid: #4a3aa7; --good: #0ca30c; --critical: #d03b3b;
+  --classic-soft: rgba(42,120,214,.1); --e2e-soft: rgba(235,104,52,.11); --hybrid-soft: rgba(74,58,167,.1);
+  --ada-body: #f4efe6; --ada-joint: #3d3c38;
+  --font: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #121211; --bg-2: #1a1a19; --surface: #1c1c1a; --surface-2: #222220;
+  --ink: #fff; --ink-2: #dddcd4; --ink-3: #b0afa6;
+  --line: rgba(255,255,255,.1); --line-2: rgba(255,255,255,.16);
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 28px rgba(0,0,0,.3);
+  --classic: #3987e5; --e2e: #d95926; --hybrid: #9085e9;
+  --classic-soft: rgba(57,135,229,.16); --e2e-soft: rgba(217,89,38,.18); --hybrid-soft: rgba(144,133,233,.16);
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 18px/1.62 var(--font); -webkit-font-smoothing: antialiased; }
+a { color: var(--classic); text-underline-offset: 3px; }
+button { font: inherit; color: inherit; }
+img, svg, canvas { display: block; }
+:focus-visible { outline: 2.5px solid var(--classic); outline-offset: 2px; border-radius: 6px; }
+.ico { fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+.i { width: 20px; height: 20px; flex: none; }
+
+/* ---------- Шапка ---------- */
+.nav { position: sticky; top: 0; z-index: 50; background: color-mix(in srgb, var(--bg) 86%, transparent); backdrop-filter: saturate(1.4) blur(12px); -webkit-backdrop-filter: saturate(1.4) blur(12px); border-bottom: 1px solid var(--line); }
+.nav-in { max-width: 1180px; margin: 0 auto; padding: 10px 24px; display: flex; align-items: center; gap: 18px; font-size: 14.5px; }
+.logo { display: flex; align-items: center; gap: 10px; font-weight: 750; color: var(--ink); text-decoration: none; letter-spacing: -0.01em; white-space: nowrap; }
+.logo svg { width: 30px; height: 30px; }
+.nav-links { display: flex; gap: 4px; margin-left: auto; }
+.nav-links a { color: var(--ink-2); text-decoration: none; padding: 6px 11px; border-radius: 999px; font-weight: 550; }
+.nav-links a:hover, .nav-links a[aria-current="page"] { background: var(--bg-2); color: var(--ink); }
+.icon-btn { width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--line-2); background: var(--surface); display: grid; place-items: center; cursor: pointer; color: var(--ink); text-decoration: none; }
+.icon-btn svg { width: 18px; height: 18px; }
+
+/* ---------- Общие элементы ---------- */
+.wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
+.section { padding: 84px 0; }
+.section.alt { background: var(--bg-2); }
+.kicker { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 14px; }
+h1, h2, h3, h4 { margin: 0; line-height: 1.12; letter-spacing: -0.025em; color: var(--ink); }
+h2 { font-size: clamp(32px, 4vw, 46px); font-weight: 800; margin-bottom: 16px; text-wrap: balance; }
+h3 { font-size: 21px; font-weight: 720; letter-spacing: -0.015em; margin-bottom: 8px; }
+.lead { font-size: 21px; line-height: 1.55; color: var(--ink-2); margin: 0 0 1em; max-width: 760px; }
+p { margin: 0 0 1em; color: var(--ink-2); }
+.muted { color: var(--ink-3); }
+.btn { display: inline-flex; align-items: center; gap: 9px; border: 1px solid var(--line-2); background: var(--surface); color: var(--ink); padding: 12px 20px; border-radius: 12px; font-size: 16.5px; font-weight: 650; cursor: pointer; text-decoration: none; transition: transform .08s, opacity .15s, border-color .15s; }
+.btn:hover { border-color: var(--ink-3); }
+.btn:active { transform: translateY(1px); }
+.btn.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.btn.primary:hover { opacity: .9; }
+.btn svg { width: 19px; height: 19px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chips span { display: inline-flex; align-items: center; gap: 7px; font-size: 14px; font-weight: 600; padding: 6px 13px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); color: var(--ink-2); }
+.chips svg { width: 16px; height: 16px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); }
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; vertical-align: 1px; margin-right: 6px; }
+.thesis { display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: start; padding: 22px 24px; border-radius: 18px; background: linear-gradient(120deg, var(--classic-soft), var(--hybrid-soft) 50%, var(--e2e-soft)); border: 1px solid var(--line-2); font-size: 21px; line-height: 1.5; color: var(--ink); }
+.thesis svg { width: 28px; height: 28px; margin-top: 3px; }
+.foot { padding: 46px 0 60px; border-top: 1px solid var(--line); color: var(--ink-3); font-size: 14.5px; }
+.foot .wrap { display: flex; flex-wrap: wrap; gap: 10px 26px; align-items: center; }
+.foot a { color: var(--ink-2); }
+@media (max-width: 960px) { .grid-4 { grid-template-columns: 1fr 1fr; } .nav-links { display: none; } }
+@media (max-width: 680px) { body { font-size: 17px; } .grid-4, .grid-2 { grid-template-columns: 1fr; } .section { padding: 60px 0; } }
+@media (max-width: 400px) { .nav-in { gap: 10px; padding: 8px 16px; } .logo { white-space: normal; font-size: 13.5px; line-height: 1.15; } .wrap { padding: 0 16px; } }

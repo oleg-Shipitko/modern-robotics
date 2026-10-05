@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>1.2 DAgger и обучение с вмешательствами — Modern Robotics и Physical AI</title>
+<meta name="description" content="Урок 1.2 курса «Modern Robotics и Physical AI»: DAgger, HG-DAgger и бюджет внимания эксперта. Две Ады на одной сцене, подсказки учителя на вес золота и перехват управления прямо в браузере.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<script>
+  (function () { try { var t = localStorage.getItem('mr-theme'); if (t) document.documentElement.dataset.theme = t; else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme = 'dark'; } catch (e) {} })();
+</script>
+<style>
+/*@@CSS@@*/
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html#program" title="К программе курса"><div>Modern Robotics и Physical AI<small>Урок 1.2 · DAgger</small></div></a>
+    <nav class="toc" aria-label="Разделы урока">
+      <a href="#problem">Проблема</a>
+      <a href="#dagger">DAgger</a>
+      <a href="#lab">Лаборатория</a>
+      <a href="#curve">Кривая</a>
+      <a href="#humans">Люди</a>
+      <a href="#budget">Бюджет внимания</a>
+      <a href="#rl">Дальше</a>
+      <a href="#quiz">Проверка</a>
+      <a href="#finale">Итог</a>
+    </nav>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Переключить тему">◐</button>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main>
+
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="kicker"><span class="num">1.2</span> Часть 1 · Обучение по демонстрациям</div>
+    <h1>DAgger и <span class="amp">вмешательства</span></h1>
+    <p class="lead">В уроке 1.1 политика съезжала с маршрута: она попадала туда, где оператор не ездил, и примеров там не было. Мы добавляли такие примеры наугад — шумным оператором и сдвинутыми кадрами. В этом уроке перестанем угадывать: Ада едет сама, а эксперт подсказывает правильное действие там, куда она заехала. Это DAgger. Потом разберём, как беречь время эксперта-человека: пусть он сам перехватывает управление, когда видит опасность, или робот зовёт его, когда сомневается.</p>
+    <div class="hero-meta"><span>≈ 40 минут</span><span>лаборатория и 3 интерактива</span><span>сети обучаются в браузере</span><span>работает офлайн</span></div>
+    <div class="hero-list">
+      <div><b>ДВЕ АДЫ</b>Сделай итерацию DAgger и сравни с политикой из урока 1.1 на тех же стартах</div>
+      <div><b>40 ПОДСКАЗОК</b>Реши, где спросить учителя, если его время ограничено</div>
+      <div><b>ЭКСПЕРТ</b>Перехватывай управление, как в HG-DAgger, пока Ада не проедет без тебя</div>
+      <div><b>КРИВАЯ</b>Построй по точкам: DAgger против «ещё больше демонстраций» при равной разметке</div>
+      <div><b>БЮДЖЕТ</b>Найди порог, при котором Ада просит помощи редко и вовремя</div>
+    </div>
+    <p style="margin-top:28px"><a class="btn primary" href="#problem">Начать урок ↓</a></p>
+  </div>
+</section>
+
+<section class="section alt" id="problem">
+  <div class="prose">
+    <div class="kicker"><span class="num">1</span> Проблема</div>
+    <h2>Где взять нужные данные</h2>
+    <p>В уроке 1.1 политика разбивалась по одной причине: она попадала туда, где оператор никогда не ездил. Оператор вёл Аду по центру коридора, а Ада из-за мелких ошибок съезжала к стене. Примеров «что делать у стены» в данных не было, поэтому там она и ошибалась, и каждая ошибка уводила её ещё дальше от примеров.</p>
+    <p>Во второй половине урока 1.1 мы добавили в данные состояния рядом с маршрутом: шумного оператора и сдвинутые кадры. Это помогло, но это догадка: мы заранее предполагали, куда политика съедет. Если она съедет туда, куда мы не догадались, примеров снова не будет.</p>
+    <p>Надёжнее не угадывать, а спрашивать. Пусть Ада едет сама, а эксперт в каждой точке, куда она заехала, говорит правильное действие. Добавляем эти примеры и переобучаем — данные появляются ровно там, где политика ошибается. Это DAgger. Как он устроен и почему работает?</p>
+  </div>
+</section>
+
+<section class="section" id="dagger">
+  <div class="prose">
+    <div class="kicker"><span class="num">2</span> Идея</div>
+    <h2>DAgger: едет политика, размечает эксперт</h2>
+    <p><strong>DAgger</strong> (Dataset Aggregation) — это цикл из четырёх шагов. Его предложили в 2011 году Стефан Росс, Джефф Гордон и Дрю Багнелл:</p>
+    <ol class="takeaways">
+      <li><span>Обучить политику на демонстрациях эксперта.</span></li>
+      <li><span>Пустить политику ехать самой и записать все состояния, в которые она попала.</span></li>
+      <li><span>Попросить эксперта разметить эти состояния правильными действиями.</span></li>
+      <li><span>Добавить новые примеры ко <em>всем</em> старым и переобучить политику. Повторить с шага 2.</span></li>
+    </ol>
+    <p>Цикл убирает причину дрейфа. В behavior cloning первая ошибка уводила политику туда, где примеров нет, и в худшем случае ошибки копились как εT². В DAgger за несколько кругов примеры появляются как раз там, куда политика заезжает. Авторы доказали, что тогда ошибка растёт линейно по длине эпизода, а не квадратично.</p>
+    <p>Есть оговорка: если одна ошибка необратима — например, Ада упала с лестницы, — выигрыш пропадает.</p>
+    <details class="deep"><summary>Под капотом: алгоритм и гарантия</summary><div class="body">
+      <div class="formula">D ← ∅;  π̂₁ ← любая политика
+для i = 1 … N:
+    πᵢ ← βᵢ·π* + (1 − βᵢ)·π̂ᵢ        с вероятностью βᵢ на шаге действует эксперт
+    собрать траектории πᵢ длиной T
+    Dᵢ ← {(s, π*(s)) для всех посещённых s}
+    D ← D ∪ Dᵢ
+    π̂ᵢ₊₁ ← обучить с учителем на D
+вернуть лучшую π̂ᵢ на валидации</div>
+      <p>На практике β₁ = 1, а на следующих итерациях эксперт не вмешивается: в статье этот вариант «часто работает лучше всего». Возвращают лучшую политику на валидации, а не последнюю.</p>
+      <p>Гарантия: при достаточном числе итераций</p>
+      <div class="formula">J(π̂) ≤ J(π*) + u · T · ε_N + O(1)</div>
+      <p>Здесь ε_N — лучшая достижимая ошибка на агрегированных данных, а u — насколько одна ошибка увеличивает стоимость эпизода. Если ошибку можно быстро исправить, u ограничено, и рост линейный. Если ошибка необратима, u растёт вместе с T, и преимущество перед behavior cloning пропадает. Для доказательства нужен алгоритм обучения без сожалений (no-regret): например, обучение на всех накопленных данных с выпуклой функцией потерь.</p>
+    </div></details>
+    <div class="callout note"><span class="ico">🎮</span><div><p><strong>Как это проверяли.</strong> В оригинальной статье были видеоигры. В Super Tux Kart экспертом был человек с джойстиком, и обычный behavior cloning не улучшался от новых демонстраций, а DAgger почти перестал вылетать с трассы после пяти итераций. В Super Mario Bros экспертом был планировщик с доступом к внутреннему состоянию игры. В лаборатории ниже устроено так же: правильный руль подсказывает классический планировщик, который знает точную карту дома.</p></div></div>
+    <p>Сколько таких кругов понадобится Аде, чтобы перестать врезаться?</p>
+  </div>
+</section>
+
+<section class="section alt" id="lab">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Лаборатория</div>
+    <h2>Ада учится на своих ошибках</h2>
+    <p class="lead lab-intro">Проверим на политике из урока 1.1: она обучена на 10 аккуратных поездках робота-оператора и доезжает 6 раз из 10. Сначала сделаем итерацию DAgger и сравним результат с исходной политикой на тех же стартах. Потом ограничим время учителя: он разметит только 40 кадров, а где спросить, решаешь ты. В последней задаче эксперт — ты: перехватываешь управление, когда Ада начинает съезжать. Задачи — справа, по одной.</p>
+    <div class="lab">
+      <div class="card scene-card">
+        <canvas id="scene" width="600" height="400" role="img" aria-label="План дома, вид сверху: поездки Ады, подсказки учителя и твои вмешательства"></canvas>
+        <div class="ctl-row">
+          <div class="seg" id="ctlView" role="group" aria-label="Что показать на сцене">
+            <button type="button" data-view="traj" aria-pressed="true">траектории</button>
+            <button type="button" data-view="heat" aria-pressed="false">где были данные</button>
+            <button type="button" data-view="route" aria-pressed="false">маршрут учителя</button>
+          </div>
+          <button class="btn sm" id="ctlPickClear" type="button">Сбросить выбор</button>
+        </div>
+        <div class="cv-legend" id="duelLegend"><span><i style="--c: var(--ink-3)"></i>политика из урока 1.1</span><span><i style="--c: var(--e2e)"></i>политика, которую учим</span><span><i style="--c: var(--classic)"></i>подсказки учителя</span></div>
+        <div class="heat-legend" id="heatLegend" hidden><i class="hl-data"></i>где были данные <i class="hl-gap"></i>где политика ехала без данных</div>
+        <div class="trip-grid" id="tripGrid" hidden></div>
+        <div class="lab-msg" id="labMsg" aria-live="polite"></div>
+        <div class="free-panel" id="freePanel" hidden>
+          <div class="row">
+            <button class="btn sm" id="btnDagger" type="button">Итерация DAgger</button>
+            <button class="btn sm" id="btnExpert" data-fine="1" type="button">Поездка с твоими подсказками</button>
+            <button class="btn sm primary" id="btnRun" type="button">Запустить 10 поездок</button>
+            <button class="btn sm ghost" id="btnBC" type="button">Вернуть политику из 1.1</button>
+          </div>
+          <div class="muted-s" id="demoCount"></div>
+          <ol id="history" reversed></ol>
+        </div>
+      </div>
+      <div class="card guide-card"><div id="guide"></div></div>
+    </div>
+    <details class="deep"><summary>Под капотом: что внутри лаборатории</summary><div class="body">
+      <ul>
+        <li><b>Мир и политика</b> — те же, что в уроке 1.1. Стартовая политика обучена на 10 аккуратных поездках робота-оператора.</li>
+        <li><b>Проверка.</b> Обе Ады проезжают по 10 раз с одних и тех же стартов с одинаковым шумом в моторах, как в лаборатории урока 1.1.</li>
+        <li><b>Итерация DAgger.</b> Политика проезжает маршрут сама с шумом 0,2 рад/с, учитель-планировщик размечает каждое посещённое состояние. Новые примеры добавляются ко всем старым, сеть дообучается 500 итераций с шагом 0,003.</li>
+        <li><b>40 подсказок.</b> Каждое касание выбирает 10 ближайших кадров из 10 поездок политики урока 1.1 в радиусе 35 см. Учитель размечает только их, сеть дообучается так же, как в DAgger, каждый раз от исходной политики.</li>
+        <li><b>Ты — эксперт.</b> Старт и шум — из той проверочной поездки, где политика урока 1.1 врезается. Пока кнопка зажата, руль ведёт курсор, и эти пары «наблюдение → твой руль» идут в данные. После поездки сеть дообучается.</li>
+      </ul>
+    </div></details>
+    <div class="prose" style="margin:26px 0 0;max-width:820px">
+      <p>Итог лаборатории: одной итерации DAgger хватает, чтобы Ада доезжала 10 из 10 вместо 6 из 10. Но сравнение неравное: политика после DAgger получила новые размеченные примеры, а политика из урока 1.1 — ни одного. Может быть, DAgger выигрывает только потому, что данных стало больше?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="curve">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">3</span> Сравнение</div>
+      <h2>DAgger против «ещё больше демонстраций»</h2>
+      <p>Чтобы это проверить, сравним два способа при одинаковом числе размеченных примеров. Серая кривая — behavior cloning на 5, 10, 20 и 40 аккуратных демонстрациях. Оранжевая — те же 5 демонстраций плюс итерации DAgger, по одной размеченной поездке на итерацию. Каждая точка — обучение с нуля и 20 проверочных поездок, на точку уходит секунда-две. Точки добавляешь ты, задача — справа.</p>
+    </div>
+    <div class="lab curve-lab">
+      <div class="card scene-card">
+        <div class="curve-ctl">
+          <div class="cc-row"><span class="cc-name"><i style="background: var(--ink-2)"></i>behavior cloning</span><div class="seg" id="ccBC" role="group" aria-label="Число демонстраций для behavior cloning"><button type="button" data-n="5">5</button><button type="button" data-n="10">10</button><button type="button" data-n="20">20</button><button type="button" data-n="40">40</button></div><span class="muted-s">демонстраций</span></div>
+          <div class="cc-row"><span class="cc-name"><i style="background: var(--e2e)"></i>DAgger</span><div class="seg" id="ccDG" role="group" aria-label="Число итераций DAgger"><button type="button" data-it="0">0</button><button type="button" data-it="1">1</button><button type="button" data-it="2">2</button><button type="button" data-it="3">3</button><button type="button" data-it="4">4</button></div><span class="muted-s">итераций после 5 демонстраций</span></div>
+        </div>
+        <canvas id="curveChart" width="760" height="300" aria-label="Успех в зависимости от числа размеченных примеров для behavior cloning и DAgger"></canvas>
+        <div class="cv-legend"><span><i style="--c: var(--ink-2)"></i>behavior cloning: больше аккуратных демонстраций</span><span><i style="--c: var(--e2e)"></i>DAgger: 5 демонстраций и размеченные поездки политики</span></div>
+        <div class="sq-stats" id="curveStats"><span class="muted-s" id="curveStatus">Нажми любую кнопку, чтобы добавить точку.</span></div>
+      </div>
+      <div class="card guide-card"><div id="curveGuide" class="m-solo"></div></div>
+    </div>
+    <div class="prose" style="margin:26px 0 0;max-width:820px">
+      <p>При одинаковой разметке DAgger выигрывает: важно не сколько примеров, а где они. Но в этих сравнениях кадры размечал планировщик: он отвечает мгновенно, без ошибок и не устаёт. Получится ли так же, если эксперт — человек?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="humans">
+  <div class="prose">
+    <div class="kicker"><span class="num">4</span> Люди</div>
+    <h2>Почему людям неудобен DAgger</h2>
+    <p>С человеком DAgger работает хуже. Планировщику всё равно, кто ведёт машину, а человеку — нет. Попробуй сказать, как правильно повернуть руль, глядя на видео, где рулит кто-то другой: реакции не те, обратной связи нет, ощущение задержки. Авторы HG-DAgger (2019) писали именно об этом: при разметке «со стороны» качество меток человека падает.</p>
+    <p>Их решение: человек не размечает всё подряд, а <strong>перехватывает управление</strong>, когда видит опасность, и сам возвращает его политике. В данные попадают только участки, где вёл человек. В лаборатории это режим «Ты — эксперт».</p>
+    <p>В эксперименте на настоящем автомобиле с виртуальными препятствиями у HG-DAgger не было ни столкновений, ни съездов, хотя выборка была маленькой.</p>
+    <details class="deep"><summary>Под капотом: HG-DAgger</summary><div class="body">
+      <p>Политика — ансамбль сетей. Человек сам решает, когда перехватить управление и когда вернуть его. В данные попадают только пары «наблюдение → действие человека» с его участков; на участках политики метки не собирают.</p>
+      <p>Попутно авторы оценивают, где политике опасно ехать одной. «Сомнение» ансамбля — норма диагонали ковариации его выходов. Порог τ — среднее последних 25% значений сомнения в моменты, когда человек перехватывал управление. В симуляции при старте внутри «безопасной» по τ области столкновений было в 12 раз меньше.</p>
+    </div></details>
+    <div class="callout note"><span class="ico">🚗</span><div><p><strong>Вмешательства в индустрии.</strong> Беспилотные компании годами считали disengagements — случаи, когда человеку приходится брать управление. У Waymo удалённые операторы сегодня не ведут машину, а советуют системе, и она может совет отвергнуть. У домашнего гуманоида 1X NEO незнакомые задачи выполняет удалённый оператор, и эти сессии становятся данными для обучения.</p></div></div>
+    <h3 style="margin-top:34px">Задача: кто решает, когда нужен эксперт</h3>
+    <p>У HG-DAgger остаётся слабое место: чтобы вовремя перехватить управление, человек должен всё время смотреть на робота. Методы этого семейства собирают данные там, куда заезжает политика, а различаются тем, кто решает, когда звать эксперта. Разложи карточки по корзинам: перетащи карточку или нажми её, а потом корзину.</p>
+    <div class="card pad sort-card" id="sortBox"></div>
+    <p style="margin-top:18px">Может ли робот сам понять, когда ему нужна помощь?</p>
+  </div>
+</section>
+
+<section class="section" id="budget">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">5</span> Бюджет внимания</div>
+      <h2>Робот просит помощи, когда сомневается</h2>
+      <p>Может, если умеет оценить свою неуверенность. Человек не может смотреть на робота весь день, поэтому политика должна сама понимать, когда ей нужна помощь, и звать эксперта только тогда.</p>
+      <p>Простой способ оценить неуверенность — обучить три сети на одних данных с разной инициализацией. Там, где данных много, они отвечают одинаково. Там, где данных нет, начинают спорить. Разброс их ответов и есть неуверенность.</p>
+      <p>Ниже Ада едет десять раз. Если разброс ансамбля выше порога, она просит помощи, и этот шаг ведёт учитель. Задача справа: найди порог, при котором Ада почти не врезается и не дёргает человека по пустякам.</p>
+      <p>Так устроен ThriftyDAgger (2021). Там робот, который зовёт человека по порогу, обошёл HG-DAgger, где решает человек: 73 успешных вставки из 100 против 57.</p>
+    </div>
+    <div class="lab budget-lab">
+      <div class="card scene-card">
+        <canvas id="ensScene" width="600" height="400" aria-label="Десять поездок Ады; точки, где она просила помощи"></canvas>
+        <div class="cv-legend"><span><i style="--c: var(--e2e)"></i>поездки Ады</span><span><i style="--c: var(--classic)"></i>шаги, где она просила помощи и ехал учитель</span></div>
+        <div class="ctl-row">
+          <button class="btn sm" id="ensTrain" type="button">Обучить ансамбль из трёх сетей</button>
+          <label class="hd-range ens-range" id="ensTauWrap"><span>Порог неуверенности τ</span><input type="range" id="ensTau" min="-2" max="-0.6" step="0.05" value="-0.8"><output>0,158</output></label>
+        </div>
+        <div class="kpis ens-kpis">
+          <div class="kpi"><b id="ensHelp">—</b><span>шагов с просьбой о помощи</span></div>
+          <div class="kpi"><b id="ensShare">—</b><span>доля таких шагов</span></div>
+          <div class="kpi"><b id="ensCrash">—</b><span>аварий из 10</span></div>
+          <div class="kpi"><b id="ensOk">—</b><span>доехали из 10</span></div>
+        </div>
+        <p class="muted-s" id="ensNote">Сначала обучи ансамбль.</p>
+      </div>
+      <div class="card guide-card"><div id="ensGuide" class="m-solo"></div></div>
+    </div>
+    <details class="deep"><summary>Под капотом: неуверенность ансамбля</summary><div class="body">
+      <p>Три сети π₁, π₂, π₃ учатся на одних данных и отличаются только начальными весами. Политика едет по среднему ответу, а неуверенность — разброс ответов:</p>
+      <div class="formula">π(s) = 1/3 · Σ_k π_k(s)
+σ(s) = √( 1/3 · Σ_k (π_k(s) − π(s))² )
+если σ(s) > τ — просить помощи</div>
+      <p>Там, где данных много, сети сходятся к одному ответу. Где данных нет, каждая экстраполирует по-своему, и σ растёт. ThriftyDAgger добавляет второй сигнал — риск: обученная оценка вероятности не доехать до цели. Пороги он выбирает так, чтобы человек вмешивался в заданной доле шагов, например в 1%.</p>
+    </div></details>
+    <div class="prose" style="margin:26px 0 0;max-width:820px">
+      <p>Подходящий порог есть, но окно узкое: ниже него Ада зовёт человека слишком часто, выше — перестаёт просить помощи и врезается.</p>
+      <p>Из каждого вмешательства мы пока брали одно — правильное действие в этом месте. Есть ли в нём ещё что-то полезное?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="rl">
+  <div class="prose">
+    <div class="kicker"><span class="num">6</span> Дальше</div>
+    <h2>От вмешательств к обучению с подкреплением</h2>
+    <p>Есть. Само вмешательство говорит, что политика попала в плохое место: иначе человек не стал бы брать управление. Этот сигнал «здесь что-то пошло не так» используют как награду в обучении с подкреплением:</p>
+    <ul class="links">
+      <li><strong>RLIF (2023)</strong><span>Шагу перед вмешательством ставят награду −1, остальным — 0, и учат политику обучением с подкреплением. Так можно превзойти даже неидеального эксперта: нужен только сам факт вмешательства.</span></li>
+      <li><strong>HIL-SERL (Science Robotics, 2025)</strong><span>20–30 демонстраций, вмешательства человека и обучение с подкреплением на настоящем роботе: почти 100% успеха на задаче за 1–2,5 часа.</span></li>
+      <li><strong>π*0.6 и RECAP (ноябрь 2025)</strong><span>Модель Physical Intelligence учится на демонстрациях, исправлениях оператора и собственных попытках. На складывании белья и приготовлении эспрессо производительность выросла более чем вдвое. Авторы отмечают: даже одна итерация часто заметно улучшает результат — как и в нашей лаборатории.</span></li>
+    </ul>
+    <p>Подробно обучение с подкреплением разберём в части 5, а π*0.6 — в уроке 3.8.</p>
+  </div>
+</section>
+
+<section class="section" id="quiz">
+  <div class="prose">
+    <div class="kicker"><span class="num">7</span> Проверь себя</div>
+    <h2>Семь вопросов о типичных заблуждениях</h2>
+    <div class="quiz" id="quizBox"></div>
+    <p class="score" id="quizScore" style="margin-top:14px"></p>
+  </div>
+</section>
+
+<section class="section alt" id="finale">
+  <div class="prose">
+    <div class="kicker"><span class="num">8</span> Итог</div>
+    <h2>Что унести с собой</h2>
+    <ol class="takeaways">
+      <li><span><strong>DAgger</strong> лечит сдвиг распределения: политика едет сама, эксперт размечает её состояния, данные копятся.</span></li>
+      <li><span>При равной разметке DAgger выигрывает у «ещё больше демонстраций»: важно не сколько данных, а <strong>где</strong> они.</span></li>
+      <li><span>Людям трудно размечать со стороны. <strong>HG-DAgger</strong>: человек перехватывает управление сам, в данные идут его участки.</span></li>
+      <li><span><strong>Неуверенность</strong> можно мерить разбросом ансамбля и просить помощи только тогда, когда сеть сомневается.</span></li>
+      <li><span>Вмешательство — ещё и <strong>сигнал «здесь плохо»</strong>. На нём строят обучение с подкреплением в системах 2025 года.</span></li>
+    </ol>
+    <h3 style="margin-top:40px">Открытые вопросы</h3>
+    <details class="card pad open-q"><summary>Ты запускаешь пилот роботов-курьеров с удалёнными операторами. Как построить процесс, чтобы каждое вмешательство улучшало политику?</summary><p>Записывать каждое вмешательство вместе с наблюдениями до него и действиями оператора; регулярно добавлять эти данные ко всему датасету и переобучать; следить за метрикой «вмешательств на час» по версиям политики; настроить порог, при котором робот сам зовёт оператора, и проверять, что вмешательств становится меньше без роста аварий.</p></details>
+    <details class="card pad open-q"><summary>Почему в DAgger важно агрегировать все данные, а не учиться только на последней итерации?</summary><p>Каждая итерация покрывает состояния, куда попала текущая политика. Если учиться только на последней, новая политика забудет, как вести себя там, где ошибалась прежняя, и начнёт ошибаться там снова. Агрегирование сохраняет всё распределение состояний, которое политика уже посетила.</p></details>
+    <h3 style="margin-top:34px">Гид по статье</h3>
+    <p><a href="https://arxiv.org/abs/1011.0686" target="_blank" rel="noopener">Ross, Gordon, Bagnell, «A Reduction of Imitation Learning and Structured Prediction to No-Regret Online Learning», AISTATS 2011</a>.</p>
+    <ul class="links">
+      <li><strong>Читать внимательно</strong><span>Алгоритм DAgger (раздел 3) и эксперименты: Super Tux Kart, Super Mario Bros, распознавание рукописных слов.</span></li>
+      <li><strong>Можно пропустить</strong><span>Доказательства про no-regret online learning, если теория онлайн-обучения незнакома.</span></li>
+      <li><strong>Вопрос по ходу</strong><span>Почему алгоритм возвращает лучшую политику на валидации, а не последнюю?</span></li>
+    </ul>
+    <h3 style="margin-top:34px">Материалы</h3>
+    <ul class="links">
+      <li><a href="https://arxiv.org/abs/1810.02890" target="_blank" rel="noopener">HG-DAgger</a><span>M. Kelly et al., ICRA 2019 — человек перехватывает управление</span></li>
+      <li><a href="https://arxiv.org/abs/2109.08273" target="_blank" rel="noopener">ThriftyDAgger</a><span>R. Hoque et al., CoRL 2021 — бюджет внимания</span></li>
+      <li><a href="https://arxiv.org/abs/2311.12996" target="_blank" rel="noopener">RLIF</a><span>J. Luo et al., ICLR 2024 — вмешательство как награда</span></li>
+      <li><a href="https://hil-serl.github.io/" target="_blank" rel="noopener">HIL-SERL</a><span>J. Luo et al., Science Robotics 2025</span></li>
+      <li><a href="https://www.youtube.com/watch?v=V00npNnWzSU" target="_blank" rel="noopener">DAgger в Super Tux Kart</a><span>Видео авторов оригинальной статьи</span></li>
+    </ul>
+    <div class="callout insight" style="margin-top:34px"><span class="ico">➡️</span><div><p><strong>Дальше: мультимодальность.</strong> DAgger и вмешательства решают проблему сдвига: примеры появляются там, куда заезжает политика. Остаётся другая проблема. Бывает, что правильных действий два: оператор объезжает препятствие то слева, то справа. Политика, обученная на среднеквадратичную ошибку, выдаёт среднее этих действий и едет прямо в препятствие. Так Ада въезжала в чайник в уроке 0.1. Почему так происходит и как научить политику выбирать одно действие — урок 1.3, он выйдет следующим.</p></div></div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Урок 1.2 курса «Modern Robotics и Physical AI». Все симуляции и нейросети работают локально в браузере.
+</footer>
+<div class="tooltip" id="tooltip" role="tooltip"></div>
+<script>
+/*@@JS@@*/
+</script>
+</body>
+</html>

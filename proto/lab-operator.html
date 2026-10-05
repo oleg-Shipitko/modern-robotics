@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Прототип лабы «Ты — оператор» · уроки 1.1–1.2</title>
+<script>(function(){try{var t=localStorage.getItem('mr-theme');if(t)document.documentElement.dataset.theme=t;else if(matchMedia('(prefers-color-scheme: dark)').matches)document.documentElement.dataset.theme='dark';}catch(e){}})();</script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../site/assets/site.css">
+<link rel="stylesheet" href="../site/assets/hero/hero.css">
+<style>
+.proto-note { padding: 9px 24px; font-size: 13.5px; color: #8a5a00; background: rgba(250,178,25,.14); border-bottom: 1px solid rgba(250,178,25,.35); text-align: center; }
+:root[data-theme="dark"] .proto-note { color: #fab219; }
+.lab { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 22px; align-items: start; margin-top: 22px; }
+.scene-card { padding: 14px; }
+#scene { width: 100%; height: auto; aspect-ratio: 3 / 2; border-radius: 12px; border: 1px solid var(--line); display: block; touch-action: pan-y; cursor: crosshair; }
+.panel { padding: 18px; display: grid; gap: 16px; }
+.panel h3 { font-size: 16px; margin: 0 0 8px; }
+.panel .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.panel label.opt { display: inline-flex; gap: 7px; align-items: center; font-size: 14px; color: var(--ink-2); font-weight: 600; }
+.muted-s { font-size: 13px; color: var(--ink-3); }
+.prog { height: 5px; border-radius: 3px; background: var(--bg-2); overflow: hidden; margin-top: 8px; }
+.prog i { display: block; height: 100%; width: 0; background: var(--e2e); transition: width .1s; }
+#loss { width: 100%; height: auto; aspect-ratio: 260 / 70; display: block; margin-top: 8px; }
+.pred button { min-width: 44px; }
+.pred button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.lab-msg { padding: 12px 14px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line); font-size: 15px; color: var(--ink-2); margin-top: 12px; min-height: 48px; }
+.lab-msg.good { border-color: color-mix(in srgb, var(--good) 45%, transparent); }
+.lab-msg.bad { border-color: color-mix(in srgb, var(--critical) 45%, transparent); }
+.lab-msg.info { border-color: color-mix(in srgb, var(--classic) 40%, transparent); }
+#history { margin: 6px 0 0; padding-left: 1.1em; font-size: 13.5px; color: var(--ink-2); }
+.views { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13.5px; color: var(--ink-2); margin-top: 10px; }
+button:disabled { opacity: .45; cursor: not-allowed; }
+@media (max-width: 900px) { .lab { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="proto-note">Прототип центральной лабы уроков 1.1 и 1.2 · для обсуждения, тексты черновые</div>
+<main class="wrap" style="padding-top:36px;padding-bottom:60px">
+  <div class="kicker">Уроки 1.1–1.2 · лаборатория</div>
+  <h2 style="margin-bottom:8px">Ты — оператор</h2>
+  <p class="lead" style="margin-bottom:0">Ада должна доехать от зарядки до кухни. Покажи ей дорогу, обучи политику на своих поездках и посмотри, что будет, когда она поедет сама.</p>
+  <div class="lab">
+    <div class="card scene-card">
+      <canvas id="scene" width="600" height="400" role="img" aria-label="План дома, вид сверху: прихожая с зарядкой, гостиная, кухня; маршрут Ады и её поездки"></canvas>
+      <div class="views">
+        <label><input type="radio" name="view" value="traj" checked> траектории</label>
+        <label><input type="radio" name="view" value="heat"> где были данные и где политика ехала без них</label>
+        <label><input type="radio" name="view" value="route"> маршрут учителя</label>
+      </div>
+      <div class="lab-msg" id="labMsg" aria-live="polite"></div>
+    </div>
+    <div class="card panel">
+      <div>
+        <h3>1. Демонстрации</h3>
+        <div class="row">
+          <button class="btn sm" id="btnRecord" type="button">Записать свою поездку</button>
+          <button class="btn sm" id="btnDemos" type="button">+10 от робота-оператора</button>
+          <button class="btn sm" id="btnClear" type="button">Сбросить</button>
+        </div>
+        <div class="muted-s" id="demoCount" style="margin-top:8px"></div>
+        <div class="row" style="margin-top:8px">
+          <label class="opt"><input type="checkbox" id="optDart"> шумный оператор</label>
+          <label class="opt"><input type="checkbox" id="optAug"> боковые сдвиги</label>
+        </div>
+      </div>
+      <div>
+        <h3>2. Обучение</h3>
+        <button class="btn sm" id="btnTrain" type="button">Обучить политику</button>
+        <div class="prog"><i id="trainProg"></i></div>
+        <canvas id="loss" width="260" height="70" aria-label="Кривая ошибки обучения"></canvas>
+      </div>
+      <div>
+        <h3>3. Прогноз и проверка</h3>
+        <div class="muted-s" style="margin-bottom:6px">Сколько из десяти поездок доедут до кухни?</div>
+        <div class="row pred"><button class="btn sm" data-pred="0–3" type="button">0–3</button><button class="btn sm" data-pred="4–7" type="button">4–7</button><button class="btn sm" data-pred="8–10" type="button">8–10</button></div>
+        <div class="row" style="margin-top:10px"><button class="btn sm primary" id="btnRun" type="button">Запустить 10 поездок</button></div>
+      </div>
+      <div>
+        <h3>4. Урок 1.2: учиться на своих ошибках</h3>
+        <div class="row"><button class="btn sm" id="btnDagger" type="button">Итерация DAgger</button><button class="btn sm" id="btnExpert" type="button">Ты — эксперт</button></div>
+        <div class="muted-s" style="margin-top:6px">После DAgger или своих вмешательств снова запусти 10 поездок.</div>
+      </div>
+      <div>
+        <h3>История запусков</h3>
+        <ol id="history" reversed></ol>
+      </div>
+    </div>
+  </div>
+</main>
+<script src="../lessons/shared/kit.js"></script>
+<script src="../lessons/shared/drive-core.js"></script>
+<script src="../lessons/shared/drive-lab.js"></script>
+</body>
+</html>

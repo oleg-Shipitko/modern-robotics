@@ -1,0 +1,19 @@
+/* «Сказать спасибо»: кнопка с общим счётчиком (thanks.js). Один файл для главной и уроков. */
+.thanks { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+.thanks-btn { display: inline-flex; align-items: center; gap: 9px; padding: 10px 17px; border: 1px solid var(--line-2); border-radius: 999px; background: var(--surface); color: var(--ink); font: inherit; font-size: 16px; font-weight: 650; line-height: 1.25; cursor: pointer; transition: border-color .15s, background-color .15s; }
+.thanks-btn:hover { border-color: var(--e2e); }
+.thanks-btn:active { transform: translateY(1px); }
+.thanks-btn svg { display: block; width: 19px; height: 19px; flex: none; color: var(--e2e); fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.thanks-n { margin-left: 3px; padding-left: 12px; border-left: 1px solid var(--line-2); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.thanks.done .thanks-btn { background: var(--e2e-soft); border-color: color-mix(in srgb, var(--e2e) 40%, transparent); cursor: default; }
+.thanks.done .thanks-btn svg { fill: currentColor; }
+.thanks-text, .thanks-after { font-size: 15px; line-height: 1.5; color: var(--ink-3); }
+.thanks-after:empty { display: none; }
+.thanks-after a { color: inherit; }
+.thanks.pop .thanks-btn svg { animation: thanks-pop .5s ease-out; }
+@keyframes thanks-pop { 35% { transform: scale(1.35); } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .thanks.pop .thanks-btn svg { animation: none; } }
+/* в конце урока */
+.thanks-end { max-width: 720px; margin: 72px auto 0; padding: 0 20px; }
+.thanks-end .thanks { flex-direction: column; text-align: center; padding: 26px 22px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); box-shadow: var(--shadow); }
+.thanks-end .thanks-text { order: -1; font-size: 16.5px; color: var(--ink-2); }

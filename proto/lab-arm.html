@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Прототип лабы «Рука Ады» · урок 0.3</title>
+<script>(function(){try{var t=localStorage.getItem('mr-theme');if(t)document.documentElement.dataset.theme=t;else if(matchMedia('(prefers-color-scheme: dark)').matches)document.documentElement.dataset.theme='dark';}catch(e){}})();</script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../site/assets/site.css">
+<link rel="stylesheet" href="../site/assets/hero/hero.css">
+<style>
+.proto-note { padding: 9px 24px; font-size: 13.5px; color: #8a5a00; background: rgba(250,178,25,.14); border-bottom: 1px solid rgba(250,178,25,.35); text-align: center; }
+:root[data-theme="dark"] .proto-note { color: #fab219; }
+.lab { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 22px; align-items: start; margin: 18px 0 46px; }
+.lab canvas { width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--line); display: block; touch-action: pan-y; }
+#ikCv { aspect-ratio: 1; cursor: crosshair; } #ctlCv { aspect-ratio: 520 / 360; }
+.panel { padding: 18px; display: grid; gap: 14px; }
+.panel .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.opt { display: inline-flex; gap: 7px; align-items: center; font-size: 14px; color: var(--ink-2); font-weight: 600; }
+.prog { height: 5px; border-radius: 3px; background: var(--bg-2); overflow: hidden; }
+.prog i { display: block; height: 100%; width: 0; background: var(--e2e); }
+.msg { padding: 12px 14px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line); font-size: 15px; color: var(--ink-2); min-height: 48px; }
+.pred button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+select { font: inherit; font-size: 14px; padding: 5px 8px; border-radius: 8px; border: 1px solid var(--line-2); background: var(--surface); color: var(--ink); }
+@media (max-width: 900px) { .lab { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="proto-note">Прототип центральной лабы урока 0.3 · для обсуждения, тексты черновые</div>
+<main class="wrap" style="padding-top:36px">
+  <div class="kicker">Урок 0.3 · лаборатория, часть 1</div>
+  <h2 style="margin-bottom:8px">Нейросеть учит обратную кинематику</h2>
+  <p class="lead">Вместо формул обучим сеть: на вход — куда тянуться, на выход — углы суставов. Перетаскивай цель и смотри, куда тянется рука.</p>
+  <div class="lab">
+    <div class="card" style="padding:14px"><canvas id="ikCv" width="420" height="420" role="img" aria-label="Двухзвенная рука, вид сверху: цель, два точных решения и ответ нейросети"></canvas></div>
+    <div class="card panel">
+      <label class="opt"><input type="checkbox" id="ikElbow"> в данных только одно решение (θ₂ > 0)</label>
+      <div class="row"><button class="btn sm primary" id="ikTrain" type="button">Обучить сеть</button><label class="opt"><input type="checkbox" id="ikHeat"> карта промахов</label></div>
+      <div class="prog"><i id="ikProg"></i></div>
+      <div class="msg" id="ikMsg" aria-live="polite">Сеть ещё не обучена. На каждую позу в данных — пара «поза схвата → углы суставов».</div>
+    </div>
+  </div>
+
+  <div class="kicker">Урок 0.3 · лаборатория, части 2 и 3</div>
+  <h2 style="margin-bottom:8px">Регулятор, гравитация и контакт</h2>
+  <p class="lead">Рука в вертикальной плоскости. Сначала держим чашку у полки ПД-регулятором, потом протираем стол, когда камера ошиблась с его высотой. Схват можно тянуть мышкой.</p>
+  <div class="lab">
+    <div class="card" style="padding:14px"><canvas id="ctlCv" width="520" height="360" role="img" aria-label="Двухзвенная рука сбоку: полка или стол, график ошибки или силы"></canvas></div>
+    <div class="card panel">
+      <div class="row"><label class="opt"><input type="radio" name="ctlMode" value="pd" checked> чашка у полки</label><label class="opt"><input type="radio" name="ctlMode" value="imp"> протереть стол</label></div>
+      <div class="ctl-pd">
+        <div class="row"><label class="hd-range"><span>Kp</span><input id="kp" type="range" min="10" max="240" step="10" value="60"><output>60</output></label><label class="hd-range"><span>Kd</span><input id="kd" type="range" min="0" max="20" step="0.5" value="8"><output>8</output></label></div>
+        <label class="opt" style="margin-top:8px"><input type="checkbox" id="gcomp"> компенсация гравитации</label>
+        <div style="margin-top:10px;font-size:14px;color:var(--ink-2)">Прогноз: что будет, если удвоить Kp без компенсации гравитации?</div>
+        <div class="row pred" style="margin-top:6px"><button class="btn sm" data-pred2="a" type="button">станет точно</button><button class="btn sm" data-pred2="b" type="button">провис уменьшится, но останется</button><button class="btn sm" data-pred2="c" type="button">ничего не изменится</button></div>
+        <div class="msg" id="predAns" style="margin-top:8px">Сделай прогноз, потом проверь ползунком.</div>
+      </div>
+      <div class="ctl-imp" hidden>
+        <div class="row"><label class="opt">Регулятор <select id="ctlType"><option value="pos">позиционный, жёсткий</option><option value="imp">импедансный</option></select></label></div>
+        <div class="row" style="margin-top:8px"><label class="hd-range"><span>Жёсткость импеданса</span><input id="kimp" type="range" min="100" max="1500" step="50" value="400"><output>400</output></label></div>
+        <div class="row" style="margin-top:8px"><label class="hd-range"><span>Ошибка камеры по высоте</span><input id="errH" type="range" min="0" max="6" step="0.5" value="4"><output>4 см</output></label></div>
+      </div>
+      <div class="row"><button class="btn sm primary" id="ctlRun" type="button">Запустить заново</button></div>
+    </div>
+  </div>
+</main>
+<script src="../lessons/shared/kit.js"></script>
+<script src="../lessons/shared/arm-core.js"></script>
+<script src="arm/ui.js"></script>
+</body>
+</html>

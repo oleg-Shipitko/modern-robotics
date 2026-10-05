@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>0.1 Две парадигмы: правила и данные — Modern Robotics и Physical AI</title>
+<meta name="description" content="Урок 0.1 курса «Modern Robotics и Physical AI»: правила против обучения на данных. Три версии робота Ады, нейросеть, которая обучается в браузере, и рамка подходов, с которой начинается курс.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<script>
+  (function () { try { var t = localStorage.getItem('mr-theme'); if (t) document.documentElement.dataset.theme = t; else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme = 'dark'; } catch (e) {} })();
+</script>
+<style>
+/*@@CSS@@*/
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html#program" title="К программе курса"><div>Modern Robotics и Physical AI<small>Урок 0.1 · Две парадигмы</small></div></a>
+    <nav class="toc" aria-label="Разделы урока">
+      <a href="#paradox">Парадокс</a>
+      <a href="#paradigms">Архитектуры</a>
+      <a href="#lab1">Лаб. 1</a>
+      <a href="#lab2">Лаб. 2</a>
+      <a href="#tradeoffs">Компромиссы</a>
+      <a href="#spectrum">Системы 2026</a>
+      <a href="#lab5">Кому что доверить</a>
+      <a href="#next">Дальше</a>
+      <a href="#quiz">Проверка</a>
+      <a href="#finale">Итог</a>
+    </nav>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Переключить тему">◐</button>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main>
+
+<!-- ============================ HERO ============================ -->
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="kicker"><span class="num">0.1</span> Часть 0 · Введение</div>
+    <h1>Две <span class="amp">парадигмы</span></h1>
+    <p class="lead">Роботы давно варят кузова точнее человека, но сложить футболку научились только недавно. Правила, которые пишет инженер, ломаются в открытом мире, а нейросеть, обученная на примерах, требует много данных и ошибается молча. В этом уроке ты сравнишь оба подхода на одной задаче, найдёшь, где ломается каждый, и увидишь, почему дальше курс идёт по пути данных.</p>
+    <div class="hero-meta"><span>≈ 40 минут</span><span>2 лаборатории и 5 интерактивов</span><span>без формул</span><span>работает офлайн</span></div>
+
+    <div class="paradigms">
+      <div class="paradigm rules">
+        <div class="tag">Парадигма 1</div>
+        <h3>Пишем правила</h3>
+        <p>Инженер раскладывает задачу на модули и пишет для каждого понятный код.</p>
+<pre class="code"><span class="cm"># восприятие</span>
+if r &gt; 0.60 and g &lt; 0.35 and b &lt; 0.35:
+    cup = centroid(pixels)
+<span class="cm"># планирование и управление</span>
+path = astar(hand, cup, obstacles)
+v = pid(path.next - hand)</pre>
+      </div>
+      <div class="vs"><span>или</span></div>
+      <div class="paradigm data">
+        <div class="tag">Парадигма 2</div>
+        <h3>Показываем примеры</h3>
+        <p>Оператор много раз проводит руку Ады к чашке, а нейросеть учится повторять. Вот настоящие демонстрации из этого урока:</p>
+        <div class="demo-grid" id="heroDemos" aria-label="Примеры демонстраций: траектории руки к чашке"></div>
+      </div>
+    </div>
+
+    <div class="hero-list">
+      <div><b>СХЕМА</b>Четыре архитектуры «мозга» — от модульного стека до двухуровневой VLA</div>
+      <div><b>ЛАБ. 1</b>Три версии Ады на одной кухне: найди, где ломается каждая</div>
+      <div><b>ЛАБ. 2</b>Почини Аду правилами и данными и сравни цену каждой починки</div>
+      <div><b>ЗАДАЧИ</b>Реши, что в доме Ады доверить нейросети, а что — правилам</div>
+      <div><b>СПЕКТР</b>Как подходы сочетают в реальных системах 2026 года</div>
+    </div>
+    <p style="margin-top:28px"><a class="btn primary" href="#paradox">Начать урок ↓</a></p>
+  </div>
+</section>
+
+<!-- ============================ ПАРАДОКС ============================ -->
+<section class="section alt" id="paradox">
+  <div class="prose">
+    <div class="kicker"><span class="num">1</span> Парадокс</div>
+    <h2>Сварить кузов проще, чем сложить футболку</h2>
+    <p>Роботы полвека точно варят кузова, а сложить футболку надёжно научились только недавно, хотя с этим справляется любой подросток. В 1961 году на заводе General Motors заработал <strong>Unimate</strong> — первый промышленный робот. Сегодня манипуляторы варят кузова с точностью до долей миллиметра, круглосуточно и почти без брака.</p>
+    <p>Почему так, заметил Ганс Моравек ещё в 1988 году: то, что людям даётся без усилий, — видеть, хватать, ходить, — для машины оказывается самым трудным. Шахматы и расчёты даются компьютеру легко, а восприятие и моторика уровня годовалого ребёнка — нет. Это называют <strong>парадоксом Моравека</strong>.</p>
+    <p>Заводского робота программируют: движения задают заранее, а детали всегда лежат на своих местах. Мир подстроен под робота, и правил хватает. Дома мир под робота не подстроишь: ткань каждый раз ложится по-новому, и все случаи заранее не опишешь.</p>
+    <p>Поэтому роботу всё чаще не пишут правила, а показывают примеры и учат нейросеть их повторять. В конце 2024 года компания Physical Intelligence показала модель <strong>π0</strong>, которая достаёт бельё из сушилки и складывает его. Руки, на которых работает π0, мало отличаются от манипуляторов десятилетней давности. Изменился способ строить «мозг» робота.</p>
+  </div>
+  <div class="wrap">
+    <div class="timeline" id="timeline"></div>
+  </div>
+  <div class="prose" style="margin-top:28px">
+    <p>Итак, у робота два способа получить поведение: инженер пишет правила или нейросеть учится на примерах. Чем эти два «мозга» отличаются по устройству?</p>
+  </div>
+</section>
+
+<!-- ============================ ДВЕ ПАРАДИГМЫ ============================ -->
+<section class="section" id="paradigms">
+  <div class="prose">
+    <div class="kicker"><span class="num">2</span> Архитектуры</div>
+    <h2>Как устроен «мозг» робота</h2>
+    <p>Чем отличаются два «мозга», проще всего увидеть на одной задаче. Возьмём ту, что пройдёт через весь урок: Ада стоит у кухонного стола, камера смотрит на стол сверху, нужно довести руку до чашки.</p>
+    <p>Правила раскладывают задачу на модули: восприятие находит чашку, оценка состояния уточняет, где она, планировщик строит путь, регулятор ведёт руку. Каждый модуль пишет инженер. Подход на данных заменяет всю цепочку одной нейросетью: оператор много раз проводит руку к чашке, и сеть учится переводить пиксели камеры прямо в команды моторам. Это end-to-end. Между ними есть гибриды, а самые новые системы устроены в два уровня. Переключай архитектуры и нажимай на блоки.</p>
+  </div>
+  <div class="wrap">
+    <div class="card arch" id="arch">
+      <div class="arch-head">
+        <div class="seg" role="group" aria-label="Архитектура">
+          <button type="button" data-arch="classic" aria-pressed="true">Модульный стек</button>
+          <button type="button" data-arch="e2e" aria-pressed="false">End-to-end</button>
+          <button type="button" data-arch="hybrid" aria-pressed="false">Гибрид</button>
+          <button type="button" data-arch="vla" aria-pressed="false">Двухуровневая VLA</button>
+        </div>
+        <span class="small muted" id="archHint">Нажми на блок, чтобы узнать, что внутри</span>
+      </div>
+      <svg class="arch-svg" id="archSvg" viewBox="0 0 1100 230" role="img" aria-label="Схема архитектуры робота"></svg>
+      <p class="arch-caption" id="archCaption"></p>
+      <div class="arch-detail" id="archDetail"></div>
+    </div>
+  </div>
+  <div class="wrap" style="margin-top:22px">
+    <div class="two-col">
+      <div class="card pro-con">
+        <h4><span class="chip classic">Правила</span>: сильные и слабые стороны</h4>
+        <ul>
+          <li class="plus"><strong>Гарантии.</strong> Планировщик обходит замеченное препятствие по построению, устойчивость регулятора доказывается математически.</li>
+          <li class="plus"><strong>Частота и точность.</strong> Контуры управления работают на сотнях и тысячах герц.</li>
+          <li class="plus"><strong>Прозрачность.</strong> Каждый модуль тестируется отдельно, отказ виден на конкретном стыке.</li>
+          <li class="minus"><strong>Открытый мир.</strong> Правило «красное — значит чашка» живёт, пока чашки красные и свет дневной. Каждая новая ситуация требует нового правила, а ситуаций бесконечно много. Это называют <em>длинным хвостом</em>.</li>
+        </ul>
+      </div>
+      <div class="card pro-con">
+        <h4><span class="chip e2e">Обучение на данных</span>: сильные и слабые стороны</h4>
+        <ul>
+          <li class="plus"><strong>Обобщение.</strong> Сеть сама находит признаки, которые инженер не догадался бы запрограммировать.</li>
+          <li class="plus"><strong>Нет ручных стыков.</strong> Вся система оптимизируется под конечную цель, информация не теряется между модулями. В опорной работе урока (Levine et al., 2016) робот вставлял блок в сортер в 96% попыток, а модульный вариант с отдельной оценкой позы — ни разу: ошибка в сантиметр на стыке убивала задачу с миллиметровым допуском.</li>
+          <li class="minus"><strong>Голод по данным.</strong> Сотни примеров даже для простой задачи, тысячи часов — для универсальной модели.</li>
+          <li class="minus"><strong>Нет гарантий и тихие отказы.</strong> За пределами данных сеть ведёт себя непредсказуемо и не сообщает об ошибке.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="prose" style="margin-top:22px">
+      <p>Похожий переход уже случился с текстом: обработка языка ушла от правил к большим языковым моделям. Но у языковых моделей был интернет, а у роботов его нет. Как это ограничение обходят, разберём в части 4.</p>
+      <p>На бумаге правила дают гарантии и прозрачность, но не справляются с открытым миром. Данные дают обобщение, но требуют много примеров и ошибаются молча. Где на деле ломается каждый подход?</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ЛАБ 1 ============================ -->
+<section class="section alt" id="lab1">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Лаборатория 1</div>
+    <h2>Три версии Ады, одна задача</h2>
+    <div class="prose lab-intro" style="margin:0 0 22px;max-width:820px">
+      <p>Где на деле ломается каждый подход? Списки плюсов и минусов этого не скажут: нужно поставить подходы рядом и менять условия по одному.</p>
+      <p>Три версии Ады — на правилах, end-to-end и гибрид — получают одинаковые руки и одну кухню. Нейросети обучаются прямо сейчас в твоём браузере на 200 демонстрациях: это настоящие сети, а не анимация. В пяти экспериментах условия меняются по одному: свет, препятствие на пути, цвет чашки. Перед каждым сделай прогноз, кто дойдёт до чашки.</p>
+    </div>
+
+    <div class="card lab-card" id="lab1Card">
+      <div class="stepper" id="stepper" role="tablist" aria-label="Эксперименты"></div>
+      <div class="mission" id="mission">
+        <div>
+          <h4 id="missionTitle"></h4>
+          <p id="missionText"></p>
+          <div class="predict" id="predict"></div>
+        </div>
+        <div><button class="btn primary" id="runBtn" type="button">▶ Запустить</button></div>
+      </div>
+
+      <div class="arena" id="arena">
+        <div class="agent-panel" data-a="classic">
+          <div class="agent-head"><div class="name">Правила</div><div class="arch-line">правила цвета → фильтр Калмана → планировщик A* → регулятор</div></div>
+          <div class="agent-canvas-wrap"><canvas aria-label="Сцена: Ада на правилах"></canvas><div class="overlay" hidden></div></div>
+          <div class="agent-status" aria-live="polite"><span class="ico">⏸</span><span>Готова к запуску</span></div>
+        </div>
+        <div class="agent-panel" data-a="e2e">
+          <div class="agent-head"><div class="name">End-to-end</div><div class="arch-line">пиксели + положение руки → нейросеть → команда моторам</div></div>
+          <div class="agent-canvas-wrap"><canvas aria-label="Сцена: Ада с end-to-end нейросетью"></canvas><div class="overlay">Обучаю нейросеть…</div></div>
+          <div class="agent-status" aria-live="polite"><span class="ico">⏸</span><span>Готова к запуску</span></div>
+        </div>
+        <div class="agent-panel" data-a="hybrid">
+          <div class="agent-head"><div class="name">Гибрид</div><div class="arch-line">нейросеть находит чашку → фильтр → A* → регулятор + монитор безопасности</div></div>
+          <div class="agent-canvas-wrap"><canvas aria-label="Сцена: Ада-гибрид"></canvas><div class="overlay">Обучаю нейросеть…</div></div>
+          <div class="agent-status" aria-live="polite"><span class="ico">⏸</span><span>Готова к запуску</span></div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button class="btn" id="pauseBtn" type="button">⏸ Пауза</button>
+        <button class="btn" id="resetBtn" type="button">↺ Сначала</button>
+        <button class="btn" id="newSceneBtn" type="button">🎲 Новая сцена</button>
+        <span class="sep"></span>
+        <div class="seg" role="group" aria-label="Скорость">
+          <button type="button" data-speed="0.5" aria-pressed="false">×½</button>
+          <button type="button" data-speed="1" aria-pressed="true">×1</button>
+          <button type="button" data-speed="3" aria-pressed="false">×3</button>
+        </div>
+        <label class="toggle"><input type="checkbox" id="thoughtsChk" checked><span class="box"></span>Показывать «мысли» Ады</label>
+      </div>
+      <div class="cond-row" id="condRow">
+        <span class="lbl">Условия:</span>
+        <label class="toggle"><input type="checkbox" data-cond="evening"><span class="box"></span>🌆 Вечерний свет</label>
+        <label class="toggle"><input type="checkbox" data-cond="kettle"><span class="box"></span>🫖 Чайник на пути</label>
+        <label class="toggle"><input type="checkbox" data-cond="teal"><span class="box"></span>🩵 Бирюзовая чашка</label>
+        <span class="noise-ctl">📷 Шум камеры <input type="range" id="noiseRange" min="0" max="0.08" step="0.01" value="0.02" aria-label="Шум камеры"><output id="noiseOut">0.02</output></span>
+      </div>
+      <p class="small muted" style="margin:10px 0 0">Предметы и стартовую точку руки можно перетаскивать мышкой — даже во время движения.</p>
+
+      <div class="explain" id="explain" hidden></div>
+
+      <div class="see-grid">
+        <div class="see-cam">
+          <h4>Что видит камера</h4>
+          <canvas id="camCanvas" width="16" height="16" aria-label="Изображение камеры 16 на 16 пикселей"></canvas>
+          <div class="seg" role="group" aria-label="Слой камеры" style="margin-top:8px" id="camSeg">
+            <button type="button" data-cam="raw" aria-pressed="true">Пиксели</button>
+            <button type="button" data-cam="rule" aria-pressed="false">Правило</button>
+          </div>
+        </div>
+        <div>
+          <h4>Так видит мир каждый «мозг»</h4>
+          <p class="small muted mt-0" id="camText">Для Ады стол — это 256 цветных пикселей. Версия на правилах смотрит на них через правила, которые написал инженер. Нейросеть сама выучила, куда смотреть: ниже — её карты внимания. Чем темнее клетка, тем больше веса у этого пикселя при вычислении «точки интереса».</p>
+          <div class="see-maps" id="seeMaps"></div>
+        </div>
+      </div>
+
+      <div class="batch">
+        <div class="chart-head">
+          <div><h4>Громкие и тихие отказы: статистика вместо одной сцены</h4><p>Одна сцена может обмануть. Прогони 40 случайных сцен в текущих условиях и посмотри, как ошибается каждая версия.</p></div>
+          <button class="btn" id="batchBtn" type="button">📊 Прогнать 40 сцен</button>
+        </div>
+        <div class="stack-rows" id="batchRows"></div>
+        <div class="legend" id="batchLegend" hidden>
+          <span><i style="background:var(--good)"></i>✅ дошла</span>
+          <span><i style="background:var(--warning)"></i>⛔ громкий отказ: сама сообщила об ошибке</span>
+          <span><i style="background:var(--serious)"></i>🤫 тихий отказ: уверенно ошиблась</span>
+          <span><i style="background:var(--critical)"></i>💥 столкновение</span>
+        </div>
+        <p class="small muted" id="batchNote" style="margin:8px 0 0"></p>
+        <p class="small muted" style="margin:6px 0 0">В литературе по надёжности такие отказы называют signaled и unsignaled. Мы для краткости говорим «громкий» и «тихий».</p>
+      </div>
+    </div>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>Каждый подход сломался на своём. Правила не нашли чашку вечером и не узнали бирюзовую, но оба раза честно остановились. End-to-end сеть врезалась в чайник и уверенно поехала к миске вместо бирюзовой чашки. Гибрид справился с вечером и чайником, но бирюзовую чашку тоже спутал с миской. Можно ли починить эти отказы и во что это обойдётся каждому подходу?</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ЛАБ 2 ============================ -->
+<section class="section" id="lab2">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Лаборатория 2</div>
+    <h2>Почини Аду: правила против данных</h2>
+    <div class="prose lab-intro" style="margin:0 0 22px;max-width:820px">
+      <p>Как починить отказы из лаборатории 1? У подходов разные инструменты. Правила чинят правилами: инженер видит отказ и дописывает код. Нейросеть чинят данными: оператор записывает новые демонстрации, и сеть переобучают.</p>
+      <p>Пройди оба пути на одной Аде и сравни, что каждый чинит и во что обходится. В карточке «Путь правил» добавляй исправления, в карточке «Путь данных» меняй число и разнообразие демонстраций и обучай сети заново. Изменения сразу применяются к Аде из лаборатории 1.</p>
+    </div>
+
+    <div class="fix-grid">
+      <div class="card fix-card rules">
+        <h3><span class="chip classic">Путь правил</span></h3>
+        <p class="sub">Правила восприятия, которые инженер написал днём. Добавь исправления для отказов из лаборатории 1.</p>
+        <pre class="code" id="rulesCode"></pre>
+        <div class="rule-btns">
+          <label class="toggle"><input type="checkbox" id="ruleWb"><span class="box"></span>Баланс белого по цвету стола (чинит вечер)</label>
+          <label class="toggle"><input type="checkbox" id="ruleTeal"><span class="box"></span>Правило для бирюзовых чашек</label>
+          <label class="toggle" id="ruleMemWrap" hidden><input type="checkbox" id="ruleMem"><span class="box"></span>Помнить препятствие полсекунды (против мигания детектора)</label>
+          <label class="toggle disabled" title="Следующий сюрприз пока никто не видел"><input type="checkbox" disabled><span class="box"></span>Правило для следующего сюрприза…</label>
+        </div>
+        <div class="mini-res" id="classicMini" aria-live="polite"></div>
+        <div class="callout mt-0" id="ruleWarn" hidden style="margin:0"><span class="ico" id="ruleWarnIco">⚠️</span><div id="ruleWarnText"></div></div>
+        <div class="stats">
+          <div class="stat"><div class="v" id="ruleLines">4</div><div class="k">строки правил</div></div>
+          <div class="stat"><div class="v" id="ruleHours">0 из ∞</div><div class="k">исправлено случаев</div></div>
+        </div>
+      </div>
+
+      <div class="card fix-card data">
+        <h3><span class="chip e2e">Путь данных</span></h3>
+        <p class="sub">Сколько демонстраций записал оператор и насколько они разнообразны? На этих данных обучаются обе нейросети: end-to-end политика и восприятие гибрида.</p>
+        <div class="range-row">
+          <label for="demoRange">Демонстраций</label><output id="demoOut">200</output>
+          <input type="range" id="demoRange" min="0" max="7" step="1" value="5" aria-describedby="demoCost">
+        </div>
+        <div class="small muted" id="demoCost" style="margin-top:-8px"></div>
+        <label class="toggle" style="align-self:flex-start"><input type="checkbox" id="lightChk" checked><span class="box"></span>Разное освещение в данных: утро, день, вечер</label>
+        <div class="thumbs" id="thumbs" aria-label="Примеры демонстраций"></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn primary" id="trainBtn" type="button">🧠 Обучить нейросети</button>
+          <button class="btn" id="curveBtn" type="button">📈 Построить кривую целиком</button>
+        </div>
+        <div class="train-status" id="trainStatus"></div>
+        <svg class="chart" id="lossChart" viewBox="0 0 520 170" aria-label="Кривая ошибки обучения"></svg>
+      </div>
+    </div>
+
+    <div class="callout insight" id="lab2Insight" hidden><span class="ico">💡</span><div id="lab2InsightText"></div></div>
+
+    <div class="card chart-card" style="margin-top:18px">
+      <div class="chart-head">
+        <div><h4>Успех в зависимости от числа демонстраций</h4><p>Каждая точка — один запуск обучения и проверка на 40 новых сценах. Классике данные не нужны — её уровень задают правила.</p></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <div class="seg" role="group" aria-label="Условия проверки" id="scaleCond">
+            <button type="button" data-c="normal" aria-pressed="true">Обычные</button>
+            <button type="button" data-c="evening" aria-pressed="false">🌆 Вечер</button>
+            <button type="button" data-c="kettle" aria-pressed="false">🫖 Чайник</button>
+            <button type="button" data-c="teal" aria-pressed="false">🩵 Бирюзовая</button>
+            <button type="button" data-c="evekettle" aria-pressed="false">🌆+🫖</button>
+          </div>
+          <button class="btn sm ghost table-toggle" id="scaleTableBtn" type="button">Таблица</button>
+        </div>
+      </div>
+      <svg class="chart" id="scaleChart" viewBox="0 0 900 330" aria-label="График успеха от числа демонстраций"></svg>
+      <div class="legend" id="scaleLegend"></div>
+      <div id="scaleTable" hidden></div>
+    </div>
+
+    <div class="card chart-card" style="margin-top:18px">
+      <div class="chart-head"><div><h4>Последняя модель во всех условиях</h4><p id="resNote">Доля сцен из 40, где Ада дошла до чашки.</p></div></div>
+      <table class="res-table" id="resTable"></table>
+    </div>
+
+    <div class="callout note"><span class="ico">⚖️</span><div><p><strong>Оба пути чинят только то, что предусмотрели заранее.</strong> Правило дёшево, но закрывает один случай, а случаев бесконечно много. К тому же правила начинают мешать друг другу: баланс белого чинит вечер, но усиливает шум и ломает детектор чайника. Данные дороги: каждая демонстрация — это время оператора. Зато они покрывают сразу множество вариаций, которые никто не перечислял, — если эти вариации попали в демонстрации.</p><p>Заметь, как мало данных нужно гибриду: его нейросеть учит только «где чашка», а не всё поведение целиком. Промежуточная разметка экономит данные. Большие модели используют ту же идею по-другому: сначала учатся на огромных общих данных, а потом им хватает немногих примеров для нового навыка (часть 3).</p><p>У каждого пути своя цена. Так какой подход выбрать?</p></div></div>
+  </div>
+</section>
+
+
+
+<!-- ============================ КОМПРОМИССЫ ============================ -->
+<section class="section alt" id="tradeoffs">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">3</span> Компромиссы</div>
+      <h2>Цена каждого подхода</h2>
+      <p>Чтобы выбрать подход, сведём наблюдения из двух лабораторий в одну таблицу. В последнем столбце — где это было видно.</p>
+    </div>
+    <table class="trade">
+      <thead><tr><th>Свойство</th><th><span class="chip classic">Правила</span></th><th><span class="chip e2e">End-to-end</span></th><th><span class="chip hybrid">Гибрид</span></th><th>Где это было видно</th></tr></thead>
+      <tbody>
+        <tr><td>Обобщение на новые условия</td><td><span class="m r"></span>каждое — новым правилом</td><td><span class="m g"></span>если условия покрыты данными</td><td><span class="m g"></span>за счёт нейросетевого восприятия</td><td class="where">Лаб. 1 «Вечер», Лаб. 2</td></tr>
+        <tr><td>Гарантии и безопасность</td><td><span class="m g"></span>следуют из алгоритма</td><td><span class="m r"></span>нет, только статистика</td><td><span class="m g"></span>за счёт классических модулей</td><td class="where">Лаб. 1 «Чайник на пути»</td></tr>
+        <tr><td>Отлаживаемость</td><td><span class="m g"></span>видно, какой модуль ошибся</td><td><span class="m r"></span>«чёрный ящик»</td><td><span class="m y"></span>видно, но восприятие непрозрачно</td><td class="where">«Мысли» робота, статистика отказов</td></tr>
+        <tr><td>Характер отказов</td><td><span class="m g"></span>чаще громкие</td><td><span class="m r"></span>тихие и уверенные</td><td><span class="m y"></span>тихие, если ошиблось восприятие</td><td class="where">Лаб. 1 «Бирюзовая чашка», статистика отказов</td></tr>
+        <tr><td>Потребность в данных</td><td><span class="m g"></span>почти не нужны</td><td><span class="m r"></span>сотни демонстраций</td><td><span class="m y"></span>в разы меньше, чем end-to-end</td><td class="where">Лаб. 2</td></tr>
+        <tr><td>Ошибки на стыках модулей</td><td><span class="m r"></span>копятся: каждый модуль оптимизирует своё</td><td><span class="m g"></span>стыков нет, всё учится под цель</td><td><span class="m y"></span>стыков меньше</td><td class="where">Раздел 2</td></tr>
+      </tbody>
+    </table>
+    <div class="callout thesis"><span class="ico">🧭</span><div><p><strong>Как делят работу.</strong> Ни один подход не выигрывает во всём. Нейросетям отдают то, что правилами не описать: восприятие открытого мира, язык, мягкие предметы. Правила оставляют там, где нужны гарантии, частота и точность: ограничения скорости, зоны безопасности, аварийная остановка. Как применить это к конкретным задачам?</p></div></div>
+    <div class="two-col" style="margin-top:6px">
+      <div class="callout note mt-0"><span class="ico">⚠️</span><div><p><strong>Заблуждение: «end-to-end всегда лучше, дело только в данных».</strong> Гарантии не появляются от данных. Сеть, которая объезжает чайник в 99 случаях из 100, в сотом может въехать в него, и об этом никто не узнает заранее.</p></div></div>
+      <div class="callout note mt-0"><span class="ico">⚠️</span><div><p><strong>Заблуждение: «VLA управляет моторами напрямую».</strong> Модели «зрение — язык — действие» выдают цели несколько десятков раз в секунду, а моторы держат регуляторы на килогерце. Граница сдвигается: в 2026 году и нижний слой у некоторых роботов стал нейросетевым. Подробно — в уроке 0.3 и в части 6.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ЛАБ 5 — БАРИСТА ============================ -->
+<section class="section" id="lab5">
+  <div class="wrap">
+    <div class="lab-badge"><i>🧩</i> Задачи</div>
+    <h2>Кому что доверить в доме Ады</h2>
+    <p class="lead lab-intro">Проверим правило «нейросетям — открытый мир, правилам — гарантии» на конкретных задачах. Разложи 12 задач из дома Ады по трём корзинам. Для каждой спроси себя, что здесь важнее: восприятие открытого мира и ловкость или жёсткие гарантии. Перетаскивай карточки или нажми на карточку, а потом на корзину.</p>
+    <div class="card lab-card sorter" id="sorter">
+      <div class="pool" id="pool" aria-label="Нераспределённые карточки"></div>
+      <div class="bins">
+        <div class="bin" data-bin="nn"><div class="bin-head"><h4>Нейросеть</h4><p>восприятие, язык, открытый мир, мягкие и сыпучие предметы</p></div><div class="bin-body"></div></div>
+        <div class="bin" data-bin="hybrid"><div class="bin-head"><h4>Нейросеть со страховкой</h4><p>нейросеть понимает ситуацию, правило гарантирует безопасность</p></div><div class="bin-body"></div></div>
+        <div class="bin" data-bin="classic"><div class="bin-head"><h4>Правила</h4><p>известная среда, жёсткие гарантии, обычный код</p></div><div class="bin-body"></div></div>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <button class="btn primary" id="sortCheck" type="button">Проверить</button>
+        <button class="btn" id="sortReset" type="button">Начать заново</button>
+        <button class="btn ghost" id="sortReveal" type="button">Показать ответы экспертов</button>
+        <span class="score" id="sortScore"></span>
+      </div>
+      <div class="feedback" id="sortFeedback"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ СПЕКТР ============================ -->
+<section class="section alt" id="spectrum">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 10px;max-width:820px">
+      <div class="kicker"><span class="num">4</span> Реальные системы</div>
+      <h2>Как подходы сочетают в 2026 году</h2>
+      <p>Настоящие роботы делят работу так же: систем только на правилах или только на данных в продуктах почти не бывает. Вот примерное положение известных роботов: чем правее, тем больше поведения выучено. Нажми на точку.</p>
+    </div>
+    <div class="card spectrum">
+      <div id="specWide">
+        <div class="spec-bar" id="specBar"></div>
+        <div class="spec-ends"><span>← всё запрограммировано</span><span>всё выучено →</span></div>
+      </div>
+      <div id="specNarrow" hidden>
+        <div class="spec-ends" style="margin:0 0 6px"><span>← правила</span><span>данные →</span></div>
+        <div class="spec-list" id="specList"></div>
+      </div>
+      <div class="spec-info" id="specInfo"></div>
+    </div>
+    <div class="callout note"><span class="ico">🔩</span><div><p>Даже у самых end-to-end систем на нижнем уровне обычно работают классические регуляторы. Сеть выдаёт целевые положения суставов десятки раз в секунду, а контур управления мотором отрабатывает их на сотнях и тысячах герц.</p></div></div>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>Реальные системы сочетают оба подхода, но граница сдвигается в сторону данных. С каждым поколением обучаемая часть растёт: сначала нейросети забрали восприятие, потом планирование, теперь и управление движением. Почему индустрия ставит на данные, хотя у них столько слабостей?</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ДАЛЬШЕ — ДАННЫЕ ============================ -->
+<section class="section" id="next">
+  <div class="prose">
+    <div class="kicker"><span class="num">5</span> Дальше</div>
+    <h2>Почему дальше курс идёт по пути данных</h2>
+    <p>Индустрия ставит на данные, потому что правила не масштабируются. Правило на каждую ситуацию не напишешь: на кухне бесконечно много чашек, света и беспорядка. В этот длинный хвост и упёрлась версия Ады на правилах: каждое исправление закрывало один случай и тянуло за собой следующий.</p>
+    <p>Данные масштабируются иначе: чтобы научить сеть новому, не нужно заранее знать, как устроен мир, — нужно показать достаточно примеров. Поэтому дальше курс идёт по пути данных, а классику достаём, когда без неё не обойтись.</p>
+    <p>Главным ограничением стали сами данные, и индустрия собирает их в небывалых для робототехники объёмах. π0 в 2024 году обучали на 10 000+ часов демонстраций на роботах. GEN-0 в 2025-м — уже на 270 000 часов, но это записи того, как работают руками люди, снятые носимыми устройствами.</p>
+    <p>До текстов, на которых учатся языковые модели, всё равно далеко: Кен Голдберг назвал это отставание «разрывом в 100 000 лет». Оценка грубая, он сам называет её мысленным экспериментом, но порядок разрыва она передаёт верно. Как его сокращают — телеоперацией, видео людей, симуляцией и данными с работающих роботов, — разберём в части 4.</p>
+    <div class="callout insight"><span class="ico">🧭</span><div><p><strong>Что будет дальше.</strong> С части 1 начнётся основной путь курса: обучение по демонстрациям, большие модели, данные, обучение с подкреплением, гуманоиды и модели мира. Перед ним — уроки <a href="0-2-ustroystvo-robota.html">0.2</a>, <a href="0-3-kinematika-i-upravlenie.html">0.3</a> и <a href="0-4-otsenka-sostoyaniya-i-planirovanie.html">0.4</a>: тело робота, управление движением, оценка состояния и планирование.</p></div></div>
+  </div>
+</section>
+
+<!-- ============================ КВИЗ ============================ -->
+<section class="section" id="quiz">
+  <div class="prose">
+    <div class="kicker"><span class="num">6</span> Проверь себя</div>
+    <h2>Шесть вопросов о типичных заблуждениях</h2>
+    <div class="quiz" id="quizBox"></div>
+    <p class="score" id="quizScore" style="margin-top:14px"></p>
+  </div>
+</section>
+
+<!-- ============================ ИТОГ ============================ -->
+<section class="section alt" id="finale">
+  <div class="prose">
+    <div class="kicker"><span class="num">7</span> Итог</div>
+    <h2>Что унести с собой</h2>
+    <ol class="takeaways">
+      <li><span><strong>Правила</strong> — модули с понятными интерфейсами: гарантии, частота, прозрачность. Слабость — открытый мир и длинный хвост ситуаций.</span></li>
+      <li><span><strong>Обучение на данных</strong> — сеть сама находит признаки и обобщает. Слабость — голод по данным и тихие отказы: сеть не знает, что ошиблась.</span></li>
+      <li><span>Сеть обобщает только то, что покрыто данными. Важно не только количество примеров, но и их <strong>разнообразие</strong>.</span></li>
+      <li><span>Современные системы — <strong>двухуровневые нейросетевые модели</strong> со страховкой из правил. Обучаемая часть растёт с каждым поколением.</span></li>
+      <li><span><strong>Главное ограничение — данные.</strong> Поэтому дальше курс идёт по пути данных и разбирает, как их добывают и как на них учат.</span></li>
+    </ol>
+
+    <h3 style="margin-top:40px">Задание</h3>
+    <p>Эссе на одну страницу. Выбери реальный продукт: гуманоида, складского робота или робота-пылесоса. Разбери его стек: какие части обучаются, какие запрограммированы и почему именно так. Опирайся на таблицу компромиссов из этого урока.</p>
+
+    <h3 style="margin-top:34px">Материалы</h3>
+    <ul class="links">
+      <li><a href="https://www.physicalintelligence.company/blog/pi0" target="_blank" rel="noopener">π0: наша первая универсальная политика</a><span>Physical Intelligence, 2024 — видео со складыванием белья</span></li>
+      <li><a href="https://www.science.org/doi/10.1126/scirobotics.aea7390" target="_blank" rel="noopener">Good old-fashioned engineering can close the 100,000-year “data gap” in robotics</a><span>K. Goldberg, Science Robotics, 2025</span></li>
+      <li><a href="https://arxiv.org/abs/1504.00702" target="_blank" rel="noopener">End-to-End Training of Deep Visuomotor Policies</a><span>S. Levine, C. Finn, T. Darrell, P. Abbeel, 2016 — опорная работа урока и прообраз сети из лаборатории 1</span></li>
+      <li><a href="https://robotics-transformer-x.github.io/" target="_blank" rel="noopener">Open X-Embodiment</a><span>Попытка собрать общий датасет роботов: более миллиона траекторий, 22 типа роботов</span></li>
+      <li><a href="https://manipulation.csail.mit.edu/" target="_blank" rel="noopener">Robotic Manipulation</a><span>R. Tedrake, MIT — классика и обучение в манипуляции</span></li>
+    </ul>
+    <div class="callout insight" style="margin-top:34px"><span class="ico">➡️</span><div><p><strong>Дальше: устройство робота.</strong> В этом уроке у Ады было идеальное тело: сеть выдавала команду, и схват сразу сдвигался ровно туда, куда она велела. У настоящего робота команду исполняют моторы с редукторами и регуляторы, а о себе и о мире он узнаёт по шумным сенсорам, каждый со своей частотой. Что на самом деле получает и выдаёт политика и чем она управляет — <a href="0-2-ustroystvo-robota.html">урок 0.2</a>.</p></div></div>
+  </div>
+  <div class="wrap" style="margin-top:46px">
+    <div class="prose" style="margin-bottom:18px;max-width:820px">
+      <h3>Карта курса</h3>
+      <p class="muted" style="margin:0">Девять частей. Нажми на станцию — увидишь, какой вопрос из этого урока там раскрывается.</p>
+    </div>
+    <div class="card pad metro">
+      <div class="metro-line" id="metro"></div>
+      <div class="station-info" id="stationInfo"></div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Урок 0.1 курса «Modern Robotics и Physical AI». Все симуляции и нейросети работают локально в браузере.
+</footer>
+
+<div class="tooltip" id="tooltip" role="tooltip"></div>
+
+<script id="sim-js">
+/*@@SIM@@*/
+</script>
+<script>
+/*@@UI@@*/
+</script>
+</body>
+</html>

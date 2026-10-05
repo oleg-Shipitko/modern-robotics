@@ -1,0 +1,37 @@
+{
+  "_comment": "Ссылки сайта. Пустое значение — ссылка ещё не задана, на странице будет '#'.",
+  "CHANNEL": "https://t.me/c3po_robotics",
+  "LINKEDIN": "https://www.linkedin.com/in/shipitkooleg",
+  "GITHUB": "https://github.com/oleg-Shipitko",
+  "REPO": "https://github.com/oleg-Shipitko/modern-robotics",
+  "SITE_URL": "https://modernrobotics.ru",
+  "THANKS_API": "",
+  "_comment_thanks": "THANKS_API — адрес функции-счётчика «Сказать спасибо»; server/thanks/deploy.sh записывает его сам. Пока пусто, кнопка работает без числа.",
+  "PUBLISHED": [
+    {
+      "n": "0.1",
+      "file": "lessons/0-1-dve-paradigmy.html"
+    },
+    {
+      "n": "0.2",
+      "file": "lessons/0-2-ustroystvo-robota.html"
+    },
+    {
+      "n": "0.3",
+      "file": "lessons/0-3-kinematika-i-upravlenie.html"
+    },
+    {
+      "n": "0.4",
+      "file": "lessons/0-4-otsenka-sostoyaniya-i-planirovanie.html"
+    },
+    {
+      "n": "1.1",
+      "file": "lessons/1-1-behavior-cloning.html"
+    },
+    {
+      "n": "1.2",
+      "file": "lessons/1-2-dagger.html"
+    }
+  ],
+  "_comment_published": "Опубликованные уроки: отмечаются «доступен» на главной, попадают в sitemap.xml и в выкладку (tools/deploy.sh)."
+}

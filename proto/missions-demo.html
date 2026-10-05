@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Демо: миссии и карточки</title>
+<link rel="stylesheet" href="../lessons/l01/lesson.css"><link rel="stylesheet" href="../lessons/shared/lab.css">
+</head><body><main class="wrap" style="padding:30px 0">
+<h2>Миссии на живой сцене</h2>
+<div class="lab">
+  <div class="card scene-card"><canvas id="cv" width="400" height="200" style="width:100%;border:1px solid var(--line);border-radius:12px"></canvas>
+    <div class="ctl-row">
+      <label class="hd-range" id="wrapK"><span>k</span><input id="k" type="range" min="0" max="10" step="1" value="2"><output>2</output></label>
+      <label class="opt" id="wrapC"><input type="checkbox" id="c"> компенсация</label>
+    </div>
+  </div>
+  <div class="card guide-card"><div id="guide"></div></div>
+</div>
+<h2>Карточки</h2>
+<div class="card pad" id="sortBox"></div>
+</main>
+<script src="../lessons/shared/kit.js"></script>
+<script src="../lessons/shared/missions.js"></script>
+<script src="../lessons/shared/cards.js"></script>
+<script>
+const st = { k: 2, c: false, x: 0 };
+const api = { reset() { st.x = 0; }, state: () => st, run: () => new Promise((r) => setTimeout(() => { st.x = st.k * (st.c ? 2 : 1); r({ x: st.x }); }, 200)) };
+const ctl = Missions.mount('#guide', [
+  { short: 'Ставка', title: 'Первый запуск', text: 'Поставь ставку и запусти.', controls: ['k'], bet: { q: 'Будет больше 5?', options: ['Да', 'Нет'], answer: (r) => (r.x > 5 ? 0 : 1) }, action: { label: 'Запустить', run: (a) => a.run() }, criteria: [{ label: 'x больше 5', test: (r) => r.x > 5 }], summary: (r) => 'x = ' + r.x, fail: () => 'Увеличь k.', explain: (r) => 'Готово: x = ' + r.x, hint: 'Двигай ползунок k.' },
+  { short: 'Вживую', title: 'Без кнопки', text: 'Поставь k = 7 и включи компенсацию.', controls: ['k', 'c'], criteria: [{ label: 'k = 7', test: (r, s) => s.k === 7 }, { label: 'компенсация включена', test: (r, s) => s.c }], explain: () => 'Отлично.' },
+  { short: 'Свободно', title: 'Свободный режим', text: 'Всё доступно.', final: true },
+], api, { controls: { k: '#wrapK', c: '#wrapC' } });
+document.querySelector('#k').addEventListener('input', (e) => { st.k = +e.target.value; e.target.nextElementSibling.textContent = st.k; ctl.update(); });
+document.querySelector('#c').addEventListener('change', (e) => { st.c = e.target.checked; ctl.update(); });
+window.__ctl = ctl;
+window.__cards = Cards.sort('#sortBox', { items: [{ id: 'a', label: 'Колено пса', target: 'qdd', why: 'удары' }, { id: 'b', label: 'Плечо руки', target: 'hd', why: 'точность' }, { id: 'c', label: 'Палец', target: 'tendon', why: 'лёгкость' }], targets: [{ id: 'qdd', label: 'Квазипрямой' }, { id: 'hd', label: 'Волновой' }, { id: 'tendon', label: 'Тросы' }], after: 'Разбор.' });
+window.__ready = true;
+</script></body></html>

@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Прототип лабы «Привод: от мотора до модели» · урок 0.2</title>
+<script>(function(){try{var t=localStorage.getItem('mr-theme');if(t)document.documentElement.dataset.theme=t;else if(matchMedia('(prefers-color-scheme: dark)').matches)document.documentElement.dataset.theme='dark';}catch(e){}})();</script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../site/assets/site.css">
+<link rel="stylesheet" href="../site/assets/hero/hero.css">
+<style>
+.proto-note { padding: 9px 24px; font-size: 13.5px; color: #8a5a00; background: rgba(250,178,25,.14); border-bottom: 1px solid rgba(250,178,25,.35); text-align: center; }
+:root[data-theme="dark"] .proto-note { color: #fab219; }
+.lab { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 22px; align-items: start; margin: 18px 0 46px; }
+.lab canvas { width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--line); display: block; touch-action: pan-y; }
+#gearCv { aspect-ratio: 520 / 300; } #actCv { aspect-ratio: 560 / 260; }
+.panel { padding: 18px; display: grid; gap: 14px; }
+.panel .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.props { display: grid; grid-template-columns: 1fr auto; gap: 4px 14px; font-size: 14px; color: var(--ink-2); }
+.props b { font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--ink); text-align: right; }
+.prog { height: 5px; border-radius: 3px; background: var(--bg-2); overflow: hidden; }
+.prog i { display: block; height: 100%; width: 0; background: var(--e2e); }
+.msg { padding: 12px 14px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line); font-size: 15px; color: var(--ink-2); min-height: 48px; }
+.pred button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+#gearN { width: 160px; }
+@media (max-width: 900px) { .lab { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="proto-note">Прототип центральной лабы урока 0.2 · для обсуждения, тексты черновые</div>
+<main class="wrap" style="padding-top:36px">
+  <div class="kicker">Урок 0.2 · лаборатория, часть 1</div>
+  <h2 style="margin-bottom:8px">Редуктор и удар</h2>
+  <p class="lead">Мотор быстрый и слабый, редуктор меняет скорость на момент. Посмотри, чем приходится платить, и попробуй сам провернуть звено мышкой.</p>
+  <div class="lab">
+    <div class="card" style="padding:14px"><canvas id="gearCv" width="520" height="300" role="img" aria-label="Сустав: мотор, редуктор, звено и стена; график момента при ударе"></canvas></div>
+    <div class="card panel">
+      <label class="hd-range"><span>Передаточное число</span><input id="gearN" type="range" min="0" max="2.2" step="0.01" value="0.78"><output>6 : 1</output></label>
+      <div class="props"><span>Момент на выходе</span><b id="pTorque"></b><span>Скорость на выходе</span><b id="pSpeed"></b><span>Инерция ротора на выходе</span><b id="pRefl"></b><span>Трение в редукторе</span><b id="pFric"></b></div>
+      <div style="font-size:14px;color:var(--ink-2)">Прогноз: где удар о стену будет сильнее?</div>
+      <div class="row pred"><button class="btn sm" data-predg="6" type="button">при 6:1</button><button class="btn sm" data-predg="100" type="button">при 100:1</button><button class="btn sm" data-predg="eq" type="button">одинаково</button></div>
+      <div class="row"><button class="btn sm primary" id="gearHit" type="button">Ударить о стену</button></div>
+      <div class="msg" id="gearMsg">Тяни синий шарик на конце звена: при малом передаточном числе звено поддаётся, при большом стоит колом.</div>
+    </div>
+  </div>
+
+  <div class="kicker">Урок 0.2 · лаборатория, часть 2</div>
+  <h2 style="margin-bottom:8px">Модель привода по данным</h2>
+  <p class="lead">В симуляторе привод идеальный, а у настоящего есть задержка, трение и люфт. Сравни, как они отрабатывают одну и ту же команду, и закрой разрыв маленькой сетью.</p>
+  <div class="lab">
+    <div class="card" style="padding:14px"><canvas id="actCv" width="560" height="260" role="img" aria-label="График угла сустава: команда, настоящий привод, модель из симулятора и выученная модель"></canvas></div>
+    <div class="card panel">
+      <div class="row"><button class="btn sm primary" id="actTrain" type="button">Собрать данные и обучить модель привода</button></div>
+      <div class="prog"><i id="actProg"></i></div>
+      <div class="msg" id="actMsg" aria-live="polite">Синяя кривая — то, что думает симулятор. Чёрная — что делает настоящий привод. Политика, отлаженная на синей, на чёрной ведёт себя иначе.</div>
+    </div>
+  </div>
+</main>
+<script src="../lessons/shared/kit.js"></script>
+<script src="../lessons/shared/actuator-core.js"></script>
+<script src="actuator/ui.js"></script>
+</body>
+</html>

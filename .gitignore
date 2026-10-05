@@ -1,0 +1,43 @@
+# служебное и рабочие материалы, которые не публикуем
+.DS_Store
+node_modules/
+shots/
+sources/
+style/
+src/
+m0-dve-paradigmy.html
+
+# собранные файлы: получаются командами из README
+site/index.html
+site/about.html
+site/lessons/
+site/assets/hero/kit.js
+site/assets/thanks.js
+site/assets/thanks.css
+site/404.html
+site/robots.txt
+site/sitemap.xml
+
+# проверки старой разминки (src/) и устаревшие копии прототипа
+tools/build.py
+tools/cmp_arch.js
+tools/curve_seed7.js
+tools/diag_*.js
+tools/experiment.js
+tools/final_check.js
+tools/gradcheck.js
+tools/guided.js
+tools/interact*.js
+tools/kettle_*.js
+tools/loss_traj.js
+tools/mobile.js
+tools/pick_default.js
+tools/robust.js
+tools/scaling.js
+tools/shots*.js
+tools/smoke.js
+tools/sweep_policy.js
+tools/teal*.js
+proto/drive/
+dist/
+__pycache__/

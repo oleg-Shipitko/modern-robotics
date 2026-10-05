@@ -1,0 +1,170 @@
+/* ---------- shared/lab.css — общие стили лабораторий всех уроков: сцена, карточка шагов, миссии, карточки для сортировки ---------- */
+.lab { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 22px; align-items: start; margin-top: 22px; }
+.scene-card { padding: 14px; }
+#scene { width: 100%; height: auto; aspect-ratio: 3 / 2; border-radius: 12px; border: 1px solid var(--line); display: block; touch-action: pan-y; cursor: crosshair; }
+.panel { padding: 18px; display: grid; gap: 16px; }
+.panel h3 { font-size: 16px; margin: 0 0 8px; }
+.panel .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.panel label.opt { display: inline-flex; gap: 7px; align-items: center; font-size: 14px; color: var(--ink-2); font-weight: 600; }
+.muted-s { font-size: 13px; color: var(--ink-3); }
+.prog { height: 5px; border-radius: 3px; background: var(--bg-2, var(--surface-2)); overflow: hidden; margin-top: 8px; }
+.prog i { display: block; height: 100%; width: 0; background: var(--e2e); transition: width .1s; }
+#loss { width: 100%; height: auto; aspect-ratio: 260 / 70; display: block; margin-top: 8px; }
+.pred button { min-width: 44px; }
+.pred button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.lab-msg { padding: 12px 14px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line); font-size: 15px; color: var(--ink-2); margin-top: 12px; min-height: 48px; }
+.lab-msg.good { border-color: color-mix(in srgb, var(--good) 45%, transparent); }
+.lab-msg.bad { border-color: color-mix(in srgb, var(--critical) 45%, transparent); }
+.lab-msg.info { border-color: color-mix(in srgb, var(--classic) 40%, transparent); }
+#history { margin: 6px 0 0; padding-left: 1.1em; font-size: 13.5px; color: var(--ink-2); }
+.views { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13.5px; color: var(--ink-2); margin-top: 10px; }
+button:disabled { opacity: .45; cursor: not-allowed; }
+.btn.sm { padding: 6px 12px; font-size: 14px; border-radius: 10px; }
+.hd-range { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--ink-2); font-weight: 600; }
+.hd-range input { width: 140px; accent-color: var(--ink); }
+.hd-range output { font-family: var(--mono); font-size: 12.5px; color: var(--ink-3); min-width: 56px; }
+
+/* ---------- ALVINN ---------- */
+.alvinn { padding: 18px; }
+.alv-grid { display: grid; grid-template-columns: minmax(0, 0.7fr) minmax(0, 1.6fr); gap: 18px; align-items: start; }
+.alv-grid h4 { margin: 0 0 8px; font-size: 15px; }
+#alvRoad { width: 100%; height: auto; aspect-ratio: 16 / 15; image-rendering: pixelated; border-radius: 10px; border: 1px solid var(--line); display: block; }
+#alvOut { width: 100%; height: auto; aspect-ratio: 420 / 150; border-radius: 10px; border: 1px solid var(--line); display: block; }
+.alv-ctrl, .sq-ctrl { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; margin-top: 14px; }
+
+/* ---------- εT² ---------- */
+#sqChart { width: 100%; height: auto; aspect-ratio: 760 / 300; display: block; margin-top: 14px; border-radius: 10px; border: 1px solid var(--line); }
+.sq-stats { display: flex; flex-wrap: wrap; gap: 10px 24px; margin-top: 12px; font-size: 14.5px; color: var(--ink-2); }
+.sq-stats b { font-family: var(--mono); font-weight: 600; color: var(--ink); }
+
+/* ---------- таймлайн и открытые вопросы ---------- */
+.tl-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; max-width: 900px; }
+.tl-list li { display: grid; grid-template-columns: 120px 1fr; gap: 16px; padding: 14px 18px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); }
+.tl-list b { font-variant-numeric: tabular-nums; color: var(--e2e); }
+.open-q { margin: 10px 0; }
+.open-q summary { cursor: pointer; font-weight: 650; }
+.open-q p { margin: 10px 0 0; }
+@media (max-width: 900px) { .lab, .alv-grid { grid-template-columns: 1fr; } .tl-list li { grid-template-columns: 1fr; gap: 4px; } }
+
+/* ---------- урок 1.2: кривая и бюджет внимания ---------- */
+.row-btns { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; }
+#curveChart { width: 100%; height: auto; aspect-ratio: 760 / 300; display: block; margin-top: 14px; border-radius: 10px; border: 1px solid var(--line); }
+.ens-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 0.8fr); gap: 18px; margin-top: 14px; align-items: start; }
+#ensScene { width: 100%; height: auto; aspect-ratio: 3 / 2; border-radius: 12px; border: 1px solid var(--line); display: block; }
+.ens-side { display: grid; gap: 10px; }
+.kpi { padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface-2); display: grid; gap: 2px; }
+.kpi b { font-size: 28px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.kpi span { font-size: 13.5px; color: var(--ink-3); }
+@media (max-width: 900px) { .ens-grid { grid-template-columns: 1fr; } }
+
+/* ---------- пошаговый сценарий лаборатории ---------- */
+.guide-card { padding: 18px; display: grid; gap: 14px; align-content: start; }
+.g-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.g-steps li { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 650; color: var(--ink-3); padding: 3px 10px 3px 3px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); }
+.g-steps li b { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-2); font-size: 11.5px; color: var(--ink-2); }
+.g-steps li.cur { color: var(--ink); border-color: var(--ink); }
+.g-steps li.cur b { background: var(--ink); color: var(--bg); }
+.g-steps li.done b { background: var(--good); color: #fff; }
+.g-card { display: grid; gap: 8px; }
+.g-kicker { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+.g-card h3 { margin: 0; font-size: 20px; }
+.g-text { margin: 0; font-size: 15.5px; color: var(--ink-2); }
+.g-pred { margin: 4px 0; padding: 10px 12px; border-radius: 12px; border: 1px dashed var(--line-2); }
+.g-pred .q { font-weight: 650; margin-bottom: 8px; font-size: 15px; }
+.g-pred .opts { display: flex; flex-wrap: wrap; gap: 6px; }
+.g-pred button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.g-go { justify-self: start; margin-top: 4px; }
+.g-hint { font-size: 13px; color: var(--ink-3); min-height: 1em; }
+.g-out { padding: 12px 14px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line); font-size: 15px; color: var(--ink-2); }
+.g-out b { color: var(--ink); }
+.g-nav { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.g-skip, .g-restart { background: none; border: 0; padding: 0; color: var(--ink-3); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; font: inherit; font-size: 13.5px; }
+.g-foot { border-top: 1px solid var(--line); padding-top: 10px; }
+.g-train h4, .g-hist h4 { margin: 0 0 6px; font-size: 14px; color: var(--ink-2); }
+.free-mode { margin-top: 18px; }
+.free-mode > summary { cursor: pointer; font-weight: 700; padding: 4px 0; }
+.free-mode .panel { margin-top: 12px; }
+
+/* ---------- блоки «Под капотом» ---------- */
+details.deep { margin: 18px 0; border: 1px solid var(--line-2); border-radius: 14px; background: var(--surface); }
+details.deep > summary { cursor: pointer; padding: 12px 16px; font-weight: 700; list-style: none; display: flex; justify-content: space-between; gap: 12px; }
+details.deep > summary::-webkit-details-marker { display: none; }
+details.deep > summary::after { content: "+"; color: var(--ink-3); font-weight: 500; font-size: 20px; line-height: 1; }
+details.deep[open] > summary::after { content: "−"; }
+details.deep[open] > summary { border-bottom: 1px solid var(--line); }
+details.deep .body { padding: 12px 16px 6px; font-size: 16px; }
+details.deep .body p, details.deep .body li { color: var(--ink-2); }
+.formula { font-family: var(--mono); font-size: 14px; background: var(--surface-2); border: 1px solid var(--line); padding: 10px 12px; border-radius: 10px; overflow-x: auto; white-space: pre; margin: 8px 0 12px; color: var(--ink); line-height: 1.55; }
+
+.heat-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 8px; font-size: 13px; color: var(--ink-2); }
+.heat-legend i { display: inline-block; width: 14px; height: 14px; border-radius: 3px; }
+.heat-legend .hl-data { background: color-mix(in srgb, var(--classic) 45%, transparent); }
+.heat-legend .hl-gap { border: 2px solid var(--e2e); margin-left: 8px; }
+
+/* ---------- общие детали лабораторий ---------- */
+.lab-narrow { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.sq-cv { width: 100%; height: auto; aspect-ratio: 1; border-radius: 12px; border: 1px solid var(--line); display: block; }
+.props { display: grid; grid-template-columns: 1fr auto; gap: 4px 14px; font-size: 14px; color: var(--ink-2); }
+.props b { font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--ink); text-align: right; }
+.imp-title { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 6px; }
+.cv-legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; color: var(--ink-2); margin-top: 10px; min-height: 18px; }
+.cv-legend span { display: inline-flex; align-items: center; gap: 7px; }
+.cv-legend i { display: inline-block; width: 18px; height: 3px; border-radius: 2px; background: var(--c); }
+.cv-legend i.dash { background: repeating-linear-gradient(90deg, var(--c) 0 4px, transparent 4px 7px); }
+.free-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--line-2); }
+label.opt { display: inline-flex; gap: 7px; align-items: center; font-size: 14px; color: var(--ink-2); font-weight: 600; }
+.readout { margin-top: 10px; font-size: 14.5px; color: var(--ink-2); min-height: 22px; line-height: 1.5; }
+.readout b { color: var(--ink); font-weight: 650; }
+@media (max-width: 900px) { .lab-narrow { grid-template-columns: 1fr; } }
+
+/* ---------- миссии (shared/missions.js) ---------- */
+.m-steps li { cursor: default; }
+.m-steps li.open:not(.cur) { cursor: pointer; }
+.m-card { display: grid; gap: 12px; }
+.m-crit { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.m-crit li { display: flex; gap: 9px; align-items: baseline; font-size: 15px; color: var(--ink-2); }
+.m-crit li i { flex: 0 0 18px; width: 18px; height: 18px; border-radius: 50%; display: inline-grid; place-items: center; font-style: normal; font-size: 12px; font-weight: 800; background: var(--surface-2); border: 1.5px solid var(--line-2); transform: translateY(3px); }
+.m-crit li.wait i::before { content: '·'; color: var(--ink-3); }
+.m-crit li.no i { border-color: var(--critical); color: var(--critical); }
+.m-crit li.no i::before { content: '✗'; }
+.m-crit li.ok i { border-color: var(--good); background: var(--good-soft); color: var(--good); }
+.m-crit li.ok i::before { content: '✓'; }
+.m-crit li.ok { color: var(--ink); }
+.m-crit.live li.no i { border-color: var(--line-2); color: var(--ink-3); background: var(--surface-2); }
+.m-crit.live li.no i::before { content: '·'; }
+.m-log { margin: 0; padding: 0 0 0 20px; font-size: 13px; color: var(--ink-3); display: grid; gap: 2px; font-family: var(--mono); }
+.m-log li.ok { color: var(--good); }
+.m-hint summary { cursor: pointer; font-size: 14px; color: var(--ink-2); font-weight: 600; }
+.m-hint > div { margin-top: 6px; font-size: 14.5px; color: var(--ink-2); }
+.g-out.m-fail { border-left: 3px solid var(--critical); }
+.g-out.m-win { border-left: 3px solid var(--good); }
+.m-bet .btn.bet-right { border-color: var(--good); background: var(--good-soft); color: var(--ink); }
+.m-bet .btn.bet-wrong { border-color: var(--critical); background: var(--critical-soft); color: var(--ink); }
+.m-bet .btn.bet-right::after { content: ' ✓'; }
+.m-bet .btn.bet-wrong::after { content: ' ✗'; }
+.m-fresh { animation: m-fresh 1.6s ease-out 1; border-radius: 10px; }
+@keyframes m-fresh { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--e2e) 60%, transparent); } 100% { box-shadow: 0 0 0 10px transparent; } }
+.ctl-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin-top: 12px; }
+.ctl-row > [hidden] { display: none !important; }
+
+/* ---------- карточки для сортировки (shared/cards.js) ---------- */
+.c-sort { display: grid; gap: 14px; }
+.c-pool, .c-zone { border: 1.5px dashed var(--line-2); border-radius: 12px; padding: 10px 12px; background: var(--surface-2); transition: border-color .15s, background .15s; }
+.c-pool-h, .c-zone-h { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 8px; }
+.c-zone-n { font-size: 12.5px; color: var(--ink-3); margin: -4px 0 8px; }
+.c-zones { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.c-body { display: flex; flex-wrap: wrap; gap: 8px; min-height: 40px; align-content: flex-start; }
+.c-pool.c-empty .c-body::after { content: 'Все карточки разложены'; font-size: 13px; color: var(--ink-3); align-self: center; }
+.c-card { touch-action: none; user-select: none; cursor: grab; border: 1.5px solid var(--line-2); background: var(--surface); color: var(--ink); border-radius: 10px; padding: 8px 12px; font-size: 14.5px; font-weight: 600; line-height: 1.3; text-align: left; }
+.c-card:hover { border-color: var(--ink-3); }
+.c-card.c-sel { border-color: var(--ink); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink) 18%, transparent); }
+.c-card.c-dragging { opacity: .35; }
+.c-ghost { position: fixed; left: 0; top: 0; z-index: 1000; pointer-events: none; box-shadow: 0 8px 24px rgba(0,0,0,.18); cursor: grabbing; }
+.c-over { border-color: var(--ink-2); background: var(--surface); }
+.c-selecting .c-zone, .c-selecting .c-pool { border-color: var(--ink-3); }
+.c-card.c-ok { border-color: var(--good); background: var(--good-soft); }
+.c-card.c-bad { border-color: var(--critical); background: var(--critical-soft); }
+.c-card:disabled { cursor: default; opacity: 1; color: var(--ink); }
+.c-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.c-out ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; font-size: 14.5px; color: var(--ink-2); }
+.c-out p { margin: 0; font-size: 15px; }
