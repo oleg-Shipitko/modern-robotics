@@ -1,0 +1,68 @@
+/* ---------- урок 1.5 ---------- */
+:root { --pol-reg: #3d3c38; --pol-gmm: #0e8a80; --pol-dif: #eb6834; --side-l: #0e8a80; --side-r: #8a5cc4; }
+:root[data-theme="dark"] { --pol-reg: #d9d7cf; --pol-gmm: #34b8aa; --pol-dif: #e8743f; --side-l: #34b8aa; --side-r: #b294e6; }
+.k-cv, .pt-cv, .scrub-cv { width: 100%; height: auto; display: block; border-radius: 12px; border: 1px solid var(--line); touch-action: pan-y; }
+.k-cv { aspect-ratio: 600 / 400; }
+.pt-cv { aspect-ratio: 520 / 330; cursor: grab; }
+.scrub-cv { aspect-ratio: 560 / 230; }
+.plot-cv { width: 100%; height: auto; aspect-ratio: 520 / 96; border-radius: 10px; border: 1px solid var(--line); display: block; margin-top: 10px; }
+.curve-cv { width: 100%; height: auto; aspect-ratio: 520 / 170; border-radius: 10px; border: 1px solid var(--line); display: block; margin-top: 8px; }
+.g-out.m-win { border-left: 3px solid var(--good); }
+.g-out.m-fail { border-left: 3px solid var(--critical); }
+.cv-legend i.dot { width: 10px; height: 10px; border-radius: 50%; }
+.cv-legend i.dotted { background: repeating-linear-gradient(90deg, var(--c) 0 2px, transparent 2px 5px); }
+.lab-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
+.lab-stats .st { border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; background: var(--surface); border-top: 3px solid var(--c); font-size: 13px; color: var(--ink-2); line-height: 1.4; min-width: 0; }
+.lab-stats .st b { display: block; font-size: 14px; color: var(--ink); }
+.lab-stats .st .v { font-family: var(--mono); font-size: 12.5px; }
+.show-row { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.show-row label.opt { font-size: 13.5px; }
+.ctl-row .hd-range input { width: 130px; }
+.m-live .m-crit li.no i { border-color: var(--line-2); color: var(--ink-3); background: var(--surface-2); }
+.m-live .m-crit li.no i::before { content: '·'; }
+.tbl-wrap { overflow-x: auto; margin: 0 0 6px; }
+.speed-tbl { min-width: 640px; }
+/* Push-T */
+.pt-bar { position: relative; height: 12px; border-radius: 6px; background: var(--surface-2); border: 1px solid var(--line); margin: 10px 0 4px; overflow: hidden; }
+.pt-bar::before { content: ''; position: absolute; inset: 0 auto 0 0; width: var(--v, 0%); background: color-mix(in srgb, var(--good) 55%, transparent); }
+.pt-bar::after { content: ''; position: absolute; top: -2px; bottom: -2px; left: 95%; width: 2px; background: var(--ink-2); }
+.pt-scale { display: flex; justify-content: space-between; font: 11.5px var(--mono); color: var(--ink-3); }
+.nudge { display: inline-grid; grid-template-columns: repeat(3, 34px); grid-template-rows: repeat(2, 30px); gap: 4px; }
+.nudge button { padding: 0; font-size: 15px; }
+.nudge .u { grid-column: 2; grid-row: 1; } .nudge .l { grid-column: 1; grid-row: 2; } .nudge .d { grid-column: 2; grid-row: 2; } .nudge .r { grid-column: 3; grid-row: 2; }
+/* денойзинг пачки */
+.scrub-strip { display: grid; grid-template-columns: repeat(16, minmax(0, 1fr)); gap: 3px; margin-top: 8px; }
+.scrub-strip .ss { font: 600 11px var(--mono); text-align: center; padding: 5px 0; border-radius: 5px; color: #fff; cursor: pointer; border: 2px solid transparent; }
+.scrub-strip .ss.l { background: var(--side-l); } .scrub-strip .ss.r { background: var(--side-r); } .scrub-strip .ss.n { background: var(--surface-2); color: var(--ink-3); border-color: var(--line); }
+.scrub-strip .ss.cur { border-color: var(--ink); }
+.scrub-strip .ss.mark { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--good); }
+.strip-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; color: var(--ink-3); margin-top: 6px; }
+.strip-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+/* сборка цикла */
+.pipe-wrap { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+.pipe-line { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.pipe-line .pl { display: grid; grid-template-columns: 28px 1fr; gap: 10px; align-items: center; padding: 9px 12px; border-radius: 10px; border: 1px dashed var(--line-2); background: var(--surface-2); min-height: 46px; font-size: 14.5px; color: var(--ink); }
+.pipe-line .pl b { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--surface); border: 1px solid var(--line-2); font-size: 13px; }
+.pipe-line .pl.on { border-style: solid; border-color: color-mix(in srgb, var(--good) 55%, transparent); background: var(--surface); }
+.pipe-line .pl.on b { background: var(--good); border-color: var(--good); color: #fff; }
+.pipe-line .pl small { display: block; font-size: 12.5px; color: var(--ink-3); margin-top: 2px; }
+.pipe-line .ph { color: var(--ink-3); }
+.pipe-bank { display: grid; gap: 8px; }
+.pipe-bank .pc { display: grid; grid-template-columns: 1fr auto; border: 1px solid var(--line-2); border-radius: 10px; background: var(--surface); overflow: hidden; }
+.pipe-bank .pc-main { text-align: left; padding: 9px 12px; border: 0; background: none; cursor: pointer; font-size: 14.5px; color: var(--ink); line-height: 1.35; }
+.pipe-bank .pc-main:hover { background: var(--surface-2); }
+.pipe-bank .pc-x { border: 0; border-left: 1px solid var(--line); background: none; padding: 0 12px; cursor: pointer; color: var(--ink-3); font-size: 14px; }
+.pipe-bank .pc-x:hover { color: var(--critical); background: var(--surface-2); }
+.pipe-bank .pc.rej { opacity: .55; }
+.pipe-bank .pc.rej .pc-main { text-decoration: line-through; cursor: default; }
+.pipe-bank .pc-tag { align-self: center; padding: 0 12px; font-size: 12px; color: var(--critical); }
+.pipe-h { font-size: 13px; font-weight: 650; color: var(--ink-3); text-transform: uppercase; letter-spacing: .05em; margin: 0 0 8px; }
+@media (max-width: 760px) { .pipe-wrap { grid-template-columns: 1fr; } }
+@media (max-width: 520px) {
+  .lab-stats { grid-template-columns: 1fr; }
+  .ctl-row .hd-range { display: grid; grid-template-columns: 118px 1fr 52px; width: 100%; }
+  .ctl-row .hd-range input { width: 100%; }
+  .ctl-row .seg { width: 100%; }
+  .ctl-row .seg button { flex: 1 1 auto; }
+  .scrub-strip .ss { font-size: 9.5px; padding: 4px 0; }
+}

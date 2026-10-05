@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>1.5 Diffusion Policy — Modern Robotics и Physical AI</title>
+<meta name="description" content="Урок 1.5 курса «Modern Robotics и Physical AI»: Diffusion Policy строит пачку действий из шума при условии наблюдений. Поставь блок в цель Push-T, перемотай денойзинг пачки, собери политику по шагам и обучи её в браузере: десять прогонов, регрессия рядом, шаги денойзинга и длина исполнения.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<script>
+  (function () { try { var t = localStorage.getItem('mr-theme'); if (t) document.documentElement.dataset.theme = t; else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme = 'dark'; } catch (e) {} })();
+</script>
+<style>
+/*@@CSS@@*/
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html#program" title="К программе курса"><div>Modern Robotics и Physical AI<small>Урок 1.5 · Diffusion Policy</small></div></a>
+    <nav class="toc" aria-label="Разделы урока">
+      <a href="#pusht">Push-T</a>
+      <a href="#chunk">Пачка</a>
+      <a href="#scheme">Цикл</a>
+      <a href="#lab">Лаборатория</a>
+      <a href="#speed">Скорость</a>
+      <a href="#seams">Стыки</a>
+      <a href="#why">Почему работает</a>
+      <a href="#quiz">Проверка</a>
+      <a href="#finale">Итог</a>
+    </nav>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Переключить тему">◐</button>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main>
+
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="kicker"><span class="num">1.5</span> Часть 1 · Обучение по демонстрациям</div>
+    <h1>Diffusion <span class="amp">Policy</span></h1>
+    <p class="lead">В уроке 1.3 выяснилось, что политике нужна модель распределения действий, иначе она усредняет объезды и едет в чайник. В уроке 1.4 диффузия научилась брать сэмплы из распределения любой формы. Diffusion Policy соединяет обе идеи: диффузия строит не точку, а пачку будущих действий, а последние наблюдения служат ей условием. Начальный шум выбирает стратегию, пачка её держит. В уроке обучим такую политику для Ады, выясним, сколько шагов пачки исполнять и сколько шагов денойзинга нужно на самом деле, и разберём, почему метод работает.</p>
+    <p class="ada-note"><svg class="ada-ico" viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="10" width="48" height="42" rx="18" fill="#f4efe6" stroke="#3d3c38" stroke-width="3"/><rect x="15" y="19" width="34" height="22" rx="10" fill="#1f2430"/><ellipse cx="25" cy="30" rx="4" ry="5.5" fill="#eb6834"/><ellipse cx="39" cy="30" rx="4" ry="5.5" fill="#eb6834"/></svg><span>Ада — домашний гуманоидный робот, на котором построены лабораторные работы курса. Подробнее о ней — в <a href="0-1-dve-paradigmy.html#ada">уроке 0.1</a>.</span></p>
+    <div class="hero-meta"><span>≈ 45 минут</span><span>лаборатория и 3 интерактива</span><span>9 миссий с целью</span><span>формулы — в блоках «Под капотом»</span></div>
+    <div class="hero-list">
+      <div><b>PUSH-T</b>Поставь Т-блок в цель и узнай, как считают награду бенчмарка</div>
+      <div><b>ДЕНОЙЗИНГ</b>Перемотай денойзинг пачки и найди шаг, на котором выбрана сторона объезда</div>
+      <div><b>ЦИКЛ</b>Собери политику по шагам от камеры до мотора и отбрось лишние блоки</div>
+      <div><b>ЛАБОРАТОРИЯ</b>Обучи политику в браузере и проверь пачки, шаги денойзинга и длину исполнения</div>
+    </div>
+    <p style="margin-top:28px"><a class="btn primary" href="#pusht">Начать урок ↓</a></p>
+  </div>
+</section>
+
+<section class="section alt" id="pusht">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">1</span> Задача</div>
+      <h2>Push-T: задача из статьи</h2>
+      <p>Политике мало выбрать одну стратегию: её нужно исполнять плавно, на настоящем роботе и в реальном времени. Chi и соавторы в 2023 году предложили для этого Diffusion Policy и проверили её на 12 задачах из четырёх бенчмарков: Robomimic, Push-T, Block Pushing и Franka Kitchen. Главный пример статьи — Push-T.</p>
+      <p>В Push-T круглый агент толкает Т-образный блок в зелёный контур на столе. Задача мультимодальна: к блоку можно зайти слева или справа, толкнуть его за перекладину или за ножку, и операторы делают это по-разному. На настоящей руке UR5 Diffusion Policy решила задачу в 95% попыток, IBC — ни разу, LSTM-GMM — в 20%.</p>
+      <p>Прежде чем сравнивать политики, разберёмся с метрикой: что именно считается решением.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <canvas id="ptCv" width="520" height="330" class="pt-cv" role="img" aria-label="Вид сверху: зелёный контур цели и Т-блок, который можно перетаскивать и поворачивать"></canvas>
+        <div class="pt-bar" id="ptBar" aria-hidden="true"></div>
+        <div class="pt-scale"><span>0%</span><span>покрытие цели · черта — 95%</span><span>100%</span></div>
+        <div class="readout" id="ptOut"></div>
+        <div class="ctl-row">
+          <label class="hd-range"><span>Поворот</span><input id="ptRot" type="range" min="-180" max="180" step="1" value="-20"><output>−20°</output></label>
+          <div class="nudge" id="ptNudge" role="group" aria-label="Сдвинуть блок">
+            <button type="button" class="btn sm u" data-dx="0" data-dy="-2" aria-label="Вверх">↑</button>
+            <button type="button" class="btn sm l" data-dx="-2" data-dy="0" aria-label="Влево">←</button>
+            <button type="button" class="btn sm d" data-dx="0" data-dy="2" aria-label="Вниз">↓</button>
+            <button type="button" class="btn sm r" data-dx="2" data-dy="0" aria-label="Вправо">→</button>
+          </div>
+        </div>
+      </div>
+      <div class="card guide-card"><div id="ptMis"></div></div>
+    </div>
+    <div class="prose" style="margin:26px 0 0;max-width:820px">
+      <p>Метрика говорит, куда прийти, но не говорит как. Как политика выбирает один способ из нескольких и не бросает его на полпути?</p>
+    </div>
+    <details class="deep"><summary>Под капотом: награда в Push-T</summary><div class="body">
+      <p>Награда — доля закрытой цели с запасом в 5%:</p>
+      <div class="formula">\[r = \min\Bigl(1,\ \frac{S_{\text{закрыто}}}{0{,}95\, S_{\text{цели}}}\Bigr).\]</div>
+      <p>Метрика бенчмарка — лучшая награда за эпизод, усреднённая по 50 стартам. На реальном роботе авторы считали пересечение блока с целью на последнем шаге (IoU): у Diffusion Policy 0,80, у человека-оператора 0,84.</p>
+      <p>В интерактиве блок и цель состоят из перекладины 140 × 35 и ножки 35 × 100, цель повёрнута на 45°. Площадь пересечения считается точно: блок и цель — по два прямоугольника, а пересечение выпуклых многоугольников находится отсечением Сазерленда — Ходжмана.</p>
+    </div></details>
+  </div>
+</section>
+
+<section class="section" id="chunk">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">2</span> Пачка</div>
+      <h2>Диффузия строит пачку действий</h2>
+      <p>В уроке 1.4 диффузия генерировала точку на плоскости. Политике нужна не точка, а движение. Поэтому Diffusion Policy генерирует <strong>пачку действий</strong>: положения робота на 16 шагов вперёд. Пачку целиком начинают с гауссова шума и за несколько шагов денойзинга превращают в связное движение.</p>
+      <p>Наблюдения при этом не зашумляют. Кадры с камер и положение робота — только <strong>условие</strong>: сеть получает их на каждом шаге денойзинга и по ним решает, куда сдвинуть пачку. Процедура генерации одна для любой ситуации, меняется только условие.</p>
+      <p>Почему пачка держит стратегию? Сторону объезда выбирают один раз на всю пачку, и все 16 шагов следуют этому выбору. Перемотай денойзинг пачки рядом с чайником и найди, на каком шаге выбрана сторона.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <canvas id="scrubCv" width="560" height="230" class="scrub-cv" role="img" aria-label="Чайник на пути Ады и пачка из 16 точек на текущем шаге денойзинга"></canvas>
+        <div class="cv-legend" id="scrubLegend"></div>
+        <div class="scrub-strip" id="scrubStrip" aria-label="Сторона оценки чистой пачки на каждом шаге денойзинга"></div>
+        <div class="strip-legend"><span><i style="background:var(--side-l)"></i>объезд слева</span><span><i style="background:var(--side-r)"></i>объезд справа</span><span><i style="background:var(--surface-2);border:1px solid var(--line)"></i>сторона не выбрана</span></div>
+        <div class="readout" id="scrubOut"></div>
+        <div class="ctl-row">
+          <label class="hd-range"><span>Шаг денойзинга</span><input id="scrubS" type="range" min="0" max="16" step="1" value="0"><output>0</output></label>
+          <button class="btn sm" id="scrubMark" type="button">Сторона выбрана здесь</button>
+          <button class="btn sm" id="scrubNew" type="button">Новый шум</button>
+        </div>
+      </div>
+      <div class="card guide-card"><div id="scrubMis"></div></div>
+    </div>
+    <div class="prose" style="margin:26px 0 0;max-width:820px">
+      <p>Итак, стратегию выбирает начальный шум, а денойзинг доводит пачку до одной из стратегий, которые есть в данных. Как собрать из этого политику, которая работает на роботе от камеры до мотора?</p>
+    </div>
+    <details class="deep"><summary>Под капотом: денойзинг пачки с условием</summary><div class="body">
+      <p>Обозначим пачку на шаге денойзинга \(k\) через \(a^k\), наблюдения — через \(o\). Сеть \(\varepsilon_\theta\) учат угадывать добавленный шум, как в уроке 1.4, только с наблюдениями на входе:</p>
+      <div class="formula">\[\begin{gathered} L = \E\,\bigl\lVert \varepsilon - \varepsilon_\theta(a^k, k, o)\bigr\rVert^2,\\ a^k = \sqrt{\bar\alpha_k}\,a^0 + \sqrt{1 - \bar\alpha_k}\,\varepsilon. \end{gathered}\]</div>
+      <p>Шаг DDIM с \(k\) на более ранний \(k'\) сначала оценивает чистую пачку, потом снова добавляет к ней предсказанный шум меньшего уровня:</p>
+      <div class="formula">\[\begin{aligned} \hat a^0 &= \frac{a^k - \sqrt{1 - \bar\alpha_k}\,\varepsilon_\theta(a^k, k, o)}{\sqrt{\bar\alpha_k}},\\ a^{k'} &= \sqrt{\bar\alpha_{k'}}\,\hat a^0 + \sqrt{1 - \bar\alpha_{k'}}\,\varepsilon_\theta(a^k, k, o). \end{aligned}\]</div>
+      <p>В интерактиве денойзер точный и без условия, как в уроке 1.3: пачка — 16 боковых смещений Ады вокруг чайника, 9 шагов до него и 6 после, по 40 демонстрациям. Сторону считаем по оценке чистой пачки на уровне чайника: дальше 6 см от маршрута. В лаборатории ниже денойзер — обученная сеть с условием.</p>
+    </div></details>
+  </div>
+</section>
+
+<section class="section alt" id="scheme">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">3</span> Цикл</div>
+      <h2>Как устроена политика</h2>
+      <p>Одной пачки на всю задачу не хватит: сцена меняется, и робот должен на это реагировать. Поэтому политика работает циклом. Она смотрит на два последних кадра, энкодер считает их признаки, денойзинг строит пачку из 16 действий, робот исполняет первые 8, и цикл повторяется с новыми кадрами. Это <strong>отступающий горизонт</strong>, знакомый по скользящему горизонту из урока 0.3: планируем далеко, исполняем начало, перепланируем.</p>
+      <p>Собери этот цикл сам. Два блока в наборе лишние.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="pipe-wrap">
+          <div><p class="pipe-h">Цикл политики</p><ol class="pipe-line" id="pipeLine"></ol></div>
+          <div><p class="pipe-h">Блоки</p><div class="pipe-bank" id="pipeBank"></div></div>
+        </div>
+        <div class="readout" id="pipeOut" style="margin-top:12px"></div>
+      </div>
+      <div class="card guide-card"><div id="pipeMis"></div></div>
+    </div>
+    <div class="prose" style="margin:26px 0 0;max-width:820px">
+      <p>Числа 2, 16 и 8 авторы подобрали опытом. Короткая история наблюдений меньше переобучается, длинная пачка держит стратегию, а исполнение половины пачки оставляет время на реакцию. Проверим, как это работает на Аде.</p>
+    </div>
+    <details class="deep"><summary>Под капотом: политика из статьи</summary><div class="body">
+      <ul>
+        <li><b>Вход.</b> Два последних шага наблюдений: кадры двух камер и положение захвата.</li>
+        <li><b>Энкодер.</b> ResNet-18 на каждую камеру без предобучения, spatial softmax вместо глобального усреднения, GroupNorm вместо BatchNorm. Признаки считаются один раз за вывод пачки.</li>
+        <li><b>Денойзер.</b> Одномерный UNet по оси времени пачки, наблюдения и номер шага входят через FiLM. Есть и трансформерный вариант с cross-attention к наблюдениям, но авторы советуют начинать с UNet.</li>
+        <li><b>Обучение.</b> Случайный шаг из 100, квадратичная ошибка между шумом и его предсказанием, действия нормированы в отрезок [−1, 1], веса усредняются экспоненциально (EMA).</li>
+        <li><b>Управление.</b> Пачка — целевые положения, а не скорости. Позиционное управление у авторов стабильно лучше скоростного, у бейзлайнов было наоборот.</li>
+        <li><b>Размер и частота.</b> Сеть шума — 256 млн параметров в симуляции и 67 млн на роботе, энкодер — 22 млн на две камеры. Политика выдаёт пачку 10 раз в секунду, контроллер интерполирует её до 125 Гц.</li>
+      </ul>
+    </div></details>
+  </div>
+</section>
+
+<section class="section" id="lab">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Лаборатория</div>
+    <h2>Ада и диффузионная политика</h2>
+    <p class="lead lab-intro">Проверим на сцене из урока 1.3. Политика видит два последних положения Ады и выдаёт пачку из 16 шагов вперёд. Денойзер — настоящая маленькая сеть, она обучается прямо в браузере за несколько секунд. Рядом можно включить регрессию с пачками: она выдаёт всю пачку за один проход сети.</p>
+    <div class="lab">
+      <div class="card scene-card">
+        <canvas id="labCv" width="600" height="400" class="k-cv" role="img" aria-label="Дом Ады сверху: демонстрации объезда чайника, Ада с диффузионной политикой и её пачка действий"></canvas>
+        <div class="cv-legend" id="labLegend"></div>
+        <div class="lab-stats" id="labStats"></div>
+        <canvas id="labLoss" width="520" height="96" class="plot-cv" role="img" aria-label="Ошибка обучения денойзера и регрессии"></canvas>
+        <div class="cv-legend" id="labLossLegend"></div>
+        <div id="wrapCurve">
+          <canvas id="labCurve" width="520" height="170" class="curve-cv" role="img" aria-label="Сколько прогонов из 20 прошли без касания и смен плана при разной длине исполнения"></canvas>
+          <p class="muted-s" style="margin:4px 0 0">По горизонтали — сколько шагов пачки исполнять из 16, по вертикали — сколько прогонов из 20 прошли без касания и без смен плана при сдвиге чайника.</p>
+        </div>
+        <div class="ctl-row">
+          <div class="show-row">
+            <label class="opt" id="wrapPlan"><input type="checkbox" id="labPlan" checked> показывать пачку</label>
+            <label class="opt" id="wrapReg"><input type="checkbox" id="labReg"> регрессия рядом</label>
+            <label class="opt" id="wrapShift"><input type="checkbox" id="labShift"> сдвигать чайник</label>
+          </div>
+          <label class="hd-range" id="wrapShare"><span>Доля объездов слева</span><input id="labShare" type="range" min="0" max="100" step="5" value="50"><output>50%</output></label>
+          <div class="seg" role="group" aria-label="Сколько шагов пачки исполнять" id="wrapTa">
+            <button type="button" data-ta="1" aria-pressed="false">1</button>
+            <button type="button" data-ta="2" aria-pressed="false">2</button>
+            <button type="button" data-ta="4" aria-pressed="false">4</button>
+            <button type="button" data-ta="8" aria-pressed="true">8</button>
+            <button type="button" data-ta="16" aria-pressed="false">16 из 16</button>
+          </div>
+          <label class="hd-range" id="wrapSteps"><span>Шагов денойзинга</span><input id="labSteps" type="range" min="1" max="16" step="1" value="16"><output>16</output></label>
+        </div>
+      </div>
+      <div class="card guide-card"><div id="labMis"></div></div>
+    </div>
+    <div class="prose" style="margin:26px 0 0;max-width:820px">
+      <p>Пачка держит выбранную сторону, исполнение половины пачки — компромисс между решимостью и реакцией, а шагов денойзинга нужно гораздо меньше, чем при обучении. Сколько шагов делают настоящие роботы и как они сокращают задержку?</p>
+    </div>
+    <details class="deep"><summary>Под капотом: политики в лаборатории</summary><div class="body">
+      <p><b>Наблюдение.</b> Положения Ады на прошлом и текущем шаге относительно чайника — четыре числа. Боковое положение Ада оценивает с ошибкой около 8 см, как по неточному датчику.</p>
+      <p><b>Пачка.</b> Положения Ады на 16 шагов вперёд относительно текущего, по \(x\) и \(y\): 32 числа. Исполняем \(T_a\) шагов из 16, потом строим новую пачку.</p>
+      <p><b>Денойзер.</b> Полносвязная сеть: на входе зашумлённая пачка, наблюдение и номер шага шума (43 числа), два слоя по 64 нейрона с tanh, на выходе оценка чистой пачки. Косинусное расписание, 100 шагов шума при обучении, 3000 шагов Adam по 32 примера — около двух секунд в браузере. При выводе — DDIM с выбранным числом шагов.</p>
+      <p><b>Регрессия с пачками.</b> Сеть 4 → 64 → 64 → 32, среднеквадратичная ошибка, 2500 шагов Adam. Вся пачка — за один проход.</p>
+      <p><b>Прогоны.</b> Каждый запуск — 10 прогонов: старт чуть смещён, к движению добавлен шум регулятора около 0,5 см. В миссии со сдвигом чайника каждый запуск — одни и те же 20 прогонов для любой длины исполнения: чайник сдвигается на 12 см в сторону Ады на шаге от 8-го до 19-го. Так длины исполнения сравниваются на равных.</p>
+      <p><b>Метрики.</b> Касание — центры Ады и чайника ближе 31 см. Смена плана — новая пачка у чайника объезжает его с другой стороны, чем прошлая.</p>
+    </div></details>
+  </div>
+</section>
+
+<section class="section alt" id="speed">
+  <div class="wrap">
+    <div class="prose" style="max-width:820px">
+      <div class="kicker"><span class="num">4</span> Скорость</div>
+      <h2>Сколько шагов делают настоящие роботы</h2>
+      <p>Каждый шаг денойзинга — полный проход большой сети. DDPM на 100 шагах тратит около секунды на видеокарте T4, а робот на 10 Гц ждёт новую пачку каждые 0,6–0,8 секунды. В лаборатории Аде хватало трёх-четырёх шагов, и настоящие системы идут тем же путём: сокращают число шагов, меняют генератор и строят следующую пачку, пока исполняется текущая.</p>
+    </div>
+    <div class="prose" style="max-width:900px">
+      <div class="tbl-wrap"><table class="speed-tbl">
+        <thead><tr><th>Система</th><th>Генератор</th><th>Шагов при выводе</th><th>Время вывода</th></tr></thead>
+        <tbody>
+          <tr><td>Diffusion Policy</td><td>DDIM</td><td>16 (в разделе 3.4 статьи — 10)</td><td>0,1 с на RTX 3080</td></tr>
+          <tr><td>Consistency Policy</td><td>дистилляция Diffusion Policy</td><td>1–3</td><td>21–22 мс против ~195 мс у DDIM на 15 шагах</td></tr>
+          <tr><td>RDT-1B</td><td>DPM-Solver++</td><td>5</td><td>—</td></tr>
+          <tr><td>π0</td><td>flow matching</td><td>10</td><td>73 мс на RTX 4090</td></tr>
+          <tr><td>GR00T N1</td><td>flow matching</td><td>4</td><td>63,9 мс на L40</td></tr>
+          <tr><td>ALOHA Unleashed</td><td>DDIM</td><td>50</td><td>43 мс на RTX 4090</td></tr>
+        </tbody>
+      </table></div>
+      <p>Flow matching при гауссовом шуме эквивалентен диффузии, но учит более прямые пути от шума к данным, поэтому шагов нужно меньше. Его разберём в уроке 1.8. Быстрый вывод всё равно не убирает задержку целиком: пока сеть считает, робот должен что-то исполнять. Что происходит на стыке пачек?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="seams">
+  <div class="prose">
+    <div class="kicker"><span class="num">5</span> Стыки</div>
+    <h2>Стыки пачек и задержка</h2>
+    <p>Пока сеть строит следующую пачку, робот либо ждёт, либо продолжает старую. Синхронный вывод останавливает робота, и движение получается с паузами. Асинхронный продолжает старую пачку и переключается на новую, когда она готова. Но новая пачка строилась по устаревшим кадрам и может выбрать другую стратегию, поэтому на стыке появляется скачок.</p>
+    <p>Сгладить скачок усреднением нельзя по той же причине, что в уроке 1.3: среднее двух стратегий бывает недопустимым действием, и авторы π0 от усреднения отказались. Real-Time Chunking (RTC) от Physical Intelligence поступает иначе. Следующую пачку строят, пока исполняется текущая; действия, которые уже уходят на моторы, замораживают, а остальные дорисовывают так, чтобы новая пачка продолжала исполняемую. Метод работает без переобучения и выдерживает задержки больше 300 мс.</p>
+    <p>Задержки и способы стыковать пачки подробно разберём в уроке 1.7 про ACT. Осталось понять, почему диффузионная политика вообще работает лучше других и верно ли объяснение, которое дают авторы.</p>
+  </div>
+</section>
+
+<section class="section alt" id="why">
+  <div class="prose">
+    <div class="kicker"><span class="num">6</span> Почему работает</div>
+    <h2>Почему метод работает</h2>
+    <p>Авторы приводят три объяснения. Первое — мультимодальность: начальный шум выбирает стратегию, денойзинг доводит её до конца, и усреднения нет. Второе — длинный выход: диффузия описывает распределение над всей пачкой, поэтому можно предсказывать согласованную последовательность действий. Третье — устойчивое обучение: IBC приходится оценивать нормировку по отрицательным примерам, а диффузия учит score, в котором нормировки нет.</p>
+    <p>Результаты при этом нужно отделять от объяснений. Средний прирост 46,9% — это сравнение в симуляции. На реальных роботах авторы приводят отдельные задачи: 95% на Push-T, 90% на задаче с кружкой. Что выигрыш объясняется именно мультимодальностью, статья не доказывает.</p>
+    <p>С этим объяснением спорят. По оценке Mazza и соавторов, на стандартных бенчмарках условных мод почти нет (урок 1.3). Работа 2025 года (arXiv 2512.01809) на 28 бенчмарках связывает преимущество генеративных политик с шумом при обучении и итеративными шагами, а не с выразительностью модели: двухшаговая регрессионная политика почти не уступила flow-политике. А когда демонстрации разных операторов действительно расходятся, генеративная голова нужна: в ALOHA Unleashed — 70% успеха против 25% у регрессии с L1.</p>
+    <p>Практический вывод такой. Если в данных одна стратегия, регрессия с пачками дешевле и не хуже. Если операторы решают задачу по-разному или сцена допускает несколько решений, нужна генеративная политика.</p>
+  </div>
+</section>
+
+<section class="section" id="quiz">
+  <div class="prose">
+    <div class="kicker"><span class="num">7</span> Проверь себя</div>
+    <h2>Восемь вопросов о типичных заблуждениях</h2>
+    <div class="quiz" id="quizBox"></div>
+    <p class="score" id="quizScore" style="margin-top:14px"></p>
+  </div>
+</section>
+
+<section class="section alt" id="finale">
+  <div class="prose">
+    <div class="kicker"><span class="num">8</span> Итог</div>
+    <h2>Итоги урока</h2>
+    <ol class="takeaways">
+      <li><span>Diffusion Policy генерирует <strong>пачку действий</strong> на 16 шагов вперёд из шума при условии последних наблюдений. Наблюдения не зашумляют.</span></li>
+      <li><span>Стратегию выбирает <strong>начальный шум</strong> на первых шагах денойзинга, а пачка её держит, поэтому робот не виляет.</span></li>
+      <li><span><strong>Отступающий горизонт:</strong> предсказать 16, исполнить 8. Короче — план меняет сторону, длиннее — робот поздно замечает изменения сцены.</span></li>
+      <li><span>Шагов денойзинга нужно мало: 16 у Diffusion Policy, 10 у π0, 4 у GR00T N1, 1–3 после дистилляции. Один шаг без дистилляции даёт почти среднее.</span></li>
+      <li><span>Стыки пачек <strong>не усредняют</strong>: следующую пачку достраивают к исполняемой, как в Real-Time Chunking.</span></li>
+      <li><span>Мультимодальность — объяснение авторов, а не доказанная причина успеха. Если в данных одна стратегия, <strong>регрессия с пачками</strong> дешевле и не хуже.</span></li>
+    </ol>
+    <h3 style="margin-top:40px">Открытые вопросы</h3>
+    <details class="card pad open-q"><summary>Вывод занимает 100 мс, а робот управляется на 10 Гц. Как устроить исполнение, чтобы не было ни пауз, ни рывков?</summary><p>Строить следующую пачку асинхронно, пока исполняется текущая, и начинать вывод заранее, за столько шагов до конца пачки, сколько длится вывод. Действия, которые будут исполнены за время вывода, замораживать и дорисовывать к ним остальную пачку, как в Real-Time Chunking, а не усреднять пачки. Задержку можно имитировать и при обучении. В LeRobot асинхронный вывод сократил время на задачу с 13,75 до 9,7 с.</p></details>
+    <details class="card pad open-q"><summary>Почему позиционное управление может быть устойчивее к задержке и накоплению ошибки, чем скоростное?</summary><p>Целевое положение не зависит от того, где робот оказался из-за прошлых ошибок: регулятор тянет его в нужную точку, и ошибка не копится. Скорости же интегрируются, и любая неточность или задержка сдвигает всю оставшуюся траекторию. Кроме того, пачку положений проще стыковать: следующая пачка задаёт те же абсолютные точки, а не приращения от места, где робот случайно оказался.</p></details>
+    <h3 style="margin-top:34px">Гид по статье</h3>
+    <p><a href="https://arxiv.org/abs/2303.04137" target="_blank" rel="noopener">C. Chi et al., «Diffusion Policy: Visuomotor Policy Learning via Action Diffusion», RSS 2023</a>.</p>
+    <ul class="links">
+      <li><strong>Читать внимательно</strong><span>Отступающий горизонт и выбор длины наблюдений, предсказания и исполнения; сравнение позиционного и скоростного управления; опыты на реальном Push-T.</span></li>
+      <li><strong>Можно пропустить</strong><span>Подробности трансформерного варианта и таблицы по отдельным задачам Robomimic.</span></li>
+      <li><strong>Вопрос по ходу</strong><span>Почему авторы советуют начинать с варианта на UNet, а не с трансформера?</span></li>
+    </ul>
+    <h3 style="margin-top:34px">Материалы</h3>
+    <ul class="links">
+      <li><a href="https://diffusion-policy.cs.columbia.edu" target="_blank" rel="noopener">Diffusion Policy</a><span>Сайт проекта: видео отступающего горизонта на Push-T и задачи с кружкой</span></li>
+      <li><a href="https://github.com/real-stanford/diffusion_policy" target="_blank" rel="noopener">Код Diffusion Policy</a><span>Реализация авторов, лицензия MIT</span></li>
+      <li><a href="https://colab.research.google.com/drive/1gxdkgRVfM55zihY9TFLja97cSVZOZq2B" target="_blank" rel="noopener">Colab авторов</a><span>Обучение политики на Push-T в браузере</span></li>
+      <li><a href="https://www.youtube.com/watch?v=M03sZFfW-qU" target="_blank" rel="noopener">Доклад Cheng Chi</a><span>Первый автор о методе и опытах</span></li>
+      <li><a href="https://arxiv.org/abs/2506.07339" target="_blank" rel="noopener">Real-Time Chunking</a><span>K. Black et al., 2025 — как стыковать пачки без пауз и рывков</span></li>
+      <li><a href="https://www.youtube.com/watch?v=HYwekersccY" target="_blank" rel="noopener">Atlas и Large Behavior Model</a><span>Boston Dynamics и TRI, 2025 — диффузионная политика на гуманоиде</span></li>
+    </ul>
+    <div class="callout insight" style="margin-top:34px"><span class="ico">➡️</span><div><p><strong>Дальше: трансформер.</strong> Вариант Diffusion Policy на UNet хорошо работает с одной-двумя камерами. Современные политики получают на вход много камер, команду текстом и историю наблюдений, и почти все они построены на трансформере. Как он устроен и почему подходит для политик — <a href="1-6-transformer.html">урок 1.6 «Трансформер»</a>.</p></div></div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Урок 1.5 курса «Modern Robotics и Physical AI». Все нейросети обучаются и работают локально в браузере.
+</footer>
+<div class="tooltip" id="tooltip" role="tooltip"></div>
+<script>
+/*@@JS@@*/
+</script>
+</body>
+</html>
