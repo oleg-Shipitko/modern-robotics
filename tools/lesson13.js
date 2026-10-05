@@ -105,7 +105,7 @@ async function desktop() {
   check(await done(p, 'draw'), `рисование М2: слева ${s2.nl}, справа ${s2.nr} — L1 слева (${f1(s2.l1X, 0)} см), MSE ${s2.mseHit ? 'в чайнике' : 'мимо'} (${f1(s2.mseX, 0)} см)`);
   await p.shotEl(out('l13-draw-median.png'), '#mean .lab', 6);
   await next(p, '#drawMis');
-  await p.eval('window.__l13.Draw.api.synth(-1, 64); window.__l13.Draw.api.synth(-1, 66);'); await sleep(60);
+  await p.eval('window.__l13.Draw.api.synth(-1, 64); window.__l13.Draw.api.synth(-1, 66); window.__l13.Draw.api.synth(-1, 70);'); await sleep(60);
   const s3 = await p.eval('window.__l13.Draw.api.state()');
   check(await done(p, 'draw'), `рисование М3: слева ${s3.nl}, справа ${s3.nr} — MSE проезжает в ${f1(Math.abs(s3.mseX), 0)} см`);
   await p.eval('document.querySelector("#drawUndo").click()'); await sleep(50);
