@@ -216,7 +216,9 @@ input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; border-radius
 .callout.insight { background: linear-gradient(180deg, rgba(250,178,25,.10), rgba(250,178,25,.04)); border-color: rgba(250,178,25,.35); }
 .callout.thesis { background: linear-gradient(120deg, var(--classic-soft), var(--hybrid-soft) 50%, var(--e2e-soft)); border-color: var(--line-2); font-size: 19px; color: var(--ink); }
 .callout.note { background: var(--surface-2); }
-.callout.ada-intro { display: block; max-width: 860px; margin: 0 0 30px; padding: 18px 22px; }
+.callout.ada-intro { grid-template-columns: 112px 1fr; gap: 22px; align-items: center; max-width: 900px; margin: 0 0 30px; padding: 18px 22px; }
+.ada-intro .ada-fig { width: 112px; height: auto; display: block; }
+@media (max-width: 560px) { .callout.ada-intro { grid-template-columns: 1fr; gap: 8px; } .ada-intro .ada-fig { width: 84px; margin: 0 auto; } }
 .callout.ada-intro h3 { margin: 0 0 8px; font-size: 19px; }
 
 code, .code { font-family: var(--mono); font-size: .88em; }
