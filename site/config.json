@@ -5,7 +5,7 @@
   "GITHUB": "https://github.com/oleg-Shipitko",
   "REPO": "https://github.com/oleg-Shipitko/modern-robotics",
   "SITE_URL": "https://modernrobotics.ru",
-  "THANKS_API": "",
+  "THANKS_API": "https://functions.yandexcloud.net/d4ej4ro59ovro5shgk5i",
   "_comment_thanks": "THANKS_API — адрес функции-счётчика «Сказать спасибо»; server/thanks/deploy.sh записывает его сам. Пока пусто, кнопка работает без числа.",
   "PUBLISHED": [
     {

@@ -4,6 +4,7 @@
 # В конце проверяет счётчик test и записывает адрес функции в site/config.json (THANKS_API).
 # Стоимость — в пределах бесплатного уровня: 1 млн вызовов функции и 1 млн RU базы в месяц.
 # Логи функции: yc serverless function logs mr-thanks
+# Если yc отвечает «endpoint should be set»: yc config set endpoint api.cloud.yandex.net:443
 set -euo pipefail
 cd "$(dirname "$0")"
 DB=mr-thanks; SA=mr-thanks-fn; FN=mr-thanks; SITE=modernrobotics.ru

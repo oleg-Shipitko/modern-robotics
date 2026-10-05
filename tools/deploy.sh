@@ -46,4 +46,4 @@ $S --exclude "*" --include "*.js" --content-type "text/javascript; charset=utf-8
 $S --exclude "*" --include "*.woff2" --content-type "font/woff2" --cache-control "max-age=31536000, immutable"
 # всё остальное: картинки, svg, robots.txt, sitemap.xml — тип по расширению
 $S --exclude "*.html" --exclude "*.css" --exclude "*.js" --exclude "*.woff2" --cache-control "max-age=3600"
-echo "Готово: https://modernrobotics.ru"
+[ -n "$DRY" ] && echo "Пробный прогон: ничего не выложено" || echo "Готово: https://modernrobotics.ru"
