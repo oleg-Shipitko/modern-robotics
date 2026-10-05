@@ -104,6 +104,7 @@ details.deep .body p, details.deep .body li { color: var(--ink-2); }
 .algo > div { padding-left: 1.6em; text-indent: -1.6em; }
 .algo > .i1 { padding-left: 3.2em; } .algo > .i2 { padding-left: 4.8em; }
 @media (max-width: 680px) { .formula .katex { font-size: 1em; } .algo { font-size: 14.5px; padding: 8px 10px; } }
+@media (max-width: 420px) { .formula .katex { font-size: .94em; } }
 .algo b { font-weight: 650; }
 .algo .c { color: var(--ink-3); font-size: .92em; }
 
