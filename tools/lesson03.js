@@ -181,18 +181,18 @@ async function desktop() {
   await next(p, '#pdMis');
   await p.eval('window.__l03.SPEED.k = 1');
   await go(p, '#pdMis', 'pd');
-  // тянем схват мышью в свободном режиме
+  // тянем захват мышью в свободном режиме
   await center(p, '#pdCv');
   const ee = await p.eval('(() => { const q = window.__l03.PdLab.st.s.q, e = Arm.fk(q); return [200 + e.x * 190, 170 - e.y * 190]; })()');
   const a0 = await cpt(p, '#pdCv', 520, ee[0], ee[1]), a1 = await cpt(p, '#pdCv', 520, ee[0] + 40, ee[1] + 50);
   await p.S('Input.dispatchMouseEvent', { type: 'mousePressed', x: a0.x, y: a0.y, button: 'left', clickCount: 1 });
   for (let i = 1; i <= 10; i++) { await p.S('Input.dispatchMouseEvent', { type: 'mouseMoved', x: a0.x + (a1.x - a0.x) * i / 10, y: a0.y + (a1.y - a0.y) * i / 10, button: 'left' }); await sleep(30); }
   await sleep(300);
-  check(/Тянешь схват/.test(await p.eval('document.querySelector("#pdOut").textContent')), 'ПД свободный режим: схват тянется мышью — ' + (await p.eval('document.querySelector("#pdOut").textContent')).slice(0, 60));
+  check(/Тянешь захват/.test(await p.eval('document.querySelector("#pdOut").textContent')), 'ПД свободный режим: захват тянется мышью — ' + (await p.eval('document.querySelector("#pdOut").textContent')).slice(0, 60));
   await p.shotEl(out('l03-pd.png'), '#pd .lab', 6);
   await p.S('Input.dispatchMouseEvent', { type: 'mouseReleased', x: a1.x, y: a1.y, button: 'left', clickCount: 1 });
   await sleep(1500);
-  check(await p.eval('window.__l03.PdLab.st.err < 0.01'), 'ПД свободный режим: отпущенный схват вернулся к полке');
+  check(await p.eval('window.__l03.PdLab.st.err < 0.01'), 'ПД свободный режим: отпущенный захват вернулся к полке');
 
   // --- лаборатория 3: импеданс
   await p.eval('window.__l03.SPEED.k = 4');

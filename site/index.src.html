@@ -58,7 +58,6 @@
 .tag.core { background: var(--hybrid-soft); color: var(--hybrid); }
 .tag.deep { background: var(--bg-2); color: var(--ink-3); }
 .tag.primer { background: rgba(250,178,25,.16); color: #8a5a00; }
-.tag.ready { background: color-mix(in srgb, var(--good) 14%, transparent); color: var(--good); }
 .lessons a { color: var(--ink); font-weight: 650; }
 :root[data-theme="dark"] .tag.primer { color: #fab219; }
 
@@ -249,7 +248,7 @@ const PARTS = [
     const ul = document.createElement('ul'); ul.className = 'lessons';
     p.L.forEach(([n, title, kind, primer]) => {
       const li = document.createElement('li');
-      li.innerHTML = `<span class="n">${n}</span><span></span><span>${READY[n] ? '<span class="tag ready">доступен</span> ' : ''}${primer ? '<span class="tag primer">основы</span> ' : ''}<span class="tag ${kind}">${kind === 'core' ? 'ядро' : 'углубление'}</span></span>`;
+      li.innerHTML = `<span class="n">${n}</span><span></span><span>${primer ? '<span class="tag primer">основы</span> ' : ''}<span class="tag ${kind}">${kind === 'core' ? 'ядро' : 'углубление'}</span></span>`;
       if (READY[n]) { const a = document.createElement('a'); a.href = READY[n]; a.textContent = title; li.children[1].append(a); } else li.children[1].textContent = title;
       ul.append(li);
     });

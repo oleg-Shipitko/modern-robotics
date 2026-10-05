@@ -51,14 +51,14 @@
       const pts = fk(L, q), e = pts[pts.length - 1], c = clearance(pts, lamp);
       return { pts, grip: e, dist: Math.hypot(e[0] - GRASP[0], e[1] - GRASP[1]), atCup: Math.hypot(e[0] - GRASP[0], e[1] - GRASP[1]) < TOL, hit: c.d < R, clear: c.d - R, what: c.d < R ? c.what : null, link: c.d < R ? c.link : -1 };
     }
-    /** Цель для схвата не выходит за досягаемость и за край сцены. */
+    /** Цель для захвата не выходит за досягаемость и за край сцены. */
     function clampTarget(L, t) {
       let x = Math.max(VIEW.x0 + 0.02, Math.min(VIEW.x1 - 0.02, t[0])), y = Math.max(VIEW.y0 + 0.02, Math.min(VIEW.y1 - 0.02, t[1]));
       const reach = L.reduce((s, v) => s + v, 0) - 1e-4, d = Math.hypot(x, y);
       if (d > reach) { x *= reach / d; y *= reach / d; }
       return [x, y];
     }
-    /** Схват тянут к цели. Две оси: ветвь локтя сохраняется. Три оси: угол кисти phi держим как
+    /** Захват тянут к цели. Две оси: ветвь локтя сохраняется. Три оси: угол кисти phi держим как
      *  в начале перетаскивания, а если так не дотянуться — берём ближайший возможный. */
     function solveGrip(L, q, target, phiKeep) {
       const t = clampTarget(L, target);
@@ -83,7 +83,7 @@
       }
       return best || q;
     }
-    /** Нуль-пространство: схват стоит на месте, локоть идёт за пальцем по своей окружности.
+    /** Нуль-пространство: захват стоит на месте, локоть идёт за пальцем по своей окружности.
      *  Если туда, куда тянут, локоть поставить нельзя, берём ближайшее возможное положение. */
     function solveElbow(L, q, grip, mouse) {
       if (L.length !== 3) return q;
@@ -102,7 +102,7 @@
       }
       return best || q;
     }
-    /** Переход с двух суставов на три (и обратно) с тем же положением схвата. */
+    /** Переход с двух суставов на три (и обратно) с тем же положением захвата. */
     function convert(Lfrom, q, Lto, phiPref) {
       const g = fk(Lfrom, q)[Lfrom.length];
       if (Lto.length === 3) return solveGrip(Lto, [q[0], q[1] * 0.5, q[1] * 0.5], g, phiPref == null ? -Math.PI / 2 : phiPref);
@@ -112,7 +112,7 @@
       sols.sort((u, v) => Math.hypot(Math.cos(u[0]) * Lto[0] - e0[0], Math.sin(u[0]) * Lto[0] - e0[1]) - Math.hypot(Math.cos(v[0]) * Lto[0] - e0[0], Math.sin(v[0]) * Lto[0] - e0[1]));
       return sols[0];
     }
-    /** Рабочая зона без столкновений: клетки сетки, куда схват можно поставить, ничего не задев.
+    /** Рабочая зона без столкновений: клетки сетки, куда захват можно поставить, ничего не задев.
      *  Две оси — у каждой точки всего две позы; три оси — перебираем угол кисти. */
     function zone(L, lamp, cell) {
       cell = cell || 0.025; const out = [], reach = L.reduce((a, b) => a + b, 0);

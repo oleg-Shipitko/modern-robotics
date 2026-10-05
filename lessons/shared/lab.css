@@ -94,7 +94,18 @@ details.deep[open] > summary::after { content: "−"; }
 details.deep[open] > summary { border-bottom: 1px solid var(--line); }
 details.deep .body { padding: 12px 16px 6px; font-size: 16px; }
 details.deep .body p, details.deep .body li { color: var(--ink-2); }
-.formula { font-family: var(--mono); font-size: 14px; background: var(--surface-2); border: 1px solid var(--line); padding: 10px 12px; border-radius: 10px; overflow-x: auto; white-space: pre; margin: 8px 0 12px; color: var(--ink); line-height: 1.55; }
+/* формулы рендерит KaTeX при сборке (tools/katex_render.js); в браузер идут только стили и шрифты */
+.katex { font-size: 1.08em; }
+.nobr { white-space: nowrap; }
+.formula { margin: 10px 0 14px; overflow-x: auto; overflow-y: hidden; color: var(--ink); }
+.formula .katex-display { margin: 0; padding: 4px 2px; }
+/* псевдокод алгоритмов: строки с отступами, математика — KaTeX */
+.algo { margin: 10px 0 14px; padding: 10px 14px; background: var(--surface-2); border-left: 3px solid var(--line-2); border-radius: 0 10px 10px 0; font-size: 15.5px; line-height: 1.75; color: var(--ink); overflow-x: auto; }
+.algo > div { padding-left: 1.6em; text-indent: -1.6em; }
+.algo > .i1 { padding-left: 3.2em; } .algo > .i2 { padding-left: 4.8em; }
+@media (max-width: 680px) { .formula .katex { font-size: 1em; } .algo { font-size: 14.5px; padding: 8px 10px; } }
+.algo b { font-weight: 650; }
+.algo .c { color: var(--ink-3); font-size: .92em; }
 
 .heat-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 8px; font-size: 13px; color: var(--ink-2); }
 .heat-legend i { display: inline-block; width: 14px; height: 14px; border-radius: 3px; }
@@ -168,3 +179,7 @@ label.opt { display: inline-flex; gap: 7px; align-items: center; font-size: 14px
 .c-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
 .c-out ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; font-size: 14.5px; color: var(--ink-2); }
 .c-out p { margin: 0; font-size: 15px; }
+
+/* строка про Аду при первом упоминании в уроке */
+.ada-note { max-width: 760px; margin: 0 0 22px; padding: 2px 0 2px 12px; border-left: 3px solid var(--line-2); font-size: 15px; line-height: 1.5; color: var(--ink-3); }
+.ada-note a { color: inherit; }

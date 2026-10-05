@@ -7,7 +7,7 @@
      runTrips()          10 проверочных поездок с общими случайными числами;
      compare()           несколько политик рядом, сцена делится на панели;
      daggerIter()        итерация DAgger с подсказками учителя на сцене;
-     probe…()            «сломай политику»: перетаскивай старт Ады;
+     probe…()            «поиск отказов»: перетаскивай старт Ады;
      pick…()             «где спросить учителя»: выбор кадров для разметки;
      expertRun()         «ты — эксперт»: перехват управления, как в HG-DAgger.
    Кнопки свободного режима (#btnRecord, #btnDemos, #btnTrain, #btnRun,
@@ -276,7 +276,7 @@
     return { labeled: lab.X.length, crashed: ep.outcome === 'crash', total: st.extra.X.length, it: st.dagIt };
   }
 
-  /* ---------- «Сломай политику»: перетаскиваемый старт ---------- */
+  /* ---------- «Поиск отказов»: перетаскиваемый старт ---------- */
   function nearData(s) {
     let best = Infinity, bq = null;
     for (const e of st.demos) for (const q of e.traj) { const d = Math.hypot(q.x - s.x, q.y - s.y); if (d < best) { best = d; bq = q; } }

@@ -40,7 +40,8 @@ const api = { n: 41, posts: 0, failNext: 0, forbid: false, origin: '' };
 
   async function open(B, file, vp, withApi = true) {
     const p = await B.page('about:blank', vp);
-    if (withApi) await p.S('Page.addScriptToEvaluateOnNewDocument', { source: `Object.defineProperty(window, 'MR_THANKS_API', { get: () => ${JSON.stringify(URL_API)}, set: () => {}, configurable: true });` });
+    // адрес счётчика подменяем всегда: заглушкой или пустой строкой — настоящую функцию проверки не трогают
+    await p.S('Page.addScriptToEvaluateOnNewDocument', { source: `Object.defineProperty(window, 'MR_THANKS_API', { get: () => ${JSON.stringify(withApi ? URL_API : '')}, set: () => {}, configurable: true });` });
     await p.S('Page.navigate', { url: SITE(file) });
     await p.waitFor('document.readyState === "complete" && !!document.querySelector(".thanks-btn")');
     await sleep(500);

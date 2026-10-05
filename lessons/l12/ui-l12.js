@@ -236,7 +236,7 @@ const Budget = (() => {
     res = { help, crash, ok, steps };
     $('#ensHelp').textContent = help; $('#ensShare').textContent = (help / steps * 100).toLocaleString('ru-RU', { maximumFractionDigits: 1 }) + '%';
     $('#ensCrash').textContent = crash; $('#ensOk').textContent = ok;
-    $('#ensNote').textContent = crash <= 1 && help <= 120 ? 'Ада просит помощи редко и почти не врезается.' : crash <= 1 ? 'Аварий мало, но Ада часто дёргает человека. Подними порог.' : help < 20 ? 'Ада почти не просит помощи и врезается. Опусти порог.' : 'Аварий всё ещё много. Попробуй порог ниже.';
+    $('#ensNote').textContent = crash <= 1 && help <= 120 ? 'Ада просит помощи редко и почти не врезается.' : crash <= 1 ? 'Аварий мало, но Ада слишком часто зовёт человека. Подними порог.' : help < 20 ? 'Ада почти не просит помощи и врезается. Опусти порог.' : 'Аварий всё ещё много. Попробуй порог ниже.';
     draw(); if (ctl) ctl.update();
   }
   function label() { const el = $('#ensTau'); el.nextElementSibling.textContent = tauNow().toFixed(3).replace('.', ','); setRangeFill(el); }
@@ -267,7 +267,7 @@ const Budget = (() => {
       { label: 'шагов с просьбой о помощи не больше 120', test: (r, s) => s.ready && s.help <= 120 },
     ],
     hint: 'Начни с высокого порога и опускай его по одному делению. Аварии пропадают не сразу, а число просьб растёт быстро — подходящее окно узкое.',
-    explain: (s) => `При τ = ${s.tau.toFixed(3).replace('.', ',')} Ада просит помощи на ${s.help} ${plural(s.help, 'шаге', 'шагах', 'шагах')} из ${s.steps.toLocaleString('ru-RU')} — это ${(s.help / s.steps * 100).toLocaleString('ru-RU', { maximumFractionDigits: 1 })}% — и врезается ${s.crash === 0 ? 'ни разу' : `${s.crash} ${plural(s.crash, 'раз', 'раза', 'раз')}`}. Порог ниже — и Ада дёргает человека на сотнях шагов, выше — перестаёт просить и врезается. ThriftyDAgger выбирает порог по бюджету: так, чтобы человек вмешивался в заданной доле шагов, например в 1%.`,
+    explain: (s) => `При τ = ${s.tau.toFixed(3).replace('.', ',')} Ада просит помощи на ${s.help} ${plural(s.help, 'шаге', 'шагах', 'шагах')} из ${s.steps.toLocaleString('ru-RU')} — это ${(s.help / s.steps * 100).toLocaleString('ru-RU', { maximumFractionDigits: 1 })}% — и врезается ${s.crash === 0 ? 'ни разу' : `${s.crash} ${plural(s.crash, 'раз', 'раза', 'раз')}`}. Порог ниже — и Ада зовёт человека на сотнях шагов, выше — перестаёт просить и врезается. ThriftyDAgger выбирает порог по бюджету: так, чтобы человек вмешивался в заданной доле шагов, например в 1%.`,
   }];
   function init() {
     $('#ensTrain').addEventListener('click', train);

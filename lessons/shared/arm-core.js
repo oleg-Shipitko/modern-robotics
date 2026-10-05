@@ -96,7 +96,7 @@
     const Fx = Kc * (gp.x - p.x) - Dc * v[0], Fy = Kc * (gp.y - p.y) - Dc * v[1];
     return [J[0][0] * Fx + J[1][0] * Fy + g[0], J[0][1] * Fx + J[1][1] * Fy + g[1]];
   }
-  /** Шаг 1 мс. Возвращает силу, с которой стол давит на схват. pull — точка, к которой схват тянут пружиной (мышь). */
+  /** Шаг 1 мс. Возвращает силу, с которой стол давит на захват. pull — точка, к которой захват тянут пружиной (мышь). */
   function ctlStep(o, s, pull) {
     let tau = ctlTau(o, s.q, s.dq); const p = fk(s.q), J = jac(s.q); let F = 0;
     if (o.mode !== 'pd' && p.y < TABLE) { const vy = J[1][0] * s.dq[0] + J[1][1] * s.dq[1]; F = Math.max(0, 6000 * (TABLE - p.y) - 40 * vy); tau = [tau[0] + J[1][0] * F, tau[1] + J[1][1] * F]; }

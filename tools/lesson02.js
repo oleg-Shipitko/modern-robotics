@@ -66,7 +66,7 @@ async function arm(p, M, shots) {
   await M.drag(await M.armJoint(-1), cup, { steps: 16 });
   console.log('    после перетаскивания:', await p.eval('document.querySelector("#armRead").textContent'));
   await M.act(R);
-  check((await M.crit(R)) === 'ok,no', 'два сустава: схват у чашки, но рука задевает препятствие — ' + (await M.crit(R)));
+  check((await M.crit(R)) === 'ok,no', 'два сустава: захват у чашки, но рука задевает препятствие — ' + (await M.crit(R)));
   console.log('    журнал:', await M.log(R), '| ставка:', await M.betMarks(R));
   await M.segClick('#armJointsWrap', '3 сустава');
   await p.eval('document.querySelector("#armZone").click()'); await sleep(250);
@@ -78,7 +78,7 @@ async function arm(p, M, shots) {
   check((await M.crit(R)) === 'ok,no', 'миссия 2: лампа опустилась, локоть задевает — ' + (await M.crit(R)));
   const el = await M.armJoint(1), target = await M.armPt(0.27, 0.32);
   await M.drag(el, target, { steps: 14 });
-  check((await M.crit(R)) === 'ok,ok', 'локоть отведён, схват на месте: ' + (await p.eval('document.querySelector("#armRead").textContent')));
+  check((await M.crit(R)) === 'ok,ok', 'локоть отведён, захват на месте: ' + (await p.eval('document.querySelector("#armRead").textContent')));
   if (shots) await p.shotEl(out('l02-arm.png'), '#dof .lab', 6);
   await M.next(R);
   check((await M.kicker(R)) === 'Свободный режим', 'свободный режим открыт');

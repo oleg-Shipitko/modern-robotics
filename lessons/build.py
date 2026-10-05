@@ -3,7 +3,7 @@
 Запуск: python3 lessons/build.py l01   (или l11, или all)
 Результат — в site/lessons/.
 """
-import pathlib, sys
+import pathlib, subprocess, sys
 root = pathlib.Path(__file__).resolve().parent
 LESSONS = {
     # урок: (файл, css-файлы, {маркер: js-файлы})
@@ -77,6 +77,13 @@ def add_thanks(page):
 def build(key):
     name, css_files, js_map = LESSONS[key]
     html = (root / key / 'lesson.html').read_text(encoding='utf-8')
+    if '\\(' in html or '\\[' in html:  # формулы KaTeX рендерим сразу в HTML, в браузер — только стили и шрифты
+        r = subprocess.run(['node', str(root.parent / 'tools/katex_render.js'), key], input=html, capture_output=True, text=True, encoding='utf-8')
+        if r.returncode:
+            sys.exit(r.stderr.strip())
+        html = r.stdout
+        html = html.replace('<link rel="stylesheet" href="../assets/fonts/fonts.css">',
+                            '<link rel="stylesheet" href="../assets/fonts/fonts.css">\n<link rel="stylesheet" href="../assets/katex/katex.min.css">', 1)
     css = '\n'.join((root / f).read_text(encoding='utf-8') for f in css_files + ['shared/thanks.css'])
     assert '/*@@CSS@@*/' in html
     html = html.replace('/*@@CSS@@*/', css)

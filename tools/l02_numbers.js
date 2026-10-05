@@ -38,7 +38,7 @@ eq(two.map((j) => `${j.atCup ? 'у чашки' : 'мимо'}, ${j.hit ? 'зад�
 const q3 = ArmK.convert(ArmK.L2, ArmK.ik2(ArmK.L2[0], ArmK.L2[1], ArmK.GRASP[0], ArmK.GRASP[1], true), ArmK.L3), j3 = ArmK.judge(ArmK.L3, q3, false);
 eq(`${j3.atCup && !j3.hit}, запас ${Math.round(j3.clear * 100)} см`, 'true, запас 4 см', 'три сустава у чашки, кисть вертикально');
 const lampHit = ArmK.judge(ArmK.L3, q3, true).hit, qe = ArmK.solveElbow(ArmK.L3, q3, ArmK.GRASP, [0.27, 0.32]), je = ArmK.judge(ArmK.L3, qe, true);
-eq(`${lampHit} → ${!je.hit}, сдвиг схвата ${je.dist.toFixed(4)} м`, 'true → true, сдвиг схвата 0.0000 м', 'лампа: локоть задевает, после отвода — чисто');
+eq(`${lampHit} → ${!je.hit}, сдвиг захвата ${je.dist.toFixed(4)} м`, 'true → true, сдвиг захвата 0.0000 м', 'лампа: локоть задевает, после отвода — чисто');
 
 console.log(fails ? `НЕ СОШЛОСЬ: ${fails}` : 'Все цифры сходятся');
 process.exit(fails ? 1 : 0);

@@ -132,7 +132,7 @@
         for (const [x, y, r] of [[0, 0, 6.5], [x1, y1, 5]]) { c.beginPath(); c.arc(WX(x), WY(y), r, 0, 7); c.fillStyle = P.surf; c.fill(); c.lineWidth = 2; c.strokeStyle = color; c.stroke(); }
         const a = qq[0] + qq[1], ex = WX(x2), ey = WY(y2);
         c.lineWidth = 2.2; c.beginPath();
-        const nx = Math.cos(a), ny = -Math.sin(a), px = -ny, py = nx; // схват: поперечина и два пальца
+        const nx = Math.cos(a), ny = -Math.sin(a), px = -ny, py = nx; // захват: поперечина и два пальца
         c.moveTo(ex + px * 7, ey + py * 7); c.lineTo(ex - px * 7, ey - py * 7);
         c.moveTo(ex + px * 7, ey + py * 7); c.lineTo(ex + px * 7 + nx * 8, ey + py * 7 + ny * 8);
         c.moveTo(ex - px * 7, ey - py * 7); c.lineTo(ex - px * 7 + nx * 8, ey - py * 7 + ny * 8);
