@@ -60,6 +60,16 @@
 .tag.primer { background: rgba(250,178,25,.16); color: #8a5a00; }
 .lessons a { color: var(--ink); font-weight: 650; }
 :root[data-theme="dark"] .tag.primer { color: #fab219; }
+.soon { display: grid; justify-items: center; gap: 10px; margin: 26px 0 8px; text-align: center; }
+.soon-line { width: 100%; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 16px; }
+.soon-line::before, .soon-line::after { content: ""; height: 1px; background: var(--line-2); }
+.soon-pill { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); padding: 6px 15px; border-radius: 999px; border: 1px solid var(--line-2); background: var(--surface); }
+.soon-pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--hybrid); }
+.soon-note { margin: 0; max-width: 760px; font-size: 15.5px; color: var(--ink-3); }
+.soon-note a { color: var(--ink-2); }
+.part.later { background: transparent; box-shadow: none; }
+.part.later .num { background: transparent; color: var(--ink-3); border: 1.5px dashed var(--line-2); }
+.part.later .t { color: var(--ink-2); }
 
 /* ---------- Аудитория и результат ---------- */
 .aud { padding: 24px 24px 20px; }
@@ -145,7 +155,7 @@ html { scroll-padding-top: 76px; scroll-behavior: smooth; }
   <h2>Программа</h2>
   <p class="lead">9 частей, 54 урока. Части идут в логическом порядке: каждая отвечает на ограничения подходов из предыдущей. 34 урока составляют ядро курса, остальные 20 — углубления по отдельным темам.</p>
   <div class="legend"><span><span class="tag core">ядро</span> 34 урока</span><span><span class="tag deep">углубление</span> 20 уроков</span><span><span class="tag primer">основы</span> можно пропустить, если тема знакома</span></div>
-  <div class="parts" id="parts"></div>
+  <div class="parts" id="parts" data-channel="{{CHANNEL}}"></div>
 </div></section>
 
 <section class="section alt" id="who"><div class="wrap">
@@ -239,9 +249,21 @@ const PARTS = [
 ];
 (function () {
   const box = document.getElementById('parts');
+  let last = -1; // последняя часть, в которой есть опубликованные уроки
+  PARTS.forEach((p, i) => { if (p.L.some((l) => READY[l[0]])) last = i; });
+  function soon(from) {
+    const to = PARTS.length - 1, el = document.createElement('div'); el.className = 'soon';
+    el.innerHTML = '<div class="soon-line"><span class="soon-pill">Скоро</span></div><p class="soon-note"></p>';
+    const note = el.querySelector('.soon-note');
+    note.textContent = (from === to ? `Часть ${to} в работе.` : `Части ${from}–${to} в работе.`) + ' Новые уроки выходят по\u00a0мере готовности, анонсы — в\u00a0канале ';
+    const a = document.createElement('a'); a.href = box.dataset.channel; a.target = '_blank'; a.rel = 'noopener'; a.textContent = '«Продакт роботов»';
+    note.append(a, '.');
+    return el;
+  }
   PARTS.forEach((p, i) => {
+    if (i === last + 1) box.append(soon(i));
     const core = p.L.filter((l) => l[2] === 'core').length;
-    const d = document.createElement('details'); d.className = 'card part'; if (i === 0) d.open = true;
+    const d = document.createElement('details'); d.className = 'card part' + (i > last ? ' later' : ''); d.open = i <= last;
     const s = document.createElement('summary');
     s.innerHTML = `<span class="num">${i}</span><span><div class="t"></div><div class="q"></div></span><span class="count">${p.L.length} ${p.L.length < 5 ? 'урока' : 'уроков'} · ядро ${core}<span class="chev">›</span></span>`;
     s.querySelector('.t').textContent = p.t; s.querySelector('.q').textContent = p.q;

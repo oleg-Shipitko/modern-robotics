@@ -31,6 +31,22 @@
     {
       "n": "1.2",
       "file": "lessons/1-2-dagger.html"
+    },
+    {
+      "n": "1.3",
+      "file": "lessons/1-3-multimodalnost-deystviy.html"
+    },
+    {
+      "n": "1.4",
+      "file": "lessons/1-4-diffuzionnye-modeli.html"
+    },
+    {
+      "n": "1.5",
+      "file": "lessons/1-5-diffusion-policy.html"
+    },
+    {
+      "n": "1.6",
+      "file": "lessons/1-6-transformer.html"
     }
   ],
   "_comment_published": "Опубликованные уроки: отмечаются «доступен» на главной, попадают в sitemap.xml и в выкладку (tools/deploy.sh)."
