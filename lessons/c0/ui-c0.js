@@ -1,17 +1,13 @@
 /* =====================================================================
-   c0/ui-c0.js — проверка части 0: задания вперемешку по урокам 0.1–0.4.
-   Типы: выбор ответа, «что произойдёт», порядок, задача на сцене (ПД-регулятор
-   на движке shared/arm-core.js). В конце — балл по урокам и что повторить.
-   Варианты перемешиваются при каждом открытии. Итог пишется в #quizScore
-   («Итог: X из N»), его подхватывает анонимная статистика; пройденная
-   проверка отмечается в прогрессе (mr-progress), как дочитанный урок.
+   c0/ui-c0.js — проверка части 0: задания вперемешку по урокам 0.1–0.4
+   и задача на сцене (ПД-регулятор на движке shared/arm-core.js).
+   Общий движок проверок — shared/check.js.
    ===================================================================== */
 (function () {
   'use strict';
   const K = window.HeroKit, A = window.Arm;
   const LESSON = { '0.1': ['Две парадигмы: правила и данные', '0-1-dve-paradigmy.html'], '0.2': ['Устройство робота: приводы и сенсоры', '0-2-ustroystvo-robota.html'],
     '0.3': ['Кинематика и управление', '0-3-kinematika-i-upravlenie.html'], '0.4': ['Оценка состояния и планирование', '0-4-otsenka-sostoyaniya-i-planirovanie.html'] };
-  const TYPE = { choice: 'Выбор ответа', predict: 'Что произойдёт', order: 'Порядок', scene: 'Задача на сцене' };
   const Q = [
     { l: '0.1', t: 'order', q: 'Расставь модули классического стека в том порядке, в котором через них идёт информация от камеры к моторам.',
       items: ['Восприятие: найти чашку на кадре', 'Оценка состояния: уточнить, где чашка и рука', 'Планирование: построить путь руки', 'Управление: регулятор ведёт руку по пути'],
@@ -55,61 +51,8 @@
     { l: '0.3', t: 'scene', q: 'Подними чашку к полке ПД-регулятором. Подбери Kp, Kd и компенсацию гравитации так, чтобы захват встал у полки точнее 1 см, рука успокоилась быстрее 1,2 с, а Kp был не больше 120.',
       e: 'При конечном Kp пружине нужно растянуться, чтобы держать вес, — отсюда провис. Компенсация гравитации снимает вес с пружины, и умеренного Kp хватает. Kd гасит раскачку: слишком маленький оставляет колебания, слишком большой делает движение вязким.', sec: 'pd', st: 'Регулятор: пружина и демпфер' },
   ];
-  const N = Q.length, res = new Array(N).fill(null);
-  const slug = (location.pathname.split('/').pop() || '').replace(/\.html$/, '');
-  const stat = (name) => { if (window.MRStats) window.MRStats.ev(name); };
-  const shuffle = (n) => { const o = [...Array(n).keys()]; for (let i = n - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [o[i], o[j]] = [o[j], o[i]]; } return o; };
-  const link = (q) => `<a href="${LESSON[q.l][1]}#${q.sec}">Раздел «${q.st}» урока ${q.l} →</a>`;
-
-  function done(k, ok, card) {
-    if (res[k] !== null) return;
-    res[k] = ok; stat(`chk:${k + 1}:${ok ? 'ok' : 'no'}`);
-    const q = Q[k], exp = card.querySelector('.chk-exp');
-    exp.innerHTML = `<b>${ok ? 'Верно.' : 'Не совсем.'}</b> ${q.e} ${link(q)}`; exp.hidden = false;
-    card.classList.add(ok ? 'right' : 'wrong');
-    summary();
-  }
-
-  function choice(k, card) {
-    const q = Q[k], box = h('div', { class: 'chk-opts' });
-    shuffle(q.o.length).forEach((oi) => {
-      const b = h('button', { type: 'button', class: 'chk-opt' }, q.o[oi]);
-      b.addEventListener('click', () => {
-        if (res[k] !== null) return;
-        const ok = oi === q.a; b.classList.add(ok ? 'ok' : 'no');
-        if (!ok) [...box.children].find((x) => x.textContent === q.o[q.a]).classList.add('ok');
-        [...box.children].forEach((x) => { x.disabled = true; });
-        done(k, ok, card);
-      });
-      box.append(b);
-    });
-    return box;
-  }
-
-  function order(k, card) {
-    const q = Q[k], box = h('div', { class: 'chk-order' }), picked = [];
-    const list = h('div', { class: 'chk-opts' }), reset = h('button', { type: 'button', class: 'g-restart' }, 'Начать порядок заново');
-    const btns = shuffle(q.items.length).map((ii) => {
-      const b = h('button', { type: 'button', class: 'chk-opt' }, h('span', { class: 'chk-n' }), q.items[ii]);
-      b.addEventListener('click', () => {
-        if (res[k] !== null || picked.includes(ii)) return;
-        picked.push(ii); b.classList.add('picked'); b.querySelector('.chk-n').textContent = picked.length;
-        if (picked.length === q.items.length) {
-          const ok = picked.every((v, i) => v === i);
-          btns.forEach((x) => { x.disabled = true; x.classList.add(+x.dataset.ii === picked.indexOf(+x.dataset.ii) ? 'ok' : 'no'); });
-          if (!ok) card.querySelector('.chk-exp').before(h('p', { class: 'chk-right' }, 'Верный порядок: ' + q.items.map((t, i) => `${i + 1}. ${t.split(':')[0]}`).join(' → ')));
-          reset.hidden = true; done(k, ok, card);
-        }
-      });
-      b.dataset.ii = ii; list.append(b); return b;
-    });
-    reset.addEventListener('click', () => { picked.length = 0; btns.forEach((x) => { x.classList.remove('picked'); x.querySelector('.chk-n').textContent = ''; }); });
-    box.append(h('p', { class: 'chk-hint' }, 'Нажимай варианты по порядку: первый, второй и так далее.'), list, reset);
-    return box;
-  }
-
   /* ---------- задача на сцене: ПД-регулятор поднимает чашку к полке ---------- */
-  function scene(k, card) {
+  function scene(api) {
     const W = 520, H = 330, PW = 520, PH = 120, S = 200, O = { x: 170, y: 128 };
     const st = { Kp: 60, Kd: 0, comp: false, run: null, t: 0, busy: false };
     const cv = h('canvas', { class: 'chk-cv', role: 'img', 'aria-label': 'Рука в вертикальной плоскости поднимает чашку к полке' });
@@ -181,17 +124,17 @@
       requestAnimationFrame(step);
     }
     function finish() {
-      st.busy = false; go.disabled = res[k] !== null;
+      st.busy = false; go.disabled = api.isDone();
       const m = measure(st.run); crit(m);
       out.textContent = `Ошибка в конце: ${(m.fin * 100).toFixed(1).replace('.', ',')} см · рука успокоилась к ${m.ts.toFixed(2).replace('.', ',')} с · Kp ${st.Kp}, Kd ${st.Kd}${st.comp ? ', с компенсацией гравитации' : ''}.`;
-      if (m.fin < 0.01 && m.ts < 1.2 && st.Kp <= 120) { skip.hidden = true; go.disabled = true; done(k, true, card); }
+      if (m.fin < 0.01 && m.ts < 1.2 && st.Kp <= 120) { skip.hidden = true; go.disabled = true; api.done(true); }
     }
-    go.addEventListener('click', () => { if (st.busy || res[k] !== null) return; st.run = A.simulate({ mode: 'pd', Kp: st.Kp, Kd: st.Kd, comp: st.comp }, 4); st.t = 0; play(); });
+    go.addEventListener('click', () => { if (st.busy || api.isDone()) return; st.run = A.simulate({ mode: 'pd', Kp: st.Kp, Kd: st.Kd, comp: st.comp }, 4); st.t = 0; play(); });
     skip.addEventListener('click', () => {
-      if (res[k] !== null || st.busy) return;
+      if (api.isDone() || st.busy) return;
       skip.hidden = true; go.disabled = true;
-      card.querySelector('.chk-exp').before(h('p', { class: 'chk-right' }, 'Например, подходит компенсация гравитации, Kp 80 и Kd 10.'));
-      done(k, false, card);
+      api.hint('Например, подходит компенсация гравитации, Kp 80 и Kd 10.');
+      api.done(false);
     });
     crit(); draw(); plot();
     App.on('theme', () => { draw(); plot(); }); App.on('resize', () => { draw(); plot(); });
@@ -199,48 +142,5 @@
     return wrap;
   }
 
-  function summary() {
-    const n = res.filter((x) => x !== null).length, right = res.filter(Boolean).length;
-    $('#chkWait').textContent = n < N ? `Отвечено ${n} из ${N}, верно ${right}. Итог появится, когда ответишь на все задания.` : '';
-    if (n < N) return;
-    $('#quizScore').textContent = `Итог: ${right} из ${N}. ${right >= N - 2 ? 'Часть 0 усвоена, можно идти дальше.' : 'Ниже — разделы уроков, которые стоит повторить.'}`;
-    const by = {};
-    Q.forEach((q, i) => { (by[q.l] = by[q.l] || [0, 0]); by[q.l][1]++; if (res[i]) by[q.l][0]++; });
-    $('#chkTable').innerHTML = Object.keys(LESSON).map((l) => `<div class="chk-tr"><span>${l} ${LESSON[l][0]}</span><b>${by[l][0]} из ${by[l][1]}</b></div>`).join('');
-    const wrong = Q.map((q, i) => (res[i] ? null : q)).filter(Boolean);
-    $('#chkReview').innerHTML = wrong.length ? wrong.map((q) => `<li><a href="${LESSON[q.l][1]}#${q.sec}">${q.l} · ${q.st}</a><span>${q.q.length > 90 ? q.q.slice(0, 88) + '…' : q.q}</span></li>`).join('') : '<li><strong>Повторять нечего</strong><span>Все задания решены верно.</span></li>';
-    $('#chkResult').hidden = false;
-    try { // проверка пройдена — отметка в прогрессе, как у дочитанного урока
-      const d = JSON.parse(localStorage.getItem('mr-progress') || '{}') || {}, now = Math.round(Date.now() / 1000);
-      d[slug] = Object.assign(d[slug] || { s: now }, { t: now, f: (d[slug] && d[slug].f) || now });
-      localStorage.setItem('mr-progress', JSON.stringify(d));
-    } catch (e) { /* приватный режим */ }
-  }
-
-  function render() {
-    const list = $('#chkList'); list.innerHTML = ''; res.fill(null);
-    Q.forEach((q, k) => {
-      const card = h('div', { class: 'card chk-card', id: 'q' + (k + 1) });
-      card.append(h('div', { class: 'chk-meta' }, `Задание ${k + 1} из ${N} · ${TYPE[q.t]} · урок ${q.l}`), h('p', { class: 'chk-q' }, q.q));
-      card.append(q.t === 'order' ? order(k, card) : q.t === 'scene' ? scene(k, card) : choice(k, card));
-      const exp = h('div', { class: 'chk-exp' }); exp.hidden = true; card.append(exp);
-      list.append(card);
-    });
-    $('#quizScore').textContent = ''; $('#chkResult').hidden = true; summary();
-  }
-
-  function initNav() {
-    const links = $$('.toc a'), ids = links.map((a) => a.getAttribute('href').slice(1));
-    const onScroll = () => {
-      const doc = document.documentElement;
-      $('#progress').style.width = (doc.scrollTop / Math.max(1, doc.scrollHeight - doc.clientHeight) * 100).toFixed(2) + '%';
-      let cur = null; for (const id of ids) { const el = document.getElementById(id); if (el && el.getBoundingClientRect().top < 140) cur = id; }
-      links.forEach((a) => a.classList.toggle('active', a.getAttribute('href') === '#' + cur));
-    };
-    window.addEventListener('scroll', onScroll, { passive: true }); onScroll();
-  }
-
-  initTheme(); initNav(); render();
-  $('#chkAgain').addEventListener('click', () => { render(); document.getElementById('tasks').scrollIntoView({ behavior: 'smooth' }); });
-  window.__c0 = { Q, res };
+  PartCheck({ lessons: LESSON, questions: Q, scene, passText: 'Часть 0 усвоена, можно идти дальше.', expose: '__c0' });
 })();

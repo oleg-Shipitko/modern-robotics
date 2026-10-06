@@ -50,8 +50,11 @@ LESSONS = {
         '/*@@JS@@*/': ['l01/ui-core.js', 'gl/ui-gl.js'],
     }),
     # проверки в конце частей: без отзыва и «спасибо» в конце
-    'c0': ('proverka-chasti-0.html', ['l01/lesson.css', 'shared/lab.css', 'c0/c0.css'], {
-        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/arm-core.js', 'c0/ui-c0.js'],
+    'c0': ('proverka-chasti-0.html', ['l01/lesson.css', 'shared/lab.css', 'shared/check.css'], {
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/arm-core.js', 'shared/check.js', 'c0/ui-c0.js'],
+    }),
+    'c1': ('proverka-chasti-1.html', ['l01/lesson.css', 'shared/lab.css', 'shared/check.css', 'c1/c1.css'], {
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/kettle-core.js', 'shared/kettle-draw.js', 'shared/check.js', 'c1/ui-c1.js'],
     }),
 }
 import json, re, urllib.parse, html as _html

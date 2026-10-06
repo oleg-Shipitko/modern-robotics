@@ -1,4 +1,4 @@
-/* ---------- Проверка части: задания вперемешку (c0/ui-c0.js) ---------- */
+/* ---------- Проверка в конце части: задания вперемешку (shared/check.js) ---------- */
 .chk-list { display: grid; gap: 18px; max-width: 880px; }
 .chk-card { padding: 20px 22px 18px; display: grid; gap: 12px; }
 .chk-card.right { box-shadow: var(--shadow), inset 3px 0 0 var(--good); }

@@ -1,0 +1,5 @@
+/* ---------- Проверка части 1: цвета политик и сцена с чайником (shared/kettle-draw.js) ---------- */
+:root { --pol-reg: #3d3c38; --pol-gmm: #0e8a80; --pol-dif: #eb6834; --side-l: #0e8a80; --side-r: #8a5cc4; }
+:root[data-theme="dark"] { --pol-reg: #d9d7cf; --pol-gmm: #34b8aa; --pol-dif: #e8743f; --side-l: #34b8aa; --side-r: #b294e6; }
+.chk-cv.kettle-cv { aspect-ratio: 600 / 400; }
+.chk-ctl .seg button { font-size: 14.5px; }
