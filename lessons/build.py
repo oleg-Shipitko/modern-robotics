@@ -44,6 +44,10 @@ LESSONS = {
     'l18': ('1-8-flow-matching.html', ['l01/lesson.css', 'shared/lab.css', 'l18/l18.css'], {
         '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'l18/engine.js', 'l18/ui-l18.js'],
     }),
+    # глоссарий: все термины из shared/glossary.json, без отзыва и «спасибо»
+    'gl': ('glossariy.html', ['l01/lesson.css', 'gl/gl.css'], {
+        '/*@@JS@@*/': ['l01/ui-core.js', 'gl/ui-gl.js'],
+    }),
     # проверки в конце частей: без отзыва и «спасибо» в конце
     'c0': ('proverka-chasti-0.html', ['l01/lesson.css', 'shared/lab.css', 'c0/c0.css'], {
         '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/arm-core.js', 'c0/ui-c0.js'],
@@ -98,9 +102,74 @@ def add_thanks(page, name):
     return page.replace('</body>', f'<script>\nwindow.MR_THANKS_API = {json.dumps(CFG.get("THANKS_API", ""))};\n{js}</script>\n</body>', 1)
 def add_stats(page):
     """Анонимная статистика (shared/stats.js, адрес — STATS_API в config.json), отзыв (feedback.js) и прогресс в браузере (progress.js)."""
-    js = '\n'.join((root / 'shared' / f).read_text(encoding='utf-8') for f in ('stats.js', 'feedback.js', 'progress.js', 'recall.js'))
+    js = '\n'.join((root / 'shared' / f).read_text(encoding='utf-8') for f in ('stats.js', 'feedback.js', 'progress.js', 'recall.js', 'glossary.js'))
     assert '</script' not in js
     return page.replace('</body>', f'<script>\nwindow.MR_STATS_API = {json.dumps(CFG.get("STATS_API", ""))};\n{js}</script>\n</body>', 1)
+# ---------- Глоссарий: подсказки к терминам при первом упоминании (shared/glossary.*) ----------
+GLOSSARY = json.loads((root / 'shared/glossary.json').read_text(encoding='utf-8'))
+SKIP_TAGS = {'a', 'h1', 'h2', 'h3', 'h4', 'button', 'label', 'code', 'pre', 'script', 'style', 'summary', 'svg', 'canvas', 'select', 'textarea', 'figcaption'}
+_gl_info = None
+def gl_info():
+    """Для каждого термина: номер и файл урока, где он вводится, и название раздела."""
+    global _gl_info
+    if _gl_info is None:
+        _gl_info, titles = {}, {}
+        for g in GLOSSARY:
+            name = LESSONS[g['l']][0]
+            if g['l'] not in titles:
+                src = (root / g['l'] / 'lesson.html').read_text(encoding='utf-8')
+                titles[g['l']] = {m.group(1): re.sub(r'<[^>]+>', '', h.group(1)).strip()
+                                  for m in re.finditer(r'<section[^>]*\bid="([a-z][a-zA-Z0-9-]*)"[^>]*>(.*?)</section>', src, flags=re.S)
+                                  for h in [re.search(r'<h2[^>]*>(.*?)</h2>', m.group(2), flags=re.S)] if h}
+            _gl_info[g['id']] = {'t': g['t'], 'en': g['en'], 'd': g['d'], 'k': g['l'], 'n': '.'.join(name.split('-')[:2]),
+                                 'href': f"{name}#{g['sec']}", 'st': titles[g['l']].get(g['sec'], '')}
+    return _gl_info
+def glossarize(page, key):
+    """Первое упоминание каждого термина в тексте урока (абзацы и списки внутри разделов, не в заголовках, ссылках,
+    формулах и кнопках) оборачивается в <span class="gl">; данные о найденных терминах кладутся в урок как JSON."""
+    a, b = page.find('<main>'), page.find('</main>')
+    if a < 0 or b < 0:
+        return page
+    pats = sorted(((g, re.compile(r'(?<![\w-])(?:' + g['a'].replace(' ', r'(?:\s|&nbsp;)+') + r')(?![\w-])', re.I))
+                   for g in GLOSSARY if not g.get('only') or key in g['only']), key=lambda x: -len(x[0]['a']))
+    used, out, section_ok, prose, skip, katex = {}, [], False, 0, 0, 0
+    for part in re.split(r'(<[^>]+>)', page[a:b]):
+        if part.startswith('<'):
+            m = re.match(r'<(/?)([a-zA-Z0-9]+)', part)
+            if m:
+                close, tag = m.group(1) == '/', m.group(2).lower()
+                if tag == 'section':
+                    section_ok = not close and 'class="section' in part
+                elif katex:
+                    katex += -1 if (close and tag == 'span') else 1 if (tag == 'span' and not part.endswith('/>')) else 0
+                elif tag == 'span' and not close and 'katex' in part:
+                    katex = 1
+                elif tag in ('p', 'li'):
+                    prose += -1 if close else 1
+                elif tag in SKIP_TAGS:
+                    skip += -1 if close else 1
+            out.append(part)
+            continue
+        if not (section_ok and prose > 0 and skip == 0 and katex == 0) or not part.strip():
+            out.append(part)
+            continue
+        spans = []
+        for g, rx in pats:
+            if g['id'] in used:
+                continue
+            for m in rx.finditer(part):
+                if all(m.end() <= x or m.start() >= y for x, y, _ in spans):
+                    spans.append((m.start(), m.end(), g['id'])); used[g['id']] = True
+                    break
+        for x, y, gid in sorted(spans, reverse=True):
+            part = part[:x] + f'<span class="gl" data-gl="{gid}" tabindex="0">{part[x:y]}</span>' + part[y:]
+        out.append(part)
+    if not used:
+        return page
+    info = gl_info()
+    data = {gid: {**info[gid], 'here': info[gid]['k'] == key} for gid in used}
+    tag = '<script type="application/json" id="glData">' + json.dumps(data, ensure_ascii=False).replace('</', '<\\/') + '</script>\n'
+    return page[:a] + ''.join(out) + tag + page[b:]
 def build(key):
     name, css_files, js_map = LESSONS[key]
     html = (root / key / 'lesson.html').read_text(encoding='utf-8')
@@ -111,7 +180,12 @@ def build(key):
         html = r.stdout
         html = html.replace('<link rel="stylesheet" href="../assets/fonts/fonts.css">',
                             '<link rel="stylesheet" href="../assets/fonts/fonts.css">\n<link rel="stylesheet" href="../assets/katex/katex.min.css">', 1)
-    css = '\n'.join((root / f).read_text(encoding='utf-8') for f in css_files + ['shared/thanks.css', 'shared/feedback.css', 'shared/recall.css'])
+    if key.startswith('l'):
+        html = glossarize(html, key)
+    if key == 'gl':
+        info = gl_info()
+        html = html.replace('@@GLOSSARY_JSON@@', json.dumps([{**info[g['id']], 'id': g['id']} for g in GLOSSARY], ensure_ascii=False).replace('</', '<\\/'))
+    css = '\n'.join((root / f).read_text(encoding='utf-8') for f in css_files + ['shared/thanks.css', 'shared/feedback.css', 'shared/recall.css', 'shared/glossary.css'])
     assert '/*@@CSS@@*/' in html
     html = html.replace('/*@@CSS@@*/', css)
     for marker, files in js_map.items():
@@ -120,7 +194,7 @@ def build(key):
         assert marker in html, marker
         html = html.replace(marker, js)
     html = add_og(html, name)
-    if not key.startswith('c'):
+    if key.startswith('l'):
         html = add_thanks(html, name)
     html = add_stats(html)
     out = root.parent / 'site' / 'lessons' / name

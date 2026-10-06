@@ -77,6 +77,8 @@
 .lsn-st.started { background: conic-gradient(var(--ink-3) 0 50%, transparent 0); box-shadow: inset 0 0 0 1.5px var(--ink-3); }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .progress-reset { margin: -10px 0 18px; font-size: 14px; color: var(--ink-3); }
+.program-links { margin: -10px 0 18px; font-size: 15px; color: var(--ink-3); }
+.program-links a { color: var(--ink-2); }
 .progress-reset button { padding: 0; border: 0; background: none; color: var(--ink-2); font: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .part.later .num { background: transparent; color: var(--ink-3); border: 1.5px dashed var(--line-2); }
 .part.later .t { color: var(--ink-2); }
@@ -166,6 +168,7 @@ html { scroll-padding-top: 76px; scroll-behavior: smooth; }
   <h2>Программа</h2>
   <p class="lead">9 частей, 54 урока. Части идут в логическом порядке: каждая отвечает на ограничения подходов из предыдущей. 34 урока составляют ядро курса, остальные 20 — углубления по отдельным темам.</p>
   <div class="legend"><span><span class="tag core">ядро</span> 34 урока</span><span><span class="tag deep">углубление</span> 20 уроков</span><span><span class="tag primer">основы</span> можно пропустить, если тема знакома</span></div>
+  <p class="program-links">Термины из уроков с короткими определениями собраны в <a href="lessons/glossariy.html">глоссарии курса</a>.</p>
   <p class="progress-reset" id="progressReset" hidden>Отметки «пройден» и «начат» хранятся только в этом браузере. <button type="button">Сбросить прогресс</button></p>
   <div class="parts" id="parts" data-channel="{{CHANNEL}}"></div>
 </div></section>

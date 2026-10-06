@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Глоссарий — Modern Robotics и Physical AI</title>
+<meta name="description" content="Глоссарий курса «Modern Robotics и Physical AI»: термины робототехники и Physical AI с короткими определениями и ссылками на уроки — от ПД-регулятора и фильтра Калмана до behavior cloning, диффузии и трансформера.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<script>
+  (function () { try { var t = localStorage.getItem('mr-theme'); if (t) document.documentElement.dataset.theme = t; else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme = 'dark'; } catch (e) {} })();
+</script>
+<style>
+/*@@CSS@@*/
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html#program" title="К программе курса"><div>Modern Robotics и Physical AI<small>Глоссарий</small></div></a>
+    <button class="theme-btn" style="margin-left:auto" id="themeBtn" type="button" aria-label="Переключить тему">◐</button>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main>
+<section class="hero hero-slim" id="top">
+  <div class="wrap">
+    <div class="kicker">Справочник курса</div>
+    <h1><span class="amp">Глоссарий</span></h1>
+    <p class="lead">Термины, которые встречаются в уроках, с коротким определением и ссылкой на раздел, где термин разобран подробно. В самих уроках эти слова подчёркнуты пунктиром: наведи на них курсор или нажми, чтобы увидеть определение.</p>
+    <div class="gl-search"><input type="search" id="glQ" placeholder="Найти термин: например, якобиан или DAgger" aria-label="Поиск по глоссарию" autocomplete="off"><span class="gl-count" id="glCount"></span></div>
+    <nav class="gl-abc" id="glAbc" aria-label="Буквы"></nav>
+  </div>
+</section>
+
+<section class="section" id="terms">
+  <div class="wrap"><div class="gl-list" id="glList"></div><p class="gl-none" id="glNone" hidden>Ничего не нашлось. Попробуй другое слово или английское название.</p></div>
+</section>
+</main>
+
+<footer>
+  Глоссарий курса «Modern Robotics и Physical AI». Нашли неточность? <a href="https://github.com/oleg-Shipitko/modern-robotics/issues/new?title=%D0%93%D0%BB%D0%BE%D1%81%D1%81%D0%B0%D1%80%D0%B8%D0%B9%3A%20" target="_blank" rel="noopener">Сообщить на GitHub</a>
+</footer>
+<script type="application/json" id="glAll">@@GLOSSARY_JSON@@</script>
+<script>
+/*@@JS@@*/
+</script>
+</body>
+</html>

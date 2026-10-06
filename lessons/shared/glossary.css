@@ -1,0 +1,10 @@
+/* Термины с подсказкой (glossary.js) */
+.gl { text-decoration: underline dotted; text-decoration-thickness: 1.5px; text-decoration-color: color-mix(in srgb, var(--ink-3) 75%, transparent); text-underline-offset: 3px; cursor: help; }
+.gl:hover { text-decoration-color: var(--ink-2); }
+.gl:focus-visible { outline: 2px solid var(--classic); outline-offset: 2px; border-radius: 3px; }
+.gl-pop { position: fixed; z-index: 80; padding: 12px 14px; border: 1px solid var(--line-2); border-radius: 12px; background: var(--surface); box-shadow: var(--shadow); font-size: 14.5px; line-height: 1.5; color: var(--ink-2); text-align: left; }
+.gl-pop b { color: var(--ink); font-size: 15px; }
+.gl-pop .gl-en { color: var(--ink-3); font-size: 13px; }
+.gl-pop p { margin: 6px 0 0; }
+.gl-pop .gl-links { font-size: 13.5px; }
+.gl-pop a { color: var(--ink-2); }

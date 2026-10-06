@@ -31,7 +31,7 @@ TABLE = 'stats'
 SITE = os.environ.get('SITE', 'modernrobotics.ru')
 ORIGINS = {f'{s}://{h}' for s in ('https', 'http') for h in (SITE, 'www.' + SITE)}
 MSK = datetime.timezone(datetime.timedelta(hours=3))
-PAGE = re.compile(r'^(index|test|\d-\d{1,2}-[a-z0-9-]{1,60}|proverka-chasti-\d)$')     # test — проверка после выкладки
+PAGE = re.compile(r'^(index|test|glossariy|\d-\d{1,2}-[a-z0-9-]{1,60}|proverka-chasti-\d)$')     # test — проверка после выкладки
 EVENT = re.compile(r'^(open:(phone|desk)'
                    r'|ref:(direct|site|telegram|linkedin|google|yandex|github|vk|habr|other)'
                    r'|sec:[a-z][a-zA-Z0-9-]{0,30}'

@@ -51,6 +51,10 @@
     {
       "n": "1.6",
       "file": "lessons/1-6-transformer.html"
+    },
+    {
+      "n": "Г",
+      "file": "lessons/glossariy.html"
     }
   ],
   "_comment_published": "Опубликованные уроки: отмечаются «доступен» на главной, попадают в sitemap.xml и в выкладку (tools/deploy.sh).",

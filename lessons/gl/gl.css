@@ -1,0 +1,21 @@
+/* ---------- Глоссарий (gl/ui-gl.js) ---------- */
+.hero-slim { padding-bottom: 26px; }
+.gl-search { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-top: 22px; max-width: 760px; }
+.gl-search input { flex: 1 1 320px; padding: 12px 16px; border: 1px solid var(--line-2); border-radius: 12px; background: var(--surface); color: var(--ink); font: inherit; font-size: 16.5px; }
+.gl-search input:focus { outline: none; border-color: var(--ink-3); }
+.gl-count { font-size: 14.5px; color: var(--ink-3); }
+.gl-abc { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 18px; }
+.gl-abc a { min-width: 32px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink-2); font-weight: 650; font-size: 14.5px; text-align: center; text-decoration: none; }
+.gl-abc a:hover { border-color: var(--ink-3); color: var(--ink); }
+.gl-list { display: grid; gap: 26px; max-width: 900px; }
+.gl-group { display: grid; gap: 10px; scroll-margin-top: 80px; }
+.gl-group[hidden], .gl-item[hidden] { display: none; }
+.gl-letter { font-size: 22px; font-weight: 800; color: var(--ink-3); }
+.gl-item { padding: 16px 18px; scroll-margin-top: 90px; }
+.gl-item h3 { margin: 0 0 6px; font-size: 18px; }
+.gl-item .gl-en { font-size: 14px; font-weight: 500; color: var(--ink-3); }
+.gl-item p { margin: 0 0 8px; font-size: 16px; color: var(--ink-2); }
+.gl-from { font-size: 14px; color: var(--ink-3); }
+.gl-item.hit { box-shadow: var(--shadow), 0 0 0 2px var(--classic); }
+.gl-none { color: var(--ink-3); }
+.gl-abc-sep { width: 1px; margin: 4px 6px; background: var(--line-2); }

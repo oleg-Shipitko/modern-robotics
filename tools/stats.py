@@ -40,6 +40,8 @@ def lessons():
     """Опубликованные уроки по порядку: slug, номер, название, разделы [(id, заголовок)]."""
     out = []
     for p in CFG.get('PUBLISHED', []):
+        if p['n'] == 'Г':  # глоссарий — справочник, не урок
+            continue
         f = ROOT / 'site' / p['file']
         slug = f.stem
         html = f.read_text(encoding='utf-8') if f.exists() else ''
