@@ -62,6 +62,9 @@ LESSONS = {
     'c0': ('proverka-chasti-0.html', ['l01/lesson.css', 'shared/lab.css', 'shared/check.css'], {
         '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/arm-core.js', 'shared/check.js', 'c0/ui-c0.js'],
     }),
+    'c2': ('proverka-chasti-2.html', ['l01/lesson.css', 'shared/lab.css', 'shared/check.css', 'c2/c2.css'], {
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'l21/engine.js', 'shared/check.js', 'c2/ui-c2.js'],
+    }),
     'c1': ('proverka-chasti-1.html', ['l01/lesson.css', 'shared/lab.css', 'shared/check.css', 'c1/c1.css'], {
         '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/kettle-core.js', 'shared/kettle-draw.js', 'shared/check.js', 'c1/ui-c1.js'],
     }),

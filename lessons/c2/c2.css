@@ -1,0 +1,3 @@
+/* ---------- Проверка части 2: сцена «что и где» ---------- */
+.chk-cv.sq { aspect-ratio: 1; max-width: 520px; }
+.chk-lab { font-weight: 650; font-size: 14px; color: var(--ink-2); min-width: 3.4em; }
