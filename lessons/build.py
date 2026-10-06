@@ -93,8 +93,8 @@ def add_thanks(page, name):
     page = page.replace('</main>', THANKS.format(feedback=fb, channel=_html.escape(CFG.get('CHANNEL', ''), quote=True)) + '</main>', 1)
     return page.replace('</body>', f'<script>\nwindow.MR_THANKS_API = {json.dumps(CFG.get("THANKS_API", ""))};\n{js}</script>\n</body>', 1)
 def add_stats(page):
-    """Анонимная статистика урока: shared/stats.js, адрес сервера — STATS_API в config.json (пустой — ничего не отправляется)."""
-    js = (root / 'shared/stats.js').read_text(encoding='utf-8') + '\n' + (root / 'shared/feedback.js').read_text(encoding='utf-8')
+    """Анонимная статистика (shared/stats.js, адрес — STATS_API в config.json), отзыв (feedback.js) и прогресс в браузере (progress.js)."""
+    js = '\n'.join((root / 'shared' / f).read_text(encoding='utf-8') for f in ('stats.js', 'feedback.js', 'progress.js'))
     assert '</script' not in js
     return page.replace('</body>', f'<script>\nwindow.MR_STATS_API = {json.dumps(CFG.get("STATS_API", ""))};\n{js}</script>\n</body>', 1)
 def build(key):

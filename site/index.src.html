@@ -68,6 +68,15 @@
 .soon-note { margin: 0; max-width: 760px; font-size: 15.5px; color: var(--ink-3); }
 .soon-note a { color: var(--ink-2); }
 .part.later { background: transparent; box-shadow: none; }
+/* прогресс в этом браузере (lessons/shared/progress.js пишет, главная читает) */
+.cta-progress { margin: -10px 0 18px; font-size: 15px; color: var(--ink-3); }
+.lsn-st { display: inline-grid; place-items: center; width: 19px; height: 19px; margin-right: 8px; border-radius: 50%; vertical-align: -4px; }
+.lsn-st.done { background: color-mix(in srgb, var(--good) 14%, var(--surface)); color: var(--good); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--good) 55%, transparent); }
+.lsn-st.done svg { width: 11px; height: 11px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.lsn-st.started { background: conic-gradient(var(--ink-3) 0 50%, transparent 0); box-shadow: inset 0 0 0 1.5px var(--ink-3); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.progress-reset { margin: -10px 0 18px; font-size: 14px; color: var(--ink-3); }
+.progress-reset button { padding: 0; border: 0; background: none; color: var(--ink-2); font: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .part.later .num { background: transparent; color: var(--ink-3); border: 1.5px dashed var(--line-2); }
 .part.later .t { color: var(--ink-2); }
 
@@ -120,9 +129,10 @@ html { scroll-padding-top: 76px; scroll-behavior: smooth; }
     <h1>Modern Robotics <em>и Physical AI</em></h1>
     <p class="lead">Курс о том, как устроены современные роботы: от классического управления и behavior cloning до VLA-моделей и гуманоидов. Каждую тему сопровождают лабораторные работы в браузере, где небольшие нейросети обучаются за несколько секунд.</p>
     <div class="cta">
-      <a class="btn primary" href="lessons/0-1-dve-paradigmy.html"><svg><use href="#i-play"/></svg>Начать курс</a>
+      <a class="btn primary" id="ctaMain" href="lessons/0-1-dve-paradigmy.html"><svg><use href="#i-play"/></svg><span>Начать курс</span></a>
       <a class="btn" href="#program">Программа курса<svg><use href="#i-arrow"/></svg></a>
     </div>
+    <p class="cta-progress" id="ctaProgress" hidden></p>
     <div class="chips">
       <span><svg><use href="#i-free"/></svg>Бесплатно и без регистрации</span>
       <span><svg><use href="#i-lab"/></svg>Лабораторные работы в браузере</span>
@@ -155,6 +165,7 @@ html { scroll-padding-top: 76px; scroll-behavior: smooth; }
   <h2>Программа</h2>
   <p class="lead">9 частей, 54 урока. Части идут в логическом порядке: каждая отвечает на ограничения подходов из предыдущей. 34 урока составляют ядро курса, остальные 20 — углубления по отдельным темам.</p>
   <div class="legend"><span><span class="tag core">ядро</span> 34 урока</span><span><span class="tag deep">углубление</span> 20 уроков</span><span><span class="tag primer">основы</span> можно пропустить, если тема знакома</span></div>
+  <p class="progress-reset" id="progressReset" hidden>Отметки «пройден» и «начат» хранятся только в этом браузере. <button type="button">Сбросить прогресс</button></p>
   <div class="parts" id="parts" data-channel="{{CHANNEL}}"></div>
 </div></section>
 
@@ -252,6 +263,10 @@ const PARTS = [
 ];
 (function () {
   const box = document.getElementById('parts');
+  const PROGRESS = (() => { try { return JSON.parse(localStorage.getItem('mr-progress') || '{}') || {}; } catch (e) { return {}; } })();
+  const slugOf = (file) => file.split('/').pop().replace(/\.html$/, '');
+  const prog = (n) => (READY[n] && PROGRESS[slugOf(READY[n])]) || null;
+  const CHECK = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 6.2 5 8.6 9.6 3.6"/></svg>';
   let last = -1; // последняя часть, в которой есть опубликованные уроки
   PARTS.forEach((p, i) => { if (p.L.some((l) => READY[l[0]])) last = i; });
   function soon(from) {
@@ -268,16 +283,53 @@ const PARTS = [
     const core = p.L.filter((l) => l[2] === 'core').length;
     const d = document.createElement('details'); d.className = 'card part' + (i > last ? ' later' : ''); d.open = i <= last;
     const s = document.createElement('summary');
-    s.innerHTML = `<span class="num">${i}</span><span><div class="t"></div><div class="q"></div></span><span class="count">${p.L.length} ${p.L.length < 5 ? 'урока' : 'уроков'} · ядро ${core}<span class="chev">›</span></span>`;
+    const passed = p.L.filter((l) => prog(l[0]) && prog(l[0]).f).length;
+    s.innerHTML = `<span class="num">${i}</span><span><div class="t"></div><div class="q"></div></span><span class="count">${p.L.length} ${p.L.length < 5 ? 'урока' : 'уроков'} · ядро ${core}${passed ? ` · пройдено ${passed}` : ''}<span class="chev">›</span></span>`;
     s.querySelector('.t').textContent = p.t; s.querySelector('.q').textContent = p.q;
     const ul = document.createElement('ul'); ul.className = 'lessons';
     p.L.forEach(([n, title, kind, primer]) => {
       const li = document.createElement('li');
       li.innerHTML = `<span class="n">${n}</span><span></span><span>${primer ? '<span class="tag primer">основы</span> ' : ''}<span class="tag ${kind}">${kind === 'core' ? 'ядро' : 'углубление'}</span></span>`;
-      if (READY[n]) { const a = document.createElement('a'); a.href = READY[n]; a.textContent = title; li.children[1].append(a); } else li.children[1].textContent = title;
+      if (READY[n]) {
+        const pr = prog(n);
+        if (pr) li.children[1].insertAdjacentHTML('beforeend', pr.f ? `<span class="lsn-st done" title="Пройден">${CHECK}</span><span class="sr">Пройден. </span>` : '<span class="lsn-st started" title="Начат"></span><span class="sr">Начат. </span>');
+        const a = document.createElement('a'); a.href = READY[n]; a.textContent = title; li.children[1].append(a);
+      } else li.children[1].textContent = title;
       ul.append(li);
     });
     d.append(s, ul); box.append(d);
+  });
+
+  // Первый экран: продолжить начатый урок с самого дальнего раздела или открыть следующий непройденный
+  const order = PARTS.flatMap((p) => p.L).filter((l) => READY[l[0]]);
+  const started = order.filter((l) => prog(l[0]));
+  if (!started.length) return;
+  const done = order.filter((l) => (prog(l[0]) || {}).f);
+  const btn = document.getElementById('ctaMain'), note = document.getElementById('ctaProgress');
+  const cur = started.filter((l) => !prog(l[0]).f).sort((a, b) => prog(b[0]).t - prog(a[0]).t)[0];
+  const next = order.find((l) => !(prog(l[0]) && prog(l[0]).f));
+  const passed = `Пройдено уроков: ${done.length} из ${order.length}`;
+  if (cur) {
+    const pr = prog(cur[0]);
+    btn.href = READY[cur[0]] + (pr.sec && pr.sec !== 'top' ? '#' + pr.sec : '');
+    btn.querySelector('span').textContent = `Продолжить урок ${cur[0]}`;
+    note.textContent = `${passed}. Сейчас — ${cur[0]} «${cur[1]}».`;
+  } else if (next) {
+    btn.href = READY[next[0]];
+    btn.querySelector('span').textContent = `Следующий урок: ${next[0]}`;
+    note.textContent = `${passed}. Дальше — ${next[0]} «${next[1]}».`;
+  } else {
+    btn.href = box.dataset.channel; btn.target = '_blank'; btn.rel = 'noopener';
+    btn.querySelector('span').textContent = 'Новые уроки — в канале';
+    note.textContent = `Пройдены все ${order.length} опубликованных уроков.`;
+  }
+  note.hidden = false;
+  const reset = document.getElementById('progressReset');
+  reset.hidden = false;
+  reset.querySelector('button').addEventListener('click', () => {
+    if (!confirm('Сбросить отметки о пройденных уроках в этом браузере?')) return;
+    try { localStorage.removeItem('mr-progress'); } catch (e) { /* нечего сбрасывать */ }
+    location.reload();
   });
 })();
 
