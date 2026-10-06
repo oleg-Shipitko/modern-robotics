@@ -1,0 +1,29 @@
+/* ---------- Проверка части: задания вперемешку (c0/ui-c0.js) ---------- */
+.chk-list { display: grid; gap: 18px; max-width: 880px; }
+.chk-card { padding: 20px 22px 18px; display: grid; gap: 12px; }
+.chk-card.right { box-shadow: var(--shadow), inset 3px 0 0 var(--good); }
+.chk-card.wrong { box-shadow: var(--shadow), inset 3px 0 0 var(--critical); }
+.chk-meta { font-size: 12.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); }
+.chk-q { margin: 0; font-size: 17.5px; font-weight: 650; line-height: 1.45; color: var(--ink); }
+.chk-opts { display: flex; flex-wrap: wrap; gap: 8px; }
+.chk-opt { display: inline-flex; align-items: center; gap: 8px; padding: 9px 14px; border: 1px solid var(--line-2); border-radius: 12px; background: var(--surface); color: var(--ink); font: inherit; font-size: 15.5px; line-height: 1.35; text-align: left; cursor: pointer; transition: border-color .15s, background-color .15s; }
+.chk-opt:hover:not(:disabled) { border-color: var(--ink-3); }
+.chk-opt:disabled { opacity: 1; cursor: default; color: var(--ink-3); }
+.chk-opt.ok { border-color: var(--good); background: color-mix(in srgb, var(--good) 12%, var(--surface)); color: var(--ink); }
+.chk-opt.no { border-color: var(--critical); background: color-mix(in srgb, var(--critical) 10%, var(--surface)); color: var(--ink); }
+.chk-opt.picked { border-color: var(--ink); }
+.chk-n { display: none; width: 21px; height: 21px; flex: none; border-radius: 50%; background: var(--ink); color: var(--bg); font-size: 12.5px; font-weight: 800; place-items: center; }
+.chk-opt.picked .chk-n { display: inline-grid; }
+.chk-order { display: grid; gap: 10px; justify-items: start; }
+.chk-hint, .chk-right { margin: 0; font-size: 14.5px; color: var(--ink-3); }
+.chk-exp { font-size: 15.5px; line-height: 1.55; color: var(--ink-2); }
+.chk-exp a { color: var(--ink-2); }
+.chk-scene { display: grid; gap: 10px; }
+.chk-cv { width: 100%; aspect-ratio: 520 / 330; display: block; border-radius: 12px; border: 1px solid var(--line); }
+.chk-plot { width: 100%; aspect-ratio: 520 / 120; display: block; border-radius: 10px; border: 1px solid var(--line); }
+.chk-ctl { display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: center; }
+.chk-row { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; }
+.chk-wait { color: var(--ink-3); }
+.chk-table { display: grid; gap: 6px; max-width: 560px; }
+.chk-tr { display: flex; justify-content: space-between; gap: 16px; padding: 9px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); font-size: 15.5px; }
+@media (max-width: 680px) { .chk-card { padding: 16px 16px 14px; } .chk-q { font-size: 16.5px; } .chk-ctl .hd-range { width: 100%; } .chk-ctl .hd-range input { flex: 1; width: auto; } }

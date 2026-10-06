@@ -44,6 +44,10 @@ LESSONS = {
     'l18': ('1-8-flow-matching.html', ['l01/lesson.css', 'shared/lab.css', 'l18/l18.css'], {
         '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'l18/engine.js', 'l18/ui-l18.js'],
     }),
+    # проверки в конце частей: без отзыва и «спасибо» в конце
+    'c0': ('proverka-chasti-0.html', ['l01/lesson.css', 'shared/lab.css', 'c0/c0.css'], {
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/arm-core.js', 'c0/ui-c0.js'],
+    }),
 }
 import json, re, urllib.parse, html as _html
 CFG = json.loads((root.parent / 'site' / 'config.json').read_text(encoding='utf-8'))
@@ -116,7 +120,8 @@ def build(key):
         assert marker in html, marker
         html = html.replace(marker, js)
     html = add_og(html, name)
-    html = add_thanks(html, name)
+    if not key.startswith('c'):
+        html = add_thanks(html, name)
     html = add_stats(html)
     out = root.parent / 'site' / 'lessons' / name
     out.parent.mkdir(parents=True, exist_ok=True)

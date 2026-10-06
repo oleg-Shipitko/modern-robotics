@@ -31,14 +31,15 @@ TABLE = 'stats'
 SITE = os.environ.get('SITE', 'modernrobotics.ru')
 ORIGINS = {f'{s}://{h}' for s in ('https', 'http') for h in (SITE, 'www.' + SITE)}
 MSK = datetime.timezone(datetime.timedelta(hours=3))
-PAGE = re.compile(r'^(index|test|\d-\d{1,2}-[a-z0-9-]{1,60})$')     # test — проверка после выкладки
+PAGE = re.compile(r'^(index|test|\d-\d{1,2}-[a-z0-9-]{1,60}|proverka-chasti-\d)$')     # test — проверка после выкладки
 EVENT = re.compile(r'^(open:(phone|desk)'
                    r'|ref:(direct|site|telegram|linkedin|google|yandex|github|vk|habr|other)'
                    r'|sec:[a-z][a-zA-Z0-9-]{0,30}'
                    r'|t:(2|10|30)'
                    r'|quiz:\d{1,2}/\d{1,2}'
                    r'|mis:[a-zA-Z][a-zA-Z0-9]{0,30}:\d{1,2}:(seen|done|r[1-5])'
-                   r'|task:[a-zA-Z][a-zA-Z0-9]{0,30}:done)$')
+                   r'|task:[a-zA-Z][a-zA-Z0-9]{0,30}:done'
+                   r'|chk:\d{1,2}:(ok|no))$')     # chk — задания проверки в конце части
 MAX_EVENTS = 60
 LIMIT, WINDOW = 30, 60      # с одного адреса — не больше 30 пачек в минуту; учёт только в памяти экземпляра
 MAX_DAYS = 120

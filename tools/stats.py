@@ -143,6 +143,8 @@ def analyze(data):
         qn = sum(n for *_, n in quiz)
         info = {'L': L, 'opens': o, 'phone': c['open:phone'], 'finale': c['sec:finale'], 'quiz_n': qn,
                 'fb': {r: c['fb:' + r] for r in ('good', 'mid', 'bad')},
+                # chk:99 — проверочная запись при выкладке 06.10, заданий с таким номером нет
+                'chk': sorted((int(m.group(1)), c[f'chk:{m.group(1)}:ok'], c[f'chk:{m.group(1)}:no']) for m in {re.match(r'chk:(\d+):', ev) for ev in c} if m and int(m.group(1)) < 99),
                 'quiz_avg': (sum(s * n for s, _, n in quiz) / qn, quiz[0][1]) if qn else None,
                 't': {m: c[f't:{m}'] for m in (2, 10, 30)},
                 'secs': [(sid, title, c['sec:' + sid]) for sid, title in L['secs']], 'missions': [], 'tasks': []}
@@ -181,7 +183,7 @@ def dm(d):
 
 
 def lname(L):
-    return L['n'] + ' ' + L['title'].split(' ', 1)[-1]
+    return L['title'] if L['n'].startswith('П') else L['n'] + ' ' + L['title'].split(' ', 1)[-1]  # П0 — проверка части 0
 
 
 RATING = {'good': 'всё понятно', 'mid': 'местами сложно', 'bad': 'многое непонятно'}
@@ -228,6 +230,8 @@ def report(data, only=None):
         out += ['', 'Миссии и задачи:'] + ['    ' + mis_text(m) for m in x['missions']]
         out += [f"    задача «{t['name']}»: дошли до раздела {t['reach']}, решили {t['done']} ({pct(t['done'], t['reach'])})" for t in x['tasks']]
         out += ['', f"Квиз: прошли {x['quiz_n']}, средний балл {qavg(x)}." if x['quiz_n'] else 'Квиз: никто не прошёл.']
+        if x['chk']:
+            out += ['', 'Задания проверки — сколько ответили верно:'] + [f"    {k:>2}. {pct(ok, ok + no)} из {ok + no}" for k, ok, no in x['chk']]
         fb = x['fb']; total = sum(fb.values())
         out += ['', f"Оценки: всё понятно {fb['good']}, местами сложно {fb['mid']}, многое непонятно {fb['bad']}." if total else 'Оценок пока нет.']
         out += [f"    {dm(f['day'])} · {RATING.get(f['r'], f['r'])} — {one_line(f['t'])}" for f in A['texts'] if f['page'] == x['L']['slug']]
@@ -283,6 +287,8 @@ def note(data, demo_mode=False):
             out += ['> - ' + mis_text(m) for m in x['missions']]
             out += [f"> - задача «{t['name']}»: дошли до раздела {t['reach']}, решили {t['done']} ({pct(t['done'], t['reach'])})" for t in x['tasks']]
         out += ['>', f"> **Квиз:** прошли {x['quiz_n']}, средний балл {qavg(x)}." if x['quiz_n'] else '> **Квиз:** никто не прошёл.']
+        if x['chk']:
+            out += ['>', '> **Задания проверки — верно:** ' + ', '.join(f"{k}: {pct(ok, ok + no)}" for k, ok, no in x['chk'])]
         fb = x['fb']
         out += [f"> **Оценки:** всё понятно {fb['good']}, местами сложно {fb['mid']}, многое непонятно {fb['bad']}." if sum(fb.values()) else '> **Оценок пока нет.**', '']
     return '\n'.join(out) + '\n'

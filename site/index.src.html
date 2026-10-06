@@ -58,6 +58,7 @@
 .tag.core { background: var(--hybrid-soft); color: var(--hybrid); }
 .tag.deep { background: var(--bg-2); color: var(--ink-3); }
 .tag.primer { background: rgba(250,178,25,.16); color: #8a5a00; }
+.tag.check { background: color-mix(in srgb, var(--good) 13%, transparent); color: color-mix(in srgb, var(--good) 80%, var(--ink)); }
 .lessons a { color: var(--ink); font-weight: 650; }
 :root[data-theme="dark"] .tag.primer { color: #fab219; }
 .soon { display: grid; justify-items: center; gap: 10px; margin: 26px 0 8px; text-align: center; }
@@ -251,7 +252,7 @@ html { scroll-padding-top: 76px; scroll-behavior: smooth; }
 /* ---------- Программа ---------- */
 const READY = {{READY_JSON}}; // опубликованные уроки — список в site/config.json, PUBLISHED
 const PARTS = [
-  { t: 'Введение: классический стек и его пределы', q: 'Как устроены роботы без обучения и где этот подход перестаёт работать', L: [['0.1', 'Две парадигмы: правила и данные', 'core'], ['0.2', 'Устройство робота: приводы и сенсоры', 'core'], ['0.3', 'Кинематика и управление', 'core', 1], ['0.4', 'Оценка состояния и планирование', 'deep', 1]] },
+  { t: 'Введение: классический стек и его пределы', q: 'Как устроены роботы без обучения и где этот подход перестаёт работать', L: [['0.1', 'Две парадигмы: правила и данные', 'core'], ['0.2', 'Устройство робота: приводы и сенсоры', 'core'], ['0.3', 'Кинематика и управление', 'core', 1], ['0.4', 'Оценка состояния и планирование', 'deep', 1], ['П0', 'Проверка части 0', 'check']] },
   { t: 'Обучение по демонстрациям', q: 'Как получить поведение из демонстраций и с какими проблемами это связано', L: [['1.1', 'Behavior Cloning', 'core'], ['1.2', 'DAgger и обучение с вмешательствами', 'core'], ['1.3', 'Мультимодальность действий', 'core'], ['1.4', 'Диффузионные модели', 'core', 1], ['1.5', 'Diffusion Policy', 'core'], ['1.6', 'Трансформер', 'core', 1], ['1.7', 'ACT: action chunking', 'core'], ['1.8', 'Flow matching', 'deep']] },
   { t: 'Пространственные представления, язык и планирование', q: 'Как связать действия робота с геометрией сцены и естественным языком', L: [['2.1', 'Transporter и CLIPort', 'core'], ['2.2', 'PerAct: 3D-представления и язык', 'deep'], ['2.3', 'LLM-планировщики и VoxPoser', 'core']] },
   { t: 'Foundation-модели для роботов', q: 'Как перенести масштабирование языковых моделей в управление роботами', L: [['3.1', 'RT-1', 'core'], ['3.2', 'Vision-language модели', 'core', 1], ['3.3', 'RT-2', 'core'], ['3.4', 'Open X-Embodiment', 'deep'], ['3.5', 'Открытые VLA: Octo, OpenVLA', 'deep'], ['3.6', 'π0', 'core'], ['3.7', 'Двухуровневые архитектуры: Helix, GR00T, Gemini Robotics', 'core'], ['3.8', 'Обобщение и рассуждение: от π0.5 до π0.7', 'core']] },
@@ -280,16 +281,16 @@ const PARTS = [
   }
   PARTS.forEach((p, i) => {
     if (i === last + 1) box.append(soon(i));
-    const core = p.L.filter((l) => l[2] === 'core').length;
+    const core = p.L.filter((l) => l[2] === 'core').length, nLessons = p.L.filter((l) => l[2] !== 'check').length;
     const d = document.createElement('details'); d.className = 'card part' + (i > last ? ' later' : ''); d.open = i <= last;
     const s = document.createElement('summary');
-    const passed = p.L.filter((l) => prog(l[0]) && prog(l[0]).f).length;
-    s.innerHTML = `<span class="num">${i}</span><span><div class="t"></div><div class="q"></div></span><span class="count">${p.L.length} ${p.L.length < 5 ? 'урока' : 'уроков'} · ядро ${core}${passed ? ` · пройдено ${passed}` : ''}<span class="chev">›</span></span>`;
+    const passed = p.L.filter((l) => l[2] !== 'check' && prog(l[0]) && prog(l[0]).f).length;
+    s.innerHTML = `<span class="num">${i}</span><span><div class="t"></div><div class="q"></div></span><span class="count">${nLessons} ${nLessons < 5 ? 'урока' : 'уроков'} · ядро ${core}${passed ? ` · пройдено ${passed}` : ''}<span class="chev">›</span></span>`;
     s.querySelector('.t').textContent = p.t; s.querySelector('.q').textContent = p.q;
     const ul = document.createElement('ul'); ul.className = 'lessons';
     p.L.forEach(([n, title, kind, primer]) => {
       const li = document.createElement('li');
-      li.innerHTML = `<span class="n">${n}</span><span></span><span>${primer ? '<span class="tag primer">основы</span> ' : ''}<span class="tag ${kind}">${kind === 'core' ? 'ядро' : 'углубление'}</span></span>`;
+      li.innerHTML = `<span class="n">${kind === 'check' ? '✓' : n}</span><span></span><span>${primer ? '<span class="tag primer">основы</span> ' : ''}<span class="tag ${kind}">${kind === 'core' ? 'ядро' : kind === 'check' ? 'проверка' : 'углубление'}</span></span>`;
       if (READY[n]) {
         const pr = prog(n);
         if (pr) li.children[1].insertAdjacentHTML('beforeend', pr.f ? `<span class="lsn-st done" title="Пройден">${CHECK}</span><span class="sr">Пройден. </span>` : '<span class="lsn-st started" title="Начат"></span><span class="sr">Начат. </span>');
@@ -301,7 +302,7 @@ const PARTS = [
   });
 
   // Первый экран: продолжить начатый урок с самого дальнего раздела или открыть следующий непройденный
-  const order = PARTS.flatMap((p) => p.L).filter((l) => READY[l[0]]);
+  const order = PARTS.flatMap((p) => p.L).filter((l) => READY[l[0]] && l[2] !== 'check');
   const started = order.filter((l) => prog(l[0]));
   if (!started.length) return;
   const done = order.filter((l) => (prog(l[0]) || {}).f);

@@ -113,6 +113,8 @@ def main():
     check(r['statusCode'] == 405, 'GET на публичной функции не отдаёт данные — 405')
     codes = [post({'p': 'index', 'e': ['open:desk']}, ip='9.9.9.9')[0] for _ in range(index.LIMIT + 3)]
     check(codes.count(429) == 3, f'с одного адреса больше {index.LIMIT} пачек в минуту — 429')
+    code, body = post({'p': 'proverka-chasti-0', 'e': ['open:desk', 'chk:3:ok', 'chk:14:no', 'quiz:12/14', 'chk:3:maybe']}, ip='6.6.6.6')
+    check(code == 200 and body['n'] == 4 and db.table[(day, 'proverka-chasti-0', 'chk:14:no')] == 1, 'страница проверки части: задания и итог принимаются, лишнее отброшено')
     big = {'p': 'index', 'e': [f'sec:s{k}' for k in range(200)]}
     check(post(big, ip='8.8.8.8')[1]['n'] == index.MAX_EVENTS, f'в пачке не больше {index.MAX_EVENTS} событий')
 
