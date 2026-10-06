@@ -89,25 +89,26 @@
       <p class="ada-note"><svg class="ada-ico" viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="10" width="48" height="42" rx="18" fill="#f4efe6" stroke="#3d3c38" stroke-width="3"/><rect x="15" y="19" width="34" height="22" rx="10" fill="#1f2430"/><ellipse cx="25" cy="30" rx="4" ry="5.5" fill="#eb6834"/><ellipse cx="39" cy="30" rx="4" ry="5.5" fill="#eb6834"/></svg><span>Ада — домашний гуманоидный робот, на котором построены лабораторные работы курса. Подробнее о ней — в <a href="0-1-dve-paradigmy.html#ada">уроке 0.1</a>.</span></p>
     </div>
     <div class="card lab-card tok-card">
-      <div class="tok-grid">
-        <div class="tok-view">
-          <canvas id="tokCv" width="420" height="420" class="sq-cv" role="img" aria-label="Кадр камеры над столом, разрезанный на патчи"></canvas>
-          <div class="readout" id="tokOut"></div>
+      <!-- Части задачи раскладываются скриптом по порядку действий: ставка → размер патча → кадр → числа → проверка → сравнение -->
+      <div class="t16-task tok-grid" id="tokTask"></div>
+      <div class="tok-view" id="tokView">
+        <canvas id="tokCv" width="420" height="420" class="sq-cv" role="img" aria-label="Кадр камеры над столом, разрезанный на патчи"></canvas>
+        <div class="readout" id="tokOut"></div>
+      </div>
+      <div class="tok-ctl" id="tokCtl">
+        <span class="tok-lbl">Размер патча</span>
+        <div class="seg" role="group" aria-label="Размер патча" id="tokPatch">
+          <button type="button" data-p="32" aria-pressed="true">32 px</button><button type="button" data-p="16" aria-pressed="false">16 px</button><button type="button" data-p="14" aria-pressed="false">14 px</button>
         </div>
-        <div class="tok-side">
-          <div class="tok-ctl">
-            <div class="seg" role="group" aria-label="Размер патча" id="tokPatch">
-              <button type="button" data-p="32" aria-pressed="true">Патч 32 px</button><button type="button" data-p="16" aria-pressed="false">16 px</button><button type="button" data-p="14" aria-pressed="false">14 px</button>
-            </div>
-            <label class="toggle" id="tokTLWrap"><input type="checkbox" id="tokTL"><span class="box"></span>Сжать до 8 токенов, как TokenLearner в RT-1</label>
-          </div>
-          <div class="tok-kpis">
-            <div class="kpi"><b id="tokN">49</b><span>токенов на картинку</span></div>
-            <div class="kpi"><b id="tokN2">2 401</b><span>пар для внимания, \(n^2\)</span></div>
-          </div>
-          <div class="tok-bars" id="tokBars"></div>
-          <div class="t16-task" id="tokTask"></div>
-        </div>
+      </div>
+      <div class="tok-kpis" id="tokKpis">
+        <div class="kpi"><b id="tokN">49</b><span>токенов на картинку</span><small id="tokN0"></small></div>
+        <div class="kpi"><b id="tokN2">2 401</b><span>пар для внимания, \(n^2\)</span><small id="tokN20"></small></div>
+      </div>
+      <div class="tok-more" id="tokMore" hidden>
+        <div class="tok-more-h">Сравни все варианты</div>
+        <label class="toggle" id="tokTLWrap"><input type="checkbox" id="tokTL"><span class="box"></span>Сжать до 8 токенов, как TokenLearner в RT-1</label>
+        <div class="tok-bars" id="tokBars"></div>
       </div>
     </div>
     <details class="deep"><summary>Под капотом: ViT и откуда 196 токенов</summary><div class="body">

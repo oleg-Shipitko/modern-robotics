@@ -197,8 +197,9 @@
       HeroKit.label(c, k, st.tl ? '8 областей TokenLearner' : `224 × 224 px · патч ${st.patch}`, 8 * k, 12 * k, { align: 'left', px: 11.5, mono: true, color: '#2f2a22', haloColor: 'rgba(255,250,240,0.85)' });
     }
     function side() {
-      const n = cur();
+      const n = cur(), moved = st.tl || st.patch !== 32;
       $('#tokN').textContent = int(n); $('#tokN2').textContent = int(n * n);
+      $('#tokN0').textContent = moved ? `при патче 32 px: ${int(nOf(32))}` : ''; $('#tokN20').textContent = moved ? `при патче 32 px: ${int(nOf(32) ** 2)}` : '';
       $$('#tokPatch button').forEach((b) => b.setAttribute('aria-pressed', String(!st.tl && +b.dataset.p === st.patch)));
       const rows = [[32, 'патч 32 px'], [16, 'патч 16 px'], [14, 'патч 14 px'], ['tl', 'TokenLearner, 8']], max = 65536;
       setOut($('#tokBars'), '<div class="tb-cap">Пар для внимания, n², на одну картинку</div>' + rows.map(([p, t]) => {
@@ -236,7 +237,13 @@
         ],
         hint: 'Сторона кадра делится на размер патча: 224 / 32 = 7 и 224 / 16 = 14. Токенов — квадрат этого числа, а пар для внимания — квадрат числа токенов.',
         explain: () => 'При патче 16 выходит 14 × 14 = 196 токенов, и ViT добавляет к ним токен [class]. Внимание сравнивает каждый токен с каждым, поэтому вчетверо больше токенов дают в 16 раз больше пар. В Octo патчи 16 × 16 работают на захватах лучше, чем 32 × 32, но токенов вчетверо больше. Патч 14 даёт 256 токенов — столько PaliGemma и π0 получают из картинки 224 px.',
+        onDone: () => { $('#tokMore').hidden = false; },
       });
+      // Порядок на экране совпадает с порядком действий: ставка, размер патча, кадр, числа, проверка.
+      // На широком экране кадр слева, шаги справа; на узком всё в одну колонку, кадр сразу под кнопками патча.
+      const R = task.root, q = (sel) => R.querySelector(sel);
+      R.append(h('div', { class: 'tok-head' }, q('.g-kicker'), q('h4'), q('.g-text'), q('.m-bet'), $('#tokCtl')), $('#tokView'),
+        h('div', { class: 'tok-steps' }, $('#tokKpis'), q('.m-crit'), q('.m-hint'), q('.g-out'), $('#tokMore')));
       task.root.addEventListener('click', (e) => {
         const b = e.target.closest('.pick button'); if (!b || b.disabled) return;
         const g = b.closest('.pick').dataset.g, v = +b.dataset.v, right = g === 't' ? 4 : 16;
