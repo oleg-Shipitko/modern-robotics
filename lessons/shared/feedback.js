@@ -25,12 +25,13 @@
   }
 
   const opts = [...box.querySelectorAll('.fb-opts button')], more = box.querySelector('.fb-more'), done = box.querySelector('.fb-done');
-  const text = box.querySelector('textarea'), sendBtn = box.querySelector('.fb-send'), head = box.querySelector('.fb-q');
+  const text = box.querySelector('textarea'), sendBtn = box.querySelector('.fb-send'), head = box.querySelector('.fb-q'), saved = box.querySelector('.fb-saved');
   let rating = store() || null;
   function paint() {
     opts.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.r === rating)));
     more.hidden = !rating || box.classList.contains('sent');
     if (rating && !box.classList.contains('sent')) head.textContent = 'Урок был понятен? Твой ответ: ' + LABEL[rating].toLowerCase();
+    if (saved) saved.hidden = !rating || box.classList.contains('sent');
   }
   opts.forEach((b) => b.addEventListener('click', () => {
     if (box.classList.contains('sent')) return;
@@ -45,7 +46,8 @@
     if (!t) { text.focus(); return; }
     send({ r: rating, t });
     store(rating);
-    box.classList.add('sent'); more.hidden = true; done.hidden = false;
+    box.classList.add('sent'); done.hidden = false;
+    paint();
   });
   paint();
 })();

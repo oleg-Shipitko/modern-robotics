@@ -285,15 +285,23 @@ const Lab1 = (() => {
 
   /* ---------- Отрисовка ---------- */
   function drawAll(now) {
+    drawNoisePrev();
     AG.forEach((a) => {
       SceneView.render(panels[a].canvas, scene, { episode: eps ? eps[a] : null, kind: a, thoughts, time: now });
     });
+  }
+  /** Кадр камеры с текущим шумом: зерно фиксированное, чтобы кадр не мерцал; синие клетки — где правило по цвету видит чашку. */
+  function noisyFrame() { return RC.addNoise(RC.renderClean(scene), null, noise, new RC.Rng(11)); }
+  function drawNoisePrev() {
+    const c = $('#noisePrev'); if (!c) return;
+    const img = noisyFrame();
+    SceneView.renderCamera(c, img, App.rules ? { per: RC.classicalPerceive(img, App.rules) } : {});
   }
   function updateCamera(idle) {
     const cam = $('#camCanvas');
     let img;
     if (eps && eps.e2e && !idle) img = eps.e2e.img;
-    else { img = RC.renderClean(scene); }
+    else { img = noisyFrame(); }
     const per = camMode === 'rule' ? RC.classicalPerceive(img, App.rules) : null;
     SceneView.renderCamera(cam, img, { per });
     // карты внимания
@@ -423,7 +431,7 @@ const Lab1 = (() => {
     }));
     const nr = $('#noiseRange');
     setRangeFill(nr);
-    nr.addEventListener('input', () => { noise = +nr.value; $('#noiseOut').textContent = noise.toFixed(2); setRangeFill(nr); });
+    nr.addEventListener('input', () => { noise = +nr.value; $('#noiseOut').textContent = noise.toFixed(2); setRangeFill(nr); drawNoisePrev(); if (!eps) updateCamera(true); });
     nr.addEventListener('change', () => { goFree(); resetEpisodes(); });
     $$('#camSeg button').forEach((b) => b.addEventListener('click', () => {
       camMode = b.dataset.cam;

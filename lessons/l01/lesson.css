@@ -591,3 +591,10 @@ footer { padding: 40px 24px 60px; text-align: center; color: var(--ink-3); font-
 
 a.brand { color: inherit; text-decoration: none; }
 a.brand:hover small { color: var(--ink-2); }
+
+/* Кадр камеры с текущим шумом рядом с ползунком (лаборатория 1) и сноска к имени Ады */
+.noise-prev { width: 56px; height: 56px; image-rendering: pixelated; border-radius: 6px; border: 1px solid var(--line-2); flex: none; }
+.noise-hint { margin: 6px 0 0; max-width: 760px; }
+.fn-ref { font-size: .6em; vertical-align: super; line-height: 0; margin-left: 2px; }
+.fn-ref a { color: var(--ink-3); text-decoration: none; }
+.ada-intro .fn { font-size: 13.5px; color: var(--ink-3); margin-top: 10px; }

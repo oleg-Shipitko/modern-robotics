@@ -7,7 +7,8 @@
 .fb-opts button[aria-pressed="true"] { border-color: var(--ink); background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--ink); }
 .fb.sent .fb-opts button { cursor: default; }
 .fb-more { display: grid; gap: 8px; }
-.fb-more[hidden], .fb-done[hidden] { display: none; }
+.fb-more[hidden], .fb-done[hidden], .fb-saved[hidden] { display: none; }
+.fb-saved { font-size: 15px; color: var(--good); font-weight: 600; }
 .fb-more label { font-size: 15px; color: var(--ink-2); }
 .fb-more textarea { width: 100%; min-height: 84px; padding: 10px 12px; border: 1px solid var(--line-2); border-radius: 12px; background: var(--bg); color: var(--ink); font: inherit; font-size: 15.5px; line-height: 1.5; resize: vertical; }
 .fb-more textarea:focus { outline: none; border-color: var(--ink-3); }

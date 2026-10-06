@@ -210,7 +210,7 @@
   /** Шаг обучения лаборатории: 3·10⁻³ первые 200 эпох, потом 10⁻³, после 400 эпох — 5·10⁻⁴ (эпоха — 16 шагов). */
   const LAB = { bs: 125, perEpoch: 16, n: 1000 };
   const labLr = (step) => (step < 200 * LAB.perEpoch ? 3e-3 : step < 400 * LAB.perEpoch ? 1e-3 : 5e-4);
-  /** Фиксированный набор для оценки ошибки: одни и те же (x₀, t, ε) при каждом замере, t — равномерно, как в L_simple. */
+  /** Фиксированный набор для оценки ошибки: одни и те же (x₀, t, ε) при каждом измерении, t — равномерно, как в L_simple. */
   function evalSet(data, n, seed, sched) {
     const r = rng(seed || 77), xs = new Float64Array(2 * n), eps = new Float64Array(2 * n), ts = new Int32Array(n), ab = (sched || schedule('lin')).abar;
     for (let k = 0; k < n; k++) {

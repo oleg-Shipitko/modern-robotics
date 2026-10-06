@@ -69,7 +69,7 @@
       let cover = 0; for (let i = 0; i < N; i++) if (Math.abs(kf[i] - d.x[i]) <= 2 * Math.sqrt(P[i])) cover++;
       let odo = d.z[0]; const odoE = new Float64Array(N); odoE[0] = odo; for (let i = 1; i < N; i++) { odo += d.u[i] * DT; odoE[i] = odo; }
       const win = (e, a, b) => { let mx = 0; for (let i = 0; i < N; i++) { const t = i * DT; if (t >= a && t < b) mx = Math.max(mx, Math.abs(e[i] - d.x[i])); } return mx; };
-      // окно после провала дальномера: 1 с после возвращения замеров
+      // окно после провала дальномера: 1 с после возвращения измерений
       const after = { comp: win(comp, DROP[1], DROP[1] + 1), kf: win(kf, DROP[1], DROP[1] + 1) };
       const sigAt = (t) => Math.sqrt(P[Math.round(t / DT)]);
       return { d, raw, comp, kf, P, K, odo: odoE, Kend: K[N - 1], m: { raw: m(raw), comp: m(comp), kf: m(kf), odo: m(odoE) }, cover: cover / N, after, sigAt, opts: o };
@@ -244,7 +244,7 @@
         const cl = clusters(W.pf), best = cl[0] || { w: 0, x: 0, y: 0 };
         return { cl: cl.slice(0, 5), err: Math.hypot(best.x - W.s.x, best.y - W.s.y), sp: spread(W.pf, best), best };
       }
-      /** Замер на месте: n сканов без движения (фильтр только взвешивает). */
+      /** Измерение на месте: n сканов без движения (фильтр только взвешивает). */
       function stand(n) {
         const pf = W.pf; let r;
         for (let i = 0; i < n; i++) {
