@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2.1 Transporter и CLIPort — Modern Robotics и Physical AI</title>
+<meta name="description" content="Урок 2.1 курса «Modern Robotics и Physical AI»: CLIP, Transporter и CLIPort. Обучи маленький CLIP в браузере, научи Аду брать кубик по одной демонстрации картой действий, найди поворот детали поиском по шаблону и соедини слова с картами.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<script>
+  (function () { try { var t = localStorage.getItem('mr-theme'); if (t) document.documentElement.dataset.theme = t; else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme = 'dark'; } catch (e) {} })();
+</script>
+<style>
+/*@@CSS@@*/
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html#program" title="К программе курса"><div>Modern Robotics и Physical AI<small>Урок 2.1 · Transporter и CLIPort</small></div></a>
+    <nav class="toc" aria-label="Разделы урока">
+      <a href="#words">Слова</a>
+      <a href="#maps">Карта</a>
+      <a href="#place">Укладка</a>
+      <a href="#cliport">Что и где</a>
+      <a href="#today">Сегодня</a>
+      <a href="#quiz">Проверка</a>
+      <a href="#finale">Итог</a>
+    </nav>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Переключить тему">◐</button>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main>
+
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="kicker"><span class="num">2.1</span> Часть 2 · Пространственные представления, язык и планирование</div>
+    <h1>Transporter и CLIPort: <span class="amp">где и что</span></h1>
+    <p class="lead">Политики части 1 смотрят на картинку и выдают числа: координаты или углы суставов. На каждый навык им нужны десятки демонстраций, а команду словами они не понимают. Но в задачах на столе действие — точка на той же картинке, которую видит робот: взять здесь, положить туда. Transporter превращает действие в карту по пикселям и учится брать предмет по одной демонстрации. CLIP связывает слова с картинками, а CLIPort соединяет одно с другим: CLIP отвечает, что брать, Transporter — где.</p>
+    <div class="hero-meta"><span>≈ 45 минут</span><span>3 лаборатории, интерактив и квиз</span><span id="heroMis">миссии с целью</span></div>
+    <div class="hero-list">
+      <div><b>СЛОВА</b>Обучи маленький CLIP прямо на странице и найди предмет, которого не было в обучении</div>
+      <div><b>КАРТА</b>Научи Аду брать кубик по одной демонстрации и сравни с регрессией координат</div>
+      <div><b>УКЛАДКА</b>Найди поворот, при котором деталь войдёт в гнездо, по картам для 36 углов</div>
+      <div><b>КОМАНДА</b>Соедини слова с картами и проверь цвет, которого не было в демонстрациях</div>
+    </div>
+    <p style="margin-top:28px"><a class="btn primary" href="#words">Начать урок ↓</a></p>
+  </div>
+</section>
+
+<section class="recall-sec" id="recall" aria-label="Разминка по прошлому уроку">
+  <div class="wrap"><div class="card recall" data-recall></div></div>
+  <script type="application/json" id="recallData">{"n": "1.8", "title": "Flow matching", "href": "1-8-flow-matching.html", "q": [{"q": "Почему один шаг Эйлера из шума у flow matching без reflow приводит в среднее данных?", "o": ["Обучающие прямые пересекаются, и сеть учит их среднее, поэтому пути генерации кривые", "Сеть недообучена и выдаёт среднее", "Один шаг всегда слишком короткий"], "a": 0, "e": "Через одну точку идут прямые к разным пятнам, поле равно их среднему, и в момент t = 0 оно указывает на среднее данных.", "sec": "reflow", "secTitle": "Выпрямление: reflow"}, {"q": "Что делает reflow?", "o": ["Добавляет свежий шум на каждом шаге генерации", "Учит модель на её же парах «шум → результат», и пути выпрямляются", "Увеличивает число шагов, чтобы срезать поворот"], "a": 1, "e": "Пути модели не пересекаются, поэтому прямые между началом и концом её путей тоже почти не пересекаются, и одного-двух шагов почти хватает.", "sec": "reflow", "secTitle": "Выпрямление: reflow"}, {"q": "Сколько шагов flow matching делают головы действий у π0 и GR00T N1?", "o": ["Около 1000, как DDPM", "Один", "10 и 4"], "a": 2, "e": "Головы на flow matching делают 4–10 шагов: π0, π0.5 и SmolVLA — 10, GR00T N1 — 4.", "sec": "robot", "secTitle": "Как π0 строит пачку действий"}]}</script>
+</section>
+
+<section class="section alt" id="words">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">1</span> Слова</div>
+      <h2>Картинки и подписи в одном пространстве</h2>
+      <p>Чтобы выполнить команду «положи синий кубик в миску», робот должен связать слова с тем, что видит. Классический путь — детектор с фиксированным списком классов. Но на каждый новый предмет или признак ему нужны новые размеченные картинки.</p>
+      <p><strong>CLIP</strong> (Radford и соавторы, OpenAI, 2021) учится иначе. Берут 400 миллионов пар «картинка — подпись» из интернета и две сети: одна превращает картинку в вектор, другая — подпись. Задача обучения — угадать, какая подпись к какой картинке. В пакете из N пар N верных сочетаний и N² − N неверных: векторы верных пар сближают, неверных — разводят. Это <strong>контрастное обучение</strong>.</p>
+      <p>После обучения слова и картинки живут в одном пространстве. Чтобы найти предмет, достаточно описать его словами: побеждает картинка, вектор которой ближе всего к вектору текста. Так CLIP без единой размеченной картинки из ImageNet угадывает 76,2% классов — столько же, сколько ResNet-50, обученный на 1,28 миллиона размеченных картинок.</p>
+      <p>Проверим это в миниатюре. Предметы — четыре формы шести цветов, подписи — «цвет + форма». Одного сочетания в обучении нет совсем: фиолетового кубика модель не увидит ни разу.</p>
+    </div>
+    <div class="lab-badge"><i>🔬</i> Лаборатория 1</div>
+    <div class="lab">
+      <div class="card scene-card">
+        <canvas id="cMat" width="440" height="380" role="img" aria-label="Матрица сходства: восемь картинок и восемь подписей, цвет клетки — сходство векторов"></canvas>
+        <div class="cv-legend" id="cMatLegend"></div>
+        <p class="muted-s plot-cap">По строкам — подписи, по столбцам — картинки. Чем ярче клетка, тем ближе векторы подписи и картинки. Обведена диагональ: верные пары.</p>
+        <div class="readout" id="cOut"></div>
+        <h4 class="sub-h">Поиск по описанию</h4>
+        <div class="ctl-row">
+          <div class="seg" id="cColor" role="group" aria-label="Цвет"></div>
+          <div class="seg" id="cShape" role="group" aria-label="Форма"></div>
+        </div>
+        <canvas id="cGal" width="520" height="200" role="img" aria-label="Двадцать четыре предмета; первые три по сходству с описанием помечены местами"></canvas>
+        <div class="readout" id="cGalOut"></div>
+      </div>
+      <div class="card guide-card"><div id="cMis"></div></div>
+    </div>
+    <details class="deep"><summary>Под капотом: контрастная цель и наша маленькая модель</summary><div class="body">
+      <p>Пусть в пакете \(N\) пар, \(u_i\) — нормированный вектор \(i\)-й картинки, \(v_j\) — нормированный вектор \(j\)-й подписи, \(\tau\) — температура. Сходство — скалярное произведение, а цель — две перекрёстные энтропии: для каждой картинки угадать её подпись среди \(N\) и для каждой подписи — её картинку:</p>
+      <div class="formula">\[\begin{gathered} \ell_{ij} = \frac{u_i \cdot v_j}{\tau}, \\ \mathcal L = -\frac{1}{2N}\sum_{i}\Bigl(\log \frac{e^{\ell_{ii}}}{\sum_j e^{\ell_{ij}}} + \log \frac{e^{\ell_{ii}}}{\sum_j e^{\ell_{ji}}}\Bigr). \end{gathered}\]</div>
+      <p>У CLIP картинку кодирует ResNet или ViT, подпись — трансформер. Пакет — 32 768 пар, температура обучается, начальное значение 0,07.</p>
+      <p>У нас картинка — 16 × 16 пикселей, её кодирует сеть с одним скрытым слоем: 768 → 48 → 16. Подпись — сумма векторов двух слов, цвета и формы, по 16 чисел на слово. Векторы нормируются, \(\tau = 0{,}1\). Пакет — 16 разных пар, у каждой картинки случайный сдвиг, размер и шум; 600 шагов Adam. Матрица на сцене — восемь пар, которых модель не видела в этом виде: картинки нарисованы заново.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>Модель ни разу не видела фиолетовый кубик, но нашла его. Вектор подписи — сумма векторов слов, а цвет и форму картинки сеть научилась кодировать по отдельности: фиолетовый она видела на мяче, миске и банке, кубик — пяти других цветов. У CLIP то же даёт масштаб: в 400 миллионах пар встречается почти любое сочетание признаков. Роботу это и нужно — понимать слова, которых нет в его демонстрациях.</p>
+      <p>Но CLIP отвечает только на вопрос «что». Он сравнивает с текстом картинку целиком и не говорит, в каком месте стола взять предмет и куда его положить. Как получить из картинки место действия?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="maps">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Лаборатория 2</div>
+    <h2>Действие — клетка на картинке</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>Политики части 1 выдают действие числами: по всей картинке сеть вычисляет координаты предмета. Если кубик сдвинулся, сеть должна заметить сдвиг и пересчитать числа, и этому её учат на сотнях примеров с кубиком в разных местах.</p>
+      <p><strong>Transporter</strong> (Zeng и соавторы, Google, 2020) замечает, что в задачах на столе действие уже лежит в картинке. Камеры смотрят на стол, и из глубины собирают вид сверху, который совпадает со столом: каждый пиксель — место, куда робот может опустить захват. Значит, можно не вычислять координаты, а оценить каждый пиксель: насколько хорошо взять здесь. Получается <strong>карта</strong>, и робот берёт там, где она ярче.</p>
+      <p>Карту считает полносвёрточная сеть: одни и те же веса скользят по всей картинке. Сдвинули кубик — пик карты сдвинулся вместе с ним. Это <strong>эквивариантность сдвига</strong>: учить отдельно каждое положение кубика не нужно.</p>
+      <p class="ada-note"><svg class="ada-ico" viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="10" width="48" height="42" rx="18" fill="#f4efe6" stroke="#3d3c38" stroke-width="3"/><rect x="15" y="19" width="34" height="22" rx="10" fill="#1f2430"/><ellipse cx="25" cy="30" rx="4" ry="5.5" fill="#eb6834"/><ellipse cx="39" cy="30" rx="4" ry="5.5" fill="#eb6834"/></svg><span>Ада — домашний гуманоидный робот, на котором построены лабораторные работы курса. Подробнее о ней — в <a href="0-1-dve-paradigmy.html#ada">уроке 0.1</a>.</span></p>
+      <p>Проверим на столе Ады. Демонстрация — сцена, где оператор берёт красный кубик. Обучим две модели: карту — один фильтр 5 × 5, который скользит по сетке стола 24 × 24, — и регрессию координат — сеть, которая по всей картинке выдаёт два числа, как в части 1. Проверка — 30 новых сцен, где предметы лежат в других местах.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <canvas id="pCv" width="440" height="440" class="sq-cv" role="img" aria-label="Стол сверху: кубики, миска и мяч; поверх — карта «где взять» и точка, которую выбрала регрессия координат"></canvas>
+        <div class="cv-legend" id="pLegend"></div>
+        <div class="readout" id="pOut"></div>
+        <div class="ctl-row">
+          <div class="seg" id="pDemos" role="group" aria-label="Число демонстраций"><button type="button" data-v="1" aria-pressed="true">1 демонстрация</button><button type="button" data-v="5" aria-pressed="false">5</button><button type="button" data-v="20" aria-pressed="false">20</button></div>
+          <div class="seg" id="pTask" role="group" aria-label="Задача"><button type="button" data-v="redCube" aria-pressed="true">Один красный кубик</button><button type="button" data-v="twoRed" aria-pressed="false">Два красных кубика</button></div>
+        </div>
+        <div class="ctl-row">
+          <label class="hd-range wide" id="wrapPScene"><span>Сцена проверки</span><input id="pScene" type="range" min="1" max="30" step="1" value="1"><output>1</output></label>
+        </div>
+      </div>
+      <div class="card guide-card"><div id="pMis"></div></div>
+    </div>
+    <details class="deep"><summary>Под капотом: карта, softmax по клеткам и эквивариантность</summary><div class="body">
+      <p>Сеть выдаёт оценку \(Q(u, v)\) для каждой клетки \((u, v)\). Вероятность взять в клетке — softmax по всем клеткам, а цель обучения — перекрёстная энтропия с клеткой, где брал оператор:</p>
+      <div class="formula">\[\begin{gathered} p(u, v) = \frac{e^{Q(u, v)}}{\sum_{u', v'} e^{Q(u', v')}}, \qquad \mathcal L = -\log p(u^*, v^*), \\ f(g \circ o) = g \circ f(o). \end{gathered}\]</div>
+      <p>Последнее равенство — эквивариантность: если \(g\) сдвигает картинку \(o\), то карта \(f(o)\) сдвигается так же. У Transporter карту считает глубокая полносвёрточная сеть по виду сверху, собранному из трёх камер RGB-D. У нас — один фильтр 5 × 5 по трём цветам, 75 весов и сдвиг. Регрессия координат — сеть 1728 → 32 → 2 по всей сетке, около 55 тысяч весов, ошибка — средний квадрат. Обе модели обучаются здесь же, 120 и 300 шагов Adam.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>Карта брала красный кубик в новых сценах после одной демонстрации, а регрессия промахивалась и после двадцати: ей нужно выучить, как каждое положение кубика превращается в числа. В статье Transporter то же на большом масштабе. В задаче вставить блок в гнездо карта с одной демонстрацией даёт 100%, а свёрточная сеть с регрессией — 8% даже с тысячей демонстраций.</p>
+      <p>С двумя кубиками разница ещё заметнее: у карты два пика, и робот берёт один из них, а регрессия выдаёт среднее — точку между кубиками. Это мультимодальность из урока 1.3, только теперь она видна на картинке. Взять — половина задачи. Куда положить?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="place">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">3</span> Укладка</div>
+      <h2>Куда положить: поиск по шаблону</h2>
+      <p>Положить деталь в гнездо — значит найти место и поворот, где деталь совпадает с прорезью. Transporter делает это как поиск по шаблону в трекинге: вырезает признаки вокруг взятого предмета и прикладывает их к каждой клетке сцены. Где совпадение лучше всего, туда и кладут. Чтобы найти поворот, вырезку поворачивают на 36 углов через 10° и строят карту для каждого угла.</p>
+      <p>Признаки вырезки и сцены Transporter учит по демонстрациям. У нас они заданы: в прорези гнезда +1, в стенках вокруг неё −1. Деталь — уголок из пяти квадратов. Яркость карты — доля детали, которая легла в прорезь, за вычетом той, что попала на стенки.</p>
+    </div>
+    <div class="lab-badge"><i>🧩</i> Интерактив</div>
+    <div class="lab">
+      <div class="card scene-card">
+        <canvas id="tCv" width="440" height="440" class="sq-cv" role="img" aria-label="Гнездо в форме уголка, карта совпадения для выбранного поворота и деталь в лучшем месте"></canvas>
+        <div class="cv-legend" id="tLegend"></div>
+        <div class="readout" id="tOut"></div>
+        <div class="ctl-row">
+          <label class="hd-range wide" id="wrapTAng"><span>Поворот вырезки</span><input id="tAng" type="range" min="0" max="35" step="1" value="0"><output>0°</output></label>
+        </div>
+      </div>
+      <div class="card guide-card"><div id="tMis"></div></div>
+    </div>
+    <details class="deep"><summary>Под капотом: перенос как корреляция признаков</summary><div class="body">
+      <p>Пусть \(\psi\) — признаки вырезки вокруг точки взятия, \(\varphi\) — признаки всей сцены. Оценка укладки в положение \(\tau\) (сдвиг и поворот) — их взаимная корреляция:</p>
+      <div class="formula">\[\begin{gathered} Q_{\text{place}}(\tau) = \psi\bigl(o[T_{\text{pick}}]\bigr) * \varphi(o)[\tau], \\ T_{\text{place}} = \arg\max_\tau Q_{\text{place}}(\tau). \end{gathered}\]</div>
+      <p>\(\psi\) и \(\varphi\) — две полносвёрточные сети, их учат той же перекрёстной энтропией по положениям, где оператор клал предмет. Поворот перебирают явно: вход поворачивают на \(k = 36\) углов, и оценка становится картой размером H × W × 36. Поэтому сеть не учит поворот как число, а сравнивает повёрнутые копии. На сцене признаки заданы вручную, сетка 32 × 32, деталь — 80 клеток.</p>
+    </div></details>
+    <div class="prose" style="margin:26px 0 18px;max-width:820px">
+      <h3>Сколько демонстраций нужно</h3>
+      <p>Карты и поиск по шаблону дают Transporter обобщение, которого нет у сетей, выдающих числа. Ниже — успех на задачах из статьи в зависимости от числа демонстраций. GT-State MLP получает на вход точные позы всех предметов — то, что классическому стеку даёт восприятие, — и всё равно учится медленнее.</p>
+    </div>
+    <div class="card chart-card">
+      <div class="ctl-row" style="margin:0 0 10px"><div class="seg" id="dTask" role="group" aria-label="Задача"></div></div>
+      <canvas id="dCv" width="640" height="260" class="plot-cv" role="img" aria-label="Успех трёх моделей при 1, 10, 100 и 1000 демонстрациях"></canvas>
+      <div class="cv-legend" id="dLegend"></div>
+      <p class="muted-s plot-cap">По горизонтали — число демонстраций, по вертикали — доля успешных попыток. Данные — таблица 2 статьи Transporter, 2020.</p>
+    </div>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>Transporter берёт и кладёт по картам и учится на десятках демонстраций. Но он не знает слов: если на столе три кубика, он возьмёт тот, который чаще брали в демонстрациях. Как добавить к картам команду?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="cliport">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Лаборатория 3</div>
+    <h2>CLIPort: CLIP выбирает, что взять, Transporter — где</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>CLIP знает слова, но не даёт места. Transporter даёт место, но не знает слов. <strong>CLIPort</strong> (Shridhar, Manuelli, Fox, 2021) соединяет их в два потока. Семантический поток — признаки CLIP, связанные с текстом команды: он отвечает, что брать. Пространственный — сеть Transporter: она отвечает, где. Потоки сливаются в одну карту «где взять» и «куда положить».</p>
+      <p>Главное, что даёт CLIP, — слова, которых не было в демонстрациях. В статье цвета разделены: робота учат на жёлтых, коричневых, серых и голубых предметах, а проверяют на оранжевых, фиолетовых, розовых и белых. Одна модель на 10 задач работает не хуже отдельных моделей для каждой, а на настоящей руке Franka одна модель выучила 9 задач всего по 179 парам «картинка — действие».</p>
+      <p>Соберём CLIPort в миниатюре. «Где» — фильтр взятия, который учится брать кубики. «Что» — сходство окон стола с текстом команды по мини-CLIP из первой лаборатории. Итог — их произведение. Демонстрации робота — команды только с красным, синим и зелёным цветом. Для сравнения — модель, которая учит слова только по этим демонстрациям: к фильтру взятия для каждого слова добавляется свой фильтр.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="cmd-line" id="kCmd"></div>
+        <canvas id="kCv" width="440" height="440" class="sq-cv" role="img" aria-label="Стол сверху с тремя кубиками и миской; отмечено, где модель берёт"></canvas>
+        <div class="kmaps" id="kMaps">
+          <figure><canvas id="kWhere" width="144" height="144" role="img" aria-label="Карта «где»"></canvas><figcaption>где</figcaption></figure>
+          <figure><canvas id="kWhat" width="144" height="144" role="img" aria-label="Карта «что»"></canvas><figcaption>что</figcaption></figure>
+          <figure><canvas id="kBoth" width="144" height="144" role="img" aria-label="Итоговая карта"></canvas><figcaption>итог</figcaption></figure>
+        </div>
+        <div class="readout" id="kOut"></div>
+        <div class="ctl-row">
+          <div class="seg" id="kMode" role="group" aria-label="Модель"><button type="button" data-v="none" aria-pressed="true">Без слов</button><button type="button" data-v="robot" aria-pressed="false">Слова из демонстраций</button><button type="button" data-v="cliport" aria-pressed="false">CLIPort</button></div>
+        </div>
+        <div class="ctl-row">
+          <div class="seg" id="kColor" role="group" aria-label="Цвет в команде"></div>
+        </div>
+        <div class="ctl-row">
+          <label class="hd-range wide" id="wrapKScene"><span>Сцена проверки</span><input id="kScene" type="range" min="1" max="20" step="1" value="1"><output>1</output></label>
+        </div>
+      </div>
+      <div class="card guide-card"><div id="kMis"></div></div>
+    </div>
+    <details class="deep"><summary>Под капотом: как устроен настоящий CLIPort и что мы упростили</summary><div class="body">
+      <p>В CLIPort семантический поток — замороженный энкодер картинок CLIP (ResNet-50) и его текстовый энкодер. Признаки текста умножают на признаки картинки на нескольких уровнях декодера, а признаки семантического потока на каждом уровне складывают с признаками пространственного. CLIP получает только цвет: он обучен без глубины, а пространственный поток видит RGB-D. Обучение — та же перекрёстная энтропия по положениям взятия и укладки, 200 тысяч шагов на одной видеокарте за два дня.</p>
+      <p>У нас слияние проще: вероятности двух карт перемножаются, \(\log p = \log \operatorname{softmax}(Q_{\text{где}}) + \log \operatorname{softmax}(Q_{\text{что}} / \tau)\), \(\tau = 0{,}05\). Карта «что» — сходство вектора текста с вектором окна 16 × 16 вокруг каждой клетки по мини-CLIP. Фильтр «где» учится на девяти демонстрациях брать названный кубик, но команду не видит. Модель «слова из демонстраций» к общему фильтру прибавляет фильтр слова; у слова, которого не было в демонстрациях, такого фильтра нет.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>Модель, которая учила слова по демонстрациям робота, знает три цвета, и фиолетовый для неё — пустое место. CLIPort знает фиолетовый от CLIP, хотя робот ни разу не брал фиолетовый кубик. Демонстрации учат его главному — брать кубики и класть их, — а за слова отвечает модель, обученная на огромном наборе пар из интернета. Это разделение труда стало основой следующих моделей.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="today">
+  <div class="prose">
+    <div class="kicker"><span class="num">5</span> Сегодня</div>
+    <h2>Что осталось от этих идей</h2>
+    <p>Отдельные потоки «что» и «где» ушли, идеи остались. Энкодер, обученный на парах «картинка — текст», есть почти в каждой модели зрения, языка и действий: у OpenVLA картинку кодируют вместе DINOv2 и SigLIP, наследник CLIP, а π0 построен на модели PaliGemma со своим энкодером SigLIP.</p>
+    <p>Действие как точка на картинке тоже вернулось. RoboPoint (2024) по команде отмечает на кадре точки, куда тянуться и куда класть. Gemini Robotics-ER (2025) указывает точки, предсказывает захваты, траектории и рамки предметов в 3D. Это карта Transporter, только её выдаёт большая модель, которая понимает язык.</p>
+    <p>Но карта на столе работает, когда задача сводится к «взять и положить» и сцену видно сверху. Повернуть кран, поставить чашку на полку на высоте 30 см или открыть ящик картой по пикселям стола не описать: нужны три измерения и повороты по всем осям. Об этом следующий урок.</p>
+  </div>
+</section>
+
+<section class="section" id="quiz">
+  <div class="prose">
+    <div class="kicker"><span class="num">6</span> Проверь себя</div>
+    <h2>Восемь вопросов о типичных заблуждениях</h2>
+    <div class="quiz" id="quizBox"></div>
+    <p class="score" id="quizScore" style="margin-top:14px"></p>
+  </div>
+</section>
+
+<section class="section alt" id="finale">
+  <div class="prose">
+    <div class="kicker"><span class="num">7</span> Итог</div>
+    <h2>Итоги урока</h2>
+    <ol class="takeaways">
+      <li><span>CLIP учится на 400 миллионах пар «картинка — подпись» угадывать, какая подпись к какой картинке. Слова и картинки попадают в <strong>одно пространство</strong>, и предмет можно найти по описанию, даже по сочетанию слов, которого не было в обучении.</span></li>
+      <li><span>Transporter выдаёт действие <strong>картой по пикселям</strong> вида сверху. Сеть эквивариантна сдвигу, поэтому карте хватает одной демонстрации там, где регрессии координат мало и тысячи.</span></li>
+      <li><span>У карты может быть <strong>несколько пиков</strong>: два одинаковых кубика — два варианта взять, а не среднее между ними.</span></li>
+      <li><span>Укладка — <strong>поиск по шаблону</strong>: вырезку вокруг взятого предмета сравнивают со сценой на 36 поворотах и кладут туда, где совпадение лучше.</span></li>
+      <li><span>CLIPort соединяет <strong>«что» от CLIP и «где» от Transporter</strong>. Одна модель учит много задач, а слова, которых не было в демонстрациях робота, понимает благодаря CLIP.</span></li>
+    </ol>
+    <h3 style="margin-top:40px">Открытые вопросы</h3>
+    <details class="card pad open-q"><summary>Почему Transporter работает с видом сверху, а не с кадром камеры как есть?</summary><p>На кадре камеры перспектива искажает размеры и расстояния: один и тот же кубик ближе к камере больше, и пиксель не соответствует одному месту на столе. Вид сверху, собранный из глубины, совпадает со столом, поэтому каждый пиксель — действие, а сдвиг предмета — тот же сдвиг на картинке. Без этого эквивариантность не работает.</p></details>
+    <details class="card pad open-q"><summary>Роботу нужно поставить чашку на полку на высоте 30 см. Чего не хватает карте на столе?</summary><p>Высоты и поворотов по всем осям: карта по пикселям вида сверху задаёт только место на плоскости и поворот вокруг вертикали. Transporter для таких задач добавляет регрессию оставшихся степеней свободы, а PerAct из урока 2.2 переходит к 3D-сетке и ищет следующую позу среди вокселей.</p></details>
+    <h3 style="margin-top:34px">Гид по статье</h3>
+    <p><a href="https://arxiv.org/abs/2109.12098" target="_blank" rel="noopener">M. Shridhar, L. Manuelli, D. Fox, «CLIPort: What and Where Pathways for Robotic Manipulation», CoRL 2021</a>.</p>
+    <ul class="links">
+      <li><strong>Читать внимательно</strong><span>Раздел 3 и рисунок 2: два потока и как текст смешивается с картинкой. Раздел 4: знакомые и новые цвета и предметы, одна модель на 10 задач.</span></li>
+      <li><strong>Можно пропустить</strong><span>Описание каждой задачи в приложении и подробности аугментаций.</span></li>
+      <li><strong>Вопрос по ходу</strong><span>Почему семантический поток получает только цвет, а пространственный — цвет и глубину? Что бы изменилось, если бы CLIP видел глубину?</span></li>
+    </ul>
+    <p style="margin-top:18px"><a href="https://arxiv.org/abs/2010.14406" target="_blank" rel="noopener">A. Zeng и соавторы, «Transporter Networks: Rearranging the Visual World for Robotic Manipulation», CoRL 2020</a> — карты взятия, перенос как корреляция и бенчмарк Ravens.</p>
+    <p><a href="https://arxiv.org/abs/2103.00020" target="_blank" rel="noopener">A. Radford и соавторы, «Learning Transferable Visual Models From Natural Language Supervision», ICML 2021</a> — CLIP: контрастное обучение и нулевой перенос.</p>
+    <h3 style="margin-top:34px">Материалы</h3>
+    <ul class="links">
+      <li><a href="https://transporternets.github.io/" target="_blank" rel="noopener">Transporter Networks</a><span>Страница проекта: видео и код бенчмарка Ravens</span></li>
+      <li><a href="https://cliport.github.io/" target="_blank" rel="noopener">CLIPort</a><span>Страница проекта, видео с настоящей рукой и код</span></li>
+      <li><a href="https://openai.com/index/clip/" target="_blank" rel="noopener">CLIP: Connecting text and images</a><span>Запись OpenAI с примерами нулевого переноса</span></li>
+      <li><a href="https://github.com/mlfoundations/open_clip" target="_blank" rel="noopener">OpenCLIP</a><span>Открытые модели CLIP разных размеров и код обучения</span></li>
+      <li><a href="https://robo-point.github.io/" target="_blank" rel="noopener">RoboPoint</a><span>VLM, которая по команде отмечает точки действия на кадре</span></li>
+    </ul>
+    <div class="callout insight" style="margin-top:34px"><span class="ico">➡️</span><div><p><strong>Дальше: PerAct, 3D-представления и язык.</strong> Карта по пикселям стола задаёт место на плоскости и поворот вокруг вертикали. Чтобы открыть ящик или поставить чашку на полку, нужно выбрать позу в объёме. PerAct делит пространство на миллион вокселей и ищет следующую ключевую позу как самый яркий воксель — <a href="2-2-peract.html">урок 2.2</a>.</p></div></div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Урок 2.1 курса «Modern Robotics и Physical AI». Все сети обучаются и работают локально в браузере.
+</footer>
+<div class="tooltip" id="tooltip" role="tooltip"></div>
+<script>
+/*@@JS@@*/
+</script>
+</body>
+</html>

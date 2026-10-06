@@ -45,6 +45,15 @@ LESSONS = {
     'l18': ('1-8-flow-matching.html', ['l01/lesson.css', 'shared/lab.css', 'l18/l18.css'], {
         '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'l18/engine.js', 'l18/ui-l18.js'],
     }),
+    'l21': ('2-1-transporter-i-cliport.html', ['l01/lesson.css', 'shared/lab.css', 'l21/l21.css'], {
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'l21/engine.js', 'l21/ui-l21.js'],
+    }),
+    'l22': ('2-2-peract.html', ['l01/lesson.css', 'shared/lab.css', 'l22/l22.css'], {
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'l22/engine.js', 'l22/ui-l22.js'],
+    }),
+    'l23': ('2-3-llm-planirovshchiki.html', ['l01/lesson.css', 'shared/lab.css', 'l23/l23.css'], {
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'l23/engine.js', 'l23/ui-l23.js'],
+    }),
     # глоссарий: все термины из shared/glossary.json, без отзыва и «спасибо»
     'gl': ('glossariy.html', ['l01/lesson.css', 'gl/gl.css'], {
         '/*@@JS@@*/': ['l01/ui-core.js', 'gl/ui-gl.js'],
@@ -120,7 +129,9 @@ def add_stats(page):
     assert '</script' not in js
     return page.replace('</body>', f'<script>\nwindow.MR_STATS_API = {json.dumps(CFG.get("STATS_API", ""))};\n{js}</script>\n</body>', 1)
 # ---------- Глоссарий: подсказки к терминам при первом упоминании (shared/glossary.*) ----------
-GLOSSARY = json.loads((root / 'shared/glossary.json').read_text(encoding='utf-8'))
+GLOSSARY_ALL = json.loads((root / 'shared/glossary.json').read_text(encoding='utf-8'))
+# термины уроков, которые ещё не вышли на момент сборки, не показываем: ни в подсказках, ни на странице глоссария
+GLOSSARY = [g for g in GLOSSARY_ALL if LESSONS[g['l']][0] in PUB]
 SKIP_TAGS = {'a', 'h1', 'h2', 'h3', 'h4', 'button', 'label', 'code', 'pre', 'script', 'style', 'summary', 'svg', 'canvas', 'select', 'textarea', 'figcaption'}
 _gl_info = None
 def gl_info():

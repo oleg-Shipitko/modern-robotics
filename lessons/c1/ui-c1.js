@@ -78,9 +78,10 @@
     const skip = h('button', { type: 'button', class: 'g-restart' }, 'Пропустить задачу');
     const out = h('div', { class: 'readout' }, 'Серые линии — демонстрации. Регрессия выдаёт одно смещение на шаг, смесь гауссиан выбирает сторону и строит пачку на несколько шагов вперёд.');
     const crits = [['touch', 'Ни одного касания за 10 поездок'], ['sw', 'Ни одной смены стороны у чайника']].map(([id, t]) => h('li', { class: 'wait', 'data-c': id }, h('i', { 'aria-hidden': 'true' }), h('span', null, t)));
-    const wrap = h('div', { class: 'chk-scene' }, cv, h('div', { class: 'chk-ctl' }, seg, hLab), h('div', { class: 'chk-row' }, go, skip), out, h('ul', { class: 'm-crit live' }, crits));
+    const note = h('p', { class: 'chk-hint' }, 'Пачка из 1 шага — новый выбор стороны на каждом шаге.');
+    const wrap = h('div', { class: 'chk-scene' }, cv, h('div', { class: 'chk-ctl' }, seg, hLab), note, h('div', { class: 'chk-row' }, go, skip), out, h('ul', { class: 'm-crit live' }, crits));
     const plural = (n) => (n % 10 === 1 && n % 100 !== 11 ? 'шаг' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? 'шага' : 'шагов');
-    const hTxt = () => (HS[st.hi] === 1 ? '1 шаг: выбор стороны на каждом шаге' : `${HS[st.hi]} ${plural(HS[st.hi])}`);
+    const hTxt = () => `${HS[st.hi]} ${plural(HS[st.hi])}`;
     const runTxt = () => (HS[st.hi] === 1 ? 'выбор стороны на каждом шаге' : `пачка из ${HS[st.hi]} шагов`);
     const sync = () => { $$('button', seg).forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.m === st.model))); hOut.textContent = hTxt(); setRangeFill(hIn); };
     function crit(r) {
