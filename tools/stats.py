@@ -48,7 +48,8 @@ def lessons():
         secs = []
         for m in re.finditer(r'<section[^>]*\bid="([a-z][a-zA-Z0-9-]*)"[^>]*>(.*?)</section>', html, flags=re.S):
             h = re.search(r'<h2[^>]*>(.*?)</h2>', m.group(2), flags=re.S)
-            secs.append((m.group(1), re.sub(r'<[^>]+>', '', h.group(1)).strip() if h else 'Начало урока'))
+            label = re.search(r'aria-label="([^"]*)"', m.group(0)[:300])
+            secs.append((m.group(1), re.sub(r'<[^>]+>', '', h.group(1)).strip() if h else label.group(1) if label else 'Начало урока'))
         out.append({'slug': slug, 'n': p['n'], 'title': title, 'secs': secs})
     return out
 

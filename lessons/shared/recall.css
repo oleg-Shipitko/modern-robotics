@@ -1,0 +1,17 @@
+/* Разминка в начале урока (recall.js) */
+.recall-sec { padding: 34px 0 6px; }
+.recall { padding: 22px 22px 18px; display: grid; gap: 16px; max-width: 820px; }
+.rc-head h3 { margin: 4px 0 4px; font-size: 21px; }
+.rc-sub { margin: 0; font-size: 15px; color: var(--ink-3); }
+.rc-q { display: grid; gap: 10px; padding-top: 14px; border-top: 1px solid var(--line); }
+.rc-text { font-size: 16.5px; font-weight: 650; color: var(--ink); }
+.rc-opts { display: flex; flex-wrap: wrap; gap: 8px; }
+.rc-opt { padding: 8px 14px; border: 1px solid var(--line-2); border-radius: 12px; background: var(--surface); color: var(--ink); font: inherit; font-size: 15px; line-height: 1.35; text-align: left; cursor: pointer; transition: border-color .15s, background-color .15s; }
+.rc-opt:hover:not(:disabled) { border-color: var(--ink-3); }
+.rc-opt:disabled { cursor: default; opacity: 1; color: var(--ink-3); } /* общий button:disabled в lab.css гасит до 0,45 — здесь ответ должен читаться */
+.rc-opt.ok { border-color: var(--good); background: color-mix(in srgb, var(--good) 12%, var(--surface)); color: var(--ink); }
+.rc-opt.no { border-color: var(--critical); background: color-mix(in srgb, var(--critical) 10%, var(--surface)); color: var(--ink); }
+.rc-exp { font-size: 15px; line-height: 1.55; color: var(--ink-2); }
+.rc-exp a { color: var(--ink-2); white-space: nowrap; }
+.rc-total { margin: 0; padding-top: 12px; border-top: 1px solid var(--line); font-size: 15px; color: var(--ink-2); }
+@media (max-width: 680px) { .recall { padding: 18px 16px 14px; } .rc-exp a { white-space: normal; } }

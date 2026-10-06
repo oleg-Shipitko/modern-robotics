@@ -94,7 +94,7 @@ def add_thanks(page, name):
     return page.replace('</body>', f'<script>\nwindow.MR_THANKS_API = {json.dumps(CFG.get("THANKS_API", ""))};\n{js}</script>\n</body>', 1)
 def add_stats(page):
     """Анонимная статистика (shared/stats.js, адрес — STATS_API в config.json), отзыв (feedback.js) и прогресс в браузере (progress.js)."""
-    js = '\n'.join((root / 'shared' / f).read_text(encoding='utf-8') for f in ('stats.js', 'feedback.js', 'progress.js'))
+    js = '\n'.join((root / 'shared' / f).read_text(encoding='utf-8') for f in ('stats.js', 'feedback.js', 'progress.js', 'recall.js'))
     assert '</script' not in js
     return page.replace('</body>', f'<script>\nwindow.MR_STATS_API = {json.dumps(CFG.get("STATS_API", ""))};\n{js}</script>\n</body>', 1)
 def build(key):
@@ -107,7 +107,7 @@ def build(key):
         html = r.stdout
         html = html.replace('<link rel="stylesheet" href="../assets/fonts/fonts.css">',
                             '<link rel="stylesheet" href="../assets/fonts/fonts.css">\n<link rel="stylesheet" href="../assets/katex/katex.min.css">', 1)
-    css = '\n'.join((root / f).read_text(encoding='utf-8') for f in css_files + ['shared/thanks.css', 'shared/feedback.css'])
+    css = '\n'.join((root / f).read_text(encoding='utf-8') for f in css_files + ['shared/thanks.css', 'shared/feedback.css', 'shared/recall.css'])
     assert '/*@@CSS@@*/' in html
     html = html.replace('/*@@CSS@@*/', css)
     for marker, files in js_map.items():
