@@ -52,10 +52,27 @@
 .cmp > div { padding: 8px 0; border-top: 1px solid var(--line); }
 .cmp > .cmp-h { border-top: 0; padding: 12px 0 6px; }
 .cmp-h b { display: block; font-size: 15.5px; color: var(--ink); }
+.cmp-h .cmp-img { display: block; width: 100%; aspect-ratio: 4 / 3; height: auto; object-fit: cover; border-radius: 10px; margin: 0 0 10px; background: var(--surface-2); }
+.cmp-h .cmp-cred { display: block; margin-top: 4px; font-size: 11.5px; line-height: 1.35; color: var(--ink-3); text-decoration: none; }
+.cmp-h .cmp-cred:hover { text-decoration: underline; }
 .cmp-h span { font-size: 12.5px; color: var(--ink-3); }
 .cmp-k { color: var(--ink-3); font-weight: 650; font-size: 13.5px; }
 .cmp-v { color: var(--ink); }
 .cmp-v.cmp-note { color: var(--ink-3); font-size: 13px; }
+
+/* 3. Шесть приводов: карточки со схемами */
+.act-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 6px; }
+.act-card { padding: 16px 16px 14px; display: grid; gap: 12px; align-content: start; }
+.act-card h3 { margin: 0; font-size: 18px; }
+.act-card canvas { width: 100%; aspect-ratio: 360 / 220; height: auto; display: block; border-radius: 10px; background: var(--surface-2); cursor: pointer; }
+.act-card canvas.paused { outline: 2px dashed var(--line-2); outline-offset: 2px; }
+.act-card .act-play { justify-self: start; margin-top: -4px; }
+.act-card dl { margin: 0; display: grid; gap: 3px; font-size: 14.5px; line-height: 1.48; }
+.act-card dt { margin-top: 6px; font-size: 12px; font-weight: 650; letter-spacing: .05em; text-transform: uppercase; color: var(--ink-3); }
+.act-card dt:first-child { margin-top: 0; }
+.act-card dd { margin: 0; color: var(--ink-2); }
+@media (max-width: 1100px) { .act-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 700px) { .act-grid { grid-template-columns: minmax(0, 1fr); } .act-card dl { font-size: 15px; } }
 
 /* 2. Рука из звеньев */
 #armCv { width: 100%; height: auto; aspect-ratio: 520 / 420; border-radius: 12px; border: 1px solid var(--line); display: block; touch-action: pan-y; }
@@ -127,6 +144,7 @@
   .cmp { grid-auto-flow: row; grid-template-rows: none; grid-template-columns: 1fr; }
   .cmp > .cmp-k { display: none; }
   .cmp > .cmp-h { padding: 18px 0 4px; }
+  .cmp-h .cmp-img { max-width: 340px; }
   .cmp > .cmp-h:first-of-type { display: none; }
   .cmp > .cmp-v { display: grid; grid-template-columns: 112px 1fr; gap: 10px; padding: 6px 0; }
   .cmp > .cmp-v::before { content: attr(data-k); color: var(--ink-3); font-weight: 650; font-size: 12.5px; }
