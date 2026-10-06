@@ -1,6 +1,6 @@
 // Разминка во всех уроках: три вопроса, верный ответ подсвечивается при любом порядке вариантов, консоль чистая.
 const { launch, sleep } = require('./cdp');
-const L = ['0-2-ustroystvo-robota', '0-3-kinematika-i-upravlenie', '0-4-otsenka-sostoyaniya-i-planirovanie', '1-1-behavior-cloning', '1-2-dagger', '1-3-multimodalnost-deystviy', '1-4-diffuzionnye-modeli', '1-5-diffusion-policy', '1-6-transformer'];
+const L = ['0-2-ustroystvo-robota', '0-3-kinematika-i-upravlenie', '0-4-otsenka-sostoyaniya-i-planirovanie', '1-1-behavior-cloning', '1-2-dagger', '1-3-multimodalnost-deystviy', '1-4-diffuzionnye-modeli', '1-5-diffusion-policy', '1-6-transformer', '1-7-act', '1-8-flow-matching'];
 (async () => {
   const B = await launch({ w: 1300, h: 900 }); let bad = 0;
   for (const l of L) {
