@@ -33,6 +33,7 @@
 .m-live .m-crit li.no i::before { content: '·'; }
 @media (max-width: 900px) {
   .md-grid { grid-template-columns: 1fr; }
+  .md-grid > .md-side { order: -1; } /* в одну колонку: прогноз и кнопки над сценой, проезды смотрим ниже */
 }
 @media (max-width: 520px) {
   .lab-stats { grid-template-columns: 1fr; }

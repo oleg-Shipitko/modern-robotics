@@ -19,6 +19,12 @@
    С действием критерии проверяются после каждого запуска по его результату.
    Без действия — вживую: лаборатория зовёт ctl.update() при любом изменении.
    api: { reset(), state?() } + всё, что нужно действиям.
+
+   Карточка состоит из двух частей: .m-top (полоска миссий, цель, ставка) и
+   .m-bottom (критерии, запуск, итог). На широком экране они идут подряд
+   рядом со сценой. В одну колонку (телефон) lab.css ставит .m-top над
+   сценой, а .m-bottom — под ней: задачу читают, действуют на сцене и
+   смотрят итог сверху вниз, не листая обратно.
    ===================================================================== */
 'use strict';
 window.Missions = (function () {
@@ -35,9 +41,15 @@ window.Missions = (function () {
       pills.append(li);
     });
     const restart = el('button', 'g-restart', 'Начать заново'); restart.type = 'button';
-    restart.addEventListener('click', () => { if (busy) return; api.reset(); ctx.results = []; ctx.bets = []; ctx.done = []; ctx.data = {}; reached = 0; go(0); });
+    restart.addEventListener('click', () => { if (busy) return; api.reset(); ctx.results = []; ctx.bets = []; ctx.done = []; ctx.data = {}; reached = 0; go(0); revealTop(); });
     foot.append(restart);
-    root.innerHTML = ''; root.append(pills, card, foot);
+    root.innerHTML = ''; root.append(card);
+    const gcard = root.parentElement; if (gcard && gcard.classList.contains('guide-card')) gcard.classList.add('m-split'); // разрешает раскладку вокруг сцены в lab.css
+    // В раскладке в одну колонку условие стоит над сценой: после «Следующая миссия» и «Начать заново» поднимаемся к нему
+    function revealTop() {
+      if (!view || !view.top || getComputedStyle(card).display !== 'contents') return;
+      if (view.top.getBoundingClientRect().top < 64) view.top.scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    }
     const lab = root.closest('.lab'), scene = opts.scene ? document.querySelector(opts.scene) : lab && lab.querySelector('canvas');
     function showScene() {
       if (!scene) return; const r = scene.getBoundingClientRect();
@@ -59,10 +71,11 @@ window.Missions = (function () {
       [...pills.children].forEach((li, k) => { li.className = (ctx.done[k] ? 'done' : '') + (k === i ? ' cur' : '') + (k <= reached ? ' open' : ''); });
       applyControls(m);
       card.innerHTML = '';
-      card.append(el('div', 'g-kicker', m.final ? 'Свободный режим' : `Миссия ${i + 1} из ${missions.length}`));
-      const h = el('h3'); h.textContent = m.title; card.append(h);
-      card.append(el('p', 'g-text', m.text));
-      view = { m, betBtns: [], crit: [], log: null, act: null, out: null, next: null, hint: null };
+      const top = el('div', 'm-top'), bottom = el('div', 'm-bottom');
+      top.append(pills, el('div', 'g-kicker', m.final ? 'Свободный режим' : `Миссия ${i + 1} из ${missions.length}`));
+      const h = el('h3'); h.textContent = m.title; top.append(h);
+      top.append(el('p', 'g-text', m.text));
+      view = { m, betBtns: [], crit: [], log: null, act: null, out: null, next: null, hint: null, top };
       if (m.bet) {
         const box = el('div', 'g-pred m-bet'), q = el('div', 'q'); q.textContent = 'Ставка: ' + m.bet.q; box.append(q);
         const row = el('div', 'opts');
@@ -71,27 +84,28 @@ window.Missions = (function () {
           b.addEventListener('click', () => { if (busy || ctx.results[i] !== undefined) return; ctx.bets[i] = k; view.betBtns.forEach((x, j) => x.setAttribute('aria-pressed', String(j === k))); if (view.act) { view.act.disabled = false; view.act.title = ''; } });
           row.append(b); view.betBtns.push(b);
         });
-        box.append(row); card.append(box);
+        box.append(row); top.append(box);
       }
       if (m.criteria && m.criteria.length) {
         const ul = el('ul', 'm-crit' + (m.action ? '' : ' live')); // в живых миссиях невыполненное — нейтральная точка, а не красный ✗
         m.criteria.forEach((c) => { const li = el('li', 'wait'); li.innerHTML = `<i aria-hidden="true"></i><span></span>`; li.querySelector('span').innerHTML = c.label; ul.append(li); view.crit.push(li); });
-        card.append(ul);
+        bottom.append(ul);
       }
       if (m.action) {
         const b = el('button', 'btn primary g-go'); b.type = 'button'; b.textContent = m.action.label; view.act = b;
         if (m.bet && ctx.bets[i] === undefined) { b.disabled = true; b.title = 'Сначала сделай ставку'; }
         b.addEventListener('click', () => run());
-        card.append(b);
+        bottom.append(b);
       }
-      view.log = el('ol', 'm-log'); view.log.hidden = true; card.append(view.log);
+      view.log = el('ol', 'm-log'); view.log.hidden = true; bottom.append(view.log);
       (ctx.data['log' + i] || []).forEach((t) => addLog(t, true));
-      if (m.hint) { const d = el('details', 'm-hint'); d.innerHTML = `<summary>Подсказка</summary><div>${m.hint}</div>`; card.append(d); view.hint = d; }
-      view.out = el('div', 'g-out'); view.out.hidden = true; card.append(view.out);
+      if (m.hint) { const d = el('details', 'm-hint'); d.innerHTML = `<summary>Подсказка</summary><div>${m.hint}</div>`; bottom.append(d); view.hint = d; }
+      view.out = el('div', 'g-out'); view.out.hidden = true; bottom.append(view.out);
       const nav = el('div', 'g-nav'); view.next = el('button', 'btn g-next'); view.next.type = 'button';
       view.next.textContent = i < missions.length - 1 ? (missions[i + 1].final ? 'Свободный режим →' : 'Следующая миссия →') : 'Готово';
-      view.next.hidden = true; view.next.addEventListener('click', () => { if (i < missions.length - 1) go(i + 1); });
-      nav.append(view.next); card.append(nav);
+      view.next.hidden = true; view.next.addEventListener('click', () => { if (i < missions.length - 1) { go(i + 1); revealTop(); } });
+      nav.append(view.next); bottom.append(nav, foot);
+      card.append(top, bottom);
       if (ctx.done[i]) showDone(ctx.results[i], true);
     }
     function addLog(text, silent) { if (!view.log) return; view.log.hidden = false; const li = el('li', text.ok ? 'ok' : 'no'); li.textContent = text.t; view.log.append(li); if (!silent) (ctx.data['log' + i] = ctx.data['log' + i] || []).push(text); }

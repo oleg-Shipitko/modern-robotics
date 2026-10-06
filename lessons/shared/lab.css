@@ -132,7 +132,21 @@ label.opt { display: inline-flex; gap: 7px; align-items: center; font-size: 14px
 /* ---------- миссии (shared/missions.js) ---------- */
 .m-steps li { cursor: default; }
 .m-steps li.open:not(.cur) { cursor: pointer; }
-.m-card { display: grid; gap: 12px; }
+.m-card, .m-top, .m-bottom { display: grid; gap: 12px; }
+.m-top, .m-bottom { min-width: 0; }
+/* Лаборатория в одну колонку: условие миссии над сценой, проверка и запуск — под ней (см. missions.js) */
+@media (max-width: 900px) {
+  .lab > .guide-card.m-split, .lab > .guide-card.m-split > div, .lab > .guide-card.m-split .m-card { display: contents; }
+  .lab > .guide-card.m-split .m-top, .lab > .guide-card.m-split .m-bottom { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px; }
+  .lab > .guide-card.m-split .m-top { order: -1; scroll-margin-top: 72px; }
+  .lab > .guide-card.m-split .m-bottom { order: 1; }
+}
+@media (min-width: 901px) and (max-width: 1020px) {
+  .lab-wide > .guide-card.m-split, .lab-wide > .guide-card.m-split > div, .lab-wide > .guide-card.m-split .m-card { display: contents; }
+  .lab-wide > .guide-card.m-split .m-top, .lab-wide > .guide-card.m-split .m-bottom { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px; }
+  .lab-wide > .guide-card.m-split .m-top { order: -1; scroll-margin-top: 72px; }
+  .lab-wide > .guide-card.m-split .m-bottom { order: 1; }
+}
 .m-crit { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .m-crit li { display: flex; gap: 9px; align-items: baseline; font-size: 15px; color: var(--ink-2); }
 .m-crit li i { flex: 0 0 18px; width: 18px; height: 18px; border-radius: 50%; display: inline-grid; place-items: center; font-style: normal; font-size: 12px; font-weight: 800; background: var(--surface-2); border: 1.5px solid var(--line-2); transform: translateY(3px); }
