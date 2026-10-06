@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Собирает урок в один самодостаточный HTML-файл.
 Запуск: python3 lessons/build.py l01   (или l11, или all)
-Результат — в site/lessons/.
+Результат — в site/lessons/. MR_ASOF=ГГГГ-ММ-ДД — собрать уроки такими, какими они станут
+в день выпуска (ссылки на страницы, которые выходят в этот день; см. site/published.py).
 """
 import pathlib, subprocess, sys
 root = pathlib.Path(__file__).resolve().parent
@@ -55,6 +56,15 @@ LESSONS = {
 }
 import json, re, urllib.parse, html as _html
 CFG = json.loads((root.parent / 'site' / 'config.json').read_text(encoding='utf-8'))
+sys.path.insert(0, str(root.parent / 'site'))
+from published import published  # noqa: E402
+PUB = {pathlib.Path(p['file']).name for p in published(CFG)}  # опубликованное на момент сборки (MR_ASOF)
+def only_published(page):
+    """Блок <!--if:proverka-chasti-1.html-->…<!--/if--> остаётся, только если страница уже опубликована:
+    так ссылка на страницу из субботнего выпуска появляется в уроке вместе с ней."""
+    out = re.sub(r'<!--if:([\w.-]+\.html)-->(.*?)<!--/if-->', lambda m: m.group(2) if m.group(1) in PUB else '', page, flags=re.S)
+    assert '<!--if:' not in out and '<!--/if-->' not in out, 'незакрытый блок <!--if:…-->'
+    return out
 SITE_URL = CFG.get('SITE_URL', '').rstrip('/')
 def add_og(page, name):
     """Превью ссылок для мессенджеров и соцсетей: заголовок и описание берём из самого урока."""
@@ -173,7 +183,7 @@ def glossarize(page, key):
     return page[:a] + ''.join(out) + tag + page[b:]
 def build(key):
     name, css_files, js_map = LESSONS[key]
-    html = (root / key / 'lesson.html').read_text(encoding='utf-8')
+    html = only_published((root / key / 'lesson.html').read_text(encoding='utf-8'))
     if '\\(' in html or '\\[' in html:  # формулы KaTeX рендерим сразу в HTML, в браузер — только стили и шрифты
         r = subprocess.run(['node', str(root.parent / 'tools/katex_render.js'), key], input=html, capture_output=True, text=True, encoding='utf-8')
         if r.returncode:
