@@ -65,7 +65,15 @@ window.Missions = (function () {
         e.classList.toggle('m-fresh', vis && !shown.has(key)); if (vis) shown.add(key);
       }
     }
-    function go(k) { i = k; ctx.step = k; render(); const m = missions[i]; if (m.onEnter) m.onEnter(api, ctx); if (opts.onStep) opts.onStep(i); evaluate(); }
+    // Анонимная статистика (shared/stats.js): миссия открыта, пройдена и с какого запуска
+    // «seen» первой миссии — только когда лаборатория показалась на экране, а не при загрузке страницы
+    const stat = (k, what) => { if (window.MRStats) window.MRStats.ev(`mis:${root.id || 'm'}:${k}:${what}`); };
+    let onScreen = !('IntersectionObserver' in window);
+    if (!onScreen) {
+      const io = new IntersectionObserver((list) => { if (list.some((e) => e.isIntersecting)) { onScreen = true; stat(i, 'seen'); io.disconnect(); } }, { rootMargin: '0px 0px -40% 0px' });
+      io.observe(root.closest('.lab') || root); // у корня на телефоне нет своей рамки (display: contents), смотрим на лабораторию
+    }
+    function go(k) { i = k; ctx.step = k; render(); if (onScreen) stat(k, 'seen'); const m = missions[i]; if (m.onEnter) m.onEnter(api, ctx); if (opts.onStep) opts.onStep(i); evaluate(); }
     function render() {
       const m = missions[i];
       [...pills.children].forEach((li, k) => { li.className = (ctx.done[k] ? 'done' : '') + (k === i ? ' cur' : '') + (k <= reached ? ' open' : ''); });
@@ -112,6 +120,7 @@ window.Missions = (function () {
     async function run() {
       const m = missions[i]; if (busy || !m.action) return;
       if (m.bet && ctx.bets[i] === undefined) return;
+      ctx.data['runs' + i] = (ctx.data['runs' + i] || 0) + 1;
       busy = true; root.classList.add('m-busy'); view.act.disabled = true; const label = view.act.textContent; view.act.textContent = 'Выполняется…'; view.out.hidden = true;
       showScene();
       try {
@@ -155,6 +164,7 @@ window.Missions = (function () {
       if (m.bet && ctx.data['betOk' + i] !== undefined) html = (ctx.data['betOk' + i] ? '<b>Ставка сыграла.</b> ' : '<b>Ставка не сыграла.</b> ') + html;
       if (html) { view.out.innerHTML = html; view.out.hidden = false; view.out.className = 'g-out m-win'; }
       view.next.hidden = !!m.final || i === missions.length - 1;
+      if (!restore) { stat(i, 'done'); if (m.action) stat(i, 'r' + Math.min(ctx.data['runs' + i] || 1, 5)); }
       if (!restore && opts.onDone) opts.onDone(i, r);
     }
     go(0);

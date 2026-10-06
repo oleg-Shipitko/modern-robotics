@@ -88,9 +88,17 @@ const Lab1 = (() => {
     $$('#condRow input[data-cond]').forEach((inp) => { inp.checked = !!conds[inp.dataset.cond]; });
   }
 
+  // Статистика: эксперимент «открыт», когда лаборатория показалась на экране (а не при загрузке страницы)
+  let labSeen = !('IntersectionObserver' in window);
+  function watchLab() {
+    if (labSeen) return;
+    const io = new IntersectionObserver((list) => { if (list.some((e) => e.isIntersecting)) { labSeen = true; if (window.MRStats) window.MRStats.ev(`mis:lab1:${step}:seen`); io.disconnect(); } }, { rootMargin: '0px 0px -40% 0px' });
+    io.observe($('#arena'));
+  }
   function setStep(i) {
     stopRun();
     step = i;
+    if (window.MRStats && labSeen) window.MRStats.ev(`mis:lab1:${i}:seen`);
     const st = STEPS[i];
     if (!st.free) {
       conds = { evening: !!st.cond.evening, kettle: !!st.cond.kettle, teal: !!st.cond.teal };
@@ -201,6 +209,7 @@ const Lab1 = (() => {
     updateRunBtn();
     const st = STEPS[step];
     if (st.free) return;
+    if (window.MRStats) window.MRStats.ev(`mis:lab1:${step}:done`);
     done.add(step);
     renderStepper();
     showExplanation();
@@ -389,6 +398,7 @@ const Lab1 = (() => {
       bindDrag(a);
     });
     $('#runBtn').addEventListener('click', run);
+    watchLab();
     $('#pauseBtn').addEventListener('click', () => {
       if (!running) return;
       paused = !paused; $('#pauseBtn').textContent = paused ? '▶ Продолжить' : '⏸ Пауза';

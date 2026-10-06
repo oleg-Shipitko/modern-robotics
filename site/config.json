@@ -49,5 +49,6 @@
       "file": "lessons/1-6-transformer.html"
     }
   ],
-  "_comment_published": "Опубликованные уроки: отмечаются «доступен» на главной, попадают в sitemap.xml и в выкладку (tools/deploy.sh)."
+  "_comment_published": "Опубликованные уроки: отмечаются «доступен» на главной, попадают в sitemap.xml и в выкладку (tools/deploy.sh).",
+  "STATS_API": "https://functions.yandexcloud.net/d4e9v3qo74smkq72tkgs"
 }

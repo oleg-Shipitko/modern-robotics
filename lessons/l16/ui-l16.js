@@ -84,6 +84,7 @@
         T.done = true; let html = spec.explain ? spec.explain(s) : '';
         if (T.betOk !== undefined) html = (T.betOk ? '<b>Ставка сыграла.</b> ' : '<b>Ставка не сыграла.</b> ') + html;
         out.innerHTML = html; out.hidden = false; out.className = 'g-out m-win'; root.classList.remove('m-live');
+        if (window.MRStats) window.MRStats.ev(`task:${root.id}:done`);
         if (spec.onDone) spec.onDone(s);
       }
       return all;

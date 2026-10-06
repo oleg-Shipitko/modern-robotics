@@ -74,6 +74,11 @@ def add_thanks(page):
     assert '</script' not in js
     page = page.replace('</main>', THANKS.format(channel=_html.escape(CFG.get('CHANNEL', ''), quote=True)) + '</main>', 1)
     return page.replace('</body>', f'<script>\nwindow.MR_THANKS_API = {json.dumps(CFG.get("THANKS_API", ""))};\n{js}</script>\n</body>', 1)
+def add_stats(page):
+    """Анонимная статистика урока: shared/stats.js, адрес сервера — STATS_API в config.json (пустой — ничего не отправляется)."""
+    js = (root / 'shared/stats.js').read_text(encoding='utf-8')
+    assert '</script' not in js
+    return page.replace('</body>', f'<script>\nwindow.MR_STATS_API = {json.dumps(CFG.get("STATS_API", ""))};\n{js}</script>\n</body>', 1)
 def build(key):
     name, css_files, js_map = LESSONS[key]
     html = (root / key / 'lesson.html').read_text(encoding='utf-8')
@@ -94,6 +99,7 @@ def build(key):
         html = html.replace(marker, js)
     html = add_og(html, name)
     html = add_thanks(html)
+    html = add_stats(html)
     out = root.parent / 'site' / 'lessons' / name
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(html, encoding='utf-8')

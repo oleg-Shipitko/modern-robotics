@@ -9,13 +9,14 @@ HERE = pathlib.Path(__file__).resolve().parent
 cfg = json.loads((HERE / 'config.json').read_text(encoding='utf-8'))
 sprite = (HERE / 'assets/sprite.svg.html').read_text(encoding='utf-8')
 shutil.copyfile(HERE.parent / 'lessons/shared/kit.js', HERE / 'assets/hero/kit.js')  # один источник для сайта и уроков
-for f in ('thanks.js', 'thanks.css'):  # кнопка «Сказать спасибо» — тоже общая с уроками
+for f in ('thanks.js', 'thanks.css', 'stats.js'):  # кнопка «Сказать спасибо» и анонимная статистика — общие с уроками
     shutil.copyfile(HERE.parent / 'lessons/shared' / f, HERE / 'assets' / f)
 
 published = cfg.get('PUBLISHED', [])
 vals = {k: v for k, v in cfg.items() if isinstance(v, str)}
 vals['READY_JSON'] = json.dumps({p['n']: p['file'] for p in published}, ensure_ascii=False)
 vals['THANKS_API_JSON'] = json.dumps(cfg.get('THANKS_API', ''))
+vals['STATS_API_JSON'] = json.dumps(cfg.get('STATS_API', ''))
 site_url = vals.get('SITE_URL', '').rstrip('/')
 
 missing = set()
