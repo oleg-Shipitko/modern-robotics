@@ -108,10 +108,17 @@ def demo(days):
                     seen = int(done * rnd.uniform(0.85, 0.97))
             for tid in NAMES.get(L['slug'], {}).get('tasks', {}):
                 put(day, L['slug'], f'task:{tid}:done', int(opens * rnd.uniform(0.2, 0.5)))
+            for r, w in (('good', 0.09), ('mid', 0.04), ('bad', 0.015)):
+                put(day, L['slug'], 'fb:' + r, int(opens * w * rnd.uniform(0.6, 1.4)))
             scores = collections.Counter(rnd.choices(range(3, 9), weights=(5, 8, 15, 25, 27, 20), k=int(opens * rnd.uniform(0.18, 0.32))))
             for sc, n in scores.items():
                 put(day, L['slug'], f'quiz:{sc}/8', n)
-    return {'since': (today - datetime.timedelta(days=days - 1)).isoformat(), 'today': today.isoformat(), 'rows': rows}
+    texts = [('1-4-diffuzionnye-modeli', 'mid', 'Неясно, почему в DDIM можно пропускать шаги. В «Под капотом» не хватает одного примера с числами.'),
+             ('1-5-diffusion-policy', 'good', 'Лаборатория с десятью прогонами — лучшее место урока. Хорошо бы дать ссылку на код Push-T.'),
+             ('0-3-kinematika-i-upravlenie', 'bad', 'Якобиан объяснён слишком быстро, после раздела про сингулярность дальше читать трудно.')]
+    fb = [{'day': (today - datetime.timedelta(days=k)).isoformat(), 'page': pg, 'r': r, 't': t, 'at': (today - datetime.timedelta(days=k)).isoformat() + 'T12:00'}
+          for k, (pg, r, t) in enumerate(texts)]
+    return {'since': (today - datetime.timedelta(days=days - 1)).isoformat(), 'today': today.isoformat(), 'rows': rows, 'feedback': fb}
 
 
 def analyze(data):
@@ -134,6 +141,7 @@ def analyze(data):
         quiz = [(int(m.group(1)), int(m.group(2)), n) for ev, n in c.items() for m in [re.match(r'quiz:(\d+)/(\d+)$', ev)] if m]
         qn = sum(n for *_, n in quiz)
         info = {'L': L, 'opens': o, 'phone': c['open:phone'], 'finale': c['sec:finale'], 'quiz_n': qn,
+                'fb': {r: c['fb:' + r] for r in ('good', 'mid', 'bad')},
                 'quiz_avg': (sum(s * n for s, _, n in quiz) / qn, quiz[0][1]) if qn else None,
                 't': {m: c[f't:{m}'] for m in (2, 10, 30)},
                 'secs': [(sid, title, c['sec:' + sid]) for sid, title in L['secs']], 'missions': [], 'tasks': []}
@@ -161,6 +169,9 @@ def analyze(data):
         best.setdefault(d[1]['slug'], d)
     A['drops'] = sorted(best.values(), key=lambda x: -x[0])[:5]
     A['hard'] = sorted(A['hard'], key=lambda x: x[0])[:5]
+    names = {L['slug']: L['n'] for L in lessons()}
+    A['texts'] = sorted(({**f, 'n': names.get(f['page'], f['page'])} for f in data.get('feedback', []) if f['page'] != 'test'),
+                        key=lambda f: f.get('at', ''), reverse=True)
     return A
 
 
@@ -170,6 +181,19 @@ def dm(d):
 
 def lname(L):
     return L['n'] + ' ' + L['title'].split(' ', 1)[-1]
+
+
+RATING = {'good': 'всё понятно', 'mid': 'местами сложно', 'bad': 'многое непонятно'}
+
+
+def clear(x):
+    """«Понятно»: доля ответов «Всё понятно» среди оценок урока."""
+    total = sum(x['fb'].values())
+    return f"{pct(x['fb']['good'], total)} из {total}" if total else '—'
+
+
+def one_line(t):
+    return re.sub(r'\s+', ' ', t).replace('[[', '[ [').strip()
 
 
 def qavg(x):
@@ -203,16 +227,20 @@ def report(data, only=None):
         out += ['', 'Миссии и задачи:'] + ['    ' + mis_text(m) for m in x['missions']]
         out += [f"    задача «{t['name']}»: дошли до раздела {t['reach']}, решили {t['done']} ({pct(t['done'], t['reach'])})" for t in x['tasks']]
         out += ['', f"Квиз: прошли {x['quiz_n']}, средний балл {qavg(x)}." if x['quiz_n'] else 'Квиз: никто не прошёл.']
+        fb = x['fb']; total = sum(fb.values())
+        out += ['', f"Оценки: всё понятно {fb['good']}, местами сложно {fb['mid']}, многое непонятно {fb['bad']}." if total else 'Оценок пока нет.']
+        out += [f"    {dm(f['day'])} · {RATING.get(f['r'], f['r'])} — {one_line(f['t'])}" for f in A['texts'] if f['page'] == x['L']['slug']]
         return '\n'.join(out)
     out.append(f"Главная: открыли {times(A['home'][0])}, с телефона {pct(A['home'][1], A['home'][0])}.")
     out.append('Откуда пришли (главная и уроки, без переходов внутри сайта): ' + sources(A))
-    out += ['', f"{'Урок':<46}{'Открыли':>8}{'Телефон':>9}{'До итогов':>11}{'Квиз':>7}{'Ср. балл':>10}{'≥10 мин':>9}"]
+    out += ['', f"{'Урок':<46}{'Открыли':>8}{'Телефон':>9}{'До итогов':>11}{'Квиз':>7}{'Ср. балл':>10}{'≥10 мин':>9}{'Понятно':>12}"]
     for x in A['lessons']:
         o = x['opens']
-        out.append(f"{lname(x['L'])[:44]:<46}{o:>8}{pct(x['phone'], o):>9}{pct(x['finale'], o):>11}{x['quiz_n']:>7}{qavg(x):>10}{pct(x['t'][10], o):>9}")
+        out.append(f"{lname(x['L'])[:44]:<46}{o:>8}{pct(x['phone'], o):>9}{pct(x['finale'], o):>11}{x['quiz_n']:>7}{qavg(x):>10}{pct(x['t'][10], o):>9}{clear(x):>12}")
     out += ['', 'Где чаще всего бросают (самый большой спад между соседними разделами):']
     out += [f"    {L['n']}: «{ta}» — {pct(na, o)}, следующий раздел «{tb}» — {pct(nb, o)}" for _, L, ta, tb, na, nb, o in A['drops']]
     out += ['', 'Миссии, которые проходят реже всего:'] + [f"    {L['n']} " + mis_text(m) for _, L, m in A['hard']]
+    out += ['', f"Отзывы ({len(A['texts'])}, свежие сверху):"] + [f"    {dm(f['day'])} · {f['n']} · {RATING.get(f['r'], f['r'])} — {one_line(f['t'])}" for f in A['texts'][:10]]
     out += ['', 'Подробно по уроку: python3 tools/stats.py --lesson 1.5']
     return '\n'.join(out)
 
@@ -231,10 +259,13 @@ def note(data, demo_mode=False):
             f"(или `python3 tools/stats.py --note`). Это анонимные суммы: одно открытие страницы — одно «открыли», уникальных читателей сайт не считает.", '',
             f"**Главная:** открыли {times(A['home'][0])}, с телефона {pct(A['home'][1], A['home'][0])}.  ",
             f"**Откуда пришли** (главная и уроки, без переходов внутри сайта): {sources(A)}.", '',
-            '## Уроки', '', '| Урок | Открыли | С телефона | До итогов | Квиз | Средний балл | ≥10 минут |', '|---|---:|---:|---:|---:|---:|---:|']
+            '## Уроки', '', '| Урок | Открыли | С телефона | До итогов | Квиз | Средний балл | ≥10 минут | Понятно |', '|---|---:|---:|---:|---:|---:|---:|---:|']
     for x in A['lessons']:
         o = x['opens']
-        out.append(f"| {cell(lname(x['L']))} | {o} | {pct(x['phone'], o)} | {pct(x['finale'], o)} | {x['quiz_n']} | {qavg(x)} | {pct(x['t'][10], o)} |")
+        out.append(f"| {cell(lname(x['L']))} | {o} | {pct(x['phone'], o)} | {pct(x['finale'], o)} | {x['quiz_n']} | {qavg(x)} | {pct(x['t'][10], o)} | {clear(x)} |")
+    out += ['', '«Понятно» — доля ответов «Всё понятно» на вопрос в конце урока «Урок был понятен?» и сколько всего ответили.']
+    out += ['', '## Отзывы', 'Тексты из конца уроков, свежие сверху. Ответить на них нельзя: читатели не оставляют контактов.', '']
+    out += [f"- {dm(f['day'])} · **{f['n']}** · {RATING.get(f['r'], f['r'])} — {one_line(f['t'])}" for f in A['texts']] or ['- отзывов пока нет']
     out += ['', '## Где чаще всего бросают', 'Самый большой спад между соседними разделами урока.', '']
     out += [f"- **{L['n']}**: «{ta}» — {pct(na, o)}, следующий раздел «{tb}» — {pct(nb, o)}" for _, L, ta, tb, na, nb, o in A['drops']] or ['- данных пока нет']
     out += ['', '## Миссии, которые проходят реже всего', 'Среди миссий, которые открыли не меньше 10 раз.', '']
@@ -250,7 +281,9 @@ def note(data, demo_mode=False):
             out += ['>', '> **Миссии и задачи**', '>']
             out += ['> - ' + mis_text(m) for m in x['missions']]
             out += [f"> - задача «{t['name']}»: дошли до раздела {t['reach']}, решили {t['done']} ({pct(t['done'], t['reach'])})" for t in x['tasks']]
-        out += ['>', f"> **Квиз:** прошли {x['quiz_n']}, средний балл {qavg(x)}." if x['quiz_n'] else '> **Квиз:** никто не прошёл.', '']
+        out += ['>', f"> **Квиз:** прошли {x['quiz_n']}, средний балл {qavg(x)}." if x['quiz_n'] else '> **Квиз:** никто не прошёл.']
+        fb = x['fb']
+        out += [f"> **Оценки:** всё понятно {fb['good']}, местами сложно {fb['mid']}, многое непонятно {fb['bad']}." if sum(fb.values()) else '> **Оценок пока нет.**', '']
     return '\n'.join(out) + '\n'
 
 

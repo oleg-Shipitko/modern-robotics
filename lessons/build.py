@@ -45,7 +45,7 @@ LESSONS = {
         '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'l18/engine.js', 'l18/ui-l18.js'],
     }),
 }
-import json, re, html as _html
+import json, re, urllib.parse, html as _html
 CFG = json.loads((root.parent / 'site' / 'config.json').read_text(encoding='utf-8'))
 SITE_URL = CFG.get('SITE_URL', '').rstrip('/')
 def add_og(page, name):
@@ -65,18 +65,36 @@ def add_og(page, name):
             f'<meta property="og:locale" content="ru_RU">\n<meta name="twitter:card" content="summary_large_image">\n'
             f'<link rel="canonical" href="{url}">\n')
     return page.replace(d.group(0), d.group(0) + '\n' + tags, 1)
-THANKS = ('<section class="thanks-end" aria-label="Сказать спасибо">\n'
+FEEDBACK = ('  <div class="fb" data-fb>\n'
+            '    <div class="fb-q">Урок был понятен?</div>\n'
+            '    <div class="fb-opts" role="group" aria-label="Насколько понятен урок"><button type="button" data-r="good" aria-pressed="false">Всё понятно</button>'
+            '<button type="button" data-r="mid" aria-pressed="false">Местами сложно</button><button type="button" data-r="bad" aria-pressed="false">Многое непонятно</button></div>\n'
+            '    <div class="fb-more" hidden><label for="fbText">Что осталось непонятным или что стоит улучшить? Необязательно.</label>'
+            '<textarea id="fbText" maxlength="1000" rows="3"></textarea>'
+            '<div class="fb-row"><button type="button" class="fb-send">Отправить</button><span class="fb-note">Отзыв сохраняется без имени и контактов, поэтому ответить на него не получится.</span></div></div>\n'
+            '    <div class="fb-done" hidden aria-live="polite">Спасибо, отзыв записан.</div>\n'
+            '    <div class="fb-bug">Нашли ошибку или неточность? <a href="{issue}" target="_blank" rel="noopener">Сообщить на GitHub</a></div>\n'
+            '  </div>\n')
+THANKS = ('<section class="thanks-end" aria-label="Отзыв и спасибо">\n'
+          '{feedback}'
           '  <div class="thanks" data-thanks data-channel="{channel}"><span class="thanks-text">Урок пригодился? Скажи спасибо — так автор узнает, что курс читают.</span></div>\n'
           '</section>\n')
-def add_thanks(page):
-    """Кнопка «Сказать спасибо» с общим счётчиком в конце урока: shared/thanks.*, адрес счётчика — THANKS_API в config.json."""
+def issue_url(page, name):
+    """Ссылка «Сообщить на GitHub»: новая задача с названием урока и шаблоном текста."""
+    t = re.search(r'<title>(.*?)</title>', page, flags=re.S)
+    title = t.group(1).split(' — ')[0].strip() if t else name
+    body = f'Урок: {title} — {SITE_URL}/lessons/{name}\nРаздел: \nЧто не так: \nКак правильно, если знаешь: \n'
+    return f"{CFG.get('REPO', '').rstrip('/')}/issues/new?title={urllib.parse.quote(title + ': ')}&body={urllib.parse.quote(body)}"
+def add_thanks(page, name):
+    """Конец урока: отзыв (shared/feedback.*) и кнопка «Сказать спасибо» с общим счётчиком (shared/thanks.*, адрес — THANKS_API в config.json)."""
     js = (root / 'shared/thanks.js').read_text(encoding='utf-8')
     assert '</script' not in js
-    page = page.replace('</main>', THANKS.format(channel=_html.escape(CFG.get('CHANNEL', ''), quote=True)) + '</main>', 1)
+    fb = FEEDBACK.format(issue=_html.escape(issue_url(page, name), quote=True))
+    page = page.replace('</main>', THANKS.format(feedback=fb, channel=_html.escape(CFG.get('CHANNEL', ''), quote=True)) + '</main>', 1)
     return page.replace('</body>', f'<script>\nwindow.MR_THANKS_API = {json.dumps(CFG.get("THANKS_API", ""))};\n{js}</script>\n</body>', 1)
 def add_stats(page):
     """Анонимная статистика урока: shared/stats.js, адрес сервера — STATS_API в config.json (пустой — ничего не отправляется)."""
-    js = (root / 'shared/stats.js').read_text(encoding='utf-8')
+    js = (root / 'shared/stats.js').read_text(encoding='utf-8') + '\n' + (root / 'shared/feedback.js').read_text(encoding='utf-8')
     assert '</script' not in js
     return page.replace('</body>', f'<script>\nwindow.MR_STATS_API = {json.dumps(CFG.get("STATS_API", ""))};\n{js}</script>\n</body>', 1)
 def build(key):
@@ -89,7 +107,7 @@ def build(key):
         html = r.stdout
         html = html.replace('<link rel="stylesheet" href="../assets/fonts/fonts.css">',
                             '<link rel="stylesheet" href="../assets/fonts/fonts.css">\n<link rel="stylesheet" href="../assets/katex/katex.min.css">', 1)
-    css = '\n'.join((root / f).read_text(encoding='utf-8') for f in css_files + ['shared/thanks.css'])
+    css = '\n'.join((root / f).read_text(encoding='utf-8') for f in css_files + ['shared/thanks.css', 'shared/feedback.css'])
     assert '/*@@CSS@@*/' in html
     html = html.replace('/*@@CSS@@*/', css)
     for marker, files in js_map.items():
@@ -98,7 +116,7 @@ def build(key):
         assert marker in html, marker
         html = html.replace(marker, js)
     html = add_og(html, name)
-    html = add_thanks(html)
+    html = add_thanks(html, name)
     html = add_stats(html)
     out = root.parent / 'site' / 'lessons' / name
     out.parent.mkdir(parents=True, exist_ok=True)

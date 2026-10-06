@@ -4,8 +4,12 @@ handler — публичная функция mr-stats. POST, тело — JSON 
     {"p": "1-5-diffusion-policy", "e": ["open:phone", "ref:telegram", "sec:lab", "mis:labMis:0:done"]}
   Прибавляет по единице к счётчикам «день, страница, событие». Принимается только со страниц сайта
   (заголовок Origin); неизвестные страницы и имена событий отбрасываются.
+  Отзыв в конце урока — та же точка: {"p": "...", "fb": {"r": "good|mid|bad"}} прибавляет оценку к суммам
+  урока (событие fb:good и т. п.), а {"p": "...", "fb": {"r": "...", "t": "текст"}} сохраняет текст отзыва
+  в таблицу feedback — без имени, контактов и адреса.
 report — закрытая функция mr-stats-report: вызывается через yc с правами владельца каталога.
-  Тело: {"days": 7}. Ответ: строки за последние дни [{"day", "page", "ev", "n"}].
+  Тело: {"days": 7}. Ответ: суммы за последние дни [{"day", "page", "ev", "n"}] и тексты отзывов
+  [{"day", "page", "r", "t", "at"}].
 
 О читателях ничего не хранится: ни IP, ни cookies, ни идентификаторов — только суммы по дням
 (день — по московскому времени). Таблица stats лежит в той же базе YDB, что и счётчик «спасибо»,
@@ -18,6 +22,7 @@ import json
 import os
 import re
 import time
+import uuid
 
 import ydb
 import ydb.iam
@@ -37,6 +42,9 @@ EVENT = re.compile(r'^(open:(phone|desk)'
 MAX_EVENTS = 60
 LIMIT, WINDOW = 30, 60      # с одного адреса — не больше 30 пачек в минуту; учёт только в памяти экземпляра
 MAX_DAYS = 120
+FB_TABLE = 'feedback'
+RATINGS = ('good', 'mid', 'bad')
+MAX_TEXT = 1000
 
 SELECT = f'''DECLARE $day AS Utf8; DECLARE $page AS Utf8; DECLARE $evs AS List<Utf8>;
 SELECT ev, n FROM {TABLE} WHERE day = $day AND page = $page AND ev IN $evs;'''
@@ -44,6 +52,10 @@ UPSERT = f'''DECLARE $rows AS List<Struct<day: Utf8, page: Utf8, ev: Utf8, n: Ui
 UPSERT INTO {TABLE} SELECT day, page, ev, n FROM AS_TABLE($rows);'''
 SCAN = f'''DECLARE $from AS Utf8;
 SELECT day, page, ev, n FROM {TABLE} WHERE day >= $from;'''
+FB_INSERT = f'''DECLARE $day AS Utf8; DECLARE $id AS Utf8; DECLARE $page AS Utf8; DECLARE $r AS Utf8; DECLARE $t AS Utf8; DECLARE $at AS Utf8;
+UPSERT INTO {FB_TABLE} (day, id, page, r, t, at) VALUES ($day, $id, $page, $r, $t, $at);'''
+FB_SCAN = f'''DECLARE $from AS Utf8;
+SELECT day, page, r, t, at FROM {FB_TABLE} WHERE day >= $from;'''
 
 _driver = None
 _pool = None
@@ -66,8 +78,11 @@ def pool():
     return _pool
 
 
+def col(name, t):
+    return ydb.Column(name, ydb.OptionalType(t))
+
+
 def create_table(session):
-    col = lambda name, t: ydb.Column(name, ydb.OptionalType(t))  # noqa: E731
     session.create_table(
         os.environ['YDB_DATABASE'] + '/' + TABLE,
         ydb.TableDescription()
@@ -78,14 +93,31 @@ def create_table(session):
         .with_primary_keys('day', 'page', 'ev'))
 
 
-def run(callee):
+def create_fb_table(session):
+    desc = ydb.TableDescription()
+    for name in ('day', 'id', 'page', 'r', 't', 'at'):
+        desc = desc.with_column(col(name, ydb.PrimitiveType.Utf8))
+    session.create_table(os.environ['YDB_DATABASE'] + '/' + FB_TABLE, desc.with_primary_keys('day', 'id'))
+
+
+def run(callee, create=create_table):
     def with_table(session):
         try:
             return callee(session)
         except ydb.issues.SchemeError:  # первый запрос: таблицы ещё нет
-            create_table(session)
+            create(session)
             return callee(session)
     return pool().retry_operation_sync(with_table)
+
+
+def save_text(day, page, r, t):
+    """Текст отзыва: случайный id вместо чего-либо о читателе, время — только чтобы показать свежие сверху."""
+    at = datetime.datetime.now(MSK).strftime('%Y-%m-%dT%H:%M')
+    def callee(session):
+        session.transaction(ydb.SerializableReadWrite()).execute(
+            session.prepare(FB_INSERT), {'$day': day, '$id': uuid.uuid4().hex, '$page': page, '$r': r, '$t': t, '$at': at}, commit_tx=True)
+        return 1
+    return run(callee, create_fb_table)
 
 
 def add(day, page, evs):
@@ -102,13 +134,17 @@ def add(day, page, evs):
     return run(callee)
 
 
-def scan(since):
+def scan(since, text=SCAN, row=lambda r: {'day': r.day, 'page': r.page, 'ev': r.ev, 'n': int(r.n or 0)}):
     """Все строки начиная с дня since. Сканирующий запрос — без ограничения в 1000 строк."""
-    q = ydb.ScanQuery(SCAN, {'$from': ydb.PrimitiveType.Utf8})
+    q = ydb.ScanQuery(text, {'$from': ydb.PrimitiveType.Utf8})
     out = []
     for part in driver().table_client.scan_query(q, {'$from': since}):
-        out += [{'day': r.day, 'page': r.page, 'ev': r.ev, 'n': int(r.n or 0)} for r in part.result_set.rows]
+        out += [row(r) for r in part.result_set.rows]
     return out
+
+
+def scan_fb(since):
+    return scan(since, FB_SCAN, lambda r: {'day': r.day, 'page': r.page, 'r': r.r, 't': r.t, 'at': r.at})
 
 
 def allowed(addr):
@@ -166,9 +202,12 @@ def handler(event, context):
     if not allowed(ip):
         return reply(429, {'error': 'too many'}, cors)
     try:
-        got = clean(json.loads(body_of(event)))
+        data = json.loads(body_of(event))
     except ValueError:
-        got = None
+        data = None
+    if isinstance(data, dict) and 'fb' in data:
+        return feedback(data, cors)
+    got = clean(data)
     if got is None:
         return reply(400, {'error': 'bad request'}, cors)
     page, evs = got
@@ -182,6 +221,25 @@ def handler(event, context):
     return reply(200, {'n': n}, cors)
 
 
+def feedback(data, cors):
+    page, fb = data.get('p'), data.get('fb')
+    if not isinstance(page, str) or not PAGE.match(page) or page == 'index' or not isinstance(fb, dict) or fb.get('r') not in RATINGS:
+        return reply(400, {'error': 'bad request'}, cors)
+    t = fb.get('t')
+    if t is not None and not isinstance(t, str):
+        return reply(400, {'error': 'bad request'}, cors)
+    t = re.sub(r'[\x00-\x08\x0b-\x1f\x7f]', '', (t or '')).strip()[:MAX_TEXT]
+    try:
+        if t:
+            save_text(today(), page, fb['r'], t)
+        else:
+            add(today(), page, ['fb:' + fb['r']])
+    except Exception as e:
+        print('feedback error:', repr(e))
+        return reply(503, {'error': 'unavailable'}, cors)
+    return reply(200, {'ok': True}, cors)
+
+
 def report(event, context):
     data = event
     if isinstance(event, dict) and 'httpMethod' in event:
@@ -192,8 +250,13 @@ def report(event, context):
     days = data.get('days', 7) if isinstance(data, dict) else 7
     days = max(1, min(int(days) if str(days).isdigit() else 7, MAX_DAYS))
     since = (datetime.datetime.now(MSK) - datetime.timedelta(days=days - 1)).strftime('%Y-%m-%d')
+    out = {'since': since, 'today': today(), 'rows': [], 'feedback': []}
     try:
-        rows = scan(since)
-    except ydb.issues.SchemeError:
-        rows = []
-    return reply(200, {'since': since, 'today': today(), 'rows': rows})
+        out['rows'] = scan(since)
+    except ydb.issues.SchemeError:  # таблицы ещё нет — данных тоже
+        pass
+    try:
+        out['feedback'] = scan_fb(since)
+    except ydb.issues.Error as e:  # таблица отзывов появляется с первым текстом; суммы показываем и без неё
+        print('feedback scan:', repr(e))
+    return reply(200, out)

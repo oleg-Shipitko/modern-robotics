@@ -62,6 +62,27 @@ const check = (ok, msg) => { if (!ok) bad++; console.log((ok ? '  ✓ ' : '  ✗
   const after = got.slice(before).filter((b) => b.p === '1-5-diffusion-policy');
   check(after.length === 0 && (await q.eval('window.MRStats.on')) === false, 'с file:// и без адреса ничего не отправляется' + (after.length ? ' — ушло: ' + JSON.stringify(after) : ''));
 
+  console.log('Отзыв в конце урока 1.5');
+  const before2 = got.length;
+  const f = await open('lessons/1-5-diffusion-policy.html', { width: 1440, height: 900, light: true }, true);
+  await f.eval(`document.querySelector('.fb').scrollIntoView({ block: 'center', behavior: 'instant' }); true`); await sleep(200);
+  check(await f.eval('document.querySelector(".fb-more").hidden'), 'до оценки поле для текста скрыто');
+  await f.eval(`document.querySelector('.fb-opts button[data-r="mid"]').click(); true`); await sleep(300);
+  const fb1 = got.slice(before2).filter((b) => b.fb);
+  check(fb1.length === 1 && fb1[0].fb.r === 'mid' && fb1[0].p === '1-5-diffusion-policy' && !('t' in fb1[0].fb), 'оценка «Местами сложно» ушла сразу, без текста');
+  check(!(await f.eval('document.querySelector(".fb-more").hidden')), 'после оценки появилось поле «что осталось непонятным»');
+  await f.eval(`document.querySelector('.fb-opts button[data-r="bad"]').click(); true`); await sleep(300);
+  check(got.slice(before2).filter((b) => b.fb).length === 1, 'смена оценки не считается второй оценкой');
+  await f.eval(`(() => { const t = document.querySelector('.fb textarea'); t.value = 'Неясно, как выбирать горизонт исполнения.'; document.querySelector('.fb-send').click(); return true; })()`); await sleep(300);
+  const fb2 = got.slice(before2).filter((b) => b.fb && b.fb.t);
+  check(fb2.length === 1 && fb2[0].fb.r === 'bad' && /горизонт/.test(fb2[0].fb.t), 'текст ушёл вместе с последней оценкой');
+  check(!(await f.eval('document.querySelector(".fb-done").hidden')) && (await f.eval('localStorage.getItem("mr-fb:1-5-diffusion-policy")')) === 'bad', 'показано «Спасибо, отзыв записан», урок отмечен как оценённый');
+  const nBefore = got.length;
+  await f.S('Page.reload'); await f.waitFor('document.readyState === "complete"'); await sleep(900);
+  check((await f.eval('document.querySelector(\'.fb-opts button[data-r="bad"]\').getAttribute("aria-pressed")')) === 'true' && got.slice(nBefore).every((b) => !b.fb), 'при повторном заходе оценка помнится и не отправляется снова');
+  const link = await f.eval('document.querySelector(".fb-bug a").href');
+  check(/github\.com\/oleg-Shipitko\/modern-robotics\/issues\/new\?title=/.test(link) && decodeURIComponent(link).includes('Урок: 1.5 Diffusion Policy'), 'ссылка «Сообщить на GitHub» с уроком в тексте задачи');
+
   await B.close(); srv.close();
   console.log(bad ? `ИТОГ: ${bad} проверок не прошли` : 'ИТОГ: все проверки прошли');
   process.exit(bad ? 1 : 0);

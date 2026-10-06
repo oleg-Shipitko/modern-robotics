@@ -14,6 +14,7 @@ import index  # noqa: E402
 class FakeDB:
     def __init__(self):
         self.table = None          # None — таблицы ещё нет
+        self.fb = None             # тексты отзывов: None — таблицы ещё нет
         self.abort_next_commit = False
 
 
@@ -23,7 +24,9 @@ class FakeTx:
 
     def execute(self, q, params, commit_tx=False):
         rows = []
-        if 'SELECT ev, n' in q:
+        if q.startswith('DECLARE $day AS Utf8; DECLARE $id'):
+            self.db.fb.append({k[1:]: v for k, v in params.items()})
+        elif 'SELECT ev, n' in q:
             for e in params['$evs']:
                 n = self.db.table.get((params['$day'], params['$page'], e))
                 if n is not None:
@@ -44,7 +47,7 @@ class FakeSession:
         self.db = db
 
     def prepare(self, q):
-        if self.db.table is None:
+        if ('feedback' in q and self.db.fb is None) or ('feedback' not in q and self.db.table is None):
             raise ydb.issues.SchemeError('Cannot find table')
         return q
 
@@ -52,8 +55,11 @@ class FakeSession:
         return FakeTx(self.db)
 
     def create_table(self, path, desc):
-        assert path == '/local/db/stats'
-        self.db.table = {}
+        assert path in ('/local/db/stats', '/local/db/feedback')
+        if path.endswith('stats'):
+            self.db.table = {}
+        else:
+            self.db.fb = []
 
 
 class FakePool:
@@ -110,9 +116,24 @@ def main():
     big = {'p': 'index', 'e': [f'sec:s{k}' for k in range(200)]}
     check(post(big, ip='8.8.8.8')[1]['n'] == index.MAX_EVENTS, f'в пачке не больше {index.MAX_EVENTS} событий')
 
+    # отзыв в конце урока
+    code, _ = post({'p': '1-5-diffusion-policy', 'fb': {'r': 'mid'}}, ip='7.7.7.1')
+    check(code == 200 and db.table[(day, '1-5-diffusion-policy', 'fb:mid')] == 1, 'оценка урока прибавляется к его суммам')
+    code, _ = post({'p': '1-5-diffusion-policy', 'fb': {'r': 'mid', 't': '  Не понял шаг 3.\x00\x07 Можно пример?  ' + 'x' * 2000}}, ip='7.7.7.2')
+    row = (db.fb or [{}])[0]
+    check(code == 200 and row.get('t', '').startswith('Не понял шаг 3. Можно пример?') and len(row['t']) == index.MAX_TEXT and row['r'] == 'mid' and len(row['id']) == 32,
+          'текст отзыва сохранён: без служебных символов, не длиннее 1000 знаков, со случайным id')
+    check(db.table[(day, '1-5-diffusion-policy', 'fb:mid')] == 1, 'текст не считается второй оценкой')
+    check(set(row) == {'day', 'id', 'page', 'r', 't', 'at'}, 'в отзыве нет ничего о читателе: только день, урок, оценка, текст и время')
+    check(post({'p': '1-5-diffusion-policy', 'fb': {'r': 'отлично'}}, ip='7.7.7.3')[0] == 400, 'неизвестная оценка — 400')
+    check(post({'p': 'index', 'fb': {'r': 'good'}}, ip='7.7.7.4')[0] == 400, 'отзыв о главной не принимается — 400')
+    check(post({'p': '1-5-diffusion-policy', 'fb': {'r': 'good', 't': 42}}, ip='7.7.7.5')[0] == 400, 'текст не строкой — 400')
+
+    index.scan_fb = lambda since: [{'day': f['day'], 'page': f['page'], 'r': f['r'], 't': f['t'], 'at': f['at']} for f in db.fb if f['day'] >= since]
     index.scan = lambda since: [{'day': k[0], 'page': k[1], 'ev': k[2], 'n': v} for k, v in sorted(db.table.items()) if k[0] >= since]
     rep = json.loads(index.report({'days': 7}, None)['body'])
     check(rep['today'] == day and any(r['ev'] == 'quiz:6/8' for r in rep['rows']), 'отчёт по вызову из yc отдаёт строки за 7 дней')
+    check(len(rep['feedback']) == 1 and rep['feedback'][0]['r'] == 'mid', 'отчёт отдаёт и тексты отзывов')
     rep2 = json.loads(index.report({'httpMethod': 'POST', 'body': '{"days": "abc"}'}, None)['body'])
     check(rep2['rows'] == rep['rows'], 'отчёт по HTTP с плохим числом дней — берёт 7')
     print(f'Все проверки прошли: {ok}')

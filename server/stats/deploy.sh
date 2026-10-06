@@ -31,11 +31,13 @@ yc serverless function version create --function-name "$REP" --runtime python312
 
 echo "3/3 Проверка $URL на странице test"
 for i in 1 2 3; do curl -fsS -X POST -H "Origin: https://$SITE" -H 'Content-Type: text/plain' --data '{"p":"test","e":["open:desk"]}' "$URL" && break || sleep 3; done; echo
+curl -fsS -X POST -H "Origin: https://$SITE" -H 'Content-Type: text/plain' --data '{"p":"test","fb":{"r":"good","t":"проверка после выкладки"}}' "$URL"; echo
 yc serverless function invoke "$REP" --data '{"days": 1}' | python3 -c '
 import json, sys
 d = json.load(sys.stdin); d = json.loads(d["body"]) if isinstance(d.get("body"), str) else d
 n = sum(r["n"] for r in d["rows"] if r["page"] == "test")
-print("отчёт видит служебную страницу test:", n, "событий"); sys.exit(0 if n else 1)'
+f = sum(1 for r in d.get("feedback", []) if r["page"] == "test")
+print("отчёт видит служебную страницу test:", n, "событий,", f, "отзывов"); sys.exit(0 if n and f else 1)'
 python3 - "$URL" <<'PY'
 import json, pathlib, sys
 p = pathlib.Path('../../site/config.json'); cfg = json.loads(p.read_text(encoding='utf-8'))
