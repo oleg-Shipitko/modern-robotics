@@ -1,5 +1,6 @@
 // Программа на главной: готовые части открыты, перед частями в работе — разделитель «Скоро» со ссылкой на канал.
 const { launch, sleep } = require('./cdp');
+const LINKS = require('../site/config.json').PUBLISHED.filter((p) => p.n !== 'Г' && (!p.date || new Date(p.date + 'T09:00:00+03:00') <= new Date())).length; // как site/published.py
 const path = require('path');
 const site = (f) => 'file://' + path.resolve(__dirname, '../site/' + f);
 const out = (n) => path.resolve(__dirname, '../shots/' + n);
@@ -19,7 +20,7 @@ const out = (n) => path.resolve(__dirname, '../shots/' + n);
         sw: document.documentElement.scrollWidth });
     })()`);
     const j = JSON.parse(r);
-    const ok = j.dividers === 1 && j.at === 2 && j.open === 2 && j.later === 7 && /^https:\/\//.test(j.href || '') && j.links === 13 && j.sw <= vp.width;
+    const ok = j.dividers === 1 && j.at === 2 && j.open === 2 && j.later === 7 && /^https:\/\//.test(j.href || '') && j.links === LINKS && j.sw <= vp.width;
     if (!ok) bad++;
     console.log(vp.t, ok ? 'ок' : 'ОШИБКА', JSON.stringify(j), p.logs.length ? p.logs.join(' | ') : '');
     await p.eval('document.querySelector(".soon").scrollIntoView({ block: "center" }); true'); await sleep(400);
