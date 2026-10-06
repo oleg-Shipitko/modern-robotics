@@ -99,7 +99,12 @@ const LabClip = (() => {
     return { trained: Store.trained, hits: st.mat ? st.mat.hits : 0, color: st.color, shape: st.shape, topColor: top && top.c, topShape: top && top.s, topOk: !!top && top.c === st.color && top.s === st.shape, steps: st.steps };
   }
   function drawMat() {
-    const MH = 380, { c, k } = HeroKit.fit($('#cMat'), W, MH), P = pal(), n = MAT.length, L = 118, T = 54, s = (W - L - 8) / n;
+    // ширина столбца подписей зависит от экрана: шрифт задан в экранных пикселях
+    const cv = $('#cMat'), n = MAT.length, k0 = W / (cv.getBoundingClientRect().width || W), c0 = cv.getContext('2d');
+    HeroKit.font(c0, k0, 11, 600); let lw = 0; for (const [cc, ss] of MAT) lw = Math.max(lw, c0.measureText(E.phrase(cc, ss)).width);
+    const L = Math.ceil(lw) + 14, s = (W - L - 8) / n, T = s + 10, MH = Math.round(T + n * s + 10);
+    cv.style.aspectRatio = `${W} / ${MH}`;
+    const { c, k } = HeroKit.fit(cv, W, MH), P = pal();
     c.fillStyle = P.bg; c.fillRect(0, 0, W, MH);
     // столбцы — картинки сверху, строки — подписи слева
     for (let j = 0; j < n; j++) drawBitmap(c, matBms[j], L + j * s + 4, T - s + 8, s - 8, s - 8);
@@ -126,7 +131,7 @@ const LabClip = (() => {
         c.beginPath(); c.arc(x + 14, y + 14, 10, 0, 7); c.fillStyle = p === 1 ? P.e2e : P.ink3; c.fill();
         HeroKit.label(c, k, String(p), x + 14, y + 14, { px: 11, weight: 800, color: '#fff', halo: false });
       }
-      if (E.isHeld(g.c, g.s)) HeroKit.label(c, k, 'нет в обучении', x + s / 2, y + s - 9, { px: 9.5, color: P.ink3, haloColor: P.bg });
+      if (E.isHeld(g.c, g.s)) { c.setLineDash([4, 4]); c.strokeStyle = P.ink2; c.lineWidth = 1.6; c.strokeRect(x + 1, y + 1, s - 2, s - 2); c.setLineDash([]); }
     });
   }
   function out() {
