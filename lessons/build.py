@@ -194,6 +194,10 @@ def build(key):
         assert marker in html, marker
         html = html.replace(marker, js)
     html = add_og(html, name)
+    if key != 'gl':  # путь в глоссарий: ссылка в верхней панели (на широких экранах) и в подвале
+        assert '<button class="theme-btn"' in html and '</footer>' in html, key
+        html = html.replace('<button class="theme-btn"', '<a class="topbar-gl" href="glossariy.html">Глоссарий</a>\n    <button class="theme-btn"', 1)
+        html = html.replace('</footer>', '  <p class="foot-gl"><a href="glossariy.html">Глоссарий курса</a> — термины с определениями и ссылками на уроки.</p>\n</footer>', 1)
     if key.startswith('l'):
         html = add_thanks(html, name)
     html = add_stats(html)
