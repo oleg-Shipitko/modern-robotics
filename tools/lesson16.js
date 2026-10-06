@@ -257,9 +257,9 @@ async function kv(p, shots) {
   await click(p, tp.x, tp.y);
   check(await p.eval('window.__l16.Pi.st.tick') === 25 && /новую пачку/.test(await p.eval('document.querySelector("#piTick").textContent')), 'вывод π0: тик 25 на ленте — ' + await p.eval('document.querySelector("#piTick").textContent'));
   if (shots) await p.shotEl(out('l16-kv.png'), '#kv .pi-card', 6);
-  await bet(p, '#piTask', 'Станет раз в пять');
+  await bet(p, '#piHead', 'Станет раз в пять');
   await p.eval(`(() => { const e = document.querySelector('#piNoCache'); e.checked = true; e.dispatchEvent(new Event('change', { bubbles: true })); })()`); await sleep(60);
-  check(await p.eval('document.querySelector("#piTotal").textContent') === '361 мс' && await p.eval('window.__l16.Pi.task.done') && await p.eval('document.querySelector("#piTask .bet-right") !== null'), 'вывод π0: без кэша 361 мс, ставка сыграла, задача решена — ' + (await outText(p, '#piTask')).slice(0, 60));
+  check(await p.eval('document.querySelector("#piTotal").textContent') === '361 мс' && await p.eval('window.__l16.Pi.task.done') && await p.eval('document.querySelector("#piHead .bet-right") !== null'), 'вывод π0: без кэша 361 мс, ставка сыграла, задача решена — ' + (await outText(p, '#piTask')).slice(0, 60));
   if (shots) await p.shotEl(out('l16-kv-nocache.png'), '#kv .pi-card', 6);
   await p.eval(`(() => { const e = document.querySelector('#piRemote'); e.checked = true; e.dispatchEvent(new Event('change', { bubbles: true })); const n = document.querySelector('#piNoCache'); n.checked = false; n.dispatchEvent(new Event('change', { bubbles: true })); })()`); await sleep(60);
   check(await p.eval('document.querySelector("#piTotal").textContent') === '86 мс', 'вывод π0: вне робота — 86 мс');

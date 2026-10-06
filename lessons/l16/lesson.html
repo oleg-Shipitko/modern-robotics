@@ -193,6 +193,7 @@
       <p>Ниже — команда из четырёх токенов-слов. Токен действия спрашивает у них: какой предмет взять первым? Переставляй слова и ищи команды, на которых Ада ошибётся.</p>
     </div>
     <div class="card lab-card ord-card">
+      <div class="t16-task t16-head" id="ordHead"></div>
       <div class="ord-grid">
         <div class="ord-main">
           <div class="ord-h">Команда <span class="muted-s">— перетащи слово или нажми два слова, чтобы поменять их местами</span></div>
@@ -232,6 +233,7 @@
       <p>Калькулятор считает длину последовательности, грубую стоимость прохода и размер KV-кэша. Пресеты задают входы настоящих политик. Ширину и глубину модели выбираешь сам, поэтому все пресеты сравниваются на модели одного размера, по умолчанию как у π0.</p>
     </div>
     <div class="card lab-card cost-card">
+      <div class="t16-task t16-head" id="costHead"></div>
       <div class="cost-top">
         <span class="muted-s">Пресет:</span>
         <div class="seg" role="group" aria-label="Пресет" id="costPresets">
@@ -282,6 +284,7 @@
       <p>Вторая идея — пачки. π0 выдаёт сразу 50 действий, а модель перезапускают раз в 0,5 с. Робот получает новое действие каждые 20 мс, хотя модель вызывают дважды в секунду. Ниже — вывод π0 на RTX 4090 с тремя камерами. Нажимай на блоки и на ленту тиков.</p>
     </div>
     <div class="card lab-card pi-card">
+      <div class="t16-task t16-head" id="piHead"></div>
       <div class="pi-top">
         <label class="toggle" id="piNoCacheWrap"><input type="checkbox" id="piNoCache"><span class="box"></span>Без KV-кэша</label>
         <label class="toggle"><input type="checkbox" id="piRemote"><span class="box"></span>Модель вне робота</label>

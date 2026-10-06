@@ -58,8 +58,10 @@
   function mountTask(root, spec) {
     if (typeof root === 'string') root = $(root);
     root.classList.add('m-live'); root.innerHTML = '';
-    const T = { bet: undefined, betOk: undefined, done: false, crit: [], betBtns: [], root };
-    root.append(h('div', { class: 'g-kicker' }, 'Задача'), h('h4', null, spec.title), h('p', { class: 'g-text', html: spec.text }));
+    // spec.head — шапка вверху карточки: условие и ставка стоят над органами управления, проверка и итог — под ними
+    const head = spec.head ? $(spec.head) : root; if (head !== root) head.innerHTML = '';
+    const T = { bet: undefined, betOk: undefined, done: false, crit: [], betBtns: [], root, head };
+    head.append(h('div', { class: 'g-kicker' }, 'Задача'), h('h4', null, spec.title), h('p', { class: 'g-text', html: spec.text }));
     if (spec.bet) {
       const row = h('div', { class: 'opts' });
       spec.bet.options.forEach((o, k) => {
@@ -67,7 +69,7 @@
         b.addEventListener('click', () => { if (T.betOk !== undefined) return; T.bet = k; T.betBtns.forEach((x, j) => x.setAttribute('aria-pressed', String(j === k))); if (spec.onBet) spec.onBet(k); });
         T.betBtns.push(b); row.append(b);
       });
-      root.append(h('div', { class: 'g-pred m-bet' }, h('div', { class: 'q' }, 'Ставка: ' + spec.bet.q), row));
+      head.append(h('div', { class: 'g-pred m-bet' }, h('div', { class: 'q' }, 'Ставка: ' + spec.bet.q), row));
     }
     const ul = h('ul', { class: 'm-crit' });
     spec.criteria.forEach((c) => { const li = h('li', { class: 'wait' }, h('i', { 'aria-hidden': 'true' }), h('span', { html: c.label })); ul.append(li); T.crit.push(li); });
@@ -605,6 +607,7 @@
     }
     function init() {
       task = mountTask('#ordTask', {
+        head: '#ordHead',
         title: 'Сломай порядок',
         text: 'Найди две команды, где предметы стоят в разном порядке, а Ада отвечает одинаково. Потом добавь позиции и проверь, что эти команды стали различаться.',
         criteria: [
@@ -677,6 +680,7 @@
       $('#cD').addEventListener('input', (e) => { st.cfg.d = DS[+e.target.value]; sync(); draw(); });
       $('#cL').addEventListener('input', (e) => { st.cfg.L = +e.target.value; sync(); draw(); });
       task = mountTask('#costTask', {
+        head: '#costHead',
         title: 'Четвёртая камера для π0',
         text: 'Начни с пресета π0 и добавь четвёртую камеру. Модель не меняй: d_model 2048 и 18 слоёв. Найди способ уложиться в прежнюю стоимость внимания.',
         criteria: [
@@ -799,6 +803,7 @@
     }
     function init() {
       task = mountTask('#piTask', {
+        head: '#piHead',
         title: 'Куда уходят 73 мс',
         text: 'Сделай ставку про кэш, потом найди на схеме и на ленте два момента.',
         bet: { q: 'что станет с выводом без KV-кэша?', options: ['Почти не изменится', 'Станет вдвое дольше', 'Станет раз в пять дольше'], answer: 2 },

@@ -30,6 +30,7 @@
 /* ---------- задача вне лаборатории ---------- */
 .t16-task { display: grid; gap: 10px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
 .t16-task h4 { margin: 0; font-size: 18px; }
+.t16-task.t16-head { margin: 0 0 16px; padding: 0 0 16px; border-top: 0; border-bottom: 1px solid var(--line); }
 .t16-task .g-text { font-size: 15px; }
 .t16-task .m-crit li { font-size: 14.5px; }
 .t16-task .m-crit .pick { display: inline-flex; flex-wrap: wrap; gap: 5px; margin-left: 4px; vertical-align: 1px; }
