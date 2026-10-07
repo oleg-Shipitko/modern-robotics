@@ -282,7 +282,7 @@ const Lab5 = (() => {
     fb.innerHTML = '';
     const counts = { nn: 0, hybrid: 0, classic: 0 };
     CARDS.forEach((c) => counts[c.a]++);
-    fb.append(h('div', { class: 'callout insight', style: 'margin:4px 0' }, h('span', { class: 'ico' }, '💡'), h('div', { html: `<p><strong>Закономерность.</strong> Язык, восприятие открытого мира, деформируемые предметы и жидкости уходят нейросетям. Точность, частота и безопасность остаются за правилами. У экспертов ${counts.nn} из ${CARDS.length} задач отданы нейросети, ${counts.hybrid} — нейросети со страховкой и ${counts.classic} — правилам. Нейросеть берёт то, что правилами не описать, а там, где нужна гарантия, остаются правила. А как делят работу настоящие роботы?</p>` })));
+    fb.append(h('div', { class: 'callout insight', style: 'margin:4px 0' }, h('span', { class: 'ico' }, '💡'), h('div', { html: `<p><strong>Закономерность.</strong> Точность, частота и безопасность остаются за правилами. Язык, восприятие открытого мира, деформируемые предметы и жидкости уходят нейросетям. У экспертов ${counts.classic} из ${CARDS.length} задач отданы правилам, ${counts.nn} — нейросети и ${counts.hybrid} — нейросети со страховкой. Там, где нужна гарантия, остаются правила, а нейросеть берёт то, что правилами не описать. А как делят работу настоящие роботы?</p>` })));
     CARDS.forEach((c) => {
       const where = place[c.id];
       const res = where === c.a ? 'right' : c.ok.includes(where) ? 'partial' : 'wrong';
