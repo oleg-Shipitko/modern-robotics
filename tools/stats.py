@@ -38,8 +38,10 @@ def ru(x, nd=1):
 
 def lessons():
     """Опубликованные уроки по порядку: slug, номер, название, разделы [(id, заголовок)]."""
+    sys.path.insert(0, str(ROOT / 'site'))
+    from published import published  # уроки с датой выпуска попадают в отчёт с 09:00 этого дня
     out = []
-    for p in CFG.get('PUBLISHED', []):
+    for p in published(CFG):
         if p['n'] == 'Г':  # глоссарий — справочник, не урок
             continue
         f = ROOT / 'site' / p['file']
