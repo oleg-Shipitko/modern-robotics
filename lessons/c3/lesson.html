@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Проверка части 3 — Modern Robotics и Physical AI</title>
+<meta name="description" content="Проверка по части 3 курса «Modern Robotics и Physical AI»: вопросы вперемешку по урокам 2.1–2.3 о картах действий, языке и планировщиках и задача на живой сцене. В конце — балл и темы для повторения.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<script>
+  (function () { try { var t = localStorage.getItem('mr-theme'); if (t) document.documentElement.dataset.theme = t; else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme = 'dark'; } catch (e) {} })();
+</script>
+<style>
+/*@@CSS@@*/
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html#program" title="К программе курса"><div>Modern Robotics и Physical AI<small>Проверка части 3</small></div></a>
+    <nav class="toc" aria-label="Разделы страницы">
+      <a href="#tasks">Задания</a>
+      <a href="#result">Итог</a>
+    </nav>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Переключить тему">◐</button>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main>
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="kicker"><span class="num">3</span> Часть 3 · Foundation-модели для роботов</div>
+    <h1>Проверка <span class="amp">части 3</span></h1>
+    <p class="lead">Квиз в конце урока проверяет урок сразу после чтения. Здесь задания по всем урокам части идут вперемешку: так видно, что держится в памяти и связываются ли темы между собой. В конце — балл по каждому уроку и ссылки на разделы, которые стоит повторить.</p>
+    <div class="hero-meta"><span>≈ 25 минут</span><span id="chkCount">вопросы и задача на сцене</span><span>можно пройти ещё раз</span></div>
+    <div class="hero-list">
+      <div><b>3.1–3.2</b>RT-1 и vision-language модели: действия как токены, картинка в языковой модели</div>
+      <div><b>3.3–3.4</b>RT-2 и Open X-Embodiment: совместное дообучение, один формат для 22 роботов</div>
+      <div><b>3.5–3.6</b>Octo, OpenVLA и π0: открытые модели, LoRA, пачки действий на flow matching</div>
+      <div><b>3.7–3.8</b>Двухуровневые архитектуры и π0.5–π0.7: две системы, подзадачи словами, обобщение</div>
+    </div>
+    <p style="margin-top:28px"><a class="btn primary" href="#tasks">Начать проверку ↓</a></p>
+  </div>
+</section>
+
+<section class="section" id="tasks">
+  <div class="wrap">
+    <div class="chk-list" id="chkList"></div>
+  </div>
+</section>
+
+<section class="section alt" id="result">
+  <div class="wrap">
+    <div class="prose" style="max-width:820px">
+      <div class="kicker"><span class="num">✓</span> Итог</div>
+      <h2>Итог проверки</h2>
+      <p class="score" id="quizScore"></p>
+      <p class="chk-wait" id="chkWait"></p>
+      <div id="chkResult" hidden>
+        <div class="chk-table" id="chkTable"></div>
+        <h3 style="margin-top:28px">Что повторить</h3>
+        <ul class="links" id="chkReview"></ul>
+        <p style="margin-top:22px"><button class="btn" type="button" id="chkAgain">Пройти ещё раз</button></p>
+      </div>
+      <div class="callout insight" style="margin-top:34px"><span class="ico">➡️</span><div><p><strong>Дальше: часть 4, данные для обучения роботов.</strong> Модели части 3 съедают тысячи часов демонстраций. Часть 4 о том, откуда их брать: телеоперация и устройства сбора, датасеты, видео людей, симуляция и маховик данных.</p><p><a href="../index.html#program">Программа курса и даты выхода →</a></p></div></div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  Проверка части 3 курса «Modern Robotics и Physical AI». Ответы остаются в браузере, сайт видит только анонимные суммы.
+</footer>
+<div class="tooltip" id="tooltip" role="tooltip"></div>
+<script>
+/*@@JS@@*/
+</script>
+</body>
+</html>
