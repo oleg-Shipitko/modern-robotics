@@ -374,6 +374,16 @@ const LabVox = (() => {
     }
     const lab = (t, x, y, z, o) => { const [u, v] = cam.S(x, y, z); HeroKit.label(c, k, t, u, v, Object.assign({ px: 10.5, color: P.ink3, haloColor: P.bg }, o || {})); };
     if (st.ph < 1.2) { lab('верхняя', sc.x0 - 0.2, sc.y0, E.SH.b[1] + 1.5, { align: 'right' }); lab('нижняя', sc.x0 - 0.2, sc.y0, E.SH.b[0] + 1.5, { align: 'right' }); }
+    if (mode === 'cls' && winOn()) {             // окно по высоте: столбец, который видит классификатор
+      const [x, y, z] = E.vxyz(cls ? cls.a : sc.target[st.cmd === 'lower' ? 'lower' : 'upper']), z0 = Math.max(0, z - st.K), z1 = Math.min(N, z + st.K + 1);
+      for (let zz = z0; zz < z1; zz++) for (const f of vis) { face(c, cam, x, y, zz, f); c.fillStyle = shade(P.cl, 1, zz === z ? 0.28 : 0.13); c.fill(); c.strokeStyle = shade(P.cl, 1, 0.55); c.lineWidth = 0.7; c.stroke(); }
+      const box = [[x, y], [x + 1, y], [x + 1, y + 1], [x, y + 1]];
+      c.setLineDash([4, 3]); c.strokeStyle = P.cl; c.lineWidth = 1.8; c.beginPath();
+      for (const zz of [z0, z1]) box.forEach(([a, b], i) => { const [u, v] = cam.S(a, b, zz); i ? c.lineTo(u, v) : c.moveTo(u, v); if (i === 3) { const [u0, v0] = cam.S(box[0][0], box[0][1], zz); c.lineTo(u0, v0); } });
+      for (const [a, b] of box) { const [u0, v0] = cam.S(a, b, z0), [u1, v1] = cam.S(a, b, z1); c.moveTo(u0, v0); c.lineTo(u1, v1); }
+      c.stroke(); c.setLineDash([]);
+      const [u, v] = cam.S(x + 1, y, z1); HeroKit.label(c, k, `окно ±${st.K}`, u + 6, v, { px: 11, weight: 700, color: P.cl, align: 'left', haloColor: P.bg });
+    }
     if (mode === 'cls') {
       if (cls) {
         const [x, y, z] = E.vxyz(cls.a); c.lineWidth = 2.4; c.strokeStyle = P.ink;
@@ -405,7 +415,32 @@ const LabVox = (() => {
     const t = E.CMD_TEXT[st.cmd];
     $('#vCmd').innerHTML = `Команда: <b>«${t}»</b>` + (st.cmd === 'any' ? ' <span class="tag-note">в демонстрациях — то верхняя, то нижняя</span>' : '');
   }
-  function draw() { drawCmd(); drawVox('#vReg', 'reg'); drawVox('#vCls', 'cls'); out(); }
+  const winOn = () => !$('#vWinBox').hidden;
+  /** Что попадает в окно ±K для трёх мест: на столе перед стеллажом, на нижней и на верхней полке. */
+  function winCols() {
+    const sc = sceneAt(st.scene), occ = sc.occ, K = st.K, tx = sc.x0 + 4, ty = sc.y0 + 2;
+    return [['на столе', tx, sc.y0 - 1, 1], ['на нижней полке', tx, ty, E.SH.b[0] + 1], ['на верхней полке', tx, ty, E.SH.b[1] + 1]].map(([name, x, y, z]) => {
+      const cells = []; for (let d = K; d >= -K; d--) { const zz = z + d; cells.push({ d, v: zz < 0 || zz >= N ? -1 : occ[E.vi(x, y, zz)] }); }
+      return { name, cells, code: cells.map((q) => (q.v > 0 ? 1 : 0)).join('') };
+    });
+  }
+  function drawWin() {
+    if (!winOn()) return;
+    const cols = winCols(), K = st.K, n = 2 * K + 1, box = $('#vWin');
+    box.innerHTML = '';
+    for (const col of cols) {
+      const stack = h('div', { class: 'win-stack' });
+      for (const q of col.cells) stack.append(h('i', { class: 'wc ' + (q.d === 0 ? 'me' : q.v < 0 ? 'out' : q.v === E.OCC.shelf ? 'wood' : q.v === E.OCC.table ? 'table' : q.v > 0 ? 'cup' : 'empty') }));
+      box.append(h('div', { class: 'win-col' }, stack, h('div', { class: 'win-cap' }, col.name)));
+    }
+    $('#vWinH').textContent = `Окно ±${K}: ${n} ${plural(n, 'воксель', 'вокселя', 'вокселей')} по высоте, по ${K * 5} см вверх и вниз от места, куда ставят чашку`;
+    const [T, L, U] = cols, same = T.code === L.code && L.code === U.code, diff = T.code !== L.code && L.code !== U.code && T.code !== U.code;
+    const edge = cols[0].cells.some((q) => q.v < 0) ? ' Ниже стола сетка кончается, и там модель видит пустоту.' : '';
+    setOut($('#vWinNote'), same ? `Для классификатора все три места одинаковы: опора снизу, сверху пусто. Отличить полку от стола он не может и угадывает.${edge}`
+      : diff ? `Все три места выглядят по-разному: окно достаёт до следующей доски сверху, а под нижней полкой — до стола.${edge}`
+      : `Часть мест ещё не различить: ${[[T, L], [L, U], [T, U]].filter(([a, b]) => a.code === b.code).map(([a, b]) => `${a.name} и ${b.name}`).join(', ')} выглядят одинаково.${edge}`);
+  }
+  function draw() { drawCmd(); drawVox('#vReg', 'reg'); drawVox('#vCls', 'cls'); drawWin(); out(); }
   const schedule = () => { if (rafPending) return; rafPending = true; requestAnimationFrame(() => { rafPending = false; drawVox('#vReg', 'reg'); drawVox('#vCls', 'cls'); }); };
   function sync() {
     $$('#vCmdSeg button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === st.cmd)));
@@ -451,8 +486,8 @@ const LabVox = (() => {
       criteria: [{ label: 'По команде «на верхнюю» выбран воксель на верхней полке', test: (r, s) => s.seenUpper }, { label: 'По команде «на нижнюю» — на нижней полке', test: (r, s) => s.seenLower }],
       hint: 'Включи вид сверху: обе полки — один столбец вокселей.',
       explain: () => 'Команда меняет вектор весов, и пик переходит на названную полку. Регрессия с командой тоже попадает на полку: верный ответ теперь один. Сверху обе полки — один столбец, поэтому карте стола из урока 2.1 пришлось бы искать высоту отдельно. В PerAct команду кодирует текстовый энкодер CLIP, и одна модель учит 18 задач с 249 вариациями. Без команды она работает на уровне случайного выбора: не знает, какой ящик открыть и на какую полку ставить.' },
-    { short: 'Поле зрения', title: 'Сколько сцены нужно видеть', text: 'Классификатор оценивает воксель по столбцу над и под ним. Сейчас окно ±8 вокселей, по 40 см вверх и вниз. Сузим его до ±1, то есть до соседей сверху и снизу. Обучи модель и проверь на 30 новых сценах по командам «на верхнюю» и «на нижнюю». Потом найди самое узкое окно, при котором верны все 60 проверок.',
-      controls: ['k'], onEnter: (X) => { X.setCmd('upper'); X.setK(1); },
+    { short: 'Поле зрения', title: 'Сколько сцены нужно видеть', text: 'Классификатор оценивает воксель по столбцу над и под ним. Сейчас окно ±8 вокселей, по 40 см вверх и вниз. Сузим его до ±1, то есть до соседей сверху и снизу. Под сценой видно, что попадает в окно на столе и на каждой полке. Обучи модель и проверь на 30 новых сценах по командам «на верхнюю» и «на нижнюю». Потом найди самое узкое окно, при котором верны все 60 проверок.',
+      controls: ['k', 'win'], onEnter: (X) => { X.setCmd('upper'); X.setK(1); },
       bet: { q: 'что будет с окном ±1?', options: ['Ничего: полку и так видно', 'Модель спутает полки друг с другом и со столом', 'Модель перестанет обучаться'], answer: (r) => (r.rate >= 0.9 ? 0 : 1) },
       action: { label: 'Обучить и проверить', run: (X) => X.evaluate() },
       criteria: [{ label: 'Окно уже ±8', test: (r) => r.K < 8 }, { label: 'Полка верная во всех 60 проверках', test: (r) => r.ok === 2 * NT }],
@@ -480,7 +515,8 @@ const LabVox = (() => {
       cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
     }
     sync();
-    ctl = mountMissions('#vMis', missions, api, { controls: { cmd: '#vCmdSeg', view: '#vView', k: '#wrapVK', scene: '#wrapVScene' }, scene: '#vReg' });
+    legend('#vWinLegend', [['место для чашки', 'var(--classic)', 'sq'], ['доска стеллажа', WOOD().fill, 'sq'], ['стол', 'var(--ink-3)', 'sq']]);
+    ctl = mountMissions('#vMis', missions, api, { controls: { cmd: '#vCmdSeg', view: '#vView', k: '#wrapVK', scene: '#wrapVScene', win: '#vWinBox' }, scene: '#vReg', onStep: () => draw() });
     draw(); redrawOn(draw);
     return ctl;
   }

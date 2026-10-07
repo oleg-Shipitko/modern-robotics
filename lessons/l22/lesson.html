@@ -132,6 +132,12 @@
           <figure><canvas id="vCls" width="320" height="320" class="vox-cv" role="img" aria-label="Та же сетка: ценность вокселей по классификатору и выбранный воксель"></canvas><figcaption>Классификатор вокселей</figcaption></figure>
         </div>
         <div class="cv-legend" id="vLegend"></div>
+        <div class="win-box" id="vWinBox" hidden>
+          <div class="win-h" id="vWinH"></div>
+          <div class="win-cols" id="vWin" role="img" aria-label="Что попадает в окно классификатора для трёх мест: на столе, на нижней и на верхней полке"></div>
+          <div class="cv-legend" id="vWinLegend"></div>
+          <p class="win-note" id="vWinNote"></p>
+        </div>
         <div class="readout" id="vOut"></div>
         <div class="ctl-row">
           <div class="seg" id="vCmdSeg" role="group" aria-label="Команда"><button type="button" data-v="upper" aria-pressed="false">На верхнюю полку</button><button type="button" data-v="lower" aria-pressed="false">На нижнюю</button><button type="button" data-v="any" aria-pressed="true">На любую</button></div>

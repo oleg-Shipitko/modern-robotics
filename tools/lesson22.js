@@ -75,6 +75,7 @@ const shot = async (p, id, sel, n, pad) => { await p.eval(`document.getElementBy
   const V = 'window.__l22.LabVox.api';
   r = await viaUI(p, '#vMis', 2);
   const v1 = J(await p.eval(`JSON.stringify(${V}.state())`));
+  check(await p.eval(`document.getElementById('vWinBox').hidden`), 'в миссии 1 окна по высоте не видно');
   check(r.ok && v1.regShelf === null && v1.regBelow >= 0 && !!v1.clsShelf, `миссия 1: регрессия в ${v1.regGapCm.toFixed(1)} см над нижней полкой, классификатор — ${v1.clsShelf} (${(v1.pu * 100).toFixed(0)}% / ${(v1.pl * 100).toFixed(0)}%)`);
   check(v1.pu > 0.2 && v1.pl > 0.2, 'у классификатора два пика: на обеих полках заметная вероятность');
   check(/ставка сыграла/i.test(r.out), 'ставка «между полками, в воздух» сыграла');
@@ -91,6 +92,9 @@ const shot = async (p, id, sel, n, pad) => { await p.eval(`document.getElementBy
   const e1 = J(await p.eval(`JSON.stringify(${V}.state())`)).ev;
   check(!r.ok && e1.K === 1 && e1.ok >= 10 && e1.ok <= 30, `окно ±1: верно ${e1.ok} из 60 — примерно треть`);
   check(/ставка сыграла/i.test(await p.eval(`document.querySelector('#vMis').textContent`)) || /Расширь окно/.test(r.out), 'после провала — подсказка расширить окно');
+  const win = async () => J(await p.eval(`JSON.stringify({ vis: !document.getElementById('vWinBox').hidden, cells: [...document.querySelectorAll('#vWin .win-stack')].map((s) => s.children.length), note: document.getElementById('vWinNote').textContent })`));
+  const w1 = await win();
+  check(w1.vis && w1.cells.join() === '3,3,3' && /все три места одинаковы/.test(w1.note), 'окно ±1 видно под сценой: по 3 вокселя на столе и на полках, «все три места одинаковы»');
   const evs = {};
   for (const Kw of [2, 3, 4]) {
     await p.eval(`(${V}.setK(${Kw}), true)`);
@@ -99,6 +103,9 @@ const shot = async (p, id, sel, n, pad) => { await p.eval(`document.getElementBy
   }
   check(evs[2] < 60 && evs[3] < 60 && evs[4] === 60, `окна ±2, ±3, ±4: ${evs[2]}, ${evs[3]}, ${evs[4]} из 60 — самое узкое рабочее ±4`);
   check(r.ok && /Самое узкое рабочее окно — ±4 вокселя/.test(r.out), 'миссия 3 засчитана с окном ±4');
+  const w4 = await win();
+  check(w4.vis && w4.cells.join() === '9,9,9' && /по-разному/.test(w4.note), 'окно ±4: по 9 вокселей, «все три места выглядят по-разному»');
+  await shot(p, 'voxels', '#voxels .lab', 'l22-voxels-window.png', 6);
   await nextMission(p, '#vMis'); await sleep(200);
   await p.eval(`(${V}.setK(3), true)`);
   await p.waitFor(`!!window.__l22.LabVox.st.models[3]`, 60000);

@@ -36,3 +36,21 @@
   .ctl-row .hd-range input, .hd-range.wide input { width: 100%; }
 }
 .cmd-line .tag-note { display: inline-block; margin-left: 8px; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 650; color: var(--ink-3); background: var(--bg-2); vertical-align: 1px; }
+/* окно классификатора по высоте: три столбца рядом */
+.win-box { margin-top: 12px; padding: 10px 12px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); }
+.win-box[hidden] { display: none; }
+.win-h { font-size: 13.5px; font-weight: 650; color: var(--ink-2); margin-bottom: 10px; }
+.win-cols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; align-items: start; }
+.win-col { display: grid; justify-items: center; gap: 6px; }
+.win-stack { display: grid; gap: 2px; width: 52px; }
+.wc { display: block; height: 10px; border-radius: 2px; background: var(--surface); border: 1px solid var(--line); }
+.wc.wood { background: #dcc6a3; border-color: #b89e78; }
+.wc.table { background: var(--ink-3); border-color: var(--ink-2); }
+.wc.cup { background: #62aeb8; border-color: #3f8790; }
+.wc.out { background: transparent; border: 1px dashed var(--line-2); }
+.wc.me { background: color-mix(in srgb, var(--classic) 22%, var(--surface)); border: 2px solid var(--classic); height: 12px; }
+[data-theme="dark"] .wc.wood { background: #7a6650; border-color: #5a4a39; }
+[data-theme="dark"] .wc.cup { background: #3e8f99; border-color: #2c6a72; }
+.win-cap { font-size: 12.5px; font-weight: 650; color: var(--ink-3); text-align: center; line-height: 1.25; }
+.win-box .cv-legend { margin-top: 10px; }
+.win-note { margin: 8px 0 0; font-size: 13.5px; color: var(--ink-2); }
