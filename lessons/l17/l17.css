@@ -121,3 +121,6 @@
   .np-head { padding: 7px 9px 6px; }
   .af-row { grid-template-columns: 1fr; }
 }
+/* схема телеоперации ALOHA */
+.aloha-anim { margin: 18px 0 22px; padding: 12px 12px 10px; }
+.aloha-anim figcaption { margin: 8px 2px 0; }

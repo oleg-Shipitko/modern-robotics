@@ -300,6 +300,8 @@ async function desktop() {
   // тёмная тема
   await p.click('#themeBtn'); await sleep(400);
   for (const [n, s] of [['err', '#errors .lab'], ['lab', '#chunks .lab'], ['arch', '#arch .lab'], ['cvae', '#cvae .lab'], ['te', '#te .lab'], ['delay', '#delay .lab'], ['aloha', '#aloha .wrap']]) await p.shotEl(out(`l17-${n}-dark.png`), s, 6);
+  const an = JSON.parse(await p.eval(`JSON.stringify([...document.querySelectorAll('canvas[data-anim]')].map((cv) => { Anim.seek(cv, 1.1); const a = cv.toDataURL(); Anim.seek(cv, 3.7); const b = cv.toDataURL(); return { k: cv.dataset.anim, moves: a !== b, w: cv.width }; }))`));
+  check(an.length === 1 && an[0].k === 'aloha' && an[0].moves, 'схема телеоперации ALOHA идёт');
   check(p.logs.length === 0, 'консоль десктопа: ' + (p.logs.join(' | ') || 'чисто'));
   await B.close();
 }

@@ -243,6 +243,8 @@ async function act(p, M, shots) {
   await p.shotEl(out('l02-imu-dark.png'), '#sensors .lab', 6);
   await p.shotEl(out('l02-act-dark.png'), '#model .lab', 6);
   const bad = await p.eval('window.__l02bad || []'); check(bad.length === 0, 'подписи без «не числа»' + (bad.length ? ': ' + bad.slice(0, 3).join(' || ') : ''));
+  const an = JSON.parse(await p.eval(`JSON.stringify([...document.querySelectorAll('canvas[data-anim]')].map((cv) => { Anim.seek(cv, 1.1); const a = cv.toDataURL(); Anim.seek(cv, 3.7); const b = cv.toDataURL(); return { k: cv.dataset.anim, moves: a !== b, w: cv.width }; }))`));
+  check(an.length === 6 && an.every((x) => x.moves && x.w > 0), 'анимированные схемы сенсоров идут: ' + an.map((x) => x.k + (x.moves ? '' : ' (стоит)')).join(', '));
   console.log('логи десктопа:', p.logs.join(' | ') || 'нет');
   await B.close();
 

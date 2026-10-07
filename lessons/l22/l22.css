@@ -54,3 +54,6 @@
 .win-cap { font-size: 12.5px; font-weight: 650; color: var(--ink-3); text-align: center; line-height: 1.25; }
 .win-box .cv-legend { margin-top: 10px; }
 .win-note { margin: 8px 0 0; font-size: 13.5px; color: var(--ink-2); }
+/* схема пути данных */
+.flow-card { margin: 18px 0 0; padding: 14px 14px 12px; }
+.flow-card figcaption { margin: 10px 2px 0; }
