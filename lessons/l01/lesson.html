@@ -95,7 +95,7 @@ v = pid(path.next - hand)</pre>
     </div>
 
     <div class="hero-list">
-      <div><b>СХЕМА</b>Четыре архитектуры управления: от модульного стека до двухуровневой VLA</div>
+      <div><b>СХЕМА</b>Четыре архитектуры управления: правила, end-to-end, гибрид и двухуровневая VLA</div>
       <div><b>ЛАБ. 1</b>Три версии Ады на одной кухне: найди, где отказывает каждая</div>
       <div><b>ЛАБ. 2</b>Исправь отказы правилами и данными и сравни, во что обходится каждое исправление</div>
       <div><b>ЗАДАЧИ</b>Реши, что в доме Ады доверить нейросети, а что — правилам</div>
@@ -135,7 +135,7 @@ v = pid(path.next - hand)</pre>
     <div class="card arch" id="arch">
       <div class="arch-head">
         <div class="seg" role="group" aria-label="Архитектура">
-          <button type="button" data-arch="classic" aria-pressed="true">Модульный стек</button>
+          <button type="button" data-arch="classic" aria-pressed="true">Правила</button>
           <button type="button" data-arch="e2e" aria-pressed="false">End-to-end</button>
           <button type="button" data-arch="hybrid" aria-pressed="false">Гибрид</button>
           <button type="button" data-arch="vla" aria-pressed="false">Двухуровневая VLA</button>
@@ -328,7 +328,7 @@ v = pid(path.next - hand)</pre>
 
     <div class="card chart-card" style="margin-top:18px">
       <div class="chart-head">
-        <div><h4>Успех в зависимости от числа демонстраций</h4><p>Каждая точка — один запуск обучения и проверка на 40 новых сценах. Классике данные не нужны — её уровень задают правила.</p></div>
+        <div><h4>Успех в зависимости от числа демонстраций</h4><p>Каждая точка — один запуск обучения и проверка на 40 новых сценах. Правилам данные не нужны: их уровень — горизонтальная линия.</p></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
           <div class="seg" role="group" aria-label="Условия проверки" id="scaleCond">
             <button type="button" data-c="normal" aria-pressed="true">Обычные</button>
@@ -393,8 +393,8 @@ v = pid(path.next - hand)</pre>
       <div class="pool" id="pool" aria-label="Нераспределённые карточки"></div>
       <div class="bins">
         <div class="bin" data-bin="classic"><div class="bin-head"><h4>Правила</h4><p>известная среда, жёсткие гарантии, обычный код</p></div><div class="bin-body"></div></div>
-        <div class="bin" data-bin="nn"><div class="bin-head"><h4>Нейросеть</h4><p>восприятие, язык, открытый мир, мягкие и сыпучие предметы</p></div><div class="bin-body"></div></div>
-        <div class="bin" data-bin="hybrid"><div class="bin-head"><h4>Нейросеть со страховкой</h4><p>нейросеть понимает ситуацию, правило гарантирует безопасность</p></div><div class="bin-body"></div></div>
+        <div class="bin" data-bin="nn"><div class="bin-head"><h4>End-to-end</h4><p>нейросеть учится на данных: восприятие, язык, открытый мир, мягкие и сыпучие предметы</p></div><div class="bin-body"></div></div>
+        <div class="bin" data-bin="hybrid"><div class="bin-head"><h4>Гибрид</h4><p>нейросеть понимает ситуацию, правило гарантирует безопасность</p></div><div class="bin-body"></div></div>
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
         <button class="btn primary" id="sortCheck" type="button">Проверить</button>
@@ -418,10 +418,10 @@ v = pid(path.next - hand)</pre>
     <div class="card spectrum">
       <div id="specWide">
         <div class="spec-bar" id="specBar"></div>
-        <div class="spec-ends"><span>← всё запрограммировано</span><span>всё выучено →</span></div>
+        <div class="spec-ends"><span>← правила: всё запрограммировано</span><span>end-to-end: всё выучено →</span></div>
       </div>
       <div id="specNarrow" hidden>
-        <div class="spec-ends" style="margin:0 0 6px"><span>← правила</span><span>данные →</span></div>
+        <div class="spec-ends" style="margin:0 0 6px"><span>← правила</span><span>end-to-end →</span></div>
         <div class="spec-list" id="specList"></div>
       </div>
       <div class="spec-info" id="specInfo"></div>
