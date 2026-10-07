@@ -43,3 +43,4 @@ proto/drive/
 dist/
 __pycache__/
 dist-release/
+site/changelog.html
