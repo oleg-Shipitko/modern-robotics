@@ -1,0 +1,38 @@
+/* ---------- урок 2.2 ---------- */
+.plot-cv { width: 100%; height: auto; border-radius: 10px; border: 1px solid var(--line); display: block; margin-top: 4px; touch-action: pan-y; }
+.plot-cap { margin: 6px 0 0; }
+.side-cv { width: 100%; height: auto; aspect-ratio: 640 / 424; border-radius: 12px; border: 1px solid var(--line); display: block; }
+.spd-cv { aspect-ratio: 640 / 200; margin-top: 10px; cursor: ns-resize; }
+.calc-cv { aspect-ratio: 640 / 236; }
+.rot-cv { aspect-ratio: 640 / 176; }
+.t1-cv { aspect-ratio: 640 / 500; }
+.cv-legend i.dot { width: 9px; height: 9px; border-radius: 50%; }
+.cv-legend i.ring { width: 10px; height: 10px; border-radius: 50%; background: transparent; border: 2px solid var(--c); }
+.cv-legend i.sq { width: 9px; height: 9px; border-radius: 2px; }
+.cv-legend i.cube { width: 11px; height: 11px; border-radius: 2px; background: color-mix(in srgb, var(--c) 55%, transparent); border: 1.5px solid var(--c); }
+.cv-legend i.cross { width: 11px; height: 11px; background: linear-gradient(45deg, transparent 42%, var(--c) 42% 58%, transparent 58%), linear-gradient(-45deg, transparent 42%, var(--c) 42% 58%, transparent 58%); border-radius: 0; }
+.sub-h { margin: 18px 0 8px; font-size: 15.5px; }
+.cmd-line { margin: 0 0 10px; font-size: 15.5px; color: var(--ink-2); }
+.vox-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.vox-pair figure { margin: 0; display: grid; gap: 4px; justify-items: center; }
+.vox-pair figcaption { font-size: 12.5px; font-weight: 650; color: var(--ink-3); }
+.vox-cv { width: 100%; height: auto; aspect-ratio: 1; border-radius: 12px; border: 1px solid var(--line); display: block; touch-action: none; cursor: grab; }
+.vox-cv.grabbing { cursor: grabbing; }
+@media (max-width: 560px) { .vox-pair { grid-template-columns: 1fr; } .vox-cv { touch-action: pan-y; } }
+.chart-card { padding: 16px 18px 14px; }
+.t1-cv { cursor: default; }
+.sort-intro { margin: 44px 0 16px; max-width: 820px; }
+.sort-intro h3 { margin: 10px 0 6px; font-size: 22px; }
+.sort-intro p { margin: 0; }
+.shape-sort .c-zones { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.shape-sort .c-zone-h { font-family: var(--mono); font-size: 13px; }
+.shape-sort .c-card { font-size: 13.5px; }
+@media (max-width: 900px) { .shape-sort .c-zones { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 420px) { .shape-sort .c-zones { grid-template-columns: 1fr; } }
+.hd-range.wide input { width: 190px; }
+.ctl-row .hd-range output { min-width: 52px; }
+@media (max-width: 520px) {
+  .ctl-row .hd-range { display: grid; grid-template-columns: 104px 1fr 76px; width: 100%; }
+  .ctl-row .hd-range input, .hd-range.wide input { width: 100%; }
+}
+.cmd-line .tag-note { display: inline-block; margin-left: 8px; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 650; color: var(--ink-3); background: var(--bg-2); vertical-align: 1px; }

@@ -54,7 +54,7 @@ const check = (ok, msg) => { if (!ok) bad++; console.log((ok ? '  ✓ ' : '  ✗
   await p.eval(`(() => { const q = document.getElementById('glQ'); q.value = ''; q.dispatchEvent(new Event('input')); window.scrollTo(0, 0); return true; })()`); await sleep(200);
   await p.shot(out('glossary-page.png'), { x: 0, y: 0, width: 1280, height: 1300 });
   const links = JSON.parse(await p.eval('JSON.stringify([...document.querySelectorAll(".gl-from")].map((a) => a.getAttribute("href")))'));
-  check(links.every((h) => /^[01]-\d-[a-z-]+\.html#[a-z]/.test(h)), 'у всех терминов ссылка на раздел урока');
+  check(links.every((h) => /^\d-\d-[a-z-]+\.html#[a-z]/.test(h)), 'у всех терминов ссылка на раздел урока');
   check(!p.logs.length, 'консоль глоссария: ' + (p.logs.join(' | ') || 'чисто'));
   await B.close();
   console.log(bad ? `ИТОГ: ${bad} проверок не прошли` : 'ИТОГ: все проверки прошли');
