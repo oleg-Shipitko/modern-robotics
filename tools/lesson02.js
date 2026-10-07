@@ -108,7 +108,7 @@ async function gear(p, M, shots) {
   const up = -1.18;
   await M.drag(await M.gearTip(0), await M.gearTip(0, up), { steps: 10, hold: 1500, until: 'window.__l02.GearLab.st.lanes[0].reached' });
   await M.drag(await M.gearTip(1), await M.gearTip(1, up), { steps: 10, hold: 12000, until: 'window.__l02.GearLab.st.lanes[1].reached' });
-  check((await M.crit(R)) === 'ok,ok', 'прозрачность: оба звена дотянуты до отметки');
+  check((await M.crit(R)) === 'ok,ok', 'обратимость: оба звена дотянуты до отметки');
   console.log('    разбор:', (await M.out(R)).slice(0, 120));
   await M.next(R);
   await M.setRange('#gearNA', RA.indexOf(160)); await p.click('#gearHit');
