@@ -20,6 +20,22 @@ vals = {k: v for k, v in cfg.items() if isinstance(v, str)}
 vals['READY_JSON'] = json.dumps({p['n']: p['file'] for p in published}, ensure_ascii=False)
 vals['THANKS_API_JSON'] = json.dumps(cfg.get('THANKS_API', ''))
 vals['STATS_API_JSON'] = json.dumps(cfg.get('STATS_API', ''))
+
+# «Что нового»: запись видна со своего дня (по московской дате); субботняя выкладка идёт после 09:00, так что уроки и запись о них выходят вместе
+MONTHS = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря']
+def ru_date(d):
+    y, m, dd = (int(x) for x in d.split('-'))
+    return f'{dd} {MONTHS[m - 1]} {y}'
+log = json.loads((HERE / 'changelog.json').read_text(encoding='utf-8'))
+moment = asof()
+shown = [v for v in log['versions'] if v['date'] <= moment.date().isoformat()]
+def esc(t):
+    return t.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+vals['CHANGELOG_HTML'] = ''.join(
+    f'<section class="card cl-v" id="v{v["v"].replace(".", "-")}"><div class="top"><span class="ver">{esc(v["v"])}</span><h2>{esc(v["title"])}</h2><span class="date">{ru_date(v["date"])}</span></div>'
+    + '<ul>' + ''.join(f'<li>{esc(i)}</li>' for i in v['items']) + '</ul></section>\n' for v in shown)
+vals['VERSION'] = shown[0]['v'] if shown else ''
+vals['VERSION_DATE'] = ru_date(shown[0]['date']) if shown else ''
 site_url = vals.get('SITE_URL', '').rstrip('/')
 
 missing = set()
@@ -42,7 +58,7 @@ for p in published:
     if not (HERE / p['file']).exists():
         print(f'ВНИМАНИЕ: опубликованный урок {p["n"]} не собран: {p["file"]}', file=sys.stderr)
 today = asof().date().isoformat()
-urls = [f'{site_url}/'] + [f'{site_url}/{p["file"]}' for p in published]
+urls = [f'{site_url}/', f'{site_url}/changelog.html'] + [f'{site_url}/{p["file"]}' for p in published]
 (HERE / 'sitemap.xml').write_text('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
     ''.join(f'  <url><loc>{u}</loc><lastmod>{today}</lastmod></url>\n' for u in urls) + '</urlset>\n', encoding='utf-8')
 (HERE / 'robots.txt').write_text(f'User-agent: *\nAllow: /\nSitemap: {site_url}/sitemap.xml\n', encoding='utf-8')

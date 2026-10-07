@@ -19,7 +19,7 @@ pub = published(cfg)
 if dist.exists():
     shutil.rmtree(dist)
 dist.mkdir(parents=True)
-for f in ['index.html', 'about.html', '404.html', 'robots.txt', 'sitemap.xml']:
+for f in ['index.html', 'about.html', 'changelog.html', '404.html', 'robots.txt', 'sitemap.xml']:
     shutil.copy2(site / f, dist / f)
 shutil.copytree(site / 'assets', dist / 'assets', ignore=shutil.ignore_patterns('sprite.svg.html', '.*'))
 (dist / 'lessons').mkdir()

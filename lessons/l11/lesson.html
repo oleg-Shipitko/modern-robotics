@@ -103,6 +103,9 @@
             <canvas id="alvOut" width="420" height="170" aria-label="Активации выходных нейронов, вершина горба и правильный ответ"></canvas>
           </div>
         </div>
+        <h4 class="alv-net-h">Сеть целиком: 240 пикселей → 12 скрытых нейронов → 15 делений руля</h4>
+        <canvas id="alvNet" width="640" height="250" role="img" aria-label="Схема сети: входная сетчатка 16 на 15 пикселей, 12 скрытых нейронов и 15 выходных; веса выбранного скрытого нейрона показаны как картинка, яркость — активации на текущей дороге"></canvas>
+        <p class="muted-s alv-net-cap">Яркость кружков и полосок — активации на текущей дороге. Нажми на скрытый нейрон: слева внизу его веса как картинка. Синие пиксели его включают, оранжевые гасят. До обучения веса случайные, после — похожи на кусочки дороги.</p>
         <div class="ctl-row">
           <label class="hd-range" id="alvCurveWrap"><span>Изгиб дороги</span><input type="range" id="alvCurve" min="-1" max="1" step="0.05" value="0.3"><output>0,3</output></label>
           <label class="hd-range" id="alvShiftWrap"><span>Смещение машины</span><input type="range" id="alvShift" min="-1" max="1" step="0.05" value="0"><output>0</output></label>
@@ -220,16 +223,17 @@
       <h2>Ошибка растёт как квадрат длины пути</h2>
       <p>Насколько быстро копятся ошибки, оценили Стефан Росс и Дрю Багнелл в 2010 году. Пусть сеть ошибается с вероятностью \(\varepsilon\) на состояниях оператора, а эпизод длится \(T\) шагов. Если бы ошибки были независимыми, за эпизод набралось бы около \(\varepsilon T\) ошибок.</p>
       <p>Но у behavior cloning первая ошибка уводит туда, где оператор не бывал, и дальше политика может ошибаться на каждом шаге. Поэтому в худшем случае ошибок набирается порядка \(\varepsilon T^2\).</p>
-      <p>На графике пунктир — независимые ошибки, оранжевая кривая — behavior cloning без навыка возвращаться, сплошная серая — политика, которая умеет вернуться на маршрут за k шагов. Вертикальная черта — поездка Ады: около 200 шагов по 50 мс. Задачи справа: подбери точность, при которой behavior cloning почти не ошибается, а потом посмотри, что даёт умение возвращаться.</p>
+      <p>На графике пунктир — независимые ошибки, оранжевая кривая — behavior cloning без навыка возвращаться, сплошная серая — политика, которая умеет вернуться на маршрут за k шагов. Вертикальная черта — поездка Ады: около 200 шагов по 50 мс. Обе оси логарифмические, поэтому квадрат на них выглядит прямой, только вдвое круче пунктира: при удвоении T независимых ошибок становится вдвое больше, у behavior cloning — вчетверо. Переключи оси на линейные, и кривая станет параболой. Задачи справа: подбери точность, при которой behavior cloning почти не ошибается, а потом посмотри, что даёт умение возвращаться.</p>
     </div>
     <div class="lab sq-lab">
       <div class="card scene-card">
         <div class="ctl-row sq-ctrl">
           <label class="hd-range" id="sqEpsWrap"><span>Вероятность ошибки ε</span><input type="range" id="sqEps" min="-5" max="-1.3" step="0.05" value="-3"><output>0,1%</output></label>
           <label class="hd-range" id="sqKWrap"><span>Умеет вернуться за k шагов</span><input type="range" id="sqK" min="1" max="60" step="1" value="10"><output>10</output></label>
+          <div class="seg" id="sqAxes" role="group" aria-label="Оси графика"><button type="button" data-v="log" aria-pressed="true">Логарифмические оси</button><button type="button" data-v="lin" aria-pressed="false">Линейные оси</button></div>
         </div>
         <canvas id="sqChart" width="760" height="300" aria-label="График числа ошибок от длины эпизода: независимые ошибки, behavior cloning, политика с возвратом"></canvas>
-        <div class="cv-legend"><span><i class="dash" style="--c: var(--ink-3)"></i>независимые ошибки, \(\varepsilon T\)</span><span><i style="--c: var(--e2e)"></i>behavior cloning</span><span><i style="--c: var(--ink-2)"></i>возврат за \(k\) шагов</span></div>
+        <div class="cv-legend"><span><i class="dash" style="--c: var(--ink-3)"></i>независимые ошибки, \(\varepsilon T\)</span><span><i style="--c: var(--e2e)"></i>behavior cloning</span><span><i class="dash" style="--c: var(--e2e)"></i>\(\varepsilon T^2/2\)</span><span><i style="--c: var(--ink-2)"></i>возврат за \(k\) шагов</span></div>
         <div class="sq-stats" id="sqStats"></div>
       </div>
       <div class="card guide-card"><div id="sqGuide"></div></div>

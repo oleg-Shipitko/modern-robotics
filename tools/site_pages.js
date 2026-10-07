@@ -22,6 +22,13 @@ const site = (f) => 'file://' + path.resolve(__dirname, '../site/' + f);
   console.log('после клика «Об авторе»: hash', await p.eval('location.hash'), '| верх блока', await p.eval('Math.round(document.querySelector("#about").getBoundingClientRect().top)'), '| подсвечен', await p.eval('document.querySelector(".nav-links a.on") && document.querySelector(".nav-links a.on").textContent'));
   await p.shotEl(out('site-index-about.png'), '#about', 20);
   await p.shotEl(out('site-index-nav.png'), '.nav', 0);
+  // «Что нового»: страница открывается, записи есть, в подвале главной ссылка с версией
+  const cl = await B.page(site('changelog.html'), { width: 1200, height: 900, light: true });
+  await cl.waitFor('document.readyState === "complete"'); await sleep(600);
+  const nv = await cl.eval('document.querySelectorAll(".cl-v").length'), v1 = await cl.eval('(document.querySelector(".cl-v .ver") || {}).textContent');
+  const foot = await p.eval('(document.querySelector("footer.foot a[href=\'changelog.html\']") || {}).textContent || ""');
+  console.log('что нового:', nv >= 1 && /^\d+\.\d+$/.test(v1) && foot.includes(v1) ? 'ок' : 'ОШИБКА', '| записей', nv, '| версия', v1, '| подвал:', foot, cl.logs.length ? '| консоль: ' + cl.logs.join(' | ') : '');
+  await cl.shot(out('site-changelog.png'), { x: 0, y: 0, width: 1200, height: Math.min(900, await cl.eval('document.documentElement.scrollHeight')) });
   const r = await B.page(site('about.html'), { width: 1200, height: 900, light: true });
   await sleep(1500);
   console.log('about.html → ', await r.eval('location.href.split("/site/")[1]'));

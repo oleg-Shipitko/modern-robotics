@@ -30,7 +30,7 @@ function initNav() {
 /* ---------- Мини-ALVINN: 16×15 пикселей → 12 скрытых → 15 делений руля ---------- */
 const Alvinn = (() => {
   const K = HeroKit, WI = 16, HI = 15, NH = 12, NO = 15, NIN = WI * HI, SHIFT_MAX = 0.3;
-  let net = null, trained = false, busy = false, seen = { left: false, right: false }, ctl = null, status = '';
+  let net = null, trained = false, busy = false, seen = { left: false, right: false }, ctl = null, status = '', sel = 4;   // sel — скрытый нейрон, чьи веса показаны
   function rng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
   /** Синтетическая дорога, как у Померло: камера смотрит вперёд, дорога сужается к горизонту. */
   function road(curve, shift, fork, r) {
@@ -86,8 +86,8 @@ const Alvinn = (() => {
   const peak = (out) => { let b = 0; for (let i = 1; i < NO; i++) if (out[i] > out[b]) b = i; return b; };
   function now() {
     const curve = +$('#alvCurve').value, shift = +$('#alvShift').value, fork = $('#alvFork').checked;
-    const img = road(curve, shift, fork, null), out = trained || busy ? forward(net, img).out : null, p = out ? peak(out) : null, t = idxOf(steerOf(curve, shift));
-    return { curve, shift, fork, img, out, p, t, err: out && !fork ? Math.abs(p - t) : null, steer: p == null ? null : p / (NO - 1) * 2 - 1 };
+    const img = road(curve, shift, fork, null), f = forward(net, img), live = trained || busy, out = live ? f.out : null, p = out ? peak(out) : null, t = idxOf(steerOf(curve, shift));
+    return { curve, shift, fork, img, out, hdn: f.hdn, rawOut: f.out, p, t, err: out && !fork ? Math.abs(p - t) : null, steer: p == null ? null : p / (NO - 1) * 2 - 1 };
   }
   /** Средняя ошибка в делениях на 40 новых дорогах из того же диапазона, что и обучающие. */
   function meanErr() { const r = rng(99); let s = 0; for (let k = 0; k < 40; k++) { const c = r() * 2 - 1, sft = (r() * 2 - 1) * SHIFT_MAX; s += Math.abs(peak(forward(net, road(c, sft, false, null)).out) - idxOf(steerOf(c, sft))); } return s / 40; }
@@ -110,6 +110,7 @@ const Alvinn = (() => {
     for (let i = 0; i < NO; i++) K.label(c, k, String(i + 1), i * bw + bw / 2, base + 21, { px: 10, color: P.ink3, halo: false, mono: true });
     for (const [t, x, a] of [['← влево', 6, 'left'], ['прямо', Wc / 2, 'center'], ['вправо →', Wc - 6, 'right']]) K.label(c, k, t, x, Hc - 10, { align: a, px: 11, color: P.ink3, halo: false });
     if (e.p != null) { const x = e.p * bw + bw / 2; c.fillStyle = P.ink; c.beginPath(); c.moveTo(x, 18); c.lineTo(x - 7, 8); c.lineTo(x + 7, 8); c.closePath(); c.fill(); }
+    drawNet(e);
     $('#alvCurve').nextElementSibling.textContent = fmtN(e.curve, 2); $('#alvShift').nextElementSibling.textContent = fmtN(e.shift, 2);
     ranges('#alvinn input[type=range]');
     if (trained && e.fork) { if (e.steer < -0.15) seen.left = true; if (e.steer > 0.15) seen.right = true; }
@@ -120,6 +121,59 @@ const Alvinn = (() => {
     else msg.innerHTML = `Вершина горба — на делении <b>${e.p + 1}</b>, правильный ответ — <b>${e.t + 1}</b>. Ошибка: <b>${e.err} ${plural(e.err, 'деление', 'деления', 'делений')}</b>${e.err >= 3 ? '. Сеть рулит неправильно.' : '.'}`;
     if (ctl) ctl.update();
   }
+  /* Схема сети: вход как картинка, веса выбранного скрытого нейрона как картинка, активации и связи. */
+  const NET = { W: 640, H: 250, cell: 6.4, gx: 18, g1: 24, g2: 140, hx: 300, ox: 560 };
+  const hidY = (j) => 30 + j * (206 / (NH - 1)), outY = (o) => 24 + o * (212 / (NO - 1));
+  const alphaC = (col, a) => { const m = /^#([0-9a-f]{6})$/i.exec(String(col).trim()); if (!m) return col; const n = parseInt(m[1], 16); return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`; };
+  function drawNet(e) {
+    const cv = $('#alvNet'); if (!cv) return;
+    const { c, k } = K.fit(cv, NET.W, NET.H), P = { ink: K.css('--ink'), ink2: K.css('--ink-2'), ink3: K.css('--ink-3'), e2e: K.css('--e2e'), cl: K.css('--classic'), grid: K.css('--line'), bg: K.css('--surface-2'), surf: K.css('--surface') };
+    const live = trained || busy, cs = NET.cell, gw = WI * cs, gh = HI * cs, narrow = k > 1.5, px = narrow ? 10 : 10.5;   // на телефоне подписи короче
+    c.fillStyle = P.bg; c.fillRect(0, 0, NET.W, NET.H);
+    // вход: картинка
+    for (let y = 0; y < HI; y++) for (let x = 0; x < WI; x++) { const v = e.img[y * WI + x]; c.fillStyle = `rgb(${Math.round(v * 220)},${Math.round(v * 228)},${Math.round(v * 255)})`; c.fillRect(NET.gx + x * cs, NET.g1 + y * cs, cs + 0.3, cs + 0.3); }
+    c.strokeStyle = P.ink3; c.lineWidth = 1; c.strokeRect(NET.gx, NET.g1, gw, gh);
+    K.label(c, k, narrow ? 'вход 16 × 15' : 'вход: 16 × 15 пикселей', NET.gx, NET.g1 - 11, { px, color: P.ink2, halo: false, align: 'left' });
+    // веса выбранного скрытого нейрона как картинка
+    let wmax = 1e-6; for (let i = 0; i < NIN; i++) wmax = Math.max(wmax, Math.abs(net.W1[i * NH + sel]));
+    for (let y = 0; y < HI; y++) for (let x = 0; x < WI; x++) { const w = net.W1[(y * WI + x) * NH + sel] / wmax; c.fillStyle = alphaC(w > 0 ? P.cl : P.e2e, 0.12 + 0.88 * Math.abs(w)); c.fillRect(NET.gx + x * cs, NET.g2 + y * cs, cs + 0.3, cs + 0.3); }
+    c.strokeStyle = P.ink3; c.strokeRect(NET.gx, NET.g2, gw, gh);
+    K.label(c, k, `веса нейрона ${sel + 1}${live || narrow ? '' : ': случайные'}`, NET.gx, NET.g2 - 11, { px, color: P.ink2, halo: false, align: 'left' });
+    // связи вход → скрытые и веса → выбранный нейрон
+    for (let j = 0; j < NH; j++) { c.strokeStyle = j === sel ? P.e2e : alphaC(P.ink3, 0.28); c.lineWidth = j === sel ? 1.8 : 0.8; c.beginPath(); c.moveTo(NET.gx + gw, NET.g1 + gh / 2); c.lineTo(NET.hx - 10, hidY(j)); c.stroke(); }
+    c.setLineDash([3, 4]); c.strokeStyle = P.e2e; c.lineWidth = 1.4; c.beginPath(); c.moveTo(NET.gx + gw, NET.g2 + gh / 2); c.lineTo(NET.hx - 10, hidY(sel)); c.stroke(); c.setLineDash([]);
+    // связи скрытые → выход: толщина и цвет по весу
+    let w2max = 1e-6; for (let i = 0; i < net.W2.length; i++) w2max = Math.max(w2max, Math.abs(net.W2[i]));
+    for (let j = 0; j < NH; j++) for (let o = 0; o < NO; o++) {
+      const w = net.W2[j * NO + o] / w2max, a = Math.abs(w);
+      if (j !== sel && a < 0.45) continue;
+      c.strokeStyle = alphaC(w > 0 ? P.cl : P.e2e, j === sel ? 0.25 + 0.65 * a : 0.08 + 0.3 * a); c.lineWidth = j === sel ? 0.8 + 1.6 * a : 0.7;
+      c.beginPath(); c.moveTo(NET.hx + 10, hidY(j)); c.lineTo(NET.ox - 16, outY(o)); c.stroke();
+    }
+    // скрытые нейроны: яркость — активация
+    for (let j = 0; j < NH; j++) {
+      const a = live ? e.hdn[j] : 0.15, y = hidY(j);
+      c.beginPath(); c.arc(NET.hx, y, 8, 0, Math.PI * 2); c.fillStyle = alphaC(P.cl, 0.1 + 0.9 * a); c.fill();
+      c.lineWidth = j === sel ? 2.4 : 1.2; c.strokeStyle = j === sel ? P.ink : P.ink3; c.stroke();
+    }
+    K.label(c, k, '12 скрытых', NET.hx, 12, { px, color: P.ink2, halo: false });
+    // выходы: полоски, вершина горба обведена
+    const out = live ? e.rawOut : null;
+    for (let o = 0; o < NO; o++) {
+      const a = out ? out[o] : 0.12, y = outY(o);
+      c.fillStyle = alphaC(P.e2e, 0.1 + 0.9 * a); c.fillRect(NET.ox - 14, y - 5, 28, 10);
+      c.lineWidth = out && o === e.p ? 2 : 1; c.strokeStyle = out && o === e.p ? P.ink : alphaC(P.ink3, 0.6); c.strokeRect(NET.ox - 14, y - 5, 28, 10);
+    }
+    K.label(c, k, narrow ? '15 выходов' : '15 выходов: руль', NET.ox + (narrow ? 14 : 0), 10, { px, color: P.ink2, halo: false, align: narrow ? 'right' : 'center' });
+    if (!narrow) { K.label(c, k, 'влево', NET.ox + 24, outY(0), { px: 10, color: P.ink3, halo: false, align: 'left' }); K.label(c, k, 'вправо', NET.ox + 24, outY(NO - 1), { px: 10, color: P.ink3, halo: false, align: 'left' }); }
+    K.label(c, k, narrow ? 'ALVINN 1989: 30 × 32 + дальномер → 29 → 45' : 'у ALVINN 1989 года: 30 × 32 пикселя и дальномер → 29 → 45', 330, NET.H - 9, { px, color: P.ink3, haloColor: P.bg });
+  }
+  function pickHidden(ev) {
+    const cv = $('#alvNet'), r = cv.getBoundingClientRect(), x = (ev.clientX - r.left) / r.width * NET.W, y = (ev.clientY - r.top) / r.height * NET.H;
+    if (Math.abs(x - NET.hx) > 40) return;
+    let best = 0; for (let j = 1; j < NH; j++) if (Math.abs(y - hidY(j)) < Math.abs(y - hidY(best))) best = j;
+    sel = best; draw();
+  }
   async function train() {
     if (busy) return null; busy = true;
     net = makeNet(5); status = 'Обучаем на 1200 синтетических дорогах…';
@@ -127,7 +181,7 @@ const Alvinn = (() => {
     trained = true; busy = false; draw();
     return { trained: true, meanErr: meanErr() };
   }
-  function state() { const e = now(); return { trained, err: e.err, fork: e.fork, steer: e.steer, seenLeft: seen.left, seenRight: seen.right, curve: e.curve, shift: e.shift }; }
+  function state() { const e = now(); return { trained, err: e.err, fork: e.fork, steer: e.steer, seenLeft: seen.left, seenRight: seen.right, curve: e.curve, shift: e.shift, sel }; }
   function reset() { net = makeNet(5); trained = false; seen = { left: false, right: false }; $('#alvCurve').value = 0.3; $('#alvShift').value = 0; $('#alvFork').checked = false; draw(); }
   const missions = [
     {
@@ -168,12 +222,13 @@ const Alvinn = (() => {
     net = makeNet(5);
     ['#alvCurve', '#alvShift'].forEach((s2) => $(s2).addEventListener('input', draw));
     $('#alvFork').addEventListener('input', () => { if ($('#alvFork').checked) { $('#alvCurve').value = 0; $('#alvShift').value = 0; } draw(); }); // развилку смотрим с прямой дороги
+    $('#alvNet').addEventListener('click', pickHidden);
     App.on('theme', draw); App.on('resize', draw);
     ctl = Missions.mount('#alvGuide', missions, { reset, state }, { controls: { curve: '#alvCurveWrap', shift: '#alvShiftWrap', fork: '#alvForkWrap' } });
     draw();
     return ctl;
   }
-  return { init, state, train, get ctl() { return ctl; } };
+  return { init, state, train, select: (j) => { sel = Math.max(0, Math.min(NH - 1, j)); draw(); }, get ctl() { return ctl; } };
 })();
 
 /* ---------- Лаборатория «Ты — оператор»: миссии на живой сцене ---------- */
@@ -392,7 +447,7 @@ const Debugger = (() => {
 const Square = (() => {
   const K = HeroKit, W = 760, T0 = 200;
   const tall = () => matchMedia('(max-width: 640px)').matches;
-  let ctl = null;
+  let ctl = null, axes = 'log';                                              // оси: логарифмические или линейные
   const iid = (e, T) => e * T;
   const bc = (e, T) => T - (1 - e) * (1 - Math.pow(1 - e, T)) / e;             // ожидаемое число шагов вне маршрута без возврата
   const rec = (e, T, k) => T * (e * k) / (1 + e * k);                        // доля времени вне маршрута при возврате за k шагов
@@ -407,16 +462,25 @@ const Square = (() => {
     const H = tall() ? 460 : 300, { c, k } = K.fit($('#sqChart'), W, H), P = { ink: K.css('--ink'), ink2: K.css('--ink-2'), ink3: K.css('--ink-3'), e2e: K.css('--e2e'), hy: K.css('--hybrid'), grid: K.css('--line'), bg: K.css('--surface') };
     const box = { l: 54 * k, r: W - 16 * k, t: 22 * k, b: H - 34 * k };
     c.fillStyle = P.bg; c.fillRect(0, 0, W, H);
-    const y0 = 1e-3;
-    const X = (T) => box.l + (Math.log10(T) - 1) / 2 * (box.r - box.l), Y = (v) => box.b - (Math.log10(Math.max(v, y0)) + 3) / 6 * (box.b - box.t);
+    const y0 = 1e-3, lin = axes === 'lin', Tmax = 1000;
+    const ymax = lin ? Math.max(1.2, bc(e, Tmax), rec(e, Tmax, kk), e * Tmax * Tmax / 2) * 1.06 : 0;   // опорная парабола тоже помещается
+    const X = lin ? (T) => box.l + T / Tmax * (box.r - box.l) : (T) => box.l + (Math.log10(T) - 1) / 2 * (box.r - box.l);
+    const Y = lin ? (v) => box.b - Math.min(v, ymax) / ymax * (box.b - box.t) : (v) => box.b - (Math.log10(Math.max(v, y0)) + 3) / 6 * (box.b - box.t);
     c.strokeStyle = P.grid; c.lineWidth = 1;
-    for (let p = -3; p <= 3; p++) { const y = Y(Math.pow(10, p)); c.beginPath(); c.moveTo(box.l, y); c.lineTo(box.r, y); c.stroke(); K.label(c, k, p >= 0 ? Math.pow(10, p).toLocaleString('ru-RU') : String(Math.pow(10, p)).replace('.', ','), box.l - 8, y, { align: 'right', px: 10.5, color: P.ink3, halo: false, mono: true }); }
-    for (const T of [10, 30, 100, 300, 1000]) { const x = X(T); c.beginPath(); c.moveTo(x, box.t); c.lineTo(x, box.b); c.stroke(); K.label(c, k, String(T), x, box.b + 12 * k, { px: 10.5, color: P.ink3, halo: false, mono: true, align: T === 1000 ? 'right' : T === 10 ? 'left' : 'center' }); }
+    if (lin) {
+      const step = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000].find((s2) => ymax / s2 <= 6) || 1000;
+      for (let v = 0; v <= ymax; v += step) { const y = Y(v); c.beginPath(); c.moveTo(box.l, y); c.lineTo(box.r, y); c.stroke(); K.label(c, k, v.toLocaleString('ru-RU'), box.l - 8, y, { align: 'right', px: 10.5, color: P.ink3, halo: false, mono: true }); }
+      for (const T of [0, 200, 400, 600, 800, 1000]) { const x = X(T); c.beginPath(); c.moveTo(x, box.t); c.lineTo(x, box.b); c.stroke(); K.label(c, k, String(T), x, box.b + 12 * k, { px: 10.5, color: P.ink3, halo: false, mono: true, align: T === 1000 ? 'right' : T === 0 ? 'left' : 'center' }); }
+    } else {
+      for (let p = -3; p <= 3; p++) { const y = Y(Math.pow(10, p)); c.beginPath(); c.moveTo(box.l, y); c.lineTo(box.r, y); c.stroke(); K.label(c, k, p >= 0 ? Math.pow(10, p).toLocaleString('ru-RU') : String(Math.pow(10, p)).replace('.', ','), box.l - 8, y, { align: 'right', px: 10.5, color: P.ink3, halo: false, mono: true }); }
+      for (const T of [10, 30, 100, 300, 1000]) { const x = X(T); c.beginPath(); c.moveTo(x, box.t); c.lineTo(x, box.b); c.stroke(); K.label(c, k, String(T), x, box.b + 12 * k, { px: 10.5, color: P.ink3, halo: false, mono: true, align: T === 1000 ? 'right' : T === 10 ? 'left' : 'center' }); }
+    }
     K.label(c, k, 'длина эпизода T, шагов', (box.l + box.r) / 2, H - 8 * k, { px: 11, color: P.ink2, halo: false });
     K.label(c, k, 'ошибок за эпизод', box.l, 9 * k, { align: 'left', px: 11, color: P.ink2, halo: false });
-    const curve = (f, col, lw, dash) => { c.strokeStyle = col; c.lineWidth = lw; c.setLineDash(dash || []); c.beginPath(); for (let i = 0; i <= 120; i++) { const T = Math.pow(10, 1 + 2 * i / 120), v = f(T); i ? c.lineTo(X(T), Y(v)) : c.moveTo(X(T), Y(v)); } c.stroke(); c.setLineDash([]); };
+    const curve = (f, col, lw, dash) => { c.strokeStyle = col; c.lineWidth = lw; c.setLineDash(dash || []); c.beginPath(); for (let i = 0; i <= 120; i++) { const T = lin ? 1 + (Tmax - 1) * i / 120 : Math.pow(10, 1 + 2 * i / 120), v = f(T); i ? c.lineTo(X(T), Y(v)) : c.moveTo(X(T), Y(v)); } c.stroke(); c.setLineDash([]); };
     // единица — граница «меньше одной ошибки за поездку»
-    c.strokeStyle = P.ink2; c.lineWidth = 1.2; c.setLineDash([2, 4]); c.beginPath(); c.moveTo(box.l, Y(1)); c.lineTo(box.r, Y(1)); c.stroke(); c.setLineDash([]);
+    if (!lin || ymax < 40) { c.strokeStyle = P.ink2; c.lineWidth = 1.2; c.setLineDash([2, 4]); c.beginPath(); c.moveTo(box.l, Y(1)); c.lineTo(box.r, Y(1)); c.stroke(); c.setLineDash([]); }
+    curve((T) => e * T * T / 2, P.e2e, 1.4, [3, 5]);                       // опорная парабола: пока ошибок мало, кривая идёт по ней
     curve((T) => iid(e, T), P.ink3, 2, [6, 5]);
     curve((T) => rec(e, T, kk), P.ink2, 2.4);
     curve((T) => bc(e, T), P.e2e, 2.6);
@@ -428,6 +492,7 @@ const Square = (() => {
   }
   const state = () => { const { e, k } = cur(); return { e, k, bc: bc(e, T0), rec: rec(e, T0, k), iid: iid(e, T0) }; };
   function reset() { $('#sqEps').value = -3; $('#sqK').value = 10; draw(); }
+  function setAxes(v) { axes = v === 'lin' ? 'lin' : 'log'; $$('#sqAxes button').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.v === axes))); draw(); }
   const missions = [
     {
       short: 'Точность', title: 'Подбери точность для behavior cloning',
@@ -451,12 +516,13 @@ const Square = (() => {
   ];
   function init() {
     ['#sqEps', '#sqK'].forEach((s2) => $(s2).addEventListener('input', draw));
+    $('#sqAxes').addEventListener('click', (ev) => { const b = ev.target.closest('button'); if (!b) return; setAxes(b.dataset.v); });
     App.on('theme', draw); App.on('resize', draw);
     ctl = Missions.mount('#sqGuide', missions, { reset, state }, { controls: { eps: '#sqEpsWrap', k: '#sqKWrap' } });
     draw();
     return ctl;
   }
-  return { init, state, get ctl() { return ctl; } };
+  return { init, state, setAxes, get axes() { return axes; }, get ctl() { return ctl; } };
 })();
 
 /* ---------- Сортировка: что поможет Аде ---------- */

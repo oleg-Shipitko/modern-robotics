@@ -31,6 +31,9 @@
 @media (min-width: 641px) { .alv-lab .alv-grid { grid-template-columns: minmax(0, 0.62fr) minmax(0, 1.5fr); } }
 @media (max-width: 640px) { .alv-lab #alvRoad { max-width: 190px; } .dbg-chart { aspect-ratio: 600 / 270; } #sqChart { aspect-ratio: 760 / 460; } }
 #alvOut { aspect-ratio: 420 / 170; }
+.alv-net-h { margin: 16px 0 6px; font-size: 15px; }
+#alvNet { width: 100%; height: auto; aspect-ratio: 640 / 250; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2); display: block; cursor: pointer; }
+.alv-net-cap { margin: 8px 0 0; }
 .alv-lab .lab-msg { font-size: 14.5px; }
 
 /* отладчик эпизода */
