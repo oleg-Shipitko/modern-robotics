@@ -54,6 +54,31 @@ LESSONS = {
     'l23': ('2-3-llm-planirovshchiki.html', ['l01/lesson.css', 'shared/lab.css', 'l23/l23.css'], {
         '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'l23/engine.js', 'l23/ui-l23.js'],
     }),
+    # часть 3: мир стола из 2.1 (l21/engine.js) для 3.1–3.6, рука Ады (shared/arm-core.js) для 3.7, схемы — shared/anim.js
+    'l31': ('3-1-rt-1.html', ['l01/lesson.css', 'shared/lab.css', 'l31/l31.css'], {
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'l21/engine.js', 'l31/engine.js', 'l31/ui-l31.js'],
+    }),
+    'l32': ('3-2-vision-language-modeli.html', ['l01/lesson.css', 'shared/lab.css', 'l32/l32.css'], {
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'l21/engine.js', 'l32/engine.js', 'l32/ui-l32.js'],
+    }),
+    'l33': ('3-3-rt-2.html', ['l01/lesson.css', 'shared/lab.css', 'l33/l33.css'], {
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'l21/engine.js', 'l33/engine.js', 'l33/ui-l33.js'],
+    }),
+    'l34': ('3-4-open-x-embodiment.html', ['l01/lesson.css', 'shared/lab.css', 'l34/l34.css'], {
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'l21/engine.js', 'l34/engine.js', 'l34/ui-l34.js'],
+    }),
+    'l35': ('3-5-otkrytye-vla.html', ['l01/lesson.css', 'shared/lab.css', 'l35/l35.css'], {
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'l21/engine.js', 'l35/engine.js', 'l35/ui-l35.js'],
+    }),
+    'l36': ('3-6-pi0.html', ['l01/lesson.css', 'shared/lab.css', 'l36/l36.css'], {
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'l21/engine.js', 'l36/engine.js', 'l36/ui-l36.js'],
+    }),
+    'l37': ('3-7-dvukhurovnevye-arkhitektury.html', ['l01/lesson.css', 'shared/lab.css', 'l37/l37.css'], {
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'shared/arm-core.js', 'l37/engine.js', 'l37/ui-l37.js'],
+    }),
+    'l38': ('3-8-obobshchenie-i-rassuzhdenie.html', ['l01/lesson.css', 'shared/lab.css', 'l38/l38.css'], {
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'l21/engine.js', 'l38/engine.js', 'l38/ui-l38.js'],
+    }),
     # глоссарий: все термины из shared/glossary.json, без отзыва и «спасибо»
     'gl': ('glossariy.html', ['l01/lesson.css', 'gl/gl.css'], {
         '/*@@JS@@*/': ['l01/ui-core.js', 'gl/ui-gl.js'],
@@ -64,6 +89,9 @@ LESSONS = {
     }),
     'c2': ('proverka-chasti-2.html', ['l01/lesson.css', 'shared/lab.css', 'shared/check.css', 'c2/c2.css'], {
         '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'l21/engine.js', 'shared/check.js', 'c2/ui-c2.js'],
+    }),
+    'c3': ('proverka-chasti-3.html', ['l01/lesson.css', 'shared/lab.css', 'shared/check.css', 'c3/c3.css'], {
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'l21/engine.js', 'shared/check.js', 'c3/ui-c3.js'],
     }),
     'c1': ('proverka-chasti-1.html', ['l01/lesson.css', 'shared/lab.css', 'shared/check.css', 'c1/c1.css'], {
         '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/kettle-core.js', 'shared/kettle-draw.js', 'shared/check.js', 'c1/ui-c1.js'],
@@ -234,7 +262,11 @@ def build(key):
     out.write_text(html, encoding='utf-8')
     print(f'OK {out.relative_to(root.parent)} ({out.stat().st_size/1024:.0f} КБ)')
 keys = list(LESSONS) if (len(sys.argv) > 1 and sys.argv[1] == 'all') else [sys.argv[1] if len(sys.argv) > 1 else 'l01']
+def assets_of(k):
+    name, css, js = LESSONS[k]
+    return [root / k / 'lesson.html'] + [root / f for f in css] + [root / f for group in js.values() for f in group]
 for k in keys:
-    if not (root / k / 'lesson.html').exists():
-        print(f'— {k}: урок ещё не собран, пропускаю'); continue
+    missing = [str(f.relative_to(root)) for f in assets_of(k) if not f.exists()]
+    if missing:
+        print(f'— {k}: не хватает файлов ({", ".join(missing[:3])}), пропускаю'); continue
     build(k)
