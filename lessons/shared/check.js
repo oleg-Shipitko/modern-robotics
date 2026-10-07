@@ -76,7 +76,7 @@ window.PartCheck = function (cfg) {
     $('#quizScore').textContent = `Итог: ${right} из ${N}. ${right >= N - 2 ? cfg.passText : 'Ниже — разделы уроков, которые стоит повторить.'}`;
     const by = {};
     Q.forEach((q, i) => { (by[q.l] = by[q.l] || [0, 0]); by[q.l][1]++; if (res[i]) by[q.l][0]++; });
-    $('#chkTable').innerHTML = Object.keys(LESSON).map((l) => `<div class="chk-tr"><span>${l} ${LESSON[l][0]}</span><b>${by[l][0]} из ${by[l][1]}</b></div>`).join('');
+    $('#chkTable').innerHTML = Object.keys(LESSON).filter((l) => by[l]).map((l) => `<div class="chk-tr"><span>${l} ${LESSON[l][0]}</span><b>${by[l][0]} из ${by[l][1]}</b></div>`).join('');
     const wrong = Q.map((q, i) => (res[i] ? null : q)).filter(Boolean);
     $('#chkReview').innerHTML = wrong.length ? wrong.map((q) => `<li><a href="${LESSON[q.l][1]}#${q.sec}">${q.l} · ${q.st}</a><span>${q.q.length > 90 ? q.q.slice(0, 88) + '…' : q.q}</span></li>`).join('') : '<li><strong>Повторять нечего</strong><span>Все задания решены верно.</span></li>';
     $('#chkResult').hidden = false;

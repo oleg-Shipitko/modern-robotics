@@ -8,6 +8,7 @@
 (function () {
   'use strict';
   const K = window.HeroKit, E = window.L21;
+  const TABLE = { ink: '#0b0b0b', halo: '#fffefb', good: '#0ca30c', bad: '#d03b3b' };
   const LESSON = {
     '2.1': ['Transporter и CLIPort', '2-1-transporter-i-cliport.html'],
     '2.2': ['PerAct: 3D-представления и язык', '2-2-peract.html'],
@@ -81,8 +82,10 @@
       const bc = bm.getContext('2d'), d = bc.createImageData(E.TW, E.TW);
       for (let i = 0; i < E.TW * E.TW; i++) { d.data[i * 4] = sc.img[i * 3] * 255; d.data[i * 4 + 1] = sc.img[i * 3 + 1] * 255; d.data[i * 4 + 2] = sc.img[i * 3 + 2] * 255; d.data[i * 4 + 3] = 255; }
       bc.putImageData(d, 0, 0); c.imageSmoothingEnabled = false; c.drawImage(bm, 0, 0, W, W);
-      if (st.res) { const r = st.res.picks[st.cur], s2 = W / E.TW, col = K.css(r.ok ? '--good' : '--critical'); c.beginPath(); c.arc(r.p.x * s2, r.p.y * s2, 17, 0, 7); c.lineWidth = 3.2; c.strokeStyle = col; c.stroke(); K.label(c, k, r.ok ? 'взял названный кубик' : 'взял не то', r.p.x * s2, r.p.y * s2 - 28, { px: 12, weight: 700, color: col }); }
-      K.label(c, k, '«возьми фиолетовый кубик»', W / 2, 16, { px: 12.5, weight: 700, color: K.css('--ink') });
+      // стол всегда светлый, поэтому подписи на нём в цветах светлой темы и не выходят за край
+      const tag = (text, x, y, color) => { K.font(c, k, 12, 700); const w = c.measureText(text).width / 2 + 6 * k; K.label(c, k, text, Math.max(w, Math.min(W - w, x)), y, { px: 12, weight: 700, color, haloColor: TABLE.halo }); };
+      if (st.res) { const r = st.res.picks[st.cur], s2 = W / E.TW, col = r.ok ? TABLE.good : TABLE.bad; c.beginPath(); c.arc(r.p.x * s2, r.p.y * s2, 17, 0, 7); c.lineWidth = 3.2; c.strokeStyle = col; c.stroke(); tag(r.ok ? 'взял названный кубик' : 'взял не то', r.p.x * s2, r.p.y * s2 - 28, col); }
+      tag('«возьми фиолетовый кубик»', W / 2, 16, TABLE.ink);
     }
     go.addEventListener('click', async () => {
       if (st.busy || api.isDone()) return;
