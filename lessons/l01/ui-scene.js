@@ -147,8 +147,8 @@ const SceneView = (() => {
     ctx.beginPath(); ctx.moveTo(x - r, y); ctx.lineTo(x + r, y); ctx.moveTo(x, y - r); ctx.lineTo(x, y + r); ctx.stroke();
   }
 
-  function drawGripper(ctx, g, S, color, heading, state) {
-    const x = g.x * S, y = g.y * S, r = RC.GRIP_R * S;
+  function drawGripper(ctx, g, S, color, heading, state, scale) {
+    const x = g.x * S, y = g.y * S, r = RC.GRIP_R * S * (scale || 1);
     ctx.save(); ctx.translate(x, y); ctx.rotate(heading || 0);
     ctx.fillStyle = 'rgba(20,15,10,0.25)'; ctx.beginPath(); ctx.arc(2, 3, r * 1.15, 0, Math.PI * 2); ctx.fill();
     // рука Ады: тёплый белый корпус запястья, графитовые пальцы, фиолетовая метка
@@ -256,7 +256,10 @@ const SceneView = (() => {
       ctx.strokeStyle = opts.color || '#eb6834'; ctx.lineWidth = Math.max(1.5, S / 90); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
       ctx.beginPath(); opts.demoPath.forEach((p, i) => (i ? ctx.lineTo(p.x * S, p.y * S) : ctx.moveTo(p.x * S, p.y * S))); ctx.stroke();
       const e = opts.demoPath[0];
-      circle(ctx, e.x * S, e.y * S, Math.max(2.5, S / 50), '#fff', opts.color || '#eb6834', 1.5);
+      if (opts.demoHand) { // рука в начале пути, захватом по ходу движения
+        const f = opts.demoPath[Math.min(opts.demoPath.length - 1, 4)];
+        drawGripper(ctx, e, S, opts.color || '#eb6834', Math.atan2(f.y - e.y, f.x - e.x), null, opts.demoHand);
+      } else circle(ctx, e.x * S, e.y * S, Math.max(2.5, S / 50), '#fff', opts.color || '#eb6834', 1.5);
     }
     if (ep) {
       const color = AGENT_COLORS[opts.kind];

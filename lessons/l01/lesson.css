@@ -255,6 +255,11 @@ pre.code .cm { color: var(--muted); }
 .vs span { width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; background: var(--surface); border: 1px solid var(--line); }
 .demo-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 .demo-grid canvas { width: 100%; aspect-ratio: 1; border-radius: 6px; }
+.demo-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; margin: 12px 0 0; font-size: 14.5px; color: var(--ink-2); }
+.demo-legend span { display: inline-flex; align-items: center; gap: 7px; }
+.demo-legend svg { width: 20px; height: 20px; flex: none; }
+.demo-legend svg.wide { width: 28px; height: 14px; }
+.paradigm p.demo-note { margin: 6px 0 0; font-size: 14px; color: var(--ink-3); }
 .hero-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin-top: 8px; }
 .hero-list div { padding: 14px 16px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); font-size: 15px; color: var(--ink-2); line-height: 1.45; }
 .hero-list b { display: block; font-size: 13px; color: var(--ink-3); margin-bottom: 4px; letter-spacing: .03em; }
