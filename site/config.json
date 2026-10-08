@@ -4,8 +4,6 @@
   "LINKEDIN": "https://www.linkedin.com/in/shipitkooleg",
   "GITHUB": "https://github.com/oleg-Shipitko",
   "REPO": "https://github.com/oleg-Shipitko/modern-robotics",
-  "EMAIL": "oleg.ht.shipitko@yandex.ru",
-  "_comment_email": "EMAIL — почта владельца сайта для вопросов и заявлений правообладателей (ст. 10 и 15.7 закона 149-ФЗ); показывается на странице privacy.html.",
   "SITE_URL": "https://modernrobotics.ru",
   "THANKS_API": "https://functions.yandexcloud.net/d4ej4ro59ovro5shgk5i",
   "_comment_thanks": "THANKS_API — адрес функции-счётчика «Сказать спасибо»; server/thanks/deploy.sh записывает его сам. Пока пусто, кнопка работает без числа.",
