@@ -1,0 +1,50 @@
+/* ---------- урок 4.1 «Масштаб данных в робототехнике» ---------- */
+.cv-note { margin: 6px 2px 0; font-size: 13px; line-height: 1.45; color: var(--ink-3); }
+.ctl { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ctl-l { font-size: 13.5px; font-weight: 650; color: var(--ink-3); }
+.ctl-row [hidden] { display: none !important; }
+.gap-cv { width: 100%; height: auto; aspect-ratio: 640 / 330; touch-action: pan-y; border-radius: 12px; border: 1px solid var(--line); display: block; }
+.plot-cv { width: 100%; height: auto; aspect-ratio: 640 / 340; border-radius: 12px; border: 1px solid var(--line); display: block; margin-top: 12px; }
+.hd-range.wide input { width: 190px; }
+.ctl-row .hd-range output { min-width: 52px; }
+.readout .big { font-family: var(--mono); font-size: 15px; color: var(--ink); }
+
+/* две панели рядом */
+.duo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+.pane { margin: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--surface); display: flex; flex-direction: column; min-width: 0; }
+.pane-head { padding: 7px 10px 6px; border-bottom: 1px solid var(--line); display: grid; gap: 1px; font-size: 12.5px; line-height: 1.35; color: var(--ink-3); }
+.pane-head b { display: flex; align-items: center; gap: 7px; font-size: 14.5px; color: var(--ink); }
+.pane-head b::before { content: ""; width: 10px; height: 10px; border-radius: 3px; background: var(--classic); flex: none; }
+.pane-head b.fm::before { background: var(--e2e); }
+.pane-head b.pp::before { background: var(--ink-3); }
+.pane canvas { width: 100%; height: auto; aspect-ratio: 1; display: block; touch-action: pan-y; }
+.pane-stat { padding: 7px 10px; font-size: 13.5px; border-top: 1px solid var(--line); min-height: 36px; color: var(--ink-2); line-height: 1.35; }
+.pane-stat b { color: var(--ink); }
+.pane-stat.ok { background: var(--good-soft); }
+@supports (grid-template-rows: subgrid) {
+  .duo { grid-template-rows: auto auto auto; }
+  .pane { display: grid; grid-row: span 3; grid-template-rows: subgrid; row-gap: 0; }
+}
+.prog-line { height: 4px; border-radius: 2px; background: var(--surface-2); overflow: hidden; margin-top: 10px; }
+.prog-line i { display: block; height: 100%; width: 0; background: var(--e2e); }
+.prog-line[hidden] { display: none; }
+.btn.sm:disabled { opacity: .5; cursor: default; }
+
+/* живые миссии: невыполненный критерий — «ещё нет», серым */
+.m-live .m-crit li.no i { border-color: var(--line-2); color: var(--ink-3); background: var(--surface-2); }
+.m-live .m-crit li.no i::before { content: '·'; }
+
+/* схема опыта */
+.flow-card { margin: 18px 0 0; padding: 14px 14px 12px; }
+.flow-card figcaption { margin: 10px 2px 0; }
+.anim-cv { width: 100%; height: auto; display: block; aspect-ratio: 720 / 250; cursor: pointer; }
+
+@media (max-width: 560px) {
+  .duo { gap: 6px; }
+  .pane-head { padding: 6px 7px 5px; font-size: 11.5px; }
+  .pane-head b { font-size: 13px; }
+  .pane-stat { padding: 6px 7px; font-size: 12px; }
+  .ctl-row .hd-range { display: grid; grid-template-columns: 112px 1fr 56px; width: 100%; }
+  .ctl-row .hd-range input, .hd-range.wide input { width: 100%; }
+  .seg button { padding-left: 9px; padding-right: 9px; }
+}
