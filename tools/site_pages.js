@@ -29,6 +29,17 @@ const site = (f) => 'file://' + path.resolve(__dirname, '../site/' + f);
   const foot = await p.eval('(document.querySelector("footer.foot a[href=\'changelog.html\']") || {}).textContent || ""');
   console.log('что нового:', nv >= 1 && /^\d+\.\d+$/.test(v1) && foot.includes(v1) ? 'ок' : 'ОШИБКА', '| записей', nv, '| версия', v1, '| подвал:', foot, cl.logs.length ? '| консоль: ' + cl.logs.join(' | ') : '');
   await cl.shot(out('site-changelog.png'), { x: 0, y: 0, width: 1200, height: Math.min(900, await cl.eval('document.documentElement.scrollHeight')) });
+  // Политика конфиденциальности: страница открывается, в ней почта владельца; ссылка в подвале главной и «Что нового»
+  for (const vp of [{ width: 1200, height: 900, light: true, t: 'light' }, { width: 1200, height: 900, dark: true, t: 'dark' }, { width: 390, height: 844, dpr: 2, mobile: true, light: true, t: 'mobile' }]) {
+    const pp = await B.page(site('privacy.html'), vp);
+    await pp.waitFor('document.readyState === "complete"'); await sleep(500);
+    const info = JSON.parse(await pp.eval(`JSON.stringify({ h1: document.querySelector('h1').textContent, mail: (document.querySelector('a[href^="mailto:"]') || {}).textContent || '', h2: document.querySelectorAll('main h2').length, sw: document.documentElement.scrollWidth, h: document.documentElement.scrollHeight })`));
+    const good = info.h1 === 'Политика конфиденциальности' && info.mail === 'oleg.shipitko.personal@gmail.com' && info.h2 >= 8 && info.sw <= vp.width && !pp.logs.length;
+    console.log('политика', vp.t + ':', good ? 'ок' : 'ОШИБКА', '| почта', info.mail, '| разделов', info.h2, info.sw > vp.width ? '| ГОРИЗОНТАЛЬНАЯ ПРОКРУТКА ' + info.sw : '', pp.logs.length ? '| консоль: ' + pp.logs.join(' | ') : '');
+    await pp.shot(out(`site-privacy-${vp.t}.png`), { x: 0, y: 0, width: vp.width, height: Math.min(info.h, 4000) });
+  }
+  const ppFoot = await p.eval('!!document.querySelector("footer.foot a[href=\'privacy.html\']")') && await cl.eval('!!document.querySelector("footer.foot a[href=\'privacy.html\']")');
+  console.log('ссылка на политику в подвале главной и «Что нового»:', ppFoot ? 'ок' : 'ОШИБКА');
   const r = await B.page(site('about.html'), { width: 1200, height: 900, light: true });
   await sleep(1500);
   console.log('about.html → ', await r.eval('location.href.split("/site/")[1]'));

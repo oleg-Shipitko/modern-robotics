@@ -104,9 +104,15 @@ ok(call('GET', k='evil')[0] == 400, 'неизвестный счётчик — 4
 code, body, h = call('OPTIONS', origin=SITE)
 ok(code == 204 and 'POST' in h['Access-Control-Allow-Methods'], 'OPTIONS — 204 с разрешёнными методами')
 ok(call('GET', origin='https://other.example')[2]['Access-Control-Allow-Origin'] == '*', 'GET читается с любого сайта')
-codes = [call('POST', origin=SITE, ip='3.3.3.3')[0] for _ in range(index.LIMIT + 1)]
-ok(codes[:-1] == [200] * index.LIMIT and codes[-1] == 429, f'{index.LIMIT + 1}-е спасибо за минуту с одного адреса — 429')
-ok(call('POST', origin=SITE, ip='4.4.4.4')[0] == 200, 'другой адрес не задет')
+saved, index.LIMIT = index.LIMIT, 5
+index._hits.clear()
+codes = [call('POST', origin=SITE, ip=f'3.3.3.{k}')[0] for k in range(6)]
+ok(codes[:-1] == [200] * 5 and codes[-1] == 429, 'спасибо сверх LIMIT за минуту на экземпляр — 429, с каких бы адресов они ни шли')
+index.LIMIT = saved
+index._hits.clear()
+src = open(index.__file__, encoding='utf-8').read()
+ok('sourceIp' not in src and 'x-forwarded-for' not in src, 'функция не читает IP-адрес читателя')
+ok(call('POST', origin=SITE, ip='4.4.4.4')[0] == 200, 'после нового окна спасибо снова принимаются')
 
 
 class Broken:

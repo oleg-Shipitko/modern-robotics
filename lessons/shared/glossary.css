@@ -13,7 +13,7 @@
 .topbar-gl:hover { background: var(--bg-2); color: var(--ink); }
 .toc + .topbar-gl { margin-left: 0; }
 .topbar-inner > .brand + .topbar-gl { margin-left: auto; }
-.foot-gl { margin: 8px 0 0; }
-.foot-gl a { color: inherit; }
+.foot-gl, .foot-pp { margin: 8px 0 0; }
+.foot-gl a, .foot-pp a { color: inherit; }
 @media (max-width: 820px) { .topbar-gl, .toc + .topbar-gl { margin-left: auto; } } /* оглавление на узких экранах скрыто — ссылка уходит вправо */
 @media (max-width: 560px) { .topbar-gl { display: none; } }

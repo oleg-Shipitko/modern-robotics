@@ -73,9 +73,10 @@ const check = (ok, msg) => { if (!ok) bad++; console.log((ok ? '  ✓ ' : '  ✗
   check(!(await f.eval('document.querySelector(".fb-more").hidden')), 'после оценки появилось поле «что осталось непонятным»');
   await f.eval(`document.querySelector('.fb-opts button[data-r="bad"]').click(); true`); await sleep(300);
   check(got.slice(before2).filter((b) => b.fb).length === 1, 'смена оценки не считается второй оценкой');
-  await f.eval(`(() => { const t = document.querySelector('.fb textarea'); t.value = 'Неясно, как выбирать горизонт исполнения.'; document.querySelector('.fb-send').click(); return true; })()`); await sleep(300);
+  await f.eval(`(() => { const t = document.querySelector('.fb textarea'); t.value = 'Неясно, как выбирать горизонт исполнения. Ответьте на ivan.petrov@mail.ru или +7 (999) 123-45-67.'; document.querySelector('.fb-send').click(); return true; })()`); await sleep(300);
   const fb2 = got.slice(before2).filter((b) => b.fb && b.fb.t);
   check(fb2.length === 1 && fb2[0].fb.r === 'bad' && /горизонт/.test(fb2[0].fb.t), 'текст ушёл вместе с последней оценкой');
+  check(fb2.length === 1 && !/@|999/.test(fb2[0].fb.t) && /\[почта удалена\]/.test(fb2[0].fb.t) && /\[телефон удалён\]/.test(fb2[0].fb.t), 'почта и телефон вырезаны ещё до отправки: ' + (fb2[0] ? fb2[0].fb.t : ''));
   check(!(await f.eval('document.querySelector(".fb-done").hidden')) && (await f.eval('localStorage.getItem("mr-fb:1-5-diffusion-policy")')) === 'bad', 'показано «Спасибо, отзыв записан», урок отмечен как оценённый');
   const nBefore = got.length;
   await f.S('Page.reload'); await f.waitFor('document.readyState === "complete"'); await sleep(900);

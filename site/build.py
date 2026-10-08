@@ -58,7 +58,7 @@ for p in published:
     if not (HERE / p['file']).exists():
         print(f'ВНИМАНИЕ: опубликованный урок {p["n"]} не собран: {p["file"]}', file=sys.stderr)
 today = asof().date().isoformat()
-urls = [f'{site_url}/', f'{site_url}/changelog.html'] + [f'{site_url}/{p["file"]}' for p in published]
+urls = [f'{site_url}/', f'{site_url}/changelog.html', f'{site_url}/privacy.html'] + [f'{site_url}/{p["file"]}' for p in published]
 (HERE / 'sitemap.xml').write_text('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
     ''.join(f'  <url><loc>{u}</loc><lastmod>{today}</lastmod></url>\n' for u in urls) + '</urlset>\n', encoding='utf-8')
 (HERE / 'robots.txt').write_text(f'User-agent: *\nAllow: /\nSitemap: {site_url}/sitemap.xml\n', encoding='utf-8')

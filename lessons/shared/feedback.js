@@ -5,6 +5,8 @@
    Оценка уходит сразу после выбора, текст — по кнопке «Отправить».
    Сервер — та же функция, что у статистики (window.MR_STATS_API):
    оценку он добавляет к суммам урока, текст хранит без имени и контактов.
+   Адреса почты и номера телефонов вырезаются из текста ещё здесь, до отправки
+   (scrub; та же логика — в server/stats/index.py, повторно на сервере).
    В браузере запоминается только то, что урок уже оценён (localStorage),
    чтобы при повторном заходе не просить оценку снова.
    ===================================================================== */
@@ -17,6 +19,13 @@
   const live = !!API && (window.MR_STATS_FORCE === true || /(^|\.)modernrobotics\.ru$/.test(location.hostname));
   const KEY = 'mr-fb:' + page;
   const LABEL = { good: 'Всё понятно', mid: 'Местами сложно', bad: 'Многое непонятно' };
+  const EMAIL = /[^\s@()«»"']+@[^\s@]+\.[^\s@.,;:!?()«»"']+/g;
+  const PHONE = /(^|\D)(\+?\d[\d \t().\-]{8,}\d)(?!\d)/g;
+  const GROUPED = /^\d{1,3}(?: \d{3})+$/; // «1 000 000 000» — число с разрядами, а не телефон
+  const scrub = (t) => t.replace(EMAIL, '[почта удалена]').replace(PHONE, (m, pre, num) => {
+    const digits = num.replace(/\D/g, '').length;
+    return pre + (digits >= 10 && digits <= 15 && !GROUPED.test(num) ? '[телефон удалён]' : num);
+  });
   const store = (v) => { try { if (v === undefined) return localStorage.getItem(KEY); localStorage.setItem(KEY, v); } catch (e) { /* приватный режим */ } return null; };
   function send(fb) {
     if (!live) return;
@@ -42,7 +51,7 @@
     if (first) text.focus({ preventScroll: true });
   }));
   sendBtn.addEventListener('click', () => {
-    const t = text.value.trim().slice(0, 1000);
+    const t = scrub(text.value.trim()).slice(0, 1000);
     if (!t) { text.focus(); return; }
     send({ r: rating, t });
     store(rating);

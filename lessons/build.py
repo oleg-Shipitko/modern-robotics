@@ -133,7 +133,7 @@ FEEDBACK = ('  <div class="fb" data-fb>\n'
             '    <div class="fb-saved" hidden aria-live="polite">✓ Оценка записана. Если хочешь, напиши, что осталось непонятным, — это необязательно.</div>\n'
             '    <div class="fb-more" hidden><label for="fbText">Что осталось непонятным или что стоит улучшить?</label>'
             '<textarea id="fbText" maxlength="1000" rows="3"></textarea>'
-            '<div class="fb-row"><button type="button" class="fb-send">Отправить</button><span class="fb-note">Отзыв сохраняется без имени и контактов, поэтому ответить на него не получится.</span></div></div>\n'
+            '<div class="fb-row"><button type="button" class="fb-send">Отправить</button><span class="fb-note">Отзыв сохраняется без имени и контактов: адреса почты и номера телефонов удаляются ещё до отправки. Поэтому ответить на него не получится.</span></div></div>\n'
             '    <div class="fb-done" hidden aria-live="polite">Спасибо, отзыв записан.</div>\n'
             '    <div class="fb-bug">Нашли ошибку или неточность? <a href="{issue}" target="_blank" rel="noopener">Сообщить на GitHub</a></div>\n'
             '  </div>\n')
@@ -254,6 +254,8 @@ def build(key):
         assert '<button class="theme-btn"' in html and '</footer>' in html, key
         html = html.replace('<button class="theme-btn"', '<a class="topbar-gl" href="glossariy.html">Глоссарий</a>\n    <button class="theme-btn"', 1)
         html = html.replace('</footer>', '  <p class="foot-gl"><a href="glossariy.html">Глоссарий курса</a> — термины с определениями и ссылками на уроки.</p>\n</footer>', 1)
+    # политика конфиденциальности — в подвале каждой страницы курса
+    html = html.replace('</footer>', '  <p class="foot-pp"><a href="../privacy.html">Политика конфиденциальности</a></p>\n</footer>', 1)
     if key.startswith('l'):
         html = add_thanks(html, name)
     html = add_stats(html)

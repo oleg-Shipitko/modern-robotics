@@ -5,12 +5,13 @@ POST — прибавить одно спасибо и вернуть новое
 ?k=test — отдельный счётчик для проверки после выкладки, на сайте не показывается.
 
 Число лежит в YDB serverless: таблица thanks, одна строка на счётчик; таблица создаётся при первом запросе.
-О людях ничего не хранится. Переменные окружения: YDB_ENDPOINT, YDB_DATABASE, SITE (домен сайта).
+О людях ничего не хранится и не читается: IP-адрес функция не использует. Переменные окружения: YDB_ENDPOINT, YDB_DATABASE, SITE (домен сайта).
 Выкладка — deploy.sh рядом.
 """
 import json
 import os
 import time
+from collections import deque
 
 import ydb
 import ydb.iam
@@ -19,14 +20,14 @@ TABLE = 'thanks'
 KEYS = ('course', 'test')
 SITE = os.environ.get('SITE', 'modernrobotics.ru')
 ORIGINS = {f'{s}://{h}' for s in ('https', 'http') for h in (SITE, 'www.' + SITE)}
-LIMIT, WINDOW = 20, 60      # с одного адреса — не больше 20 спасибо в минуту (учёт в памяти экземпляра, не в базе)
+LIMIT, WINDOW = 120, 60     # не больше 120 спасибо в минуту на экземпляр функции: общий счёт в памяти, без IP-адресов
 CACHE_S = 10                # GET отдаёт число из памяти, если оно свежее 10 секунд: меньше чтений базы
 
 SELECT = f'DECLARE $id AS Utf8; SELECT n FROM {TABLE} WHERE id = $id;'
 UPSERT = f'DECLARE $id AS Utf8; DECLARE $n AS Uint64; UPSERT INTO {TABLE} (id, n) VALUES ($id, $n);'
 
 _pool = None
-_hits = {}
+_hits = deque()  # время принятых спасибо за последнюю минуту — общее для экземпляра, без адресов
 _cache = {}
 
 
@@ -79,15 +80,15 @@ def bump(key):
     return run(callee)
 
 
-def allowed(addr):
-    if not addr:
-        return True
+def allowed():
+    """Общее ограничение частоты на экземпляр функции. IP-адрес не читаем: о читателях функция ничего не знает."""
     now = time.time()
-    if len(_hits) > 10000:
-        _hits.clear()
-    recent = [t for t in _hits.get(addr, ()) if now - t < WINDOW]
-    _hits[addr] = recent + [now] if len(recent) < LIMIT else recent
-    return len(recent) < LIMIT
+    while _hits and now - _hits[0] >= WINDOW:
+        _hits.popleft()
+    if len(_hits) >= LIMIT:
+        return False
+    _hits.append(now)
+    return True
 
 
 def reply(code, body, headers):
@@ -115,9 +116,7 @@ def handler(event, context):
         elif method == 'POST':
             if origin not in ORIGINS:
                 return reply(403, {'error': 'origin'}, cors)
-            ip = ((event.get('requestContext') or {}).get('identity') or {}).get('sourceIp') \
-                or headers.get('x-forwarded-for', '').split(',')[0].strip()
-            if not allowed(ip):
+            if not allowed():
                 return reply(429, {'error': 'too many'}, cors)
             n = bump(key)
         else:

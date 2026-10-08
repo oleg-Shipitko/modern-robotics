@@ -6,12 +6,13 @@ handler — публичная функция mr-stats. POST, тело — JSON 
   (заголовок Origin); неизвестные страницы и имена событий отбрасываются.
   Отзыв в конце урока — та же точка: {"p": "...", "fb": {"r": "good|mid|bad"}} прибавляет оценку к суммам
   урока (событие fb:good и т. п.), а {"p": "...", "fb": {"r": "...", "t": "текст"}} сохраняет текст отзыва
-  в таблицу feedback — без имени, контактов и адреса.
+  в таблицу feedback — без имени, контактов и адреса; адреса почты и номера телефонов из текста удаляются
+  (страница убирает их ещё до отправки, scrub() здесь — на случай старой версии страницы или чужого запроса).
 report — закрытая функция mr-stats-report: вызывается через yc с правами владельца каталога.
   Тело: {"days": 7}. Ответ: суммы за последние дни [{"day", "page", "ev", "n"}] и тексты отзывов
   [{"day", "page", "r", "t", "at"}].
 
-О читателях ничего не хранится: ни IP, ни cookies, ни идентификаторов — только суммы по дням
+О читателях ничего не хранится и не читается: ни IP-адреса, ни cookies, ни идентификаторов — только суммы по дням
 (день — по московскому времени). Таблица stats лежит в той же базе YDB, что и счётчик «спасибо»,
 и создаётся при первом запросе. Переменные окружения: YDB_ENDPOINT, YDB_DATABASE, SITE.
 Выкладка — deploy.sh рядом, отчёт — tools/stats.py.
@@ -23,6 +24,7 @@ import os
 import re
 import time
 import uuid
+from collections import deque
 
 import ydb
 import ydb.iam
@@ -41,7 +43,7 @@ EVENT = re.compile(r'^(open:(phone|desk)'
                    r'|task:[a-zA-Z][a-zA-Z0-9]{0,30}:done'
                    r'|chk:\d{1,2}:(ok|no))$')     # chk — задания проверки в конце части
 MAX_EVENTS = 60
-LIMIT, WINDOW = 30, 60      # с одного адреса — не больше 30 пачек в минуту; учёт только в памяти экземпляра
+LIMIT, WINDOW = 600, 60     # не больше 600 пачек в минуту на экземпляр функции, общий счёт без IP-адресов
 MAX_DAYS = 120
 FB_TABLE = 'feedback'
 RATINGS = ('good', 'mid', 'bad')
@@ -60,7 +62,10 @@ SELECT day, page, r, t, at FROM {FB_TABLE} WHERE day >= $from;'''
 
 _driver = None
 _pool = None
-_hits = {}
+_hits = deque()  # время принятых запросов за последнюю минуту — общее для экземпляра, без адресов
+EMAIL = re.compile(r'[^\s@()«»"\']+@[^\s@]+\.[^\s@.,;:!?()«»"\']+')
+PHONE = re.compile(r'(^|\D)(\+?\d[\d \t().\-]{8,}\d)(?!\d)')
+GROUPED = re.compile(r'\d{1,3}(?: \d{3})+')  # «1 000 000 000» — число с разрядами, а не телефон
 
 
 def driver():
@@ -148,15 +153,24 @@ def scan_fb(since):
     return scan(since, FB_SCAN, lambda r: {'day': r.day, 'page': r.page, 'r': r.r, 't': r.t, 'at': r.at})
 
 
-def allowed(addr):
-    if not addr:
-        return True
+def allowed():
+    """Общее ограничение частоты на экземпляр функции. IP-адрес не читаем: о читателях функция ничего не знает."""
     now = time.time()
-    if len(_hits) > 10000:
-        _hits.clear()
-    recent = [t for t in _hits.get(addr, ()) if now - t < WINDOW]
-    _hits[addr] = recent + [now] if len(recent) < LIMIT else recent
-    return len(recent) < LIMIT
+    while _hits and now - _hits[0] >= WINDOW:
+        _hits.popleft()
+    if len(_hits) >= LIMIT:
+        return False
+    _hits.append(now)
+    return True
+
+
+def scrub(t):
+    """Убирает из текста отзыва адреса почты и номера телефонов (10–15 цифр). Та же логика — в shared/feedback.js."""
+    t = EMAIL.sub('[почта удалена]', t)
+    def phone(m):
+        s, digits = m.group(2), sum(c.isdigit() for c in m.group(2))
+        return m.group(1) + ('[телефон удалён]' if 10 <= digits <= 15 and not GROUPED.fullmatch(s) else s)
+    return PHONE.sub(phone, t)
 
 
 def reply(code, body, headers=None):
@@ -198,9 +212,7 @@ def handler(event, context):
         return reply(405, {'error': 'method'}, cors)
     if origin not in ORIGINS:
         return reply(403, {'error': 'origin'}, cors)
-    ip = ((event.get('requestContext') or {}).get('identity') or {}).get('sourceIp') \
-        or headers.get('x-forwarded-for', '').split(',')[0].strip()
-    if not allowed(ip):
+    if not allowed():
         return reply(429, {'error': 'too many'}, cors)
     try:
         data = json.loads(body_of(event))
@@ -229,7 +241,7 @@ def feedback(data, cors):
     t = fb.get('t')
     if t is not None and not isinstance(t, str):
         return reply(400, {'error': 'bad request'}, cors)
-    t = re.sub(r'[\x00-\x08\x0b-\x1f\x7f]', '', (t or '')).strip()[:MAX_TEXT]
+    t = scrub(re.sub(r'[\x00-\x08\x0b-\x1f\x7f]', '', (t or '')).strip())[:MAX_TEXT]
     try:
         if t:
             save_text(today(), page, fb['r'], t)

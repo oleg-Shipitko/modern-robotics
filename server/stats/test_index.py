@@ -111,8 +111,14 @@ def main():
     check(db.table[(day, 'index', 'open:phone')] == 2, 'транзакция прервана конфликтом — повтор, событие не потеряно')
     r = index.handler({'httpMethod': 'GET', 'headers': {}}, None)
     check(r['statusCode'] == 405, 'GET на публичной функции не отдаёт данные — 405')
-    codes = [post({'p': 'index', 'e': ['open:desk']}, ip='9.9.9.9')[0] for _ in range(index.LIMIT + 3)]
-    check(codes.count(429) == 3, f'с одного адреса больше {index.LIMIT} пачек в минуту — 429')
+    saved, index.LIMIT = index.LIMIT, 5
+    index._hits.clear()
+    codes = [post({'p': 'index', 'e': ['open:desk']}, ip=f'9.9.9.{k}')[0] for k in range(8)]
+    check(codes.count(429) == 3, 'больше LIMIT пачек в минуту на экземпляр — 429, с каких бы адресов они ни шли')
+    index.LIMIT = saved
+    index._hits.clear()
+    src = open(index.__file__, encoding='utf-8').read()
+    check('sourceIp' not in src and 'x-forwarded-for' not in src, 'функция не читает IP-адрес читателя')
     code, body = post({'p': 'proverka-chasti-0', 'e': ['open:desk', 'chk:3:ok', 'chk:14:no', 'quiz:12/14', 'chk:3:maybe']}, ip='6.6.6.6')
     check(code == 200 and body['n'] == 4 and db.table[(day, 'proverka-chasti-0', 'chk:14:no')] == 1, 'страница проверки части: задания и итог принимаются, лишнее отброшено')
     big = {'p': 'index', 'e': [f'sec:s{k}' for k in range(200)]}
@@ -127,6 +133,22 @@ def main():
           'текст отзыва сохранён: без служебных символов, не длиннее 1000 знаков, со случайным id')
     check(db.table[(day, '1-5-diffusion-policy', 'fb:mid')] == 1, 'текст не считается второй оценкой')
     check(set(row) == {'day', 'id', 'page', 'r', 't', 'at'}, 'в отзыве нет ничего о читателе: только день, урок, оценка, текст и время')
+    cases = [
+        ('Пишите: ivan.petrov+robots@mail.ru, отвечу (или j@uni.co.uk).', 'Пишите: [почта удалена], отвечу (или [почта удалена]).'),
+        ('мой телефон +7 (999) 123-45-67, звоните', 'мой телефон [телефон удалён], звоните'),
+        ('или 8 999 123 45 67 или 89991234567.', 'или [телефон удалён] или [телефон удалён].'),
+        ('В уроке 1.5 при 300 демонстрациях и 0,04 порог 08.10.2026', 'В уроке 1.5 при 300 демонстрациях и 0,04 порог 08.10.2026'),
+        ('модель на 1 000 000 000 параметров, 2023–2026', 'модель на 1 000 000 000 параметров, 2023–2026'),
+        ('(почта: «x_y@ya.ru»)', '(почта: «[почта удалена]»)'),
+    ]
+    for src_t, want in cases:
+        got = index.scrub(src_t)
+        check(got == want, f'очистка отзыва: «{src_t}» → «{got}»')
+    n0 = len(db.fb)
+    post({'p': '1-5-diffusion-policy', 'fb': {'r': 'good', 't': 'Спасибо! a.b@c.ru, +79991234567'}}, ip='7.7.7.6')
+    t_saved = db.fb[n0]['t'] if len(db.fb) > n0 else ''
+    check(t_saved == 'Спасибо! [почта удалена], [телефон удалён]', f'в базу текст попадает уже без почты и телефона: «{t_saved}»')
+    del db.fb[n0:]
     check(post({'p': '1-5-diffusion-policy', 'fb': {'r': 'отлично'}}, ip='7.7.7.3')[0] == 400, 'неизвестная оценка — 400')
     check(post({'p': 'index', 'fb': {'r': 'good'}}, ip='7.7.7.4')[0] == 400, 'отзыв о главной не принимается — 400')
     check(post({'p': '1-5-diffusion-policy', 'fb': {'r': 'good', 't': 42}}, ip='7.7.7.5')[0] == 400, 'текст не строкой — 400')
