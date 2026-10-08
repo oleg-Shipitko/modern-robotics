@@ -46,7 +46,7 @@ function helpers(p) {
 async function body(p, M) {
   console.log('Тело в цифрах');
   await M.scroll('#bodySvg');
-  for (const z of ['head', 'torso', 'joint', 'hand', 'foot']) { await p.eval(`document.querySelector('#bodySvg .b-zone[data-z=${z}]').dispatchEvent(new MouseEvent("click", {bubbles: true}))`); await sleep(60); }
+  for (const z of ['head', 'torso', 'joint', 'hand', 'base']) { await p.eval(`document.querySelector('#bodySvg .b-zone[data-z=${z}]').dispatchEvent(new MouseEvent("click", {bubbles: true}))`); await sleep(60); }
   const cnt = await p.eval('document.querySelector("#bodyCount").textContent');
   check(cnt.includes('все пять'), 'осмотрены все пять зон: ' + cnt);
   await p.eval(`document.querySelector('#bodySvg .b-zone[data-z=joint]').dispatchEvent(new MouseEvent("click", {bubbles: true}))`);

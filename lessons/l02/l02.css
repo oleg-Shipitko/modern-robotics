@@ -162,3 +162,8 @@
 /* строки-пояснения под сценами и схемами */
 .cv-note { margin: 8px 0 0; font-size: 14px; line-height: 1.5; color: var(--ink-3); }
 .body-detail p.bd-key { font-size: 14px; color: var(--ink-3); line-height: 1.5; margin: 0; }
+
+/* колёсная база Ады на схеме тела */
+#bodySvg .b-wheel { fill: var(--ink-2); }
+#bodySvg .b-hub { fill: var(--surface); }
+#bodySvg .b-zone.sel .b-wheel { fill: var(--e2e); }
