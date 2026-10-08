@@ -242,3 +242,6 @@
   .att-ctl .hd-range { display: grid; grid-template-columns: 40px 1fr 40px; width: 100%; }
   .att-ctl .hd-range input { width: 100%; }
 }
+/* подписи под интерактивами */
+.cv-note { margin: 12px 0 0; font-size: 14px; line-height: 1.5; color: var(--ink-3); }
+.tbl-note { margin: -6px 0 12px; }
