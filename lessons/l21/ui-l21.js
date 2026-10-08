@@ -63,6 +63,22 @@ function heat(c, vals, n, x0, y0, size, col, amax) {
 }
 /** Оценки карты для показа: 0…1 от минимума до максимума, степень подчёркивает пики. */
 function show01(vals, pw) { let mn = 1e9, mx = -1e9; for (const v of vals) { mn = Math.min(mn, v); mx = Math.max(mx, v); } const o = new Float64Array(vals.length); for (let i = 0; i < vals.length; i++) o[i] = Math.pow((vals[i] - mn) / (mx - mn || 1), pw || 3); return o; }
+/** Для мини-карт: ниже медианы — ноль (фон), выше — 0…1 со степенью. Без этого фон карты закрашен, а вокруг предметов белые провалы. */
+function peaks01(vals, pw) {
+  const srt = Array.from(vals).sort((a, b) => a - b), floor = srt[Math.floor(srt.length / 2)], mx = srt[srt.length - 1], o = new Float64Array(vals.length);
+  for (let i = 0; i < vals.length; i++) o[i] = Math.pow(Math.max(0, (vals[i] - floor) / Math.max(1e-12, mx - floor)), pw || 1.5);
+  return o;
+}
+/** Мини-карта 24 × 24: фон, сетка клеток и оценки цветом col. */
+function drawMini(sel, vals, col, empty) {
+  const cv = $(sel), S = 144, { c } = HeroKit.fit(cv, S, S), P = pal();
+  c.fillStyle = P.bg; c.fillRect(0, 0, S, S);
+  if (!vals) { HeroKit.label(c, 1, empty || 'нет', S / 2, S / 2, { px: 12, color: P.ink3, halo: false }); return; }
+  heat(c, peaks01(vals, 1.5), L21.G, 0, 0, S, col, 0.95);
+  c.strokeStyle = P.grid; c.lineWidth = 0.6; c.beginPath();
+  for (let i = 1; i < L21.G; i++) { const v = i * S / L21.G; c.moveTo(v, 0); c.lineTo(v, S); c.moveTo(0, v); c.lineTo(S, v); }
+  c.stroke();
+}
 const colorWord = (id, g) => { const c = L21.COLORS[L21.CI[id]]; return g === 'f' ? c.f : c.m; };
 const rgbCss = (id) => { const [r, g, b] = L21.COLORS[L21.CI[id]].rgb; return `rgb(${Math.round(r * 255)},${Math.round(g * 255)},${Math.round(b * 255)})`; };
 
@@ -225,6 +241,7 @@ const LabPick = (() => {
     else scene = (st.demo0 = E.demo(st.task, 100)).scene;
     drawBitmap(c, bitmap(scene.img, E.TW, E.TW), 0, 0, W, W);
     const sc = W / E.TW;
+    drawMini('#pMap', mapRun ? E.pickScores(st.res.model, scene.grid) : null, P.e2e, 'обучи модели');
     if (mapRun) {
       heat(c, show01(E.pickScores(st.res.model, scene.grid), 3), E.G, 0, 0, W, P.e2e, 0.7);
       const p = mapRun.p; c.beginPath(); c.arc(p.x * sc, p.y * sc, 16, 0, 7); c.lineWidth = 3; c.strokeStyle = mapRun.ok ? P.good : P.bad; c.stroke();
@@ -310,7 +327,7 @@ const LabPlace = (() => {
     HeroKit.label(c, k, `вырезка, ${st.k * 10}°`, (st.cur.x + 0.5) * s, (st.cur.y - 9) * s, { px: 12, weight: 700, color: P.cl });
     out();
   }
-  function out() { setOut($('#tOut'), `Поворот вырезки ${st.k * 10}°: лучшее совпадение <b>${pc(Math.max(0, st.cur.s))}</b> в клетке (${st.cur.x}; ${st.cur.y}).` + (st.scan ? ` Перебор 36 карт: лучший поворот — <b>${st.scan.k * 10}°</b>, ${pc(st.scan.s)}.` : '')); }
+  function out() { setOut($('#tOut'), `Поворот вырезки ${st.k * 10}°: лучшее совпадение <b>${pc(Math.max(0, st.cur.s))}</b>, в этом месте и стоит синяя деталь.` + (st.scan ? ` Перебор 36 карт: лучший поворот — <b>${st.scan.k * 10}°</b>, ${pc(st.scan.s)}.` : '')); }
   function setK(kk) { st.k = ((kk % 36) + 36) % 36; $('#tAng').value = st.k; syncRange($('#tAng'), `${st.k * 10}°`); recompute(); draw(); if (ctl) ctl.update(); }
   const api = {
     reset() { st.fa = 40; st.scan = null; setK(0); },
@@ -375,7 +392,7 @@ const LabPlace = (() => {
     drawChart(); redrawOn(drawChart);
   }
   function init() {
-    legend('#tLegend', [['совпадение вырезки со сценой', 'var(--e2e)'], ['вырезка в лучшей клетке', 'var(--classic)'], ['стенки гнезда', 'var(--ink-3)']]);
+    legend('#tLegend', [['совпадение вырезки со сценой', 'var(--e2e)'], ['вырезка в лучшем месте', 'var(--classic)'], ['стенки гнезда', 'var(--ink-3)', 'box'], ['прорезь, куда должна войти деталь', 'var(--surface)', 'box']]);
     $('#tAng').addEventListener('input', (e) => setK(+e.target.value));
     recompute();
     ctl = mountMissions('#tMis', missions, api, { controls: { ang: '#wrapTAng' } });
@@ -418,12 +435,7 @@ const LabCliport = (() => {
     st.busy = false; await preview();
     return Object.assign({}, st.res);
   }
-  function drawMap(sel, vals, col) {
-    const cv = $(sel), S = 144, { c } = HeroKit.fit(cv, S, S), P = pal();
-    c.fillStyle = P.bg; c.fillRect(0, 0, S, S);
-    if (!vals) { HeroKit.label(c, 1, 'нет', S / 2, S / 2, { px: 12, color: P.ink3, halo: false }); return; }
-    heat(c, show01(vals, 3), E.G, 0, 0, S, col, 0.95);
-  }
+  function drawMap(sel, vals, col) { drawMini(sel, vals, col, 'нет'); }
   function draw() {
     const { c, k } = HeroKit.fit($('#kCv'), W, W), P = pal();
     const cmd = `возьми ${colorWord(st.color, 'm')} кубик`;
