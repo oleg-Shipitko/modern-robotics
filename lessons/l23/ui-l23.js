@@ -514,6 +514,7 @@ const LabCode = (() => {
     if (st.prog === 'push') { const b = E.objByName(cw, 'синяя миска'); c.setLineDash([4, 4]); c.strokeStyle = COL.blue; c.lineWidth = 1.4; c.beginPath(); c.moveTo(X(b.x), 0); c.lineTo(X(b.x), TH); c.stroke(); c.setLineDash([]); HeroKit.label(c, k, 'x синей миски', X(b.x) + 4, TH - 12, { px: 10.5, align: 'left', color: COL.blue, haloColor: P.bg }); }
     const lemon = E.objByName(cw, 'лимон');
     c.beginPath(); c.ellipse(X(lemon.x), Y(lemon.y), 11, 8, -0.4, 0, 7); c.fillStyle = COL.yellow; c.fill(); c.lineWidth = 1.4; c.strokeStyle = '#a07d10'; c.stroke();
+    HeroKit.label(c, k, 'лимон', X(lemon.x), Y(lemon.y) - 16, { px: 10.5, weight: 700, color: P.ink2, haloColor: P.bg });
     // кубики: стопки рисуем со сдвигом
     const level = (name) => { let n = 0, cur = name; while (cw.stackOn[cur] && n < 9) { cur = cw.stackOn[cur]; n++; } return n; };
     const blocksList = cw.objs.filter((o) => o.kind === 'block').sort((a, b) => level(a.name) - level(b.name));
@@ -598,7 +599,7 @@ const LabCode = (() => {
     $('#cPlay').addEventListener('click', () => { if (!st.busy) play(); });
     $('#cRestart').addEventListener('click', () => { if (!st.busy) { restart(); if (ctl) ctl.update(); } });
     const lg = $('#cCodeLegend');
-    lg.append(h('span', null, h('b', { class: 'tk-p' }, 'detect_objects'), ', ', h('b', { class: 'tk-p' }, 'get_pos'), ' — восприятие'), h('span', null, h('b', { class: 'tk-a' }, 'pick_place'), ' — управление'), h('span', null, h('b', { class: 'tk-g' }, 'is_empty'), ' — функции, которые дописала модель'));
+    lg.append(h('span', null, h('b', { class: 'tk-p' }, 'detect_objects'), ', ', h('b', { class: 'tk-p' }, 'get_pos'), ' — восприятие'), h('span', null, h('b', { class: 'tk-a' }, 'pick_place'), ' — управление'), h('span', null, h('b', { class: 'tk-g' }, 'is_empty'), ', ', h('b', { class: 'tk-g' }, 'dist'), ', ', h('b', { class: 'tk-g' }, 'stack_objects'), ' — функции, которые дописала модель'));
     restart();
     ctl = mountMissions('#cMis', missions, api, { controls: { prog: '#wrapCProg', lemon: '#wrapCLemon', slip: '#wrapCSlip' }, scene: '#cCode' });
     redrawOn(drawTable);
@@ -737,7 +738,12 @@ const LabVox = (() => {
   function runAll() { st.pc = LINES.length; render(); if (ctl) ctl.update(); return state(); }
   function setAvoid(v) { if (st.moving) return; st.avoid = v; st.pc = 0; st.trail = []; st.reached = false; st.collided = false; st.oldPath = null; render(); if (ctl) ctl.update(); }
   function setW(v) { st.wo = Math.round(v * 10) / 10; $('#vW').value = st.wo; syncRange($('#vW'), fmt(st.wo, 1)); render(); if (ctl) ctl.update(); }
-  function setView(v) { st.view = v; segSet('#vView', v); draw(); }
+  /** Первая строка легенды меняется вместе с переключателем «Карта»: у каждой карты свой цвет и смысл. */
+  function vLegend() {
+    const MAP = { cost: ['стоимость пути: темнее — дороже', 'var(--hybrid)'], aff: ['аффорданс: ярче — сюда тянуться', 'var(--good)'], avoid: ['избегание: ярче — держаться дальше', 'var(--critical)'] };
+    legend('#vLegend', [MAP[st.view] || MAP.cost, ['путь захвата', 'var(--e2e)'], ['найдено детектором', 'var(--classic)', 'dash'], ['путь до того, как подвинули вазу', 'var(--ink-3)', 'dash']]);
+  }
+  function setView(v) { st.view = v; segSet('#vView', v); if ($('#vLegend')) vLegend(); draw(); }
   /** Не пускаем вазу в комод, на ручку и вплотную к захвату. */
   function clampVase(p) {
     const R = E.R_VASE, x = E.clamp(p.x, R + 0.5, E.VW - R - 1.5); let y = E.clamp(p.y, R + 0.5, E.VH - R - 1.5);
@@ -843,7 +849,7 @@ const LabVox = (() => {
     segBind('#vView', setView);
     $('#vW').addEventListener('input', (e) => setW(+e.target.value));
     syncRange($('#vW'), fmt(st.wo, 1));
-    legend('#vLegend', [['стоимость: темнее — дороже', 'var(--hybrid)'], ['путь захвата', 'var(--e2e)'], ['найдено детектором', 'var(--classic)', 'dash'], ['путь до того, как подвинули вазу', 'var(--ink-3)', 'dash']]);
+    vLegend();
     ctl = mountMissions('#vMis', missions, api, { controls: { view: '#wrapVView', w: '#wrapVW', go: '#vGo' }, scene: '#vCv' });
     render(); redrawOn(draw);
     return ctl;
