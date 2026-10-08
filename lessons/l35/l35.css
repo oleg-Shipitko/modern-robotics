@@ -1,0 +1,103 @@
+/* ---------- урок 3.5 ---------- */
+.dom-cv { width: 100%; height: auto; aspect-ratio: 720 / 170; border-radius: 12px; border: 1px solid var(--line); display: block; }
+.ft-cv { width: 100%; height: auto; aspect-ratio: 720 / 272; border-radius: 12px; border: 1px solid var(--line); display: block; margin-top: 12px; }
+.head-cv { width: 100%; height: auto; aspect-ratio: 440 / 436; border-radius: 12px; border: 1px solid var(--line); display: block; }
+.ctl { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ctl-l { font-size: 13.5px; font-weight: 650; color: var(--ink-3); }
+.btn.sm.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.cv-note { margin: 8px 0 0; font-size: 14px; line-height: 1.5; color: var(--ink-3); }
+.cv-note b { color: var(--ink-2); font-weight: 650; }
+.lab-legend { margin: 10px 0 0; }
+.lab-legend > summary { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; list-style: none; font-size: 14px; font-weight: 650; color: var(--ink-2); padding: 6px 14px; border: 1px solid var(--line-2); border-radius: 999px; background: var(--surface); user-select: none; }
+.lab-legend > summary::-webkit-details-marker { display: none; }
+.lab-legend > summary::before { content: '▸'; font-size: 12px; color: var(--ink-3); }
+.lab-legend[open] > summary::before { content: '▾'; }
+.lab-legend .cv-legend { margin-top: 8px; }
+.cv-legend i.ring { width: 11px; height: 11px; border-radius: 50%; background: transparent; border: 2.5px solid var(--c); }
+.cv-legend i.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+.cv-legend i.sq { width: 10px; height: 10px; border-radius: 1px; background: var(--c); }
+.cv-legend i.dia { width: 9px; height: 9px; background: var(--c); transform: rotate(45deg); }
+.cv-legend i.circ { width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
+.cv-legend i.patch { width: 11px; height: 11px; border-radius: 1px; background: color-mix(in srgb, var(--c) 55%, transparent); }
+.anim-card { padding: 14px; max-width: 900px; }
+.prog { max-width: 100%; }
+#fStatus { margin-top: 6px; }
+
+/* записи оператора: полоска чипов */
+.demos { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 10px; align-items: center; font-size: 12.5px; color: var(--ink-3); }
+.demos:empty { display: none; }
+.demos .d-h { font-weight: 650; margin-right: 4px; }
+.demos .d-chip { display: inline-block; width: 14px; height: 14px; border-radius: 3px; background: var(--c); border: 1px solid color-mix(in srgb, var(--ink) 25%, transparent); }
+
+/* результаты трёх способов рядом */
+.ft-res { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+.ft-res:empty { display: none; }
+.ft-col { border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); padding: 9px 10px 8px; min-width: 0; display: grid; gap: 4px; align-content: start; }
+.ft-col.best { box-shadow: inset 0 0 0 2px var(--good); }
+.ft-col b.ft-name { font-size: 13px; color: var(--ink); line-height: 1.25; }
+.ft-col .ft-rate { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--ink); line-height: 1.1; }
+.ft-col .ft-rate.wait { font-size: 14px; font-weight: 600; color: var(--ink-3); }
+.ft-col .ft-par { font-size: 12px; color: var(--ink-3); line-height: 1.3; }
+.ft-col .ft-cmd { display: grid; grid-template-columns: 12px minmax(0, 1fr) 30px; gap: 2px 5px; align-items: center; font-size: 11.5px; color: var(--ink-2); margin-top: 2px; }
+.ft-col .ft-cmd i { width: 10px; height: 10px; border-radius: 2px; background: var(--c); }
+.ft-col .ft-cmd .bar { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.ft-col .ft-cmd .bar span { display: block; height: 100%; background: var(--e2e); }
+.ft-col .ft-cmd em { font-style: normal; font-variant-numeric: tabular-nums; text-align: right; }
+.ft-res .ft-hd { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); }
+.rank-row { display: grid; grid-template-columns: 70px minmax(0, 1fr) 54px 72px; gap: 4px 10px; align-items: center; font-size: 13px; color: var(--ink-2); }
+.rank-row .bar { height: 10px; border-radius: 5px; background: var(--line); overflow: hidden; }
+.rank-row .bar span { display: block; height: 100%; background: var(--e2e); }
+.rank-box { grid-column: 1 / -1; display: grid; gap: 4px; border: 1px solid var(--line); border-radius: 12px; padding: 9px 10px; background: var(--surface-2); }
+.rank-box .rk-h { font-size: 12.5px; font-weight: 650; color: var(--ink-3); }
+
+/* голова действий: счёт ответов */
+.h-tally { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+.h-tally:empty { display: none; }
+.h-col { border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); padding: 8px 10px; min-width: 0; display: grid; gap: 4px; }
+.h-col[hidden] { display: none; }
+.h-col b { font-size: 13px; color: var(--ink); }
+.h-col .h-n { font-size: 12.5px; color: var(--ink-2); font-variant-numeric: tabular-nums; line-height: 1.4; }
+.h-col .h-chips { display: flex; flex-wrap: wrap; gap: 3px; min-height: 16px; }
+.h-col .h-chips span { font-size: 10.5px; font-weight: 700; line-height: 15px; min-width: 15px; text-align: center; border-radius: 4px; padding: 0 3px; background: var(--surface); border: 1px solid var(--line-2); color: var(--ink-2); }
+.h-col .h-chips span.l, .h-col .h-chips span.r { border-color: var(--good); color: var(--good-ink, var(--good)); }
+.h-col .h-chips span.m { border-color: var(--critical); color: var(--critical); }
+
+/* таблица OpenVLA */
+.vla-tbl { display: grid; gap: 2px; font-size: 13px; }
+.vla-tbl .vr { display: grid; grid-template-columns: minmax(0, 1.5fr) repeat(4, minmax(0, 1fr)); gap: 6px; align-items: center; padding: 4px 6px; border-radius: 8px; cursor: pointer; }
+.vla-tbl .vr.vh { cursor: default; align-items: end; padding-bottom: 6px; border-bottom: 1px solid var(--line); border-radius: 0; }
+.vla-tbl .vr.vg { cursor: default; font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); padding-top: 10px; grid-template-columns: 1fr; }
+.vla-tbl .vr:not(.vh):not(.vg):hover { background: var(--surface-2); }
+.vla-tbl .vr.sel { background: color-mix(in srgb, var(--e2e) 12%, transparent); box-shadow: inset 0 0 0 1.5px var(--e2e); }
+.vla-tbl .vr.sum { font-weight: 650; border-top: 1px dashed var(--line-2); border-radius: 0 0 8px 8px; }
+.vla-tbl .vr.sum.sel { border-radius: 8px; }
+.vla-tbl .vm { font-size: 12.5px; font-weight: 700; color: var(--ink); line-height: 1.2; }
+.vla-tbl .vm small { display: block; font-weight: 500; color: var(--ink-3); font-size: 11px; }
+.vla-tbl .vm small.cl { color: var(--critical); }
+.vla-tbl .vn { color: var(--ink-2); line-height: 1.25; min-width: 0; }
+.vla-tbl .vn small { display: block; color: var(--ink-3); font-size: 11.5px; }
+.vla-tbl .vc { position: relative; height: 22px; border-radius: 5px; background: var(--surface-2); border: 1px solid var(--line); overflow: hidden; }
+.vla-tbl .vc i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--c); opacity: .45; }
+.vla-tbl .vc b { position: relative; z-index: 1; display: block; padding: 0 5px; font-size: 11.5px; line-height: 20px; font-family: var(--mono); font-weight: 500; color: var(--ink); }
+.vla-tbl .vc.top b { font-weight: 800; }
+.t-detail { margin-top: 10px; }
+.t-detail:empty { display: none; }
+.t-detail .td-h { font-size: 13.5px; font-weight: 650; color: var(--ink-2); margin-bottom: 4px; }
+.t-detail table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.t-detail th, .t-detail td { padding: 3px 5px; border-bottom: 1px solid var(--line); text-align: right; font-variant-numeric: tabular-nums; }
+.t-detail th:first-child, .t-detail td:first-child { text-align: left; }
+.t-detail th { color: var(--ink-3); font-weight: 650; }
+.t-detail td.top { font-weight: 800; color: var(--ink); }
+
+@media (max-width: 900px) { .lab { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 640px) {
+  .ft-res { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .h-tally { grid-template-columns: 1fr; }
+  .vla-tbl { font-size: 12px; }
+  .vla-tbl .vr { grid-template-columns: minmax(0, 1.2fr) repeat(4, minmax(0, 1fr)); gap: 3px; padding: 4px 3px; }
+  .vla-tbl .vc b { font-size: 10.5px; padding: 0 3px; }
+  .vla-tbl .vm { font-size: 11px; }
+  .vla-tbl .vn small { display: none; }
+  .t-detail table { font-size: 11px; }
+  .rank-row { grid-template-columns: 54px minmax(0, 1fr) 44px 60px; font-size: 12px; }
+}
