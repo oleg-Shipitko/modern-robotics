@@ -223,14 +223,36 @@ v = pid(path.next - hand)</pre>
         </div>
       </div>
 
-      <p class="cv-note" id="lab1Note">Вид на стол сверху. У трёх версий Ады одна и та же сцена, разная только система управления.</p>
-      <div class="demo-legend scene-key" aria-hidden="true">
+      <p class="cv-note" id="lab1Note">Вид на стол сверху. У трёх версий Ады одна и та же сцена, разная только система управления. Что значит каждый значок — в легенде ниже.</p>
+      <details class="lab-legend" id="lab1Legend">
+        <summary>Легенда: значки на сцене</summary>
+        <div class="lg-body">
+          <div class="lg-group">
+            <h4>Сцена</h4>
+            <div class="demo-legend scene-key" aria-hidden="true">
         <span><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="8.4" fill="none" stroke="#6b6a65" stroke-width="2"/><circle cx="10" cy="10" r="5.6" fill="#f4efe6" stroke="#3d3c38" stroke-width="1.4"/><circle cx="10" cy="10" r="1.7" fill="#4a3aa7"/></svg>рука Ады, обведена цветом версии</span>
         <span><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="none" stroke="#6b5a48" stroke-width="1.3" stroke-dasharray="2.4 2.4"/><path d="M4.5 10 H15.5 M10 4.5 V15.5" stroke="#6b5a48" stroke-width="1.5"/></svg>откуда рука стартует</span>
         <span><svg viewBox="0 0 22 20"><rect x="13.5" y="8" width="6" height="4.2" rx="1.6" fill="#8e2b22"/><circle cx="10" cy="10" r="7" fill="#c23a2c"/><circle cx="10" cy="10" r="5.6" fill="#e9b9ad"/><circle cx="10" cy="10" r="4.6" fill="#6b3d1f"/></svg>чашка — цель</span>
         <span><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="9" fill="rgba(208,59,59,.18)" stroke="rgba(208,59,59,.7)" stroke-width="1.1" stroke-dasharray="2.2 2.2"/><circle cx="10" cy="10" r="5" fill="#33353d"/><circle cx="10" cy="10" r="3" fill="#4a4c55"/></svg>горячий чайник и зона, где можно обжечься</span>
       </div>
-      <p class="cv-note">Остальное на столе — синяя сахарница, зелёная салфетница, миска с зёрнами и белый молочник. Чайник появляется в экспериментах «Чайник на пути».</p>
+            <p class="cv-note">Остальное на столе — синяя сахарница, зелёная салфетница, миска с зёрнами и белый молочник. Чайник появляется в экспериментах «Чайник на пути».</p>
+          </div>
+          <div class="lg-group thoughts-key" id="thoughtsKey">
+            <h4>«Мысли» Ады</h4>
+            <p class="cv-note">Появляются на сцене после запуска, если включён флажок «Показывать «мысли» Ады». Путь и стрелку каждая версия рисует своим цветом.</p>
+            <div class="demo-legend" aria-hidden="true">
+          <span><svg viewBox="0 0 28 14" class="wide"><path d="M2 12 L12 5 L26 3" fill="none" stroke="#2a78d6" stroke-width="2"/><circle cx="12" cy="5" r="2.6" fill="#2a78d6" stroke="#fff" stroke-width="1.2"/></svg>путь, который построил планировщик</span>
+          <span><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="5.5" fill="rgba(42,120,214,.15)" stroke="#2a78d6" stroke-width="1.6"/><path d="M1.5 10 H18.5 M10 1.5 V18.5" stroke="#2a78d6" stroke-width="1.6"/></svg>где, по оценке фильтра, стоит чашка</span>
+          <span><svg viewBox="0 0 20 20"><rect x="3" y="3" width="14" height="14" fill="rgba(42,120,214,.18)" stroke="#2a78d6" stroke-width="1.6"/></svg>пиксели, которые правило цвета приняло за чашку</span>
+          <span><svg viewBox="0 0 20 20"><rect x="3" y="3" width="14" height="14" fill="none" stroke="#d03b3b" stroke-width="1.6"/></svg>пиксели, которые правило приняло за препятствие</span>
+          <span><svg viewBox="0 0 20 20"><path d="M2 6h6v-4h6v4h4v8h-4v4h-6v-4h-6z" fill="rgba(208,59,59,.22)"/></svg>клетки, куда планировщик не пустит руку</span>
+          <span><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7" fill="rgba(235,104,52,.16)" stroke="#eb6834" stroke-width="1.4"/><circle cx="10" cy="10" r="2.3" fill="#eb6834"/></svg>т1–т4 — точки, на которые смотрит нейросеть end-to-end</span>
+          <span><svg viewBox="0 0 20 20"><path d="M4.5 4.5 L15.5 15.5 M15.5 4.5 L4.5 15.5" stroke="#eb6834" stroke-width="2.6" stroke-linecap="round"/></svg>где чашку видит нейросеть гибрида</span>
+          <span><svg viewBox="0 0 28 14" class="wide"><path d="M2 7 H20" stroke="#6b6a65" stroke-width="2.4" stroke-linecap="round"/><path d="M26 7 L18 2.6 L18 11.4 Z" fill="#6b6a65"/></svg>куда рука движется сейчас</span>
+        </div>
+          </div>
+        </div>
+      </details>
 
       <div class="controls">
         <button class="btn" id="pauseBtn" type="button">⏸ Пауза</button>
@@ -244,19 +266,7 @@ v = pid(path.next - hand)</pre>
         </div>
         <label class="toggle"><input type="checkbox" id="thoughtsChk" checked><span class="box"></span>Показывать «мысли» Ады</label>
       </div>
-      <div class="thoughts-key" id="thoughtsKey">
-        <p class="cv-note">«Мысли» Ады появляются на сцене после запуска. Путь и стрелку каждая версия рисует своим цветом.</p>
-        <div class="demo-legend" aria-hidden="true">
-          <span><svg viewBox="0 0 28 14" class="wide"><path d="M2 12 L12 5 L26 3" fill="none" stroke="#2a78d6" stroke-width="2"/><circle cx="12" cy="5" r="2.6" fill="#2a78d6" stroke="#fff" stroke-width="1.2"/></svg>путь, который построил планировщик</span>
-          <span><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="5.5" fill="rgba(42,120,214,.15)" stroke="#2a78d6" stroke-width="1.6"/><path d="M1.5 10 H18.5 M10 1.5 V18.5" stroke="#2a78d6" stroke-width="1.6"/></svg>где, по оценке фильтра, стоит чашка</span>
-          <span><svg viewBox="0 0 20 20"><rect x="3" y="3" width="14" height="14" fill="rgba(42,120,214,.18)" stroke="#2a78d6" stroke-width="1.6"/></svg>пиксели, которые правило цвета приняло за чашку</span>
-          <span><svg viewBox="0 0 20 20"><rect x="3" y="3" width="14" height="14" fill="none" stroke="#d03b3b" stroke-width="1.6"/></svg>пиксели, которые правило приняло за препятствие</span>
-          <span><svg viewBox="0 0 20 20"><path d="M2 6h6v-4h6v4h4v8h-4v4h-6v-4h-6z" fill="rgba(208,59,59,.22)"/></svg>клетки, куда планировщик не пустит руку</span>
-          <span><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7" fill="rgba(235,104,52,.16)" stroke="#eb6834" stroke-width="1.4"/><circle cx="10" cy="10" r="2.3" fill="#eb6834"/></svg>т1–т4 — точки, на которые смотрит нейросеть end-to-end</span>
-          <span><svg viewBox="0 0 20 20"><path d="M4.5 4.5 L15.5 15.5 M15.5 4.5 L4.5 15.5" stroke="#eb6834" stroke-width="2.6" stroke-linecap="round"/></svg>где чашку видит нейросеть гибрида</span>
-          <span><svg viewBox="0 0 28 14" class="wide"><path d="M2 7 H20" stroke="#6b6a65" stroke-width="2.4" stroke-linecap="round"/><path d="M26 7 L18 2.6 L18 11.4 Z" fill="#6b6a65"/></svg>куда рука движется сейчас</span>
-        </div>
-      </div>
+
       <div class="cond-row" id="condRow">
         <span class="lbl">Условия:</span>
         <label class="toggle"><input type="checkbox" data-cond="evening"><span class="box"></span>🌆 Вечерний свет</label>

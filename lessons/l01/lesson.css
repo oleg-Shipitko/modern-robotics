@@ -609,7 +609,6 @@ a.brand:hover small { color: var(--ink-2); }
 #lab1 .demo-legend { font-size: 13.5px; margin-top: 8px; gap: 6px 18px; }
 #lab1 .demo-legend svg { width: 18px; height: 18px; }
 #lab1 .demo-legend svg.wide { width: 26px; height: 13px; }
-#thoughtsKey { margin-top: 6px; }
 #thoughtsKey[hidden] { display: none; }
 #thumbsKey { margin: -4px 0 0; font-size: 13px; gap: 4px 14px; }
 #thumbsKey svg { width: 16px; height: 16px; }
@@ -617,3 +616,15 @@ a.brand:hover small { color: var(--ink-2); }
 #lossNote { margin: 4px 0 0; line-height: 1.45; }
 #arena .arch-line { min-height: 2.7em; }
 #lab1 .demo-legend svg, #thumbsKey svg { background: #e2d2b6; border-radius: 4px; }
+
+/* Урок 0.1, лаборатория 1: обозначения сцены и «мыслей» — в свёрнутой легенде */
+#lab1 .lab-legend { margin: 10px 0 0; }
+#lab1 .lab-legend > summary { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; list-style: none; font-size: 14px; font-weight: 650; color: var(--ink-2); padding: 6px 14px; border: 1px solid var(--line-2); border-radius: 999px; background: var(--surface); user-select: none; }
+#lab1 .lab-legend > summary::-webkit-details-marker { display: none; }
+#lab1 .lab-legend > summary::before { content: '▸'; font-size: 12px; color: var(--ink-3); }
+#lab1 .lab-legend[open] > summary::before { content: '▾'; }
+#lab1 .lab-legend > summary:hover { border-color: var(--ink-3); }
+#lab1 .lab-legend .lg-body { margin-top: 10px; padding: 12px 16px 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+#lab1 .lab-legend h4 { margin: 0 0 4px; font-size: 12.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--ink-3); }
+#lab1 .lab-legend .lg-group + .lg-group { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+#lab1 .lab-legend .cv-note { margin-top: 6px; }
