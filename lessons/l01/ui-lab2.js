@@ -311,6 +311,11 @@ const Lab2 = (() => {
       });
     });
     if (!defs.length) svg.append(s('text', { x: (box.l + box.r) / 2, y: (box.t + box.b) / 2, 'text-anchor': 'middle', class: 'ttl' }, 'Обучи сети, чтобы появились точки'));
+    else if (defs.every((d) => d.pts.length < 2)) {
+      const mx = (box.l + box.r) / 2, my = (box.t + box.b) / 2;
+      svg.append(s('text', { x: mx, y: my, 'text-anchor': 'middle', class: 'ttl' }, 'Пока у каждой сети одна точка — 200 демонстраций'));
+      svg.append(s('text', { x: mx, y: my + 20, 'text-anchor': 'middle', class: 'lbl' }, 'Нажми «Построить кривую целиком» выше, чтобы получить кривые'));
+    }
     // легенда
     const lg = $('#scaleLegend');
     lg.innerHTML = '';

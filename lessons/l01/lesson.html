@@ -191,7 +191,7 @@ v = pid(path.next - hand)</pre>
     <h2>Три версии Ады, одна задача</h2>
     <div class="prose lab-intro" style="margin:0 0 22px;max-width:820px">
       <p>Где на деле отказывает каждый подход? Списки плюсов и минусов этого не скажут: нужно поставить подходы рядом и менять условия по одному.</p>
-      <p>Три версии Ады — на правилах, end-to-end и гибрид — получают одинаковые руки и одну кухню. Нейросети обучаются прямо сейчас в твоём браузере на 200 демонстрациях: это настоящие сети, а не анимация. В пяти экспериментах условия меняются по одному: свет, препятствие на пути, цвет чашки. Перед каждым сделай прогноз, кто дойдёт до чашки.</p>
+      <p>Три версии Ады — на правилах, end-to-end и гибрид — получают одинаковые руки и одну кухню. Нейросети обучаются прямо сейчас в твоём браузере на 200 демонстрациях: это настоящие сети, а не анимация. В пяти экспериментах условия меняются по одному: свет, препятствие на пути, цвет чашки. Перед каждым сделай прогноз, кто дойдёт до чашки, и запусти всех троих кнопкой под сценами. После пяти экспериментов откроется свободный режим: там можно двигать предметы, менять свет, чашку и шум камеры.</p>
     </div>
 
     <div class="card lab-card" id="lab1Card">
@@ -202,7 +202,6 @@ v = pid(path.next - hand)</pre>
           <p id="missionText"></p>
           <div class="predict" id="predict"></div>
         </div>
-        <div><button class="btn primary" id="runBtn" type="button">▶ Запустить</button></div>
       </div>
 
       <div class="arena" id="arena">
@@ -239,7 +238,7 @@ v = pid(path.next - hand)</pre>
           </div>
           <div class="lg-group thoughts-key" id="thoughtsKey">
             <h4>«Мысли» Ады</h4>
-            <p class="cv-note">Появляются на сцене после запуска, если включён флажок «Показывать «мысли» Ады». Путь и стрелку каждая версия рисует своим цветом.</p>
+            <p class="cv-note">Появляются на сцене после запуска. Путь и стрелку каждая версия рисует своим цветом. В свободном режиме «мысли» можно выключить флажком.</p>
             <div class="demo-legend" aria-hidden="true">
           <span><svg viewBox="0 0 28 14" class="wide"><path d="M2 12 L12 5 L26 3" fill="none" stroke="#2a78d6" stroke-width="2"/><circle cx="12" cy="5" r="2.6" fill="#2a78d6" stroke="#fff" stroke-width="1.2"/></svg>путь, который построил планировщик</span>
           <span><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="5.5" fill="rgba(42,120,214,.15)" stroke="#2a78d6" stroke-width="1.6"/><path d="M1.5 10 H18.5 M10 1.5 V18.5" stroke="#2a78d6" stroke-width="1.6"/></svg>где, по оценке фильтра, стоит чашка</span>
@@ -254,9 +253,16 @@ v = pid(path.next - hand)</pre>
         </div>
       </details>
 
-      <div class="controls">
+      <div class="run-bar" id="runBar">
+        <button class="btn primary" id="runBtn" type="button">▶ Запустить</button>
         <button class="btn" id="pauseBtn" type="button">⏸ Пауза</button>
         <button class="btn" id="resetBtn" type="button">↺ Сначала</button>
+        <span class="run-hint" id="runHint"></span>
+      </div>
+      <div class="explain" id="explain" hidden></div>
+
+      <div class="free-tools" id="freeTools" hidden>
+      <div class="controls">
         <button class="btn" id="newSceneBtn" type="button">🎲 Новая сцена</button>
         <span class="sep"></span>
         <div class="seg" role="group" aria-label="Скорость">
@@ -276,8 +282,9 @@ v = pid(path.next - hand)</pre>
       </div>
       <p class="small muted" style="margin:10px 0 0">Предметы и стартовую точку руки можно перетаскивать мышкой — даже во время движения.</p>
       <p class="small muted noise-hint">Шум камеры — случайные помехи в пикселях кадра 16 × 16, который видят все три версии Ады; кадр с текущим шумом — рядом с ползунком, синим отмечено, где правило по цвету видит чашку. Днём шум почти ни на что не влияет. Включи вечерний свет и подними шум до 0,04: правило по цвету начнёт находить «чашку» в помехах, и громкий отказ версии на правилах станет тихим.</p>
+      </div>
 
-      <div class="explain" id="explain" hidden></div>
+
 
       <div class="see-grid">
         <div class="see-cam">
@@ -375,7 +382,7 @@ v = pid(path.next - hand)</pre>
 
     <div class="card chart-card" style="margin-top:18px">
       <div class="chart-head">
-        <div><h4>Успех в зависимости от числа демонстраций</h4><p>Каждая точка — один запуск обучения и проверка на 40 новых сценах. Правилам данные не нужны: их уровень — горизонтальная линия.</p></div>
+        <div><h4>Успех в зависимости от числа демонстраций</h4><p>Каждая точка — один запуск обучения и проверка на 40 новых сценах. Правилам данные не нужны: их уровень — горизонтальная линия. Сначала у каждой сети одна точка — 200 демонстраций, на которых она обучилась при открытии урока. Кривые появятся после кнопки «Построить кривую целиком» выше: сети обучатся на 5, 10, 25, 50, 100, 200, 500 и 1000 демонстрациях.</p></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
           <div class="seg" role="group" aria-label="Условия проверки" id="scaleCond">
             <button type="button" data-c="normal" aria-pressed="true">Обычные</button>

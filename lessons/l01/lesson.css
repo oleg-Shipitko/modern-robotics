@@ -628,3 +628,10 @@ a.brand:hover small { color: var(--ink-2); }
 #lab1 .lab-legend h4 { margin: 0 0 4px; font-size: 12.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--ink-3); }
 #lab1 .lab-legend .lg-group + .lg-group { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
 #lab1 .lab-legend .cv-note { margin-top: 6px; }
+
+/* Урок 0.1, лаборатория 1: запуск и итог сразу под сценами, настройки — только в свободном режиме */
+#lab1 .run-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; margin: 14px 0 0; }
+#lab1 .run-hint { font-size: 14px; color: var(--ink-3); flex: 1 1 260px; }
+#lab1 .free-tools[hidden] { display: none; }
+#lab1 .free-tools { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+#lab1 .stepper button.locked { opacity: .55; cursor: not-allowed; }

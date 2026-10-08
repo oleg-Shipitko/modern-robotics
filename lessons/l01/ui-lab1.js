@@ -123,10 +123,12 @@ const Lab1 = (() => {
   function renderStepper() {
     const box = $('#stepper');
     box.innerHTML = '';
+    const freeLocked = done.size < STEPS.length - 1; // свободный режим — после всех пяти экспериментов
     STEPS.forEach((st, i) => {
-      const b = h('button', { type: 'button', role: 'tab', class: done.has(i) ? 'done' : '', 'aria-current': i === step ? 'step' : null },
-        h('span', { class: 'n' }, done.has(i) ? '✓' : st.free ? '∞' : String(i + 1)), st.title);
-      b.addEventListener('click', () => setStep(i));
+      const locked = st.free && freeLocked;
+      const b = h('button', { type: 'button', role: 'tab', class: (done.has(i) ? 'done' : '') + (locked ? ' locked' : ''), 'aria-current': i === step ? 'step' : null, 'aria-disabled': locked ? 'true' : null, title: locked ? 'Откроется после пяти экспериментов' : null },
+        h('span', { class: 'n' }, done.has(i) ? '✓' : locked ? '🔒' : st.free ? '∞' : String(i + 1)), st.title);
+      b.addEventListener('click', () => { if (!locked) setStep(i); });
       box.append(b);
     });
   }
@@ -134,6 +136,7 @@ const Lab1 = (() => {
     const st = STEPS[step];
     $('#missionTitle').textContent = st.free ? st.title : `Эксперимент ${step + 1} из 5 · ${st.title}`;
     $('#missionText').textContent = st.text;
+    $('#freeTools').hidden = !st.free;
     const pr = $('#predict');
     pr.innerHTML = '';
     if (!st.free) {
@@ -153,9 +156,14 @@ const Lab1 = (() => {
   }
   function updateRunBtn() {
     const btn = $('#runBtn');
-    if (!App.models.ready) { btn.disabled = true; btn.textContent = '⏳ Нейросети обучаются…'; return; }
+    if (!App.models.ready) { btn.disabled = true; btn.textContent = '⏳ Нейросети обучаются…'; const hn = $('#runHint'); if (hn) hn.textContent = 'Сети обучаются прямо в браузере, через несколько секунд можно запускать. Пока сделай прогноз выше.'; return; }
     btn.disabled = false;
     btn.textContent = running ? '⏹ Остановить' : finishedRun ? '↻ Ещё раз' : '▶ Запустить';
+    const st = STEPS[step], hint = $('#runHint');
+    if (hint) hint.textContent = running ? 'Три версии Ады едут одновременно.'
+      : st.free ? 'Меняй условия и предметы ниже и запускай снова.'
+      : finishedRun ? 'Разбор — ниже. Дальше — кнопка «Следующий эксперимент».'
+      : 'Сделай прогноз выше и запусти: все три версии Ады поедут одновременно. Разбор появится прямо здесь.';
   }
 
   /* ---------- Эпизоды ---------- */
@@ -329,7 +337,7 @@ const Lab1 = (() => {
     wrap.addEventListener('pointerdown', (e) => {
       const pt = toScene(e, wrap);
       const hit = SceneView.hitTest(scene, pt);
-      if (!hit || (hit === 'start' && running)) return;
+      if (!STEPS[step].free || !hit || (hit === 'start' && running)) return;
       drag = { hit, id: e.pointerId };
       wrap.setPointerCapture(e.pointerId);
       wrap.style.cursor = 'grabbing';
@@ -337,7 +345,7 @@ const Lab1 = (() => {
     });
     wrap.addEventListener('pointermove', (e) => {
       const pt = toScene(e, wrap);
-      if (!drag) { wrap.style.cursor = SceneView.hitTest(scene, pt) ? 'grab' : 'default'; return; }
+      if (!drag) { wrap.style.cursor = STEPS[step].free && SceneView.hitTest(scene, pt) ? 'grab' : 'default'; return; }
       const x = RC.clamp(pt.x, 0.06, 0.94), y = RC.clamp(pt.y, 0.06, 0.94);
       if (drag.hit === 'start') { scene.start.x = x; scene.start.y = y; }
       else { drag.hit.x = x; drag.hit.y = y; }
