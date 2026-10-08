@@ -57,3 +57,6 @@
   .ens-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .cc-name { min-width: 0; width: 100%; }
 }
+
+/* строка-пояснение под сценой или графиком: вид, значки, единицы */
+.cv-note { margin: 8px 0 0; font-size: 14px; line-height: 1.5; color: var(--ink-3); }
