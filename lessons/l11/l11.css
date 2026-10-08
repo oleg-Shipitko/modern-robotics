@@ -66,3 +66,6 @@
 /* живые миссии: невыполненный критерий — нейтральная точка, а не красный крест */
 .m-card:not(:has(.g-go)) .m-crit li.no i { border-color: var(--line-2); background: var(--surface-2); color: var(--ink-3); }
 .m-card:not(:has(.g-go)) .m-crit li.no i::before { content: '·'; }
+
+/* строка-пояснение под сценой или графиком: вид, значки, единицы */
+.cv-note { margin: 8px 0 0; font-size: 14px; line-height: 1.5; color: var(--ink-3); }

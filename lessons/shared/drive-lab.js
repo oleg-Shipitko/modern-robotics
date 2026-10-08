@@ -3,7 +3,7 @@
    DriveDraw — отрисовка плана дома для любых канвасов (работает и без лабы).
    DriveLab — живая сцена #scene и промис-API для миссий (shared/missions.js):
      record()            своя поездка курсором или пальцем;
-     addDemos(), train() демонстрации робота-оператора и обучение;
+     addDemos(), train() демонстрации учителя и обучение;
      runTrips()          10 проверочных поездок с общими случайными числами;
      compare()           несколько политик рядом, сцена делится на панели;
      daggerIter()        итерация DAgger с подсказками учителя на сцене;
@@ -133,7 +133,7 @@
     const add = D.demos(n, { seed: 3 + st.demos.length, offSigma: 3, startSpread: 0.8, dart: opts.dart ? 0.5 : 0 });
     if (opts.dart) add.forEach((d) => { d.dart = true; });
     st.demos.push(...add); counts(); notify();
-    say(`Добавлено ${n} поездок робота-оператора${opts.dart ? ' с подмешанным шумом: его сносит, и он поправляет Аду' : ': он едет аккуратно по середине'}.`, 'info');
+    say(`Добавлено ${n} поездок учителя${opts.dart ? ' с подмешанным шумом: его сносит, и он поправляет Аду' : ': он едет аккуратно по середине'}.`, 'info');
     return st.demos.length;
   }
   function clearRuns() { st.runs = []; st.ghost = null; st.panels = []; st.layout = 'single'; st.teach = null; }
@@ -255,7 +255,7 @@
   function setLayout(l, list) { if (l === 'grid') { clearRuns(); st.probe = null; st.pick = null; } st.layout = l; if (list) st.panels = list.map((v) => ({ key: v.key, label: v.label, runs: [] })); notify(); }
 
   /* ---------- политика из урока 1.1 и DAgger ---------- */
-  /** Политика на 10 аккуратных поездках робота-оператора как стартовая точка урока 1.2. */
+  /** Политика на 10 аккуратных поездках учителя как стартовая точка урока 1.2. */
   async function useBC() {
     const e = await ensure('c10');
     st.demos = e.demos.slice(); st.aug = false; st.extra = { X: [], Y: [] }; st.labeled = []; st.dagIt = 0;
