@@ -124,3 +124,5 @@
 /* схема телеоперации ALOHA */
 .aloha-anim { margin: 18px 0 22px; padding: 12px 12px 10px; }
 .aloha-anim figcaption { margin: 8px 2px 0; }
+/* подписи под сценами */
+.cv-note { margin: 8px 0 0; font-size: 14px; line-height: 1.5; color: var(--ink-3); }

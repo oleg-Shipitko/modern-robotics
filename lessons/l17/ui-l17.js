@@ -599,6 +599,9 @@ const TeLab = (() => {
     a.preds.forEach((p, i) => { const col = st.tape.chunks[p.s].sg > 0 ? P.up : P.down; c.fillStyle = col; c.globalAlpha = st.sel === i ? 1 : 0.75; c.beginPath(); c.arc(x(st.t), y(p.y), 1.6 + 3.2 * p.w / mx, 0, 7); c.fill(); });
     c.globalAlpha = 1;
     c.beginPath(); c.arc(x(st.t), y(a.y), 7, 0, 7); c.fillStyle = a.inObs ? P.bad : P.ink; c.fill(); c.lineWidth = 2; c.strokeStyle = P.surf; c.stroke();
+    HeroKit.label(c, k, 'препятствие', (ox0 + ox1) / 2, oy1 + 12, { px: 11, weight: 700, color: P.ink2, haloColor: P.bg });
+    HeroKit.label(c, k, 'смещение, см', 38, 10, { align: 'left', px: 10.5, color: P.ink3, haloColor: P.bg });
+    HeroKit.label(c, k, 'шаги по 20 мс →', W - 12, H - 24 * k, { align: 'right', px: 10.5, color: P.ink3, haloColor: P.bg });
     HeroKit.label(c, k, `шаг ${st.t}`, x(st.t), 10, { px: 11, weight: 700, color: P.ink2, haloColor: P.bg });
   }
   function drawW() {
@@ -701,6 +704,7 @@ const DelayLab = (() => {
     if (st.obst) {
       const R = DL.RO * S; c.beginPath(); c.arc(X(DL.XO), Y(0), R, 0, 7); c.fillStyle = P.surf; c.fill(); c.beginPath(); c.arc(X(DL.XO), Y(0), R, 0, 7); HeroKit.hatch(c, X(DL.XO) - R, Y(0) - R, X(DL.XO) + R, Y(0) + R, hitNow ? P.bad : P.ink3, 6, 1);
       c.beginPath(); c.arc(X(DL.XO), Y(0), R, 0, 7); c.strokeStyle = hitNow ? P.bad : P.ink2; c.lineWidth = hitNow ? 3 : 1.5; c.stroke();
+      HeroKit.label(c, k, 'препятствие', X(DL.XO), Y(0), { px: 11, weight: 700, color: P.ink2, haloColor: P.surf });
     }
     c.beginPath(); c.arc(X(0), Y(0), 6, 0, 7); c.strokeStyle = P.ink3; c.lineWidth = 1.5; c.stroke(); HeroKit.label(c, k, 'старт', X(0), Y(0) + 22, { px: 11, color: P.ink3, haloColor: P.bg });
     c.strokeStyle = P.ink; c.lineWidth = 1.6; c.beginPath(); c.arc(X(DL.X1), Y(0), 9, 0, 7); c.stroke(); HeroKit.label(c, k, 'цель', X(DL.X1), Y(0) + 24, { px: 11, color: P.ink2, haloColor: P.bg });
