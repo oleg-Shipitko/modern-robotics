@@ -25,9 +25,15 @@ const pal = () => ({ bg: HeroKit.css('--surface-2'), grid: HeroKit.css('--line')
 const fmt1 = (v, d) => v.toLocaleString('ru-RU', { maximumFractionDigits: d == null ? 1 : d, minimumFractionDigits: 0 }).replace('-', '−');
 const fmtF = (v, d) => v.toLocaleString('ru-RU', { maximumFractionDigits: d, minimumFractionDigits: d }).replace('-', '−');
 const nWord = (n, a, b, c) => `${n} ${plural(n, a, b, c)}`;
+/** Значки легенды, похожие на значки сцены: Ада сверху, перекрестие цели, штриховка препятствий. */
+const LEG_SVG = {
+  ada: (c) => `<svg viewBox="0 0 20 20" width="16" height="16"><circle cx="10" cy="10" r="8" style="fill:var(--surface);stroke:${c}" stroke-width="1.6"/><rect x="11" y="6" width="4.6" height="8" rx="1.8" fill="#1f2430"/><circle cx="13.3" cy="8.2" r="0.9" fill="#eb6834"/><circle cx="13.3" cy="11.8" r="0.9" fill="#eb6834"/></svg>`,
+  goal: (c) => `<svg viewBox="0 0 20 20" width="16" height="16"><circle cx="10" cy="10" r="5" fill="none" style="stroke:${c}" stroke-width="1.6"/><path d="M1 10h5M14 10h5M10 1v5M10 14v5" style="stroke:${c}" stroke-width="1.6"/></svg>`,
+  hatch: (c) => `<svg viewBox="0 0 16 12" width="16" height="12"><rect x="0.75" y="0.75" width="14.5" height="10.5" style="fill:var(--surface);stroke:${c}" stroke-width="1.5"/><path d="M1 6.5 4.5 1M1 11 7.5 1M4.5 11 11 1M8 11 14.5 1M11.5 11 15 5.5" style="stroke:${c}" stroke-width="0.9"/></svg>`,
+};
 function legend(sel, items) {
   const box = $(sel); box.innerHTML = '';
-  items.forEach(([t, col, kind]) => box.append(h('span', null, h('i', { class: kind === 'dash' ? 'dash' : null, style: `--c:${col}` + (kind === 'box' ? ';height:10px;width:14px;border-radius:3px;background:' + col : kind === 'dot' ? ';height:10px;width:10px;border-radius:50%;background:' + col : kind === 'ring' ? ';height:12px;width:12px;border-radius:50%;background:transparent;border:2px solid ' + col : '') }), t)));
+  items.forEach(([t, col, kind]) => box.append(h('span', null, LEG_SVG[kind] ? h('span', { class: 'leg-ico', html: LEG_SVG[kind](col) }) : h('i', { class: kind === 'dash' ? 'dash' : null, style: `--c:${col}` + (kind === 'box' ? ';height:10px;width:14px;border-radius:3px;background:' + col : kind === 'dot' ? ';height:10px;width:10px;border-radius:50%;background:' + col : kind === 'ring' ? ';height:12px;width:12px;border-radius:50%;background:transparent;border:2px solid ' + col : kind === 'thick' ? ';height:6px;border-radius:3px' : kind === 'pale' ? ';opacity:.5' : '') }), t)));
 }
 function setOut(el, html) { if (el.dataset.h !== html) { el.innerHTML = html; el.dataset.h = html; } }
 const redrawOn = (fn) => { App.on('theme', fn); App.on('resize', fn); };
@@ -115,6 +121,7 @@ const KfLab = (() => {
       c.fillStyle = P.surf; c.beginPath(); c.roundRect(6, y0, W - 12, LANE, 9); c.fill(); c.strokeStyle = P.grid; c.lineWidth = 1; c.stroke();
       if (st.o.carpet) { const a = xp(K.CARPET[0]), b = xp(K.CARPET[1]); c.beginPath(); c.rect(a, y0 + 1, b - a, LANE - 2); c.fillStyle = HeroKit.dark() ? 'rgba(235,104,52,.10)' : 'rgba(235,104,52,.08)'; c.fill(); c.beginPath(); c.rect(a, y0 + 1, b - a, LANE - 2); HeroKit.hatch(c, a, y0, b, y0 + LANE, P.e2e, 9, 0.6); }
       c.fillStyle = P.ink2; c.fillRect(xp(520), y0 + 6, 6, LANE - 12);
+      if (li === 0) { c.save(); c.translate(xp(520) + 14, y0 + LANE / 2); c.rotate(-Math.PI / 2); HeroKit.label(c, k, 'стена', 0, 0, { px: 10.5, color: P.ink3, weight: 650, haloColor: P.bg }); c.restore(); }
       c.strokeStyle = P.grid; c.lineWidth = 1; c.beginPath(); c.moveTo(xp(0), yc + 13); c.lineTo(xp(520), yc + 13); c.stroke();
       const lab = key === 'comp' ? name + fmt1(st.o.alpha, 2) : name;
       HeroKit.label(c, k, lab, 14, y0 + 11, { align: 'left', px: 11, weight: 700, color: col, haloColor: P.surf });
@@ -199,7 +206,7 @@ const KfLab = (() => {
       action: { label: 'Проехать', run: (X) => X.run() } },
   ];
   function init() {
-    legend('#kfLegend', [['бледная Ада — где она на самом деле', 'var(--ink-3)', 'ring'], ['оценка дальномера', 'var(--ink-3)', 'dot'], ['комплементарного фильтра', 'var(--ink-2)', 'dot'], ['Калмана и полоса ±2σ', 'var(--classic)', 'dot']]);
+    legend('#kfLegend', [['бледная Ада — где она на самом деле', 'var(--ink-3)', 'ada'], ['оценка дальномера', 'var(--ink-3)', 'dot'], ['комплементарного фильтра', 'var(--ink-2)', 'dot'], ['Калмана и полоса ±2σ', 'var(--classic)', 'dot']]);
     legend('#kfPlotLegend', [['дальномер', 'var(--ink-3)'], ['комплементарный', 'var(--ink-2)', 'dash'], ['Калман', 'var(--classic)'], ['полоса ±2σ', 'var(--classic-soft)', 'box'], ['провал или ковёр', 'var(--critical-soft)', 'box']]);
     ['#kfSq', '#kfSr', '#kfAl'].forEach((q) => $(q).addEventListener('input', onCtl)); ['#kfCarpet', '#kfDrop'].forEach((q) => $(q).addEventListener('change', onCtl));
     syncCtl(); compute();
@@ -505,7 +512,7 @@ const GridLab = (() => {
     const n = !st.shown ? 0 : st.anim ? st.anim.n : null;
     drawPane('#gCvD', st.d, n); drawPane('#gCvA', st.a, n); stat('#gStatD', st.d); stat('#gStatA', st.a);
     const free = G.free(grid()), ratio = st.a.path && st.opt.path ? st.a.cost / st.opt.cost : 1;
-    setOut($('#gOut'), `Свободных клеток: ${free}. ${st.eps !== 1 ? `Вес эвристики ε = ${fmtF(st.eps, 1)}: путь A* длиннее кратчайшего на <b>${fmt1((ratio - 1) * 100, 1)} %</b>.` : 'A* с ε = 1: эвристика допустимая, путь кратчайший.'}`);
+    setOut($('#gOut'), `Свободных клеток: ${free}. ${st.eps !== 1 ? `Вес эвристики ε = ${fmtF(st.eps, 1)}: путь A* длиннее кратчайшего на <b>${fmt1((ratio - 1) * 100, 1)} %</b>.` : 'Эвристика не переоценивает остаток пути, поэтому путь A* кратчайший.'}`);
   }
   async function run() {
     compute(); const N = Math.max(st.d.order.length, st.a.order.length); st.anim = { n: 0 }; st.shown = true;
@@ -545,7 +552,7 @@ const GridLab = (() => {
       action: { label: 'Искать путь с анимацией', run: (X) => X.run() } },
   ];
   function init() {
-    legend('#gLegend', [['раскрытые клетки: темнее — раньше', 'var(--classic-soft)', 'box'], ['путь', 'var(--classic)'], ['твои стены', 'var(--warning)', 'box'], ['стены и мебель', 'var(--ink-2)', 'box']]);
+    legend('#gLegend', [['Ада — откуда ехать', 'var(--ink)', 'ada'], ['цель', 'var(--ink)', 'goal'], ['раскрытые клетки: темнее — раньше', 'var(--classic-soft)', 'box'], ['путь', 'var(--classic)'], ['твои стены', 'var(--warning)', 'box'], ['стены', 'var(--ink-2)', 'box'], ['мебель', 'color-mix(in srgb, var(--ink-3) 55%, var(--surface))', 'box']]);
     let pointerType = 'mouse', paint = 1;
     const cellOf = (p) => ({ i: Math.max(0, Math.min(NX - 1, Math.floor(p.x / CW))), j: Math.max(0, Math.min(NY - 1, Math.floor(p.y / CW))) });
     ['#gCvD', '#gCvA'].forEach((sel) => {
@@ -727,7 +734,7 @@ const RrtLab = (() => {
       action: { label: 'Вырастить заново', run: (X) => X.runAgain() } },
   ];
   function init() {
-    legend('#rrtLegend', [['дерево', 'var(--classic)'], ['найденный путь', 'var(--classic)'], ['створки перегородки', 'var(--ink-2)', 'box']]);
+    legend('#rrtLegend', [['Ада', 'var(--ink)', 'ada'], ['цель', 'var(--ink)', 'goal'], ['дерево: все проверенные шаги', 'var(--classic)', 'pale'], ['найденный путь', 'var(--classic)', 'thick'], ['створки перегородки', 'var(--ink-2)', 'hatch'], ['мебель', 'var(--ink-3)', 'hatch']]);
     ['#rrtCvA', '#rrtCvB'].forEach((sel) => {
       HeroKit.drag($(sel), W * SC, H * SC, {
         hit: (p) => {
@@ -761,7 +768,7 @@ const Today = (() => {
       if (j) flow.append(h('span', { class: 'flow-arrow', 'aria-hidden': 'true' }, '→'));
       flow.append(h('div', { class: 'flow-box', style: `--c:${COL[kind]}` }, h('h4', null, t), f ? h('div', { class: 'fq' }, f) : null, d ? h('p', null, d) : null));
     });
-    box.append(flow, h('p', { class: 'today-note', html: s.note }));
+    box.append(h('p', { class: 'stack-about' }, s.about), flow, h('p', { class: 'today-note', html: s.note }));
   }
   function init() {
     if (!S.length) return;

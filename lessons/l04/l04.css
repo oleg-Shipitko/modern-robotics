@@ -71,3 +71,9 @@
   #kfCv { aspect-ratio: 520 / 340; }
   #kfPlot { aspect-ratio: 520 / 220; }
 }
+
+/* строки-пояснения под сценами, значки легенд и «что это» у систем */
+.cv-note { margin: 8px 0 0; font-size: 14px; line-height: 1.5; color: var(--ink-3); }
+.cv-legend .leg-ico { display: inline-flex; flex: none; }
+.cv-legend .leg-ico svg { display: block; }
+.stack-about { margin: 12px 0 0; font-size: 15px; line-height: 1.5; color: var(--ink-2); max-width: 900px; }
