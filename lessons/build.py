@@ -79,6 +79,15 @@ LESSONS = {
     'l38': ('3-8-obobshchenie-i-rassuzhdenie.html', ['l01/lesson.css', 'shared/lab.css', 'l38/l38.css'], {
         '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'l21/engine.js', 'l38/engine.js', 'l38/ui-l38.js'],
     }),
+    'l41': ('4-1-masshtab-dannykh.html', ['l01/lesson.css', 'shared/lab.css', 'l41/l41.css'], {
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'l21/engine.js', 'l41/engine.js', 'l41/ui-l41.js'],
+    }),
+    'l42': ('4-2-teleoperatsiya.html', ['l01/lesson.css', 'shared/lab.css', 'l42/l42.css'], {
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'shared/arm-core.js', 'l42/engine.js', 'l42/devices.js', 'l42/ui-l42.js'],
+    }),
+    'l43': ('4-3-datasety-robotov.html', ['l01/lesson.css', 'shared/lab.css', 'l43/l43.css'], {
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'l21/engine.js', 'l43/engine.js', 'l43/ui-l43.js'],
+    }),
     # глоссарий: все термины из shared/glossary.json, без отзыва и «спасибо»
     'gl': ('glossariy.html', ['l01/lesson.css', 'gl/gl.css'], {
         '/*@@JS@@*/': ['l01/ui-core.js', 'gl/ui-gl.js'],
