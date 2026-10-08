@@ -62,3 +62,7 @@
 /* живые миссии: невыполненный критерий — «ещё нет», серым */
 .m-live .m-crit li.no i { border-color: var(--line-2); color: var(--ink-3); background: var(--surface-2); }
 .m-live .m-crit li.no i::before { content: '·'; }
+
+/* строки-пояснения под сценами и «что это» у систем */
+.cv-note { margin: 8px 0 0; font-size: 14px; line-height: 1.5; color: var(--ink-3); }
+.stack-about { margin: 12px 0 0; font-size: 15px; line-height: 1.5; color: var(--ink-2); max-width: 900px; }

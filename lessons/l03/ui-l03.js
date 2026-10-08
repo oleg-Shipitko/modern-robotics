@@ -64,6 +64,13 @@ function arcAngle(c, k, P, ctr, a0, a1, r, text) {
   const m = (a0 + a1) / 2; HeroKit.label(c, k, text, ctr.x + Math.cos(m) * (r + 15), ctr.y - Math.sin(m) * (r + 15), { color: P.cl, px: 12, weight: 700, haloColor: P.bg });
 }
 const RMAX = Arm.L1 + Arm.L2, RMIN = Arm.L1 - Arm.L2;
+/** Подписи вида сверху поверх руки: плечо (с другой стороны от первого звена), цель и внешняя граница досягаемости. */
+function topLabels(c, k, P, q1, g) {
+  const b = TOP.map(0, 0), lab = (t, x, y) => HeroKit.label(c, k, t, x, y, { px: 11, color: P.ink3, weight: 650, haloColor: P.bg });
+  lab('плечо', b.x - Math.cos(q1) * 30, b.y + Math.sin(q1) * 30);
+  lab('цель', g.x, g.y < 40 ? g.y + 26 : g.y - 26);
+  lab('граница досягаемости', TOP.W / 2, TOP.H / 2 + RMAX * TOP.S);
+}
 /** Решения обратной задачи с допуском на границе: на самой границе рабочей зоны решение одно. */
 function ikSols(x, y) {
   const L1 = Arm.L1, L2 = Arm.L2, c2 = (x * x + y * y - L1 * L1 - L2 * L2) / (2 * L1 * L2);
@@ -126,6 +133,7 @@ const FK = (() => {
     c.beginPath(); c.moveTo(j.x, j.y); c.lineTo(j.x + Math.cos(st.q[0]) * 62, j.y - Math.sin(st.q[0]) * 62); c.stroke(); c.setLineDash([]);
     arcAngle(c, k, P, b, 0, st.q[0], 36, 'θ₁'); arcAngle(c, k, P, j, st.q[0], st.q[0] + st.q[1], 28, 'θ₂');
     drawArm(c, st.q, TOP.map, P);
+    topLabels(c, k, P, st.q[0], g);
     setOut($('#fkOut'), `Захват: x = ${fmt1(p.x, 2)} м, y = ${fmt1(p.y, 2)} м · ${hit ? '<b>в цели</b>' : `до цели <b>${fmt1(st.dist * 100, 0)} см</b>`} · движений ползунками: <b>${st.moves}</b>`);
   }
   function showLog() { const ol = $('#fkLog'); ol.hidden = !st.log.length; ol.innerHTML = ''; st.log.forEach((t) => ol.append(h('li', { class: 'ok' }, t))); }
@@ -168,7 +176,7 @@ const FK = (() => {
 const IK = (() => {
   const A = Arm; let goal = { x: 0.5, y: 0.35 }, ctl = null;
   function draw() {
-    const { c, P } = topBase($('#ikCv')), sols = ikSols(goal.x, goal.y), r = Math.hypot(goal.x, goal.y), g = TOP.map(goal.x, goal.y);
+    const { c, k, P } = topBase($('#ikCv')), sols = ikSols(goal.x, goal.y), r = Math.hypot(goal.x, goal.y), g = TOP.map(goal.x, goal.y);
     let txt;
     if (!sols.length) {
       const far = r > RMAX; drawArm(c, [Math.atan2(goal.y, goal.x), far ? 0 : Math.PI], TOP.map, P, { color: P.ink3 });
@@ -180,7 +188,8 @@ const IK = (() => {
       drawArm(c, sols[1], TOP.map, P, { ghost: true }); drawArm(c, sols[0], TOP.map, P);
       txt = `<b>Два решения:</b> θ₁ = ${dg(sols[0][0])}, θ₂ = ${dg(sols[0][1])} и θ₁ = ${dg(sols[1][0])}, θ₂ = ${dg(sols[1][1])}.`;
     }
-    crosshair(c, g.x, g.y, P); setOut($('#ikOut'), txt + ` До плеча ${fmt1(r, 2)} м.`);
+    crosshair(c, g.x, g.y, P); topLabels(c, k, P, sols.length ? sols[0][0] : Math.atan2(goal.y, goal.x), g);
+    setOut($('#ikOut'), txt + ` До плеча ${fmt1(r, 2)} м.`);
   }
   const api = { reset() { goal = { x: 0.5, y: 0.35 }; draw(); }, state: () => ({ n: ikSols(goal.x, goal.y).length, r: Math.hypot(goal.x, goal.y) }), set: (x, y) => { goal = { x, y }; draw(); if (ctl) ctl.update(); } };
   const missions = [
@@ -192,7 +201,7 @@ const IK = (() => {
       explain: () => 'Цель дальше 0,9 м или ближе 0,1 м от плеча, и формула показывает: решений нет. Нейросеть, которую мы обучим в лаборатории 1, выдаст углы и здесь, не предупредив, что они не годятся.' },
   ];
   function init() {
-    legend('#ikLegend', [['первое решение', 'var(--ink)'], ['второе решение', 'var(--ink-3)', true]]);
+    legend('#ikLegend', [['первое решение', 'var(--ink)'], ['второе решение', 'var(--ink-3)', true], ['границы досягаемости', 'var(--ink-3)', true]]);
     const set = (p) => { const w = clampRing(TOP.inv(p.x, p.y), 0, 0.98); goal = snapRing(w, 0.02); draw(); ctl.update(); };
     HeroKit.drag($('#ikCv'), TOP.W, TOP.H, { hit: (p) => { const g = TOP.map(goal.x, goal.y); return Math.hypot(p.x - g.x, p.y - g.y) < 40 ? 'g' : null; }, move: (o, p) => set(p), tap: set, tapCursor: 'pointer' });
     ctl = mountMissions('#ikMis', missions, api);
@@ -244,7 +253,7 @@ const Jac = (() => {
     set,
   };
   const missions = [
-    { short: 'Сингулярность', title: 'Найди сингулярность', text: 'Перетаскивай захват и найди положение, где эллипс сплющивается в отрезок, а определитель якобиана почти нулевой.', criteria: [{ label: 'det J меньше 0,01', test: (r, s) => s.det < 0.01 }],
+    { short: 'Сингулярность', title: 'Найди сингулярность', text: 'Перетаскивай захват и найди положение, где эллипс сплющивается в отрезок, а определитель якобиана почти нулевой.', criteria: [{ label: 'Эллипс сплющился в отрезок: det J меньше 0,01', test: (r, s) => s.det < 0.01 }],
       hint: 'Вытяни руку до упора или сложи её у самого плеча.',
       explain: (s) => `${s.r > 0.5 ? 'Рука вытянута' : 'Рука сложена'}, det J = ${fmt1(s.det, 3)}. Суставы могут крутиться как угодно, но вдоль руки захват не сдвинется: обе скорости суставов ведут его поперёк. На графике такая точка лежит на нуле.` },
     { short: 'Круглый эллипс', title: 'Найди самый круглый эллипс', text: 'Теперь наоборот: найди положение, где рука одинаково легко двигается во все стороны. Нужна округлость больше 0,8: короткая ось эллипса — не меньше 80 % длинной.', criteria: [{ label: 'Округлость больше 0,8', test: (r, s) => s.ratio > 0.8 }],
@@ -614,7 +623,7 @@ const ImpLab = (() => {
       end: (mode) => { st.arms[mode].pull = null; },
     });
     HeroKit.loop($('#impCv'), tick);
-    legend('#impLegend', [['позиционная рука', 'var(--ink)'], ['импедансная', 'var(--classic)'], ['сила, с которой стол давит на тряпку', 'var(--critical)']]);
+    legend('#impLegend', [['позиционная рука', 'var(--ink)'], ['импедансная', 'var(--classic)'], ['стол по данным камеры', 'var(--critical)', true], ['стрелка — сила, с которой стол давит на тряпку', 'var(--critical)']]);
     setCtl({ K: 400, err: 4 });
     ctl = mountMissions('#impMis', missions, api, { controls: { k: '#wrapK', err: '#wrapErr' } });
     render(); redrawOn(render);
@@ -739,11 +748,11 @@ const MpcLab = (() => {
 /* ---------- Кто исполняет команды сети ---------- */
 const Stack = (() => {
   const S = [
-    { name: 'RL-ходьба', flow: [['Политика ходьбы', '50 Гц', 'углы и скорости суставов, IMU, команда → 12 целевых углов', 'nn'], ['ПД-регуляторы суставов', 'на драйверах', 'Kp = 20 Н·м/рад, Kd = 0,5 (legged_gym, робот A1)', 'cl'], ['Моторы', '', 'моменты', 'hw']], note: 'Так учат ходить в симуляторе за минуты (Rudin и соавторы, 2022). У ANYmal политика работает на 200 Гц, а ПД-регуляторы с Kp = 50 и Kd = 0,1 стоят в самих приводах (Hwangbo и соавторы, 2019).' },
-    { name: 'VLA π0', flow: [['Модель π0', 'раз в 0,5 с', 'камеры, текст и углы → пачка из 50 действий; вывод 73 мс на RTX 4090', 'nn'], ['Пачка действий', '50 Гц', 'робот исполняет первые 25 действий', 'nn'], ['Регуляторы суставов', '', 'целевые углы → моменты', 'cl']], note: 'Поэтому «50 Гц» у π0 — частота действий, а не вызовов модели.' },
-    { name: 'Diffusion Policy', flow: [['Diffusion Policy', '10 Гц', 'камеры → поза захвата', 'nn'], ['Дифференциальная кинематика', '', 'квадратичная задача: поза захвата → углы суставов', 'cl'], ['Регулятор руки Franka', '1 кГц', 'углы → моменты', 'cl']], note: 'Здесь работает якобиан из раздела 2: он переводит желаемое движение захвата в движение суставов.' },
-    { name: 'Atlas и LBM', flow: [['Большая модель поведения', '30 Гц', '450 млн параметров, пачка из 48 действий', 'nn'], ['MPC Boston Dynamics', '', 'позы кистей, стоп и торса → движения суставов', 'cl'], ['Суставы', '', '', 'hw']], note: 'Совместная работа Boston Dynamics и Toyota Research Institute, август 2025 года.' },
-    { name: 'Figure Helix 02', flow: [['S2', '7–9 Гц', 'модель «зрение и язык», 7 млрд параметров', 'nn'], ['S1', '200 Гц', '80 млн параметров', 'nn'], ['S0', '1 кГц', '10 млн параметров, команды приводам', 'nn'], ['Приводы', '', '', 'hw']], note: 'Слой S0 появился в январе 2026 года и заменил 109 504 строки кода на C++. Нейросети спускаются даже в нижний контур, но иерархия частот остаётся.' },
+    { name: 'RL-ходьба', about: 'Нейросеть ходьбы, обученная в симуляторе методом проб и ошибок — обучением с подкреплением (reinforcement learning, RL). Так сегодня учат ходить четвероногих роботов и гуманоидов.', flow: [['Политика ходьбы', '50 Гц', 'углы и скорости суставов, IMU, команда → 12 целевых углов', 'nn'], ['ПД-регуляторы суставов', 'на драйверах', 'Kp = 20 Н·м/рад, Kd = 0,5 (legged_gym, робот A1)', 'cl'], ['Моторы', '', 'моменты', 'hw']], note: 'Так учат ходить в симуляторе за минуты (Rudin и соавторы, 2022). У ANYmal политика работает на 200 Гц, а ПД-регуляторы с Kp = 50 и Kd = 0,1 стоят в самих приводах (Hwangbo и соавторы, 2019).' },
+    { name: 'VLA π0', about: 'Модель «зрение — язык — действие» (VLA) от Physical Intelligence: по картинкам с камер и просьбе словами выдаёт движения рук. За один вызов она выдаёт сразу пачку следующих действий.', flow: [['Модель π0', 'раз в 0,5 с', 'камеры, текст и углы → пачка из 50 действий; расчёт занимает 73 мс на видеокарте RTX 4090', 'nn'], ['Пачка действий', '50 Гц', 'робот исполняет первые 25 действий', 'nn'], ['Регуляторы суставов', '', 'целевые углы → моменты', 'cl']], note: 'Поэтому «50 Гц» у π0 — частота действий, а не вызовов модели.' },
+    { name: 'Diffusion Policy', about: 'Политика, которая учится по демонстрациям оператора и строит движение так же, как генераторы картинок строят изображение, — постепенно убирая шум. Подробно — урок 1.5.', flow: [['Diffusion Policy', '10 Гц', 'камеры → поза захвата', 'nn'], ['Дифференциальная кинематика', '', 'через якобиан: движение захвата → движение суставов', 'cl'], ['Регулятор руки Franka', '1 кГц', 'углы → моменты', 'cl']], note: 'Здесь работает якобиан из раздела 2: он переводит желаемое движение захвата в движение суставов.' },
+    { name: 'Atlas и LBM', about: 'Гуманоид Atlas от Boston Dynamics с большой моделью поведения (large behavior model, LBM) от Toyota Research Institute: одна сеть на много задач с руками и телом.', flow: [['Большая модель поведения', '30 Гц', '450 млн параметров, пачка из 48 действий', 'nn'], ['MPC Boston Dynamics', '', 'позы кистей, стоп и торса → движения суставов', 'cl'], ['Суставы', '', '', 'hw']], note: 'Совместная работа Boston Dynamics и Toyota Research Institute, август 2025 года.' },
+    { name: 'Figure Helix 02', about: 'Гуманоид Figure с тремя нейросетями, которые Figure называет S2, S1 и S0: верхняя понимает сцену и просьбу, средняя превращает замысел в движения тела, нижняя управляет приводами.', flow: [['S2', '7–9 Гц', 'медленная модель «зрение и язык»: понимает сцену и просьбу; 7 млрд параметров', 'nn'], ['S1', '200 Гц', 'быстрая политика: движения рук и корпуса; 80 млн параметров', 'nn'], ['S0', '1 кГц', 'нижний контур: команды приводам; 10 млн параметров', 'nn'], ['Приводы', '', '', 'hw']], note: 'Слой S0 появился в январе 2026 года и заменил 109 504 строки кода на C++. Нейросети спускаются даже в нижний контур, но иерархия частот остаётся.' },
   ];
   const COL = { nn: 'var(--e2e)', cl: 'var(--classic)', hw: 'var(--ink-3)' };
   function show(i) {
@@ -754,7 +763,7 @@ const Stack = (() => {
       if (j) flow.append(h('span', { class: 'flow-arrow', 'aria-hidden': 'true' }, '→'));
       flow.append(h('div', { class: 'flow-box', style: `--c:${COL[kind]}` }, h('h4', null, t), f ? h('div', { class: 'fq' }, f) : null, d ? h('p', null, d) : null));
     });
-    box.append(flow, h('p', { class: 'muted-s', style: 'margin:12px 0 0' }, s.note));
+    box.append(h('p', { class: 'stack-about' }, s.about), flow, h('p', { class: 'muted-s', style: 'margin:12px 0 0' }, s.note));
   }
   function init() {
     S.forEach((s, i) => { const b = h('button', { type: 'button' }, s.name); b.addEventListener('click', () => show(i)); $('#stackSeg').append(b); });
