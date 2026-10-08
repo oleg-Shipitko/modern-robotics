@@ -122,9 +122,6 @@ main { overflow-x: clip; }
 .section.alt { background: var(--bg-2); }
 .wrap { max-width: 1180px; margin: 0 auto; }
 .prose { max-width: 720px; margin: 0 auto; }
-/* текстовые разделы без лаборатории: колонка той же ширины, но от левого края общей сетки, как у разделов с лабораториями */
-.section > .prose { max-width: 1180px; }
-.section > .prose > * { max-width: 720px; }
 .prose p { margin: 0 0 1em; color: var(--ink-2); }
 .prose p strong, .prose li strong { color: var(--ink); }
 .prose ul, .prose ol { padding-left: 1.2em; color: var(--ink-2); }
