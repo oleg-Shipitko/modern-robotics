@@ -82,11 +82,15 @@ const MoreData = (() => {
     else setOut(el, 'Серые линии — 40 поездок учителя: сторону каждой выбирала монетка. Сеть учится повторять их и потом едет сама.');
   }
   const xOf = (box, i) => box.l + 28 + (Math.log10(NS[i]) - 1) / 2 * (box.r - box.l - 56);
+  /** Поля графика прогноза: сверху и снизу место под подписи осей. */
+  const mdBox = (k) => { const b = plotBox(k, PW, PH, [[0, '20']], 13 * k); b.t = 12 + 13 * k; return b; };
   function plot() {
-    const { c, k } = HeroKit.fit($('#mdPlot'), PW, PH), P = KD.pal(), yt = [[0, '0'], [5, '5'], [10, '10'], [15, '15'], [20, '20']], box = plotBox(k, PW, PH, yt);
+    const { c, k } = HeroKit.fit($('#mdPlot'), PW, PH), P = KD.pal(), yt = [[0, '0'], [5, '5'], [10, '10'], [15, '15'], [20, '20']], box = mdBox(k);
     c.fillStyle = P.bg; c.fillRect(0, 0, PW, PH);
     const y = (v) => box.b - v / 20 * (box.b - box.t);
     axes(c, k, P, box, NS.map((n, i) => [i, String(n)]), yt, (i) => xOf(box, i), y);
+    HeroKit.label(c, k, 'касаний чайника из 20 опытов', box.l, 9 * k, { align: 'left', px: 10.5, color: P.ink2, halo: false });
+    HeroKit.label(c, k, 'число демонстраций', (box.l + box.r) / 2, PH - 7 * k, { px: 10.5, color: P.ink2, halo: false });
     // прогноз
     c.setLineDash([6, 5]); c.strokeStyle = P.ink2; c.lineWidth = 2; c.beginPath();
     st.fc.forEach((v, i) => { const yy = y(v == null ? 10 : v); i ? c.lineTo(xOf(box, i), yy) : c.moveTo(xOf(box, i), yy); }); c.stroke(); c.setLineDash([]);
@@ -144,8 +148,8 @@ const MoreData = (() => {
     legend('#mdPlotLegend', [['твой прогноз', 'var(--ink-2)', 'dash'], ['опыт', 'var(--e2e)']]);
     const view = $('#mdView'); NS.forEach((n, i) => { const b = h('button', { type: 'button', 'aria-pressed': 'false' }, `${n} демонстраций`); b.addEventListener('click', () => { st.view = i; $$('#mdView button').forEach((x, j) => x.setAttribute('aria-pressed', String(j === i))); drawScene(); }); view.append(b); });
     const cv = $('#mdPlot');
-    const toVal = (p) => { const k = HeroKit.fit(cv, PW, PH).k, box = plotBox(k, PW, PH, [[0, '20']]); return (box.b - p.y) / (box.b - box.t) * 20; };
-    const near = (p) => { const k = HeroKit.fit(cv, PW, PH).k, box = plotBox(k, PW, PH, [[0, '20']]); let bi = -1, bd = 30; NS.forEach((n, i) => { const d = Math.abs(p.x - xOf(box, i)); if (d < bd) { bd = d; bi = i; } }); return bi; };
+    const toVal = (p) => { const k = HeroKit.fit(cv, PW, PH).k, box = mdBox(k); return (box.b - p.y) / (box.b - box.t) * 20; };
+    const near = (p) => { const k = HeroKit.fit(cv, PW, PH).k, box = mdBox(k); let bi = -1, bd = 30; NS.forEach((n, i) => { const d = Math.abs(p.x - xOf(box, i)); if (d < bd) { bd = d; bi = i; } }); return bi; };
     HeroKit.drag(cv, PW, PH, { hit: (p) => { const i = near(p); return i >= 0 ? { i } : null; }, move: (o, p) => setFc(o.i, toVal(p)), start: (o, p) => setFc(o.i, toVal(p)), tap: (p) => { const i = near(p); if (i >= 0) setFc(i, toVal(p)); } });
     $('#mdGo').addEventListener('click', run);
     plot(); drawScene(); crit(); redrawOn(() => { plot(); drawScene(); });

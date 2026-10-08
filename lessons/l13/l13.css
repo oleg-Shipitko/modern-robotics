@@ -66,3 +66,6 @@
   .cal-row { grid-template-columns: 1fr; }
   .cal-in { grid-template-columns: auto minmax(0, 1fr) auto 40px; }
 }
+
+/* строка-пояснение под сценой или графиком: вид, значки, единицы */
+.cv-note { margin: 8px 0 0; font-size: 14px; line-height: 1.5; color: var(--ink-3); }
