@@ -172,6 +172,11 @@ const Scrub = (() => {
     for (let j = 0; j < 16; j++) { const x = E.RX + Math.max(-3.4, Math.min(3.4, fr[j])) * E.SC; j ? c.lineTo(x, YS[j]) : c.moveTo(x, YS[j]); } c.stroke(); c.globalAlpha = 1;
     for (let j = 0; j < 16; j++) { const x = E.RX + Math.max(-3.4, Math.min(3.4, fr[j])) * E.SC; c.beginPath(); c.arc(x, YS[j], 4, 0, 7); c.fillStyle = P.dif; c.fill(); }
     c.restore();
+    // подписи: кто есть кто на сцене
+    const toCv = (x, y) => [(x - VIEW.x0) * sx, (y - VIEW.y0) * sx];
+    const [kx, ky] = toCv(KT.x, KT.y), [ax, ay] = toCv(E.RX, YS[0] + E.V * 1.5);
+    HeroKit.label(c, k, '← чайник', kx + 112, ky, { align: 'left', px: 12, weight: 700, color: P.ink2, haloColor: P.bg });
+    HeroKit.label(c, k, '← Ада', ax + 112, ay, { align: 'left', px: 12, weight: 700, color: P.ink2, haloColor: P.bg });
     HeroKit.label(c, k, s === 0 ? 'шаг 0: чистый шум' : s === STEPS ? `шаг ${s}: готовая пачка` : `шаг ${s} из ${STEPS}`, 10, H - 12, { align: 'left', mono: true, px: 11, color: P.ink3, haloColor: P.bg });
     // полоска сторон
     const strip = $('#scrubStrip'); strip.innerHTML = '';

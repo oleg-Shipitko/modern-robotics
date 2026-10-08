@@ -66,3 +66,6 @@
   .ctl-row .seg button { flex: 1 1 auto; }
   .scrub-strip .ss { font-size: 9.5px; padding: 4px 0; }
 }
+/* подписи под сценами */
+.cv-note { margin: 8px 0 0; font-size: 14px; line-height: 1.5; color: var(--ink-3); }
+.strip-legend .sl-h { color: var(--ink-2); }
