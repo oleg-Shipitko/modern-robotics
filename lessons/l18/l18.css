@@ -81,3 +81,5 @@
   .ctl-row .hd-range input, .hd-range.wide input { width: 100%; }
   .lat-bar i { font-size: 10.5px; }
 }
+/* подписи под сценами */
+.cv-note { margin: 8px 0 0; font-size: 14px; line-height: 1.5; color: var(--ink-3); }

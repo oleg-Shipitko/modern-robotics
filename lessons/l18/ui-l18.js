@@ -551,8 +551,7 @@ const LabE = (() => {
     c.beginPath(); c.arc(kc.x, kc.y, kr, 0, 7); c.strokeStyle = P.ink2; c.lineWidth = 2; c.stroke();
     c.setLineDash([3, 4]); c.strokeStyle = P.ink3; c.lineWidth = 1; c.beginPath(); c.arc(kc.x, kc.y, kr + 0.02 * SX, 0, 7); c.stroke(); c.setLineDash([]);
     const s0 = map(0, 0), s1 = map(CH.len, 0);
-    c.beginPath(); c.arc(s0.x, s0.y, 7, 0, 7); c.fillStyle = P.ink; c.fill(); HeroKit.label(c, k, 'захват сейчас', 8, s0.y + 22, { align: 'left', color: P.ink2, px: 11.5, haloColor: P.bg });
-    HeroKit.label(c, k, '1 с →', W - 8, s1.y + 22, { align: 'right', color: P.ink3, px: 11.5, mono: true, haloColor: P.bg });
+    c.beginPath(); c.arc(s0.x, s0.y, 7, 0, 7); c.fillStyle = P.ink; c.fill();
     // пачки
     for (let kk = 0; kk < 20; kk++) {
       const good = st.frame ? true : g.checks[kk].gap >= 0.02;
@@ -562,6 +561,8 @@ const LabE = (() => {
     }
     c.globalAlpha = 1;
     HeroKit.label(c, k, 'чайник', kc.x, kc.y - kr * 0.45, { color: P.ink, px: 12, weight: 700, haloColor: P.surf });
+    HeroKit.label(c, k, 'захват сейчас', 8, s0.y + 22, { align: 'left', color: P.ink2, px: 11.5, haloColor: P.bg });
+    HeroKit.label(c, k, 'через 1 с →', W - 8, s1.y + 22, { align: 'right', color: P.ink3, px: 11.5, mono: true, haloColor: P.bg });
     c.fillStyle = P.ink; for (let i = 0; i < CH.H; i++) { const p = map(FM.chunkX(i), Math.max(-0.17, Math.min(0.17, fr[i] * CH.SCALE))); c.fillRect(p.x - 1.6, p.y - 1.6, 3.2, 3.2); }
     HeroKit.label(c, k, `${st.n} ${plural(st.n, 'шаг', 'шага', 'шагов')} Эйлера · 20 пачек по 50 действий`, W - 10, 14, { align: 'right', color: P.ink, px: 12, weight: 700, mono: true, haloColor: P.bg });
     lat(); out();
