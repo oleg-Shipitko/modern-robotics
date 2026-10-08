@@ -90,7 +90,7 @@ const Lab2 = (() => {
     data.scenes.slice(0, 6).forEach((sc) => {
       const c = h('canvas', { 'aria-hidden': 'true' });
       box.append(c);
-      requestAnimationFrame(() => SceneView.render(c, sc.scene, { demoPath: sc.states.map((s) => s.g), color: '#eb6834', showGripper: false }));
+      requestAnimationFrame(() => SceneView.render(c, sc.scene, { demoPath: sc.states.map((s) => s.g), color: '#eb6834', demoHand: 1.3 }));
     });
   }
 

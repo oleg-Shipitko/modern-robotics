@@ -51,12 +51,14 @@
       <div class="paradigm rules">
         <div class="tag">Парадигма 1</div>
         <h3>Пишем правила</h3>
-        <p>Инженер раскладывает задачу на модули и пишет для каждого понятный код.</p>
-<pre class="code"><span class="cm"># восприятие</span>
+        <p>Инженер раскладывает задачу на модули и пишет для каждого понятный код. Для задачи с чашкой он может выглядеть так:</p>
+<pre class="code"><span class="cm"># восприятие: чашка красная, ищем красные пиксели</span>
+<span class="cm"># r, g, b — цвет пикселя: красный, зелёный, синий</span>
 if r &gt; 0.60 and g &lt; 0.35 and b &lt; 0.35:
-    cup = centroid(pixels)
-<span class="cm"># планирование и управление</span>
+    cup = centroid(pixels)  <span class="cm"># центр пятна</span>
+<span class="cm"># планирование: путь к чашке в обход препятствий</span>
 path = astar(hand, cup, obstacles)
+<span class="cm"># управление: скорость руки к следующей точке</span>
 v = pid(path.next - hand)</pre>
       </div>
       <div class="vs"><span>или</span></div>
@@ -94,14 +96,14 @@ v = pid(path.next - hand)</pre>
       </svg>
       <div>
       <h3>Ада<sup class="fn-ref"><a href="#fn-ada" aria-describedby="fn-ada">*</a></sup></h3>
-      <p>Ада — домашний гуманоидный робот, общий для всех лабораторных работ курса. Её среда — упрощённая квартира: кухня, коридор, две спальни. В каждом уроке Ада решает одну задачу, которая стоит и перед настоящими домашними роботами: довести руку до чашки, проехать по коридору до кухни, определить, в какой она комнате. На одной и той же задаче мы сравниваем разные методы, классические и обучаемые.</p>
+      <p>Ада — домашний гуманоид на колёсной базе: корпус, голова и две руки как у человека, а вместо ног колёсная платформа. Она общая для всех лабораторных работ курса. Её среда — упрощённая квартира: кухня, коридор, две спальни. В каждом уроке Ада решает одну задачу, которая стоит и перед настоящими домашними роботами: довести руку до чашки, проехать по коридору до кухни, определить, в какой она комнате. На одной и той же задаче мы сравниваем разные методы, классические и обучаемые.</p>
       <p>Модель упрощена: сцены двумерные, физика и датчики сведены к тому, что важно для темы урока. Но принципы те же, что у реальных роботов: у датчиков есть шум, у моторов — ограничения по моменту и скорости, а нейросети в лабораторных настоящие и обучаются прямо в браузере.</p>
       <p class="fn" id="fn-ada">* Имя — в честь Ады Лавлейс, которая написала первую программу для вычислительной машины.</p>
       </div>
     </div>
 
     <div class="hero-list">
-      <div><b>СХЕМА</b>Четыре архитектуры управления: правила, end-to-end, гибрид и двухуровневая VLA</div>
+      <div><b>СХЕМА</b>Четыре архитектуры управления: правила, одна нейросеть от камеры до моторов (end-to-end), гибрид и двухуровневая модель «зрение — язык — действие»</div>
       <div><b>ЛАБ. 1</b>Три версии Ады на одной кухне: найди, где отказывает каждая</div>
       <div><b>ЛАБ. 2</b>Исправь отказы правилами и данными и сравни, во что обходится каждое исправление</div>
       <div><b>ЗАДАЧИ</b>Реши, что в доме Ады доверить нейросети, а что — правилам</div>
@@ -135,7 +137,7 @@ v = pid(path.next - hand)</pre>
     <div class="kicker"><span class="num">2</span> Архитектуры</div>
     <h2>Как устроена система управления робота</h2>
     <p>Разницу проще всего увидеть на одной задаче. Возьмём ту, что пройдёт через весь урок: Ада стоит у кухонного стола, камера смотрит на стол сверху, нужно довести руку до чашки.</p>
-    <p>Классический стек раскладывает задачу на модули, поэтому его называют ещё модульным: восприятие находит чашку, оценка состояния уточняет, где она, планировщик строит путь, регулятор ведёт руку. Каждый модуль работает по правилам и эвристикам, которые написал инженер. В схеме и лабораториях урока этот подход называется «Правила». Подход на данных заменяет всю цепочку одной нейросетью: оператор много раз проводит руку к чашке, и сеть учится переводить пиксели камеры прямо в команды моторам. Это end-to-end. Между ними есть гибриды, а самые новые системы устроены в два уровня. Переключай архитектуры и нажимай на блоки.</p>
+    <p>Классический стек раскладывает задачу на модули, поэтому его называют ещё модульным: восприятие находит чашку, оценка состояния уточняет, где она, планировщик строит путь, регулятор ведёт руку. Каждый модуль работает по правилам и эвристикам, которые написал инженер. В схеме и лабораториях урока этот подход называется «Правила». Подход на данных заменяет всю цепочку одной нейросетью: оператор много раз проводит руку к чашке, и сеть учится переводить пиксели камеры прямо в команды моторам. Это end-to-end. Сеть, которая по тому, что видит робот, выбирает его следующее действие, называют <strong>политикой</strong>. Политикой может быть и программа на правилах, но чаще так говорят о нейросети. Между правилами и end-to-end есть гибриды, а самые новые системы устроены в два уровня: это модели «зрение — язык — действие», по-английски vision-language-action, или VLA. Переключай архитектуры и нажимай на блоки.</p>
   </div>
   <div class="wrap">
     <div class="card arch" id="arch">
@@ -204,7 +206,7 @@ v = pid(path.next - hand)</pre>
 
       <div class="arena" id="arena">
         <div class="agent-panel" data-a="classic">
-          <div class="agent-head"><div class="name">Правила</div><div class="arch-line">правила цвета → фильтр Калмана → планировщик A* → регулятор</div></div>
+          <div class="agent-head"><div class="name">Правила</div><div class="arch-line">правило цвета ищет чашку → фильтр уточняет место → A* строит путь → регулятор ведёт руку</div></div>
           <div class="agent-canvas-wrap"><canvas aria-label="Сцена: Ада на правилах"></canvas><div class="overlay" hidden></div></div>
           <div class="agent-status" aria-live="polite"><span class="ico">⏸</span><span>Готова к запуску</span></div>
         </div>
@@ -214,11 +216,20 @@ v = pid(path.next - hand)</pre>
           <div class="agent-status" aria-live="polite"><span class="ico">⏸</span><span>Готова к запуску</span></div>
         </div>
         <div class="agent-panel" data-a="hybrid">
-          <div class="agent-head"><div class="name">Гибрид</div><div class="arch-line">нейросеть находит чашку → фильтр → A* → регулятор + монитор безопасности</div></div>
+          <div class="agent-head"><div class="name">Гибрид</div><div class="arch-line">нейросеть ищет чашку → фильтр → A* → регулятор; монитор останавливает руку у опасной зоны</div></div>
           <div class="agent-canvas-wrap"><canvas aria-label="Сцена: Ада-гибрид"></canvas><div class="overlay">Обучаю нейросеть…</div></div>
           <div class="agent-status" aria-live="polite"><span class="ico">⏸</span><span>Готова к запуску</span></div>
         </div>
       </div>
+
+      <p class="cv-note" id="lab1Note">Вид на стол сверху. У трёх версий Ады одна и та же сцена, разная только система управления.</p>
+      <div class="demo-legend scene-key" aria-hidden="true">
+        <span><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="8.4" fill="none" stroke="#6b6a65" stroke-width="2"/><circle cx="10" cy="10" r="5.6" fill="#f4efe6" stroke="#3d3c38" stroke-width="1.4"/><circle cx="10" cy="10" r="1.7" fill="#4a3aa7"/></svg>рука Ады, обведена цветом версии</span>
+        <span><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="none" stroke="#6b5a48" stroke-width="1.3" stroke-dasharray="2.4 2.4"/><path d="M4.5 10 H15.5 M10 4.5 V15.5" stroke="#6b5a48" stroke-width="1.5"/></svg>откуда рука стартует</span>
+        <span><svg viewBox="0 0 22 20"><rect x="13.5" y="8" width="6" height="4.2" rx="1.6" fill="#8e2b22"/><circle cx="10" cy="10" r="7" fill="#c23a2c"/><circle cx="10" cy="10" r="5.6" fill="#e9b9ad"/><circle cx="10" cy="10" r="4.6" fill="#6b3d1f"/></svg>чашка — цель</span>
+        <span><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="9" fill="rgba(208,59,59,.18)" stroke="rgba(208,59,59,.7)" stroke-width="1.1" stroke-dasharray="2.2 2.2"/><circle cx="10" cy="10" r="5" fill="#33353d"/><circle cx="10" cy="10" r="3" fill="#4a4c55"/></svg>горячий чайник и зона, где можно обжечься</span>
+      </div>
+      <p class="cv-note">Остальное на столе — синяя сахарница, зелёная салфетница, миска с зёрнами и белый молочник. Чайник появляется в экспериментах «Чайник на пути».</p>
 
       <div class="controls">
         <button class="btn" id="pauseBtn" type="button">⏸ Пауза</button>
@@ -231,6 +242,19 @@ v = pid(path.next - hand)</pre>
           <button type="button" data-speed="3" aria-pressed="false">×3</button>
         </div>
         <label class="toggle"><input type="checkbox" id="thoughtsChk" checked><span class="box"></span>Показывать «мысли» Ады</label>
+      </div>
+      <div class="thoughts-key" id="thoughtsKey">
+        <p class="cv-note">«Мысли» Ады появляются на сцене после запуска. Путь и стрелку каждая версия рисует своим цветом.</p>
+        <div class="demo-legend" aria-hidden="true">
+          <span><svg viewBox="0 0 28 14" class="wide"><path d="M2 12 L12 5 L26 3" fill="none" stroke="#2a78d6" stroke-width="2"/><circle cx="12" cy="5" r="2.6" fill="#2a78d6" stroke="#fff" stroke-width="1.2"/></svg>путь, который построил планировщик</span>
+          <span><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="5.5" fill="rgba(42,120,214,.15)" stroke="#2a78d6" stroke-width="1.6"/><path d="M1.5 10 H18.5 M10 1.5 V18.5" stroke="#2a78d6" stroke-width="1.6"/></svg>где, по оценке фильтра, стоит чашка</span>
+          <span><svg viewBox="0 0 20 20"><rect x="3" y="3" width="14" height="14" fill="rgba(42,120,214,.18)" stroke="#2a78d6" stroke-width="1.6"/></svg>пиксели, которые правило цвета приняло за чашку</span>
+          <span><svg viewBox="0 0 20 20"><rect x="3" y="3" width="14" height="14" fill="none" stroke="#d03b3b" stroke-width="1.6"/></svg>пиксели, которые правило приняло за препятствие</span>
+          <span><svg viewBox="0 0 20 20"><path d="M2 6h6v-4h6v4h4v8h-4v4h-6v-4h-6z" fill="rgba(208,59,59,.22)"/></svg>клетки, куда планировщик не пустит руку</span>
+          <span><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7" fill="rgba(235,104,52,.16)" stroke="#eb6834" stroke-width="1.4"/><circle cx="10" cy="10" r="2.3" fill="#eb6834"/></svg>т1–т4 — точки, на которые смотрит нейросеть end-to-end</span>
+          <span><svg viewBox="0 0 20 20"><path d="M4.5 4.5 L15.5 15.5 M15.5 4.5 L4.5 15.5" stroke="#eb6834" stroke-width="2.6" stroke-linecap="round"/></svg>где чашку видит нейросеть гибрида</span>
+          <span><svg viewBox="0 0 28 14" class="wide"><path d="M2 7 H20" stroke="#6b6a65" stroke-width="2.4" stroke-linecap="round"/><path d="M26 7 L18 2.6 L18 11.4 Z" fill="#6b6a65"/></svg>куда рука движется сейчас</span>
+        </div>
       </div>
       <div class="cond-row" id="condRow">
         <span class="lbl">Условия:</span>
@@ -288,7 +312,7 @@ v = pid(path.next - hand)</pre>
     <div class="lab-badge"><i>🔬</i> Лаборатория 2</div>
     <h2>Исправление отказов: правила против данных</h2>
     <div class="prose lab-intro" style="margin:0 0 22px;max-width:820px">
-      <p>Как исправить отказы из лаборатории 1? У подходов разные инструменты. Правила исправляют правилами: инженер видит отказ и дописывает код. Нейросеть исправляют данными: оператор записывает новые демонстрации, и сеть переобучают.</p>
+      <p>Как исправить отказы из лаборатории 1? У подходов разные инструменты. Правила исправляют правилами: инженер видит отказ и дописывает код. Нейросеть исправляют данными: оператор записывает новые демонстрации, и сеть обучают заново.</p>
       <p>Пройди оба пути на одной Аде и сравни, что исправляет каждый и во что это обходится. В карточке «Путь правил» добавляй исправления, в карточке «Путь данных» меняй число и разнообразие демонстраций и обучай сети заново. Изменения сразу применяются к Аде из лаборатории 1.</p>
     </div>
 
@@ -320,13 +344,19 @@ v = pid(path.next - hand)</pre>
         </div>
         <div class="small muted" id="demoCost" style="margin-top:-8px"></div>
         <label class="toggle" style="align-self:flex-start"><input type="checkbox" id="lightChk" checked><span class="box"></span>Разное освещение в данных: утро, день, вечер</label>
-        <div class="thumbs" id="thumbs" aria-label="Примеры демонстраций"></div>
+        <div class="thumbs" id="thumbs" aria-label="Примеры демонстраций, вид на стол сверху"></div>
+        <div class="demo-legend" id="thumbsKey" aria-hidden="true">
+          <span><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="8.4" fill="none" stroke="#eb6834" stroke-width="2"/><circle cx="10" cy="10" r="5.6" fill="#f4efe6" stroke="#3d3c38" stroke-width="1.4"/><circle cx="10" cy="10" r="1.7" fill="#4a3aa7"/></svg>рука в начале</span>
+          <span><svg viewBox="0 0 28 14" class="wide"><path d="M2 11 C 10 11, 15 3, 26 3" fill="none" stroke="#eb6834" stroke-width="2.4" stroke-linecap="round"/></svg>путь, по которому её провёл оператор</span>
+          <span><svg viewBox="0 0 22 20"><rect x="13.5" y="8" width="6" height="4.2" rx="1.6" fill="#8e2b22"/><circle cx="10" cy="10" r="7" fill="#c23a2c"/><circle cx="10" cy="10" r="5.6" fill="#e9b9ad"/><circle cx="10" cy="10" r="4.6" fill="#6b3d1f"/></svg>чашка</span>
+        </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap">
           <button class="btn primary" id="trainBtn" type="button">🧠 Обучить нейросети</button>
           <button class="btn" id="curveBtn" type="button">📈 Построить кривую целиком</button>
         </div>
         <div class="train-status" id="trainStatus"></div>
         <svg class="chart" id="lossChart" viewBox="0 0 520 170" aria-label="Кривая ошибки обучения"></svg>
+        <p class="small muted" id="lossNote">Ошибка — насколько команды сети расходятся с командами оператора в демонстрациях; шкала логарифмическая, каждое деление в 10 раз меньше предыдущего. Оранжевая линия — ошибка на сценах, на которых сеть учится, серая — на новых сценах, которых она не видела. Если серая линия заметно выше оранжевой, сеть запомнила примеры, но не научилась обобщать.</p>
       </div>
     </div>
 

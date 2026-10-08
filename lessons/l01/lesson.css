@@ -603,3 +603,17 @@ a.brand:hover small { color: var(--ink-2); }
 .fn-ref { font-size: .6em; vertical-align: super; line-height: 0; margin-left: 2px; }
 .fn-ref a { color: var(--ink-3); text-decoration: none; }
 .ada-intro .fn { font-size: 13.5px; color: var(--ink-3); margin-top: 10px; }
+
+/* Урок 0.1, лаборатории 1–2: строка о виде сцены, легенды сцены, «мыслей» Ады и миниатюр демонстраций */
+#lab1 .cv-note { margin: 10px 0 0; font-size: 14px; line-height: 1.5; color: var(--ink-3); max-width: 900px; }
+#lab1 .demo-legend { font-size: 13.5px; margin-top: 8px; gap: 6px 18px; }
+#lab1 .demo-legend svg { width: 18px; height: 18px; }
+#lab1 .demo-legend svg.wide { width: 26px; height: 13px; }
+#thoughtsKey { margin-top: 6px; }
+#thoughtsKey[hidden] { display: none; }
+#thumbsKey { margin: -4px 0 0; font-size: 13px; gap: 4px 14px; }
+#thumbsKey svg { width: 16px; height: 16px; }
+#thumbsKey svg.wide { width: 24px; height: 12px; }
+#lossNote { margin: 4px 0 0; line-height: 1.45; }
+#arena .arch-line { min-height: 2.7em; }
+#lab1 .demo-legend svg, #thumbsKey svg { background: #e2d2b6; border-radius: 4px; }

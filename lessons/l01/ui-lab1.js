@@ -272,7 +272,7 @@ const Lab1 = (() => {
       if (App.rules.wb && st.cond.evening) notes.push('Правила справились с вечером, потому что в лаборатории 2 включён баланс белого.');
       if (App.rules.teal && st.cond.teal) notes.push('Правила нашли бирюзовую чашку благодаря исправлению из лаборатории 2.');
       if (App.models.N !== 200 || !App.models.light) notes.push(`Нейросети сейчас обучены на ${App.models.N} ${plural(App.models.N, 'демонстрации', 'демонстрациях', 'демонстрациях')}${App.models.light ? '' : ' без разнообразия освещения'} — это меняет их поведение.`);
-      if (!notes.length) notes.push('Скорее всего, сцена изменилась: передвинуты предметы, изменён шум камеры или сети переобучены. Так и выглядит экспериментальная работа.');
+      if (!notes.length) notes.push('Скорее всего, сцена изменилась: передвинуты предметы, изменён шум камеры или сети обучены заново. Так и выглядит экспериментальная работа.');
       box.append(h('p', null, notes.join(' ')));
       box.append(h('p', { html: '<span class="muted">Типичный исход этого эксперимента:</span> ' + st.explain }));
     }
@@ -422,7 +422,7 @@ const Lab1 = (() => {
       speed = +b.dataset.speed;
       $$('[data-speed]').forEach((x) => x.setAttribute('aria-pressed', x === b ? 'true' : 'false'));
     }));
-    $('#thoughtsChk').addEventListener('change', (e) => { thoughts = e.target.checked; drawAll(performance.now()); });
+    $('#thoughtsChk').addEventListener('change', (e) => { thoughts = e.target.checked; $('#thoughtsKey').hidden = !thoughts; drawAll(performance.now()); });
     $$('#condRow input[data-cond]').forEach((inp) => inp.addEventListener('change', () => {
       conds[inp.dataset.cond] = inp.checked;
       goFree();
