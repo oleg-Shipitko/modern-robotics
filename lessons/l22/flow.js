@@ -67,8 +67,8 @@
     for (let i = 0; i < 3; i++) line(c, [[cx - 2 * s, cy - (29 - i * 8) * s], [cx + 12 * s, cy - (29 - i * 8) * s]], P.ink3, 1.2);
     const cams = [[cx - 48 * s, cy - 40 * s], [cx + 56 * s, cy - 40 * s], [cx - 50 * s, cy + 36 * s], [cx + 54 * s, cy + 36 * s]];
     cams.forEach(([x, y], i) => {
-      if (act > 0) line(c, [[x, y], [cx + 4 * s, cy - 8 * s]], alpha(P.mot, 0.35 * act), 1.2, [3, 3]);
-      rect(c, x - 8 * s, y - 6 * s, 16 * s, 12 * s, 3, P.surf, act > 0 && (Math.floor(act * 8) + i) % 2 ? P.mot : P.ink2, 1.6);
+      if (act > 0) line(c, [[x, y], [cx + 4 * s, cy - 8 * s]], alpha(P.out, 0.35 * act), 1.2, [3, 3]);
+      rect(c, x - 8 * s, y - 6 * s, 16 * s, 12 * s, 3, P.surf, act > 0 && (Math.floor(act * 8) + i) % 2 ? P.out : P.ink2, 1.6);
       circle(c, x, y, 3 * s, P.outS, P.out, 1.2);
     });
     for (let i = 0; i < 26; i++) { const x = cx - 26 * s + hash(i) * 62 * s, y = cy - 30 * s + hash(i + 50) * 42 * s; if (act * 26 > i) circle(c, x, y, 1.6 * s, alpha(P.out, 0.8)); }

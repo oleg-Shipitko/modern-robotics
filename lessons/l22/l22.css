@@ -57,3 +57,5 @@
 /* схема пути данных */
 .flow-card { margin: 18px 0 0; padding: 14px 14px 12px; }
 .flow-card figcaption { margin: 10px 2px 0; }
+
+.cv-note { margin: 8px 0 0; font-size: 14px; line-height: 1.5; color: var(--ink-3); }

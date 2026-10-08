@@ -146,7 +146,7 @@ const LabKey = (() => {
     HeroKit.label(c, k, 'нижняя полка', X(0.775), Z(0.27), { px: 11, color: P.ink3, haloColor: WOOD().soft });
     HeroKit.label(c, k, 'чайник', X(0.49), Z(0.1), { px: 11, color: P.ink3, haloColor: P.surf });
     // путь демонстрации
-    c.save(); c.strokeStyle = P.ink3; c.lineWidth = 1.6; c.setLineDash([2, 4]); c.globalAlpha = 0.85; c.beginPath();
+    c.save(); c.strokeStyle = P.ink2; c.lineWidth = 2.2; c.setLineDash([4, 4]); c.globalAlpha = 0.9; c.beginPath();
     demo.pos.forEach((p, i) => (i ? c.lineTo(X(p[0]), Z(p[1])) : c.moveTo(X(p[0]), Z(p[1])))); c.stroke(); c.restore();
     // план: от начала через все ключевые позы (пунктир), исполненная часть — сплошная
     const plan = [E.POSE.home].concat(st.kf.kfs.map((f) => f.p));
@@ -160,6 +160,7 @@ const LabKey = (() => {
     else { drawCup(c, P, E.CUP.x, 0, false); const pl = r.ev.find((e) => e.type === 'place'); if (r.ok && pl) drawCup(c, P, pl.at[0], pl.at[1] - E.CUP.gz, true); }
     const ap = st.anim || fin ? fr.p : E.POSE.home;
     drawArm(c, P, ap[0], ap[1], st.anim || fin ? fr.open : 1);
+    HeroKit.label(c, k, 'Ада', Math.max(24, (X(-0.2) + X(-0.035)) / 2), Z(0.62), { px: 11, weight: 700, color: P.ink3, halo: false });
     // ключевые позы
     let prevOpen = 1;
     st.kf.kfs.forEach((f, i) => {
@@ -498,7 +499,7 @@ const LabVox = (() => {
       onEnter: () => { st.allowAuto = true; if (!st.reg) st.reg = E.regTrain(demos); if (!st.models[st.K]) trainK(st.K).then(() => { draw(); }); } },
   ];
   function init() {
-    legend('#vLegend', [['ценность вокселя', 'var(--e2e)', 'cube'], ['выбранный воксель', 'var(--ink)', 'ring'], ['точка регрессии', 'var(--ink)', 'dot'], ['стеллаж', WOOD().fill, 'sq'], ['чашка в захвате', CUPC().fill, 'sq']]);
+    legend('#vLegend', [['ценность вокселя', 'var(--e2e)', 'cube'], ['выбранный воксель', 'var(--ink)', 'cube'], ['точка регрессии', 'var(--ink)', 'dot'], ['стеллаж', WOOD().fill, 'sq'], ['чашка', CUPC().fill, 'sq'], ['захват руки Ады', 'var(--ink-3)', 'cube']]);
     $('#vCmdSeg').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b && !(ctl && ctl.busy)) setCmd(b.dataset.v); });
     $('#vView').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) setView(b.dataset.v); });
     $('#vK').addEventListener('input', (e) => { if (!(ctl && ctl.busy)) setK(+e.target.value); else sync(); });
