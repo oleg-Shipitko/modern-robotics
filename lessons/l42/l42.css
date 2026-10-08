@@ -1,0 +1,83 @@
+/* ---------- урок 4.2 «Телеоперация и устройства сбора» ---------- */
+.cv-note { margin: 6px 2px 0; font-size: 13px; line-height: 1.45; color: var(--ink-3); }
+.lab-legend { margin-top: 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); }
+.lab-legend > summary { cursor: pointer; padding: 7px 12px; font-size: 13.5px; font-weight: 650; color: var(--ink-2); }
+.lab-legend .cv-legend { margin: 0; padding: 4px 12px 10px; }
+.ctl { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ctl-l { font-size: 13.5px; font-weight: 650; color: var(--ink-3); }
+.hd-range.wide input { width: 190px; }
+.ctl-row .hd-range output { min-width: 64px; }
+
+/* схемы устройств: канвас и карточка «что держит, что видит, что пишется» */
+.dev-fig { margin: 4px 0 0; padding: 14px; }
+.dev-grid { display: grid; grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+.dev-dl { margin: 0; display: grid; gap: 3px; font-size: 14.5px; line-height: 1.48; }
+.dev-dl dt { margin-top: 8px; font-size: 12px; font-weight: 650; letter-spacing: .05em; text-transform: uppercase; color: var(--ink-3); }
+.dev-dl dt:first-child { margin-top: 0; }
+.dev-dl dd { margin: 0; color: var(--ink-2); }
+.dev-fig .cv-note { margin-top: 10px; }
+
+/* лаборатория: сцена сбоку, пульт, клавиши, две записи рядом */
+.tele-cv { width: 100%; height: auto; aspect-ratio: 600 / 420; border-radius: 12px; border: 1px solid var(--line); display: block; }
+.pult-cv { width: 100%; height: auto; aspect-ratio: 600 / 200; border-radius: 12px; border: 1px dashed var(--e2e); display: block; margin-top: 12px; touch-action: none; cursor: grab; }
+.pult-cv:active { cursor: grabbing; }
+.t-keys { display: flex; gap: 8px; justify-content: center; margin-top: 10px; }
+.t-keys[hidden] { display: none; }
+.t-keys .btn { min-width: 56px; min-height: 44px; font-size: 18px; touch-action: none; user-select: none; -webkit-user-select: none; }
+.t-off { opacity: .55; }
+.duo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; margin-top: 14px; }
+.pane { margin: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--surface); display: flex; flex-direction: column; min-width: 0; }
+.pane-head { padding: 7px 10px 6px; border-bottom: 1px solid var(--line); display: grid; gap: 1px; font-size: 12.5px; line-height: 1.35; color: var(--ink-3); }
+.pane-head b { display: flex; align-items: center; gap: 7px; font-size: 14.5px; color: var(--ink); }
+.pane-head b::before { content: ""; width: 10px; height: 10px; border-radius: 3px; background: var(--ink-3); flex: none; }
+.pane-head b.fm::before { background: var(--classic); }
+.pane canvas { width: 100%; height: auto; aspect-ratio: 340 / 150; display: block; }
+.pane-stat { padding: 7px 10px; font-size: 13px; border-top: 1px solid var(--line); min-height: 36px; color: var(--ink-2); line-height: 1.4; }
+.pane-stat b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.pane-stat.bad { background: var(--critical-soft); }
+@supports (grid-template-rows: subgrid) {
+  .duo { grid-template-rows: auto auto auto; }
+  .pane { display: grid; grid-row: span 3; grid-template-rows: subgrid; row-gap: 0; }
+}
+
+/* калькулятор: три способа, срок и цена демонстрации */
+.calc { display: grid; gap: 8px; }
+.calc-empty { padding: 28px 16px; text-align: center; border: 1.5px dashed var(--line-2); border-radius: 12px; color: var(--ink-3); font-size: 14.5px; background: var(--surface-2); }
+.calc-h, .calc-row { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: center; }
+.calc-h { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); padding: 0 2px; }
+.calc-row { padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); }
+.calc-name { display: grid; gap: 2px; font-size: 12.5px; color: var(--ink-3); line-height: 1.35; }
+.calc-name b { font-size: 15px; color: var(--ink); }
+.calc-bar { position: relative; height: 26px; border-radius: 7px; background: var(--surface); border: 1px solid var(--line); overflow: hidden; display: flex; }
+.calc-bar i { display: block; height: 100%; background: color-mix(in srgb, var(--classic) 55%, transparent); transition: width .25s; }
+.calc-row.free .calc-bar:not(.cost) i { background: color-mix(in srgb, var(--e2e) 55%, transparent); }
+.calc-bar.cost i.eq { background: color-mix(in srgb, var(--ink-2) 70%, transparent); }
+.calc-bar.cost i.pp { background: color-mix(in srgb, var(--e2e) 35%, transparent); }
+.calc-bar em { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); font-style: normal; font-size: 12.5px; font-weight: 650; color: var(--ink); white-space: nowrap; text-shadow: 0 0 3px var(--surface), 0 0 3px var(--surface); font-variant-numeric: tabular-nums; }
+
+/* сортировка устройств */
+.dev-sort { margin-top: 22px; }
+.dev-sort .c-zones { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.dev-sort .c-card { font-size: 13.5px; }
+
+/* живые миссии: невыполненный критерий — «ещё нет», серым */
+.m-live .m-crit li.no i { border-color: var(--line-2); color: var(--ink-3); background: var(--surface-2); }
+.m-live .m-crit li.no i::before { content: '·'; }
+
+@media (max-width: 900px) {
+  .dev-grid { grid-template-columns: minmax(0, 1fr); }
+  .dev-sort .c-zones { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 560px) {
+  .dev-fig { padding: 10px; }
+  .duo { grid-template-columns: minmax(0, 1fr); }
+  @supports (grid-template-rows: subgrid) { .duo { grid-template-rows: none; } .pane { display: flex; grid-row: auto; } }
+  .pane-stat { font-size: 12.5px; }
+  .calc-h { display: none; }
+  .calc-row { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .calc-bar { height: 24px; }
+  .ctl-row .hd-range { display: grid; grid-template-columns: 112px 1fr 64px; width: 100%; }
+  .ctl-row .hd-range input, .hd-range.wide input { width: 100%; }
+}
+.calc-cost { display: grid; gap: 3px; min-width: 0; }
+.calc-cost small { font-size: 12px; color: var(--ink-3); line-height: 1.3; }
