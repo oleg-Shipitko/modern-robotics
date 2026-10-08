@@ -34,7 +34,7 @@ const site = (f) => 'file://' + path.resolve(__dirname, '../site/' + f);
     const pp = await B.page(site('privacy.html'), vp);
     await pp.waitFor('document.readyState === "complete"'); await sleep(500);
     const info = JSON.parse(await pp.eval(`JSON.stringify({ h1: document.querySelector('h1').textContent, mail: (document.querySelector('a[href^="mailto:"]') || {}).textContent || '', h2: document.querySelectorAll('main h2').length, formal: document.querySelectorAll('#formal h3').length, sw: document.documentElement.scrollWidth, h: document.documentElement.scrollHeight })`));
-    const good = info.h1 === 'Политика конфиденциальности' && info.mail === 'oleg.shipitko.personal@gmail.com' && info.h2 >= 9 && info.formal === 8 && info.sw <= vp.width && !pp.logs.length;
+    const good = info.h1 === 'Политика конфиденциальности' && info.mail === 'oleg.ht.shipitko@yandex.ru' && info.h2 >= 9 && info.formal === 8 && info.sw <= vp.width && !pp.logs.length;
     console.log('политика', vp.t + ':', good ? 'ок' : 'ОШИБКА', '| почта', info.mail, '| разделов', info.h2, '| формальных', info.formal, info.sw > vp.width ? '| ГОРИЗОНТАЛЬНАЯ ПРОКРУТКА ' + info.sw : '', pp.logs.length ? '| консоль: ' + pp.logs.join(' | ') : '');
     await pp.shot(out(`site-privacy-${vp.t}.png`), { x: 0, y: 0, width: vp.width, height: Math.min(info.h, 4000) });
   }
