@@ -126,10 +126,11 @@ const AB = (() => {
     const { c, k } = HeroKit.fit($('#abPlot'), PW, PW), P = pal(), log = st.scale === 'log';
     c.fillStyle = P.bg; c.fillRect(0, 0, PW, PW);
     const yt = log ? [[1, '1'], [1e-2, '10⁻²'], [1e-4, '10⁻⁴'], [1e-6, '10⁻⁶'], [1e-8, '10⁻⁸'], [1e-10, '10⁻¹⁰']] : [[0, '0'], [0.25, '0,25'], [0.5, '0,5'], [0.75, '0,75'], [1, '1']];
-    const box = { l: Math.max(40, 44 * k), r: PW - 14, t: 14, b: PW - Math.max(26, 20 * k) }; st.box = box;
+    const box = { l: Math.max(40, 44 * k), r: PW - 14, t: 14 + 16 * k, b: PW - Math.max(26, 20 * k) }; st.box = box;   // сверху место под подпись оси
     const x = (t) => box.l + t / 1000 * (box.r - box.l);
     const y = log ? (v) => box.b - (Math.log10(Math.max(1e-10, v)) + 10) / 10 * (box.b - box.t) : (v) => box.b - v * (box.b - box.t);
     axes(c, k, P, box, [[0, '0', 'left'], [250, '250'], [500, '500'], [750, '750'], [1000, 't = 1000', 'right']], yt, x, y);
+    HeroKit.label(c, k, 'доля сигнала ᾱ', box.l, 12 * k, { align: 'left', px: 10.5, color: P.ink2, halo: false });
     if (st.mis >= 2) { c.setLineDash([2, 4]); c.strokeStyle = P.good; c.lineWidth = 1.5; c.beginPath(); c.moveTo(box.l, y(0.01)); c.lineTo(box.r, y(0.01)); c.stroke(); c.setLineDash([]); HeroKit.label(c, k, 'сигнала 1%', box.r - 4, y(0.01) - 9 * k, { align: 'right', px: 10.5, color: P.good, haloColor: P.bg }); }
     if (showReal()) {
       const tmax = 1000 * st.reveal;
@@ -257,7 +258,6 @@ const Score = (() => {
     let j = 0; while (j < NST && at(j + 1).toMean >= 0.9) j++; st.J1 = j;
     let k = st.J1 + 1; while (k <= NST && at(k).toSp < 0.9) k++; st.J2 = k;
   }
-  const fmtS = (s) => (s >= 10 ? fx(s, 0) : s >= 1 ? fx(s, 1) : s >= 0.1 ? fx(s, 2) : fx(s, 3));
   function arrow(c, x0, y0, x1, y1, col, lw) {
     const a = Math.atan2(y1 - y0, x1 - x0), hl = 5.5;
     c.strokeStyle = col; c.fillStyle = col; c.lineWidth = lw; c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1 - Math.cos(a) * hl * 0.6, y1 - Math.sin(a) * hl * 0.6); c.stroke();
@@ -295,9 +295,10 @@ const Score = (() => {
     HeroKit.cross(c, dd.x, dd.y, 6, P.ink, 2.6);
     c.beginPath(); c.arc(pp.x, pp.y, 9, 0, 7); c.fillStyle = P.surf; c.fill(); c.lineWidth = 2.5; c.strokeStyle = P.ink; c.stroke();
     c.beginPath(); c.arc(pp.x, pp.y, 2.5, 0, 7); c.fillStyle = P.ink; c.fill();
-    status(c, k, P, `шаг ${st.j} из ${NST} · t = ${st.j < NST ? r.t : 0} · σ = ${fmtS(r.s)}`);
+    const tt = st.j < NST ? r.t : 0, aTxt = fmtA(SCH.lin.abar[tt]);   // показываем долю сигнала ᾱ, введённую в разделе 2; σ — в «Под капотом»
+    status(c, k, P, `шаг ${st.j} из ${NST} · t = ${tt} · ᾱ = ${aTxt}`);
     if (st.caption) HeroKit.label(c, k, st.caption, M.W / 2, M.W - 16 * k, { px: 12.5, weight: 700, color: P.ink, haloColor: P.bg });
-    setOut($('#scOut'), `Шаг <b>${st.j}</b> из ${NST} (t = ${st.j < NST ? r.t : 0}, уровень шума σ = ${fmtS(r.s)}) · в центр смотрят <b>${pc(r.toMean)}</b> стрелок · к ближайшей спирали ведут <b>${pc(r.toSp)}</b> стрелок внутри круга`);
+    setOut($('#scOut'), `Шаг <b>${st.j}</b> из ${NST} (t = ${tt}, доля сигнала ᾱ = ${aTxt}) · в центр смотрят <b>${pc(r.toMean)}</b> стрелок${st.mis >= 1 ? ` · к ближайшей спирали ведут <b>${pc(r.toSp)}</b> стрелок внутри пунктирного круга` : ''}`);
     strip();
   }
   function setJ(j) { st.j = Math.max(0, Math.min(NST, Math.round(j))); const inp = $('#rwStep'); inp.value = st.j; inp.nextElementSibling.textContent = String(st.j); setRangeFill(inp); draw(); if (ctl) ctl.update(); }

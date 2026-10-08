@@ -74,3 +74,6 @@
 .q-conf button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 .q-pts { font-size: 13px; color: var(--ink-3); margin-top: 8px; font-family: var(--mono); }
 .calib { margin-top: 10px; display: grid; gap: 4px; font-size: 14.5px; color: var(--ink-2); }
+
+/* строка-пояснение под сценой или графиком: вид, значки, единицы */
+.cv-note { margin: 8px 0 0; font-size: 14px; line-height: 1.5; color: var(--ink-3); }
