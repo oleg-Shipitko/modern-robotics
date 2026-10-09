@@ -1,0 +1,129 @@
+/* ---------- урок 4.6 «Пирамида данных и маховик» ---------- */
+.cv-note { margin: 6px 2px 0; font-size: 13px; line-height: 1.45; color: var(--ink-3); }
+.lab-legend { margin-top: 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); }
+.lab-legend > summary { cursor: pointer; padding: 7px 12px; font-size: 13.5px; font-weight: 650; color: var(--ink-2); }
+.lab-legend .cv-legend { margin: 0; padding: 4px 12px 10px; }
+.cv-legend i.ring { width: 10px; height: 10px; border-radius: 50%; background: transparent; border: 2px solid var(--c); }
+.cv-legend i.band { width: 18px; height: 9px; border-radius: 3px; background: var(--c); opacity: .8; }
+.cv-legend i.hold { width: 9px; height: 9px; border-radius: 50%; background: #fff; border: 1.5px solid #1f2430; }
+.ctl { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ctl-l { font-size: 13.5px; font-weight: 650; color: var(--ink-3); }
+.ctl-row .hd-range output { min-width: 40px; }
+
+/* таблица источников в разделе 1 */
+.src-table { margin: 18px 0 4px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--surface); font-size: 14px; line-height: 1.4; }
+.src-row { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, .9fr) minmax(0, 1fr) minmax(0, 1.1fr); gap: 10px; padding: 9px 12px; border-top: 1px solid var(--line); }
+.src-row:first-child { border-top: 0; }
+.src-h { background: var(--surface-2); font-size: 12px; font-weight: 700; color: var(--ink-3); text-transform: uppercase; letter-spacing: .03em; }
+.src-row b { color: var(--ink); font-weight: 650; }
+.src-row span { color: var(--ink-2); min-width: 0; }
+
+/* две сцены рядом */
+.duo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+.pane { margin: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--surface); display: flex; flex-direction: column; min-width: 0; }
+.pane-head { padding: 7px 10px 6px; border-bottom: 1px solid var(--line); display: grid; gap: 1px; font-size: 12.5px; line-height: 1.35; color: var(--ink-3); }
+.pane-head b { display: flex; align-items: center; gap: 7px; font-size: 14.5px; color: var(--ink); }
+.pane-head b::before { content: ""; width: 10px; height: 10px; border-radius: 3px; background: var(--classic); flex: none; }
+.pane-head b.fm::before { background: var(--e2e); }
+.pane canvas { width: 100%; height: auto; aspect-ratio: 1; display: block; }
+.pane-stat { padding: 7px 10px; font-size: 13.5px; border-top: 1px solid var(--line); min-height: 36px; color: var(--ink-2); line-height: 1.35; }
+.pane-stat b { color: var(--ink); }
+.pane-stat.ok { background: var(--good-soft); }
+.pane-stat.bad { background: var(--critical-soft); }
+@supports (grid-template-rows: subgrid) {
+  .duo { grid-template-rows: auto auto auto; }
+  .pane { display: grid; grid-row: span 3; grid-template-rows: subgrid; row-gap: 0; }
+}
+
+/* планировщик бюджета */
+.plan { margin-top: 12px; display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); }
+.plan[hidden] { display: none; }
+.plan-row { display: grid; grid-template-columns: minmax(0, 170px) minmax(0, 1fr) 52px 74px; gap: 10px; align-items: center; font-size: 13.5px; color: var(--ink-2); }
+.plan-row .pl-name { display: flex; align-items: center; gap: 7px; font-weight: 650; color: var(--ink); line-height: 1.25; }
+.plan-row input { width: 100%; min-width: 0; }
+.plan-row output { font-family: var(--mono); font-size: 13px; text-align: right; color: var(--ink); }
+.plan-row .pl-cost { font-family: var(--mono); font-size: 12.5px; text-align: right; color: var(--ink-3); white-space: nowrap; }
+.dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.dot.cl { background: var(--classic); }
+.dot.hy { background: var(--hybrid); }
+.dot.e2e { background: var(--e2e); }
+.budget-bar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; margin-top: 4px; }
+.bb-track { height: 12px; border-radius: 6px; background: var(--surface); border: 1px solid var(--line); overflow: hidden; position: relative; }
+.bb-track i { display: block; height: 100%; width: 0; background: var(--good); transition: width .15s; }
+.budget-bar.over .bb-track i { background: var(--critical); }
+.bb-text { font-size: 13px; color: var(--ink-2); font-weight: 600; white-space: nowrap; }
+.budget-bar.over .bb-text { color: var(--critical); }
+.seg.wrap-seg button { white-space: normal; }
+
+/* столбики итогов */
+.bars { display: grid; gap: 6px; margin-top: 12px; }
+.bars:empty { display: none; }
+.bars .sc-h { font-size: 12.5px; }
+.bar-row { display: grid; grid-template-columns: minmax(0, 250px) minmax(0, 1fr) 48px; gap: 8px; align-items: center; font-size: 13px; color: var(--ink-2); }
+.bar-row .bl { line-height: 1.25; }
+.bar-row .bt { display: flex; height: 16px; border-radius: 5px; overflow: hidden; border: 1px solid var(--line); background: var(--surface-2); }
+.bar-row .bt i { display: block; height: 100%; background: var(--good); }
+.bar-row.base .bt i { background: var(--classic); }
+.bar-row.cur .bl { color: var(--ink); font-weight: 650; }
+.bar-row .bn { font-family: var(--mono); font-size: 12.5px; color: var(--ink); text-align: right; }
+.prog-line { height: 4px; border-radius: 2px; background: var(--surface-2); overflow: hidden; margin-top: 10px; }
+.prog-line i { display: block; height: 100%; width: 0; background: var(--e2e); }
+.prog-line[hidden] { display: none; }
+
+/* живые миссии: невыполненный критерий — «ещё нет», серым */
+.m-live .m-crit li.no i { border-color: var(--line-2); color: var(--ink-3); background: var(--surface-2); }
+.m-live .m-crit li.no i::before { content: '·'; }
+
+/* схемы */
+.flow-card { margin: 18px 0 0; padding: 14px 14px 12px; }
+.flow-card canvas { width: 100%; height: auto; display: block; }
+.flow-card figcaption { margin: 10px 2px 0; }
+
+/* сортировка источников по слоям */
+.layer-sort { margin-top: 22px; }
+.layer-sort .c-zones { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.layer-sort .c-card { font-size: 13.5px; text-align: left; }
+
+/* маховик: график и парк */
+.fly-chart canvas { width: 100%; height: auto; display: block; aspect-ratio: 640 / 300; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.fleet { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 5px; margin-top: 12px; }
+.fleet:empty { display: none; }
+.fleet.n32 { grid-template-columns: repeat(16, minmax(0, 1fr)); gap: 3px; }
+.fl-r { border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--surface); min-width: 0; }
+.fl-r canvas { width: 100%; height: auto; aspect-ratio: 1; display: block; image-rendering: pixelated; }
+.fl-r .fl-a { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 1px; padding: 2px; }
+.fl-r .fl-a i { display: block; aspect-ratio: 1; border-radius: 50%; }
+.fl-r .fl-a i.ok { background: var(--good); }
+.fl-r .fl-a i.fix { background: var(--e2e); }
+.fl-r .fl-a i.lost { background: transparent; position: relative; }
+.fl-r .fl-a i.lost::before, .fl-r .fl-a i.lost::after { content: ""; position: absolute; left: 10%; right: 10%; top: 45%; height: 12%; background: var(--critical); border-radius: 1px; transform: rotate(45deg); }
+.fl-r .fl-a i.lost::after { transform: rotate(-45deg); }
+.fleet.n32 .fl-r .fl-a { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+/* мост в часть 5 */
+.callout.bridge p { margin: 0; }
+
+@media (max-width: 760px) {
+  .src-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .src-h span:nth-child(n+3) { display: none; }
+  .src-row:not(.src-h) span:nth-child(3)::before { content: "Есть: "; color: var(--ink-3); }
+  .src-row:not(.src-h) span:nth-child(4)::before { content: "Нет: "; color: var(--ink-3); }
+  .fleet.n32 { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .duo { gap: 6px; }
+  .pane-head { padding: 6px 7px 5px; font-size: 11.5px; }
+  .pane-head b { font-size: 13px; }
+  .pane-stat { padding: 6px 7px; font-size: 12px; }
+  .plan-row { grid-template-columns: minmax(0, 1fr) 46px 64px; row-gap: 2px; }
+  .plan-row .pl-name { grid-column: 1 / -1; }
+  .plan-row input { grid-column: 1; }
+  .bar-row { grid-template-columns: minmax(0, 1fr) 48px; }
+  .bar-row .bl { grid-column: 1 / 3; }
+  .ctl-row .hd-range { display: grid; grid-template-columns: 124px 1fr 44px; width: 100%; }
+  .ctl-row .hd-range input { width: 100%; }
+  .layer-sort .c-zones { grid-template-columns: minmax(0, 1fr); }
+  .fleet { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .fleet.n32 { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+  .src-table { font-size: 13px; }
+}
