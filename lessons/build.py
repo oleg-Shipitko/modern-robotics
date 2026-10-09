@@ -97,6 +97,15 @@ LESSONS = {
     'l46': ('4-6-piramida-dannykh.html', ['l01/lesson.css', 'shared/lab.css', 'l46/l46.css'], {
         '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'l21/engine.js', 'l46/engine.js', 'l46/ui-l46.js'],
     }),
+    'l51': ('5-1-osnovy-rl.html', ['l01/lesson.css', 'shared/lab.css', 'l51/l51.css'], {
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'l51/engine.js', 'l51/ui-l51.js'],
+    }),
+    'l52': ('5-2-ppo.html', ['l01/lesson.css', 'shared/lab.css', 'l52/l52.css'], {
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'shared/drive-core.js', 'l52/engine.js', 'l52/ui-l52.js'],
+    }),
+    'l53': ('5-3-sac.html', ['l01/lesson.css', 'shared/lab.css', 'l53/l53.css'], {
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'shared/arm-core.js', 'l53/engine.js', 'l53/ui-l53.js'],
+    }),
     # глоссарий: все термины из shared/glossary.json, без отзыва и «спасибо»
     'gl': ('glossariy.html', ['l01/lesson.css', 'gl/gl.css'], {
         '/*@@JS@@*/': ['l01/ui-core.js', 'gl/ui-gl.js'],
