@@ -92,7 +92,13 @@ async function launch(opts) {
       };
       return p;
     },
-    async close() { try { await conn.send('Browser.close'); } catch (e) { /* уже закрыт */ } proc.kill(); },
+    async close() {
+      try { await conn.send('Browser.close'); } catch (e) { /* уже закрыт */ }
+      proc.kill();
+      // профиль Chrome — временная папка этого запуска: дождаться выхода процесса и убрать её, иначе они копятся в $TMPDIR
+      await new Promise((r) => { if (proc.exitCode !== null || proc.signalCode) r(); else { proc.once('exit', r); setTimeout(r, 3000); } });
+      try { fs.rmSync(dir, { recursive: true, force: true }); } catch (e) { /* не страшно */ }
+    },
   };
 }
 module.exports = { launch, sleep };
