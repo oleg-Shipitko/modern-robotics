@@ -161,6 +161,8 @@ const LabKey = (() => {
     const ap = st.anim || fin ? fr.p : E.POSE.home;
     drawArm(c, P, ap[0], ap[1], st.anim || fin ? fr.open : 1);
     HeroKit.label(c, k, 'Ада', Math.max(24, (X(-0.2) + X(-0.035)) / 2), Z(0.62), { px: 11, weight: 700, color: P.ink3, halo: false });
+    // крест неудачи — под кружками ключевых поз и крупнее их, чтобы номер позы оставался виден
+    if (!st.anim && !r.ok && r.at) HeroKit.cross(c, X(r.at[0]), Z(r.at[1]), 15, P.bad, 3.4);
     // ключевые позы
     let prevOpen = 1;
     st.kf.kfs.forEach((f, i) => {
@@ -174,10 +176,10 @@ const LabKey = (() => {
     if (!st.anim) {
       if (r.ok) { const pl = r.ev.find((e) => e.type === 'place'); if (pl) { HeroKit.check(c, X(pl.at[0]) + 34, Z(pl.at[1]) - 30, 8, P.good, 3); } }
       else if (r.at) {
-        const x = X(r.at[0]), y = Z(r.at[1]); HeroKit.cross(c, x, y, 8, P.bad, 3.4);
+        const x = X(r.at[0]), y = Z(r.at[1]);
         HeroKit.font(c, k, 12, 700); const w = c.measureText(r.msg).width;   // подпись не выходит за край сцены
-        const lx = Math.max(6, Math.min(W - 6 - w, x < W * 0.6 ? x + 14 : x - 14 - w));
-        HeroKit.label(c, k, r.msg, lx, y - 16, { px: 12, weight: 700, color: P.bad, align: 'left' });
+        const lx = Math.max(6, Math.min(W - 6 - w, x < W * 0.6 ? x + 20 : x - 20 - w));
+        HeroKit.label(c, k, r.msg, lx, y - 22, { px: 12, weight: 700, color: P.bad, align: 'left' });
       }
     }
   }
