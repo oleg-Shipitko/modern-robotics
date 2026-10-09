@@ -70,3 +70,21 @@
   .scroll-hint { display: inline; }
   .robot .units { min-height: 0; }
 }
+
+/* правила понятности: строка под сценой и свёрнутая легенда (как в 3.3) */
+.cv-note { margin: 8px 0 0; font-size: 14px; line-height: 1.5; color: var(--ink-3); }
+.cv-note b { color: var(--ink-2); }
+.flow-card figcaption.cv-note { margin: 10px 2px 0; }
+.lab-legend { margin: 10px 0 0; }
+.lab-legend > summary { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; list-style: none; font-size: 14px; font-weight: 650; color: var(--ink-2); padding: 6px 14px; border: 1px solid var(--line-2); border-radius: 999px; background: var(--surface); user-select: none; }
+.lab-legend > summary::-webkit-details-marker { display: none; }
+.lab-legend > summary::before { content: '▸'; font-size: 12px; color: var(--ink-3); }
+.lab-legend[open] > summary::before { content: '▾'; }
+.lab-legend .cv-legend { margin-top: 8px; }
+/* значки легенды — той же формы, что на кадрах */
+.cv-legend i.ring { width: 11px; height: 11px; border-radius: 50%; background: transparent; border: 2px solid var(--c); }
+.cv-legend i.ringd { width: 11px; height: 11px; border-radius: 50%; background: transparent; border: 2px dashed var(--c); }
+.cv-legend i.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
+.cv-legend i.cross { width: 11px; height: 11px; border-radius: 0; background: linear-gradient(45deg, transparent 40%, var(--c) 40% 60%, transparent 60%), linear-gradient(-45deg, transparent 40%, var(--c) 40% 60%, transparent 60%); }
+.cv-legend i.bar { width: 18px; height: 9px; border-radius: 2px; background: color-mix(in srgb, var(--c) 55%, transparent); border: 1px solid var(--line); }
+.ptable td.wrap { white-space: normal; min-width: 96px; }

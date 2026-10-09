@@ -307,6 +307,7 @@ const LabPatches = (() => {
   };
   const missions = [
     { short: 'Перемешай', title: 'Перемешай патчи', text: 'Иконка нарезана на 16 патчей, каждый стал токеном — столбиком из 16 чисел, и к каждому прибавлен вектор его позиции. Переключи «Патчи» на «перемешаны» и посмотри на картинку, токены и выход энкодера.',
+      controls: ['perm'],
       criteria: [{ label: 'Патчи перемешаны', test: (r, s) => s.perm === 1 }, { label: 'Векторы позиций на месте', test: (r, s) => s.pos === 1 }],
       hint: 'Переключатель «Патчи» — под сценой.',
       explain: (s) => `Картинка стала неузнаваемой, а столбики токенов — те же самые, только в другом порядке: матрица E одна для всех патчей. Различие пришло из векторов позиций: патч ${perm[0]} теперь получает вектор места 0, и среднее на выходе энкодера изменилось, сходство с исходным — ${fmt(s.cos, 3)}. Так модель узнаёт, что порядок другой.` },
@@ -370,7 +371,8 @@ const LabVLM = (() => {
     drawBitmap(c, st.bm, x0, y0, S, S); c.strokeStyle = P.ink3; c.lineWidth = 1; c.strokeRect(x0, y0, S, S);
     for (let i = 1; i < 4; i++) { c.strokeStyle = P.line; c.beginPath(); c.moveTo(x0 + i * S / 4, y0); c.lineTo(x0 + i * S / 4, y0 + S); c.moveTo(x0, y0 + i * S / 4); c.lineTo(x0 + S, y0 + i * S / 4); c.stroke(); }
     HeroKit.label(c, k, narrow ? 'картинка' : 'картинка → 16 патчей', x0 + S / 2, 24, { px: narrow ? 9.5 : 11, weight: 700, color: P.ink2, haloColor: P.bg });
-    HeroKit.label(c, k, `${colorWord(st.color, L21.SHAPES[L21.SI[st.shape]].g)} ${shapeWord(st.shape)}`, x0 + S / 2, y0 + S + 16, { px: narrow ? 9 : 10.5, color: P.ink3, haloColor: P.bg });
+    if (narrow) { HeroKit.label(c, k, colorWord(st.color, L21.SHAPES[L21.SI[st.shape]].g), x0 + S / 2, y0 + S + 14, { px: 9, color: P.ink3, haloColor: P.bg }); HeroKit.label(c, k, shapeWord(st.shape), x0 + S / 2, y0 + S + 14 + 11 * k, { px: 9, color: P.ink3, haloColor: P.bg }); }
+    else HeroKit.label(c, k, `${colorWord(st.color, L21.SHAPES[L21.SI[st.shape]].g)} ${shapeWord(st.shape)}`, x0 + S / 2, y0 + S + 16, { px: 10.5, color: P.ink3, haloColor: P.bg });
     // энкодер: 16 токенов
     const ex = 160, ey = 44, tw = 7, gap = 3, th = 104;
     HeroKit.label(c, k, 'энкодер', ex + 8 * (tw + gap), 24, { px: narrow ? 9.5 : 11, weight: 700, color: P.cl, haloColor: P.bg });
@@ -386,24 +388,23 @@ const LabVLM = (() => {
     HeroKit.label(c, k, narrow ? 'токены' : 'токены картинки', vx + 8 * (tw + gap), 24, { px: narrow ? 9.5 : 11, weight: 700, color: P.hy, haloColor: P.bg });
     HeroKit.label(c, k, narrow ? '→ LM' : '→ языковая модель', vx + 8 * (tw + gap), ey + th + 16, { px: narrow ? 9 : 10, color: P.ink3, haloColor: P.bg });
     // ответ: слово за словом с вероятностями
-    const ax = 548, ay = 44;
+    const ax = 548, ay = narrow ? 56 : 44;
     HeroKit.label(c, k, 'ответ', ax + 40, 24, { px: narrow ? 9.5 : 11, weight: 700, color: P.e2e, haloColor: P.bg });
     if (g) g.steps.forEach((sp, i) => {
       const y = ay + i * 40, ok = i === 0 ? sp.text === st.color : i === 1 ? sp.text === st.shape : sp.pick === E.EOS;
       const label = sp.pick === E.EOS ? '<eos>' : L21.CI[sp.text] != null ? colorWord(sp.text, i === 0 && g.words[1] && L21.SI[g.words[1]] != null ? L21.SHAPES[L21.SI[g.words[1]]].g : 'm') : L21.SI[sp.text] != null ? shapeWord(sp.text) : sp.text;
       c.fillStyle = P.bg2; c.fillRect(ax, y, 80, 10); c.fillStyle = ok ? P.good : P.bad; c.fillRect(ax, y, 80 * sp.p, 10);
-      HeroKit.label(c, k, label, ax + 40, y + 24, { px: 11.5, weight: 700, color: ok ? P.good : P.bad, haloColor: P.bg });
-      HeroKit.label(c, k, pc(sp.p), ax + 80, y - 7, { px: 9, align: 'right', color: P.ink3, haloColor: P.bg });
+      HeroKit.label(c, k, label, narrow ? W - 6 : ax + 40, y + 24, { px: narrow ? 9 : 11.5, weight: 700, align: narrow ? 'right' : 'center', color: ok ? P.good : P.bad, haloColor: P.bg });
+      if (!narrow) HeroKit.label(c, k, pc(sp.p), ax + 80, y - 7, { px: 9, align: 'right', color: P.ink3, haloColor: P.bg }); // на узком экране вероятность видна по длине полоски
     });
-    if (!Store.trained) HeroKit.label(c, k, 'модель не обучена', ax + 40, ay + 140, { px: 10, color: P.bad, haloColor: P.bg });
+    if (!Store.trained) HeroKit.label(c, k, narrow ? 'Не обучена: нажми «Обучить мини-VLM»' : 'Модель ещё не обучена, ответ случайный: нажми «Обучить мини-VLM» в карточке миссии', W / 2, H - 14, { px: narrow ? 9.5 : 11, weight: 700, color: P.bad, haloColor: P.bg });
     else if (st.genB) HeroKit.label(c, k, `с нуля: ${sayWords(st.genB.words)}`, W - 8, ay + 150, { px: narrow ? 9 : 10, align: 'right', color: P.cl, haloColor: P.bg });
     for (const x of [140, 326, 352, 532]) HeroKit.label(c, k, '→', x, 96, { px: 16, color: P.ink3, halo: false });
-    HeroKit.label(c, k, 'Патчи → энкодер → проектор → языковая модель → слова. Полоски — вероятность выбранного слова.', W / 2, H - 14, { px: narrow ? 9.5 : 10.5, color: P.ink3, haloColor: P.bg });
   }
   /* ---------- сетка проверки: 24 новые картинки, подписи обеих моделей ---------- */
   function drawGrid() {
-    const cv = $('#vGrid'); if (!st.res) { cv.hidden = true; $('#vGridH').hidden = true; return; }
-    cv.hidden = false; $('#vGridH').hidden = false;
+    const cv = $('#vGrid'); if (!st.res) { cv.hidden = true; $('#vGridH').hidden = true; $('#vGridNote').hidden = true; return; }
+    cv.hidden = false; $('#vGridH').hidden = false; $('#vGridNote').hidden = false;
     const narrow0 = GW / (cv.getBoundingClientRect().width || GW) > 1.5, cols = narrow0 ? 3 : 6, rows = 24 / cols;
     const two = !!st.resB, rowH = two ? 72 : 60, GH2 = rows * rowH + 8; cv.style.aspectRatio = `${GW} / ${GH2}`;
     const { c, k } = HeroKit.fit(cv, GW, GH2), P = pal(), narrow = k > 1.5, cw = GW / cols;
@@ -471,7 +472,6 @@ const LabVLM = (() => {
     objectPickers('#vColor', '#vShape', st, (col, sh) => { if (!st.busy) setObj(col, sh); });
     $('#vDx').addEventListener('input', (e) => setDx(e.target.value)); $('#vR').addEventListener('input', (e) => setR(e.target.value)); $('#vNoise').addEventListener('input', (e) => setNoise(e.target.value));
     syncRange($('#vDx'), '0 px'); syncRange($('#vR'), '5,8'); syncRange($('#vNoise'), '0,02');
-    legend('#vLegend', [['подпись предобученной модели: верно', 'var(--good)'], ['ошибка', 'var(--critical)'], ['подпись модели с энкодером с нуля', 'var(--classic)']]);
     makeTests(); makeImg();
     ctl = mountMissions('#vMis', missions, api, { controls: { obj: '#wrapVObj', dx: '#wrapVDx', r: '#wrapVR', noise: '#wrapVNoise' }, scene: '#vCv' });
     render(); redrawOn(() => { drawPipe(); drawGrid(); });
@@ -518,7 +518,7 @@ const LabSpace = (() => {
   function drawPanel(cv, key) {
     const { c, k } = HeroKit.fit(cv, S, S), P = pal(), narrow = k > 1.5;
     c.fillStyle = P.bg; c.fillRect(0, 0, S, S);
-    if (!st.pts) { HeroKit.label(c, k, 'модель ещё не обучена', S / 2, S / 2, { px: 12, color: P.ink3, halo: false }); return; }
+    if (!st.pts) { HeroKit.label(c, k, 'Пока пусто: мини-VLM не обучена', S / 2, S / 2 - 9 * k, { px: 12, weight: 700, color: P.ink2, halo: false }); HeroKit.label(c, k, 'нажми «Обучить и показать»', S / 2, S / 2 + 9 * k, { px: 12, color: P.ink3, halo: false }); return; }
     const p = st.pts[key], all = p.words.concat(p.read0, p.read1, p.tok, st.pts.s2.words, st.pts.s2.read0, st.pts.s2.read1, st.pts.s1.read0, st.pts.s0.read0);
     let mx = 1e-9; for (const [x, y] of all) mx = Math.max(mx, Math.abs(x), Math.abs(y));
     const X = (x) => S / 2 + x / mx * (S / 2 - 24), Y = (y) => S / 2 - y / mx * (S / 2 - 24);
@@ -539,7 +539,7 @@ const LabSpace = (() => {
       c.beginPath(); if (isC) c.arc(px, py, 7, 0, 7); else c.rect(px - 7, py - 7, 14, 14); c.fill(); c.stroke();
       HeroKit.label(c, k, isC ? colorWord(w, 'm') : shapeWord(w), px, isC ? py - 13 : py + 16, { px: narrow ? 9.5 : 10.5, weight: 700, color: P.ink, haloColor: P.bg });
     });
-    HeroKit.label(c, k, `главные оси · дисперсия ${pc(st.basis.lam[0] + st.basis.lam[1])}`, S / 2, S - 10, { px: 9.5, color: P.ink3, haloColor: P.bg });
+    HeroKit.label(c, k, `главные оси · видно ${pc(st.basis.lam[0] + st.basis.lam[1])} разброса`, S / 2, S - 10, { px: 9.5, color: P.ink3, haloColor: P.bg });
   }
   function draw() { drawPanel($('#sCv0'), 's0'); drawPanel($('#sCv1'), 's' + st.stage); out(); }
   const WHAT = { read0: 'чтение перед первым словом', read1: 'чтение перед вторым словом', tok: 'средний токен картинки' };
@@ -575,7 +575,8 @@ const LabSpace = (() => {
   ];
   function init() {
     segBind('#sStage', setStage); segBind('#sWhat', setWhat);
-    legend('#sLegend', [['слово-цвет', 'var(--ink-3)', 'ring'], ['слово-форма', 'var(--ink-2)'], ['картинка: цвет точки — её цвет, маркер — форма', 'var(--e2e)', 'dot']]);
+    legend('#sLegend', [['слово-цвет: кольцо того же цвета', 'var(--critical)', 'wring'], ['слово-форма', 'var(--ink-2)', 'wsq'], ['картинка с мячом', 'var(--ink-3)', 'mball'], ['картинка с кубиком', 'var(--ink-3)', 'mcube'], ['картинка с банкой', 'var(--ink-3)', 'mcan'], ['картинка с миской', 'var(--ink-3)', 'mbowl'], ['серые линии — главные оси, пересекаются в нуле', 'var(--line-2)', 'axes']]);
+    $('#sLegend').append(h('span', { class: 'lg-h' }, 'Значки картинок окрашены в цвет предмета на картинке.'));
     ctl = mountMissions('#sMis', missions, api, { controls: { stage: '#wrapSStage', what: '#wrapSWhat' }, scene: '#sCv1' });
     draw(); redrawOn(draw);
     return ctl;
