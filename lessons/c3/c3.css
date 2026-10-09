@@ -1,3 +1,12 @@
-/* ---------- Проверка части 2: сцена «что и где» ---------- */
-.chk-cv.sq { aspect-ratio: 1; max-width: 520px; }
-.chk-lab { font-weight: 650; font-size: 14px; color: var(--ink-2); min-width: 3.4em; }
+/* ---------- Проверка части 3: сцена «Ада в облаке» (рука Ады догоняет чашку, l37/engine.js) ---------- */
+.chk-cv.c3-cv { aspect-ratio: 820 / 400; }
+.chk-cv.c3-cv.narrow { aspect-ratio: 400 / 820; }
+.chk-lab { font-weight: 650; font-size: 14px; color: var(--ink-2); }
+.chk-scene .cv-note { margin: 0 2px; font-size: 13px; line-height: 1.45; color: var(--ink-3); }
+.chk-scene .cv-legend { margin-top: 0; }
+.cv-legend i.dot { width: 9px; height: 9px; border-radius: 50%; }
+.cv-legend i.cup { width: 12px; height: 12px; border-radius: 50%; background: var(--c); box-shadow: 5px 0 0 -3px var(--c); }
+.cv-legend i.dash { width: 18px; height: 0; border-top: 2px dashed var(--c); background: transparent; border-radius: 0; }
+.cv-legend i.cross { width: 11px; height: 11px; background: linear-gradient(45deg, transparent 40%, var(--c) 40% 60%, transparent 60%), linear-gradient(-45deg, transparent 40%, var(--c) 40% 60%, transparent 60%); border-radius: 0; }
+.cv-legend i.body { width: 16px; height: 11px; border-radius: 5px; background: var(--surface); border: 2px solid var(--c); }
+@media (max-width: 680px) { .c3-f .hd-range { flex-wrap: wrap; row-gap: 4px; } .c3-f .hd-range > span { flex: 1 0 100%; } }

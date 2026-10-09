@@ -1,9 +1,23 @@
 /* =====================================================================
    c3/ui-c3.js — проверка части 3: задания вперемешку по урокам 3.1–3.8
-   и задача на сцене (добавляется после приёмки уроков). Общий движок — shared/check.js.
+   и задача на сцене «Ада в облаке» на движке l37/engine.js (рука Ады
+   догоняет чашку, shared/arm-core.js): одна настройка — кто ведёт руку
+   и как часто думает модель в облаке — должна пройти две проверки сразу.
+   Общий движок проверок — shared/check.js.
    ===================================================================== */
 (function () {
   'use strict';
+  const K = window.HeroKit;
+  const fmt = (v, d) => (+v).toLocaleString('ru-RU', { minimumFractionDigits: d == null ? 1 : d, maximumFractionDigits: d == null ? 1 : d });
+  /** Цвет с прозрачностью: hex или rgb() из CSS-переменной. */
+  function alpha(col, a) {
+    const t = String(col).trim();
+    let m = /^#([0-9a-f]{6})$/i.exec(t);
+    if (m) { const n = parseInt(m[1], 16); return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`; }
+    m = /^rgba?\(([^)]+)\)$/.exec(t);
+    if (m) { const q = m[1].split(',').map((x) => x.trim()); return `rgba(${q[0]},${q[1]},${q[2]},${a})`; }
+    return t;
+  }
   const LESSON = {
     '3.1': ['RT-1', '3-1-rt-1.html'],
     '3.2': ['Vision-language модели', '3-2-vision-language-modeli.html'],
@@ -33,9 +47,9 @@
     { l: '3.2', t: 'choice', q: 'Команда собирает VLM из готового энкодера CLIP и готовой языковой модели. Что из этого придётся обучать на первом этапе по рецепту LLaVA?',
       o: ['Только проектор: матрицу, которая переводит токены энкодера в размерность эмбеддингов слов; энкодер и языковая модель заморожены', 'Энкодер: он должен научиться выдавать токены, понятные языковой модели', 'Всё сразу: иначе части не договорятся'], a: 0,
       e: 'H_v = W · Z_v: мост между частями дешёвый. Дорогое — сами части и данные; на втором этапе к проектору добавляют языковую модель, а энкодер CLIP заморожен всегда.', sec: 'llava', st: 'LLaVA и PaliGemma: проектор между энкодером и языковой моделью' },
-    { l: '3.2', t: 'predict', q: 'Энкодер мини-VLM в контрастном пространстве находит «фиолетовый кубик» в 7 сценах из 8, но в обучающих подписях после слова «фиолетовый» всегда шёл «мяч». Что ответит VLM на картинку с фиолетовым кубиком?',
+    { l: '3.2', t: 'predict', q: 'Энкодер мини-VLM в контрастном пространстве узнаёт фиолетовый кубик. Но в обучающих подписях после слова «фиолетовый» шли «мяч», «миска» и «банка» и ни разу — «кубик». Что ответит VLM на картинку с фиолетовым кубиком?',
       o: ['Скорее «фиолетовый мяч»: языковая модель отвечает и по привычкам из подписей, а не только по признакам энкодера', '«Фиолетовый кубик»: языковая модель читает то, что выдал энкодер', 'Откажется отвечать: такого сочетания в данных не было'], a: 0,
-      e: 'Так ошиблась и LLaVA с клубничным йогуртом: ответила «да» на вопрос о клубничном вкусе, потому что в подписях эти слова шли рядом. Знание энкодера и привычки языковой модели — разные вещи.', sec: 'vlm', st: 'Мини-VLM описывает картинку' },
+      e: 'Цвет модель прочитала из картинки, а форму после слова «фиолетовый» договорила по подписям: в лаборатории она называла фиолетовый кубик мячом. Авторы LLaVA описывают такой же сбой: на вопрос про клубничный йогурт модель ответила «да», хотя в холодильнике были йогурт и клубника по отдельности. Знание энкодера и привычки языковой модели — разные вещи.', sec: 'vlm', st: 'Мини-VLM описывает картинку' },
     { l: '3.2', t: 'choice', q: 'Робот на PaliGemma получает кадр 224 px и команду. Сколько токенов картинки прочтёт языковая модель на каждом шаге управления, и почему это важно для робота?',
       o: ['256 токенов; при 896 px было бы 4096, и это цена каждого шага управления, поэтому GR00T N1 оставляет 64 токена на кадр', '16 токенов: энкодер сжимает картинку до нескольких признаков', 'Один токен на картинку, как один вектор команды в RT-1'], a: 0,
       e: 'Картинку приводят к квадрату 224, 448 или 896 пикселей: 256, 1024 или 4096 токенов. Внимание дорожает с числом токенов, а робот платит за них на каждом шаге.', sec: 'llava', st: 'LLaVA и PaliGemma: проектор между энкодером и языковой моделью' },
@@ -47,10 +61,10 @@
       e: "Так модель забывает старое. В таблице 6 статьи совместное дообучение на 55 млрд параметров обобщает на 63% против 52% у простого. В лаборатории модель, дообученная только на действиях, разучивалась называть цвет предмета.", sec: 'cofinetune', st: "Совместное дообучение и что оно даёт" },
     { l: '3.3', t: 'predict', q: "RT-2 просят протереть стол полотенцем. Такого движения нет в демонстрациях робота, зато в интернете его видео много. Справится?",
       o: ["Нет: из веб-данных переносятся понятия, а движения ограничены демонстрациями робота", "Да: модель видела такое движение в интернете", "Да, если добавить цепочку рассуждений"], a: 0,
-      e: "Авторы прямо пишут, что физические навыки остаются в пределах данных робота, и протирание полотенцем — в списке неудач. А «подвинь банку к цифре 3» работает: движение знакомое, новое только понятие.", sec: 'emergent', st: "Что появилось само" },
+      e: "Авторы прямо пишут, что физические навыки остаются в пределах данных робота, и протирание полотенцем — в списке неудач. А «подвинь яблоко к цифре 3» работает: движение знакомое, новое только понятие.", sec: 'emergent', st: "Что появилось само" },
     { l: '3.3', t: 'choice', q: "Почему RT-2 на 55 млрд параметров управляет роботом всего 1–3 раза в секунду?",
       o: ["Такая модель работает в облаке на TPU, робот обращается к ней по сети, и каждое действие — несколько токенов подряд", "Камера робота снимает три кадра в секунду", "Так задумано: чем медленнее, тем точнее"], a: 0,
-      e: "Модель такого размера не запустить на бортовом компьютере. Вариант на 5 млрд параметров даёт около 5 Гц. Скорость авторы называют узким местом — отсюда двухуровневые архитектуры урока 3.7.", sec: 'cofinetune', st: "Совместное дообучение и что оно даёт" },
+      e: "Модель такого размера не запустить на бортовом компьютере. Вариант на 5 млрд параметров даёт около 5 Гц. Авторы признают, что для задач с высокочастотным управлением это узкое место; отсюда FAST и π0 с отдельной частью для непрерывных действий в уроке 3.6.", sec: 'cofinetune', st: "Совместное дообучение и что оно даёт" },
     { l: '3.4', t: 'predict', q: 'Лаборатория записала 200 эпизодов на своём роботе и добавила их в смесь Open X-Embodiment. Действия робота заданы в системе координат камеры, а у остальных — в системе базы. Что общий формат сделает с этой разницей?',
       o: ['Ничего: формат нормирует действия по датасету, а системы координат и смысл чисел не трогает, и один вектор у разных роботов будет означать разные движения', 'Переведёт действия в систему координат базы, как у остальных', 'Отбросит датасет: несовместимые координаты в смесь не берут'], a: 0,
       e: 'Авторы пишут прямо: координаты не совмещают, значения остаются абсолютными, относительными или скоростями, как записал контроллер. В лаборатории невыровненная ось оставила робота D без переноса.', sec: 'format', st: 'Общий формат: один кадр и семь чисел' },
@@ -60,9 +74,9 @@
     { l: '3.4', t: 'predict', q: 'Из смеси для RT-2-X убрали датасет Bridge, записанный на роботе WidowX, и проверили модель на Google Robot в задачах из Bridge. Что произойдёт с успехом?',
       o: ['Упадёт почти вдвое: с 75,8% до 42,8% — умения перешли с WidowX через общий формат', 'Не изменится: Google Robot в Bridge не снимали, и эти данные ему не нужны', 'Вырастет: чужой робот только мешал'], a: 0,
       e: 'Строка 3 таблицы II — та же модель и смесь без Bridge. Это и есть положительный перенос между роботами: умения одного пришли к другому через данные, без модулей под каждого робота.', sec: 'results', st: 'Таблицы статьи: где перенос есть, а где его нет' },
-    { l: '3.4', t: 'predict', q: 'Четыре робота учатся на смеси, у робота A данных в десять раз больше, чем у остальных. Веса смеси сделали равными, чтобы «никого не обидеть». Что покажет проверка по сравнению с пропорциональными весами?',
-      o: ['Хуже: пакет переполняется редкими данными малых роботов, большой датасет A недоучивается, а малым роботам пропорциональная смесь и так помогала', 'Лучше для всех: каждый робот получает одинаковое внимание', 'Одинаково: веса смеси влияют только на скорость обучения'], a: 0,
-      e: 'В лаборатории равные веса были хуже пропорциональных, без данных A падали все, а вес D ×10 ронял робота A. Веса смеси подбирают вручную — таблицы весов есть и у Octo, и у OpenVLA.', sec: 'mix', st: 'Смесь данных четырёх роботов на одном столе' },
+    { l: '3.4', t: 'predict', q: 'Четыре робота учатся на смеси: у робота A 300 демонстраций, у робота D — 15. Чтобы помочь D, вес его датасета в смеси подняли в десять раз. Что покажет проверка?',
+      o: ['Просядет робот A: его доля в пакете упадёт, а 15 примеров D сеть начнёт заучивать', 'Выиграют все: D получит больше внимания, а остальные ничего не потеряют', 'Ничего не изменится: 15 демонстраций D — капля в смеси'], a: 0,
+      e: 'В лаборатории вес D ×10 ронял робота A, а без данных A проседали все остальные: 300 демонстраций A покрывали стол лучше, чем 155 демонстраций трёх малых роботов. Веса смеси подбирают вручную: у Octo и OpenVLA таблица весов занимает отдельную страницу приложения, малые наборы там усилены, но не в десять раз.', sec: 'mix', st: 'Смесь данных четырёх роботов на одном столе' },
     { l: '3.5', t: 'choice', q: "Чем Octo отличается от OpenVLA по устройству?",
       o: ["Octo обучена с нуля на данных роботов и выдаёт действия диффузионной головой, OpenVLA — модель зрения и языка, которая выдаёт действия токенами", "Ничем: OpenVLA просто больше", "Octo — модель зрения и языка, а OpenVLA обучена с нуля"], a: 0,
       e: "Octo — трансформер на 93 млн параметров без предобучения на интернете, кроме языкового энкодера. OpenVLA построена на Llama 2 с двумя зрительными энкодерами и записывает каждую ось действия одной из 256 корзин.", sec: 'octo', st: "Octo: входы и выходы добавляются токенами" },
@@ -111,8 +125,164 @@
     { l: '3.8', t: 'choice', q: "Что делает изоляция знаний при обучении VLA?",
       o: ["Не пускает градиент эксперта действий в модель зрения и языка, а та продолжает учиться на токенах FAST и веб-данных", "Замораживает модель зрения и языка целиком", "Убирает веб-данные из обучения"], a: 0,
       e: "Градиент случайно инициализированного эксперта портит знания модели зрения и языка: она хуже следует командам и учится медленнее. Заморозить её целиком тоже нельзя — так модель не справлялась с задачами.", sec: 'ki', st: "Изоляция знаний: эксперт действий не должен переучивать модель зрения и языка" },
-    /* @@SCENE@@ */
+    { l: '3.7', t: 'scene', q: 'Модель зрения и языка Ады работает в облаке, и сеть добавляет к каждому её ответу 100 мс. Выбери, кто ведёт руку и как часто думает модель в облаке, чтобы Ада прошла обе проверки: взяла красную чашку, которую двигают по столу со скоростью 15 см/с, а когда человек через 1,05 с попросил синюю, повернула к ней быстрее чем за 0,5 с и взяла её.',
+      e: 'Одна модель ведёт захват туда, где чашка была на её кадре, и не берёт движущуюся чашку ни при какой частоте: в лаборатории урока при 7 Гц без сети захват отставал от чашки на 3,2–4,8 см при допуске 2 см. Две системы берут её при любой частоте: где чашка сейчас, быстрая система видит сама каждые 5 мс. Но новую просьбу читает только модель в облаке, и реакция складывается из ожидания следующего кадра, вывода и сети. При 1–2 Гц Ада успевает сомкнуть захват на красной раньше, чем приходит ответ с новой просьбой; при 4 Гц Ада поворачивает к синей через 0,55 с, при 5 Гц — через 0,45 с.', sec: 'chase', st: 'Рука догоняет чашку: одна модель и две системы рядом' },
   ];
-  const n = Q.length; const cnt = document.getElementById('chkCount'); if (cnt) cnt.textContent = `${n} ${plural(n, 'вопрос', 'вопроса', 'вопросов')}`;
-  PartCheck({ lessons: LESSON, questions: Q, passText: 'Часть 3 усвоена, можно идти дальше.', expose: '__c3' });
+
+  /* ---------- задача на сцене: Ада в облаке, две проверки одной настройкой ---------- */
+  // Движок — l37/engine.js (рука Ады догоняет чашку, урок 3.7). Сеть до облака, скорость чашки и момент новой просьбы заданы условием.
+  const CLOUD = 0.1, V = 0.15, REACT = 0.5;
+  function scene(api) {
+    const E = window.L37, PW = 400, GAP = 20, S = 300, OX = 200, OY = 330;
+    const st = { mode: 'single', f: 3, res: null, idx: null, busy: false };
+    const cv = h('canvas', { class: 'chk-cv c3-cv', role: 'img', 'aria-label': 'Две сцены сверху: Ада тянется к движущейся красной чашке и Ада, которую попросили взять синюю чашку' });
+    const note = h('p', { class: 'cv-note' }, 'Вид на стол перед Адой сверху, клетка сетки — 10 см. Внизу — Ада: колёсная база, корпус и голова; рука из двух звеньев, захват — кружок на конце. Красную чашку двигают по пунктиру вправо, синяя стоит. Крестик — точка, к которой ведёт захват; линия — след захвата.');
+    const seg = h('div', { class: 'seg', role: 'group', 'aria-label': 'Кто ведёт руку' },
+      h('button', { type: 'button', 'data-v': 'single', 'aria-pressed': 'true' }, 'Одна модель в облаке'),
+      h('button', { type: 'button', 'data-v': 'dual', 'aria-pressed': 'false' }, 'Две системы: быстрая на роботе'));
+    const fIn = h('input', { type: 'range', min: 1, max: 10, step: 1, value: st.f, 'aria-label': 'Частота модели в облаке' }), fOut = h('output');
+    const go = h('button', { type: 'button', class: 'btn primary' }, 'Запустить обе проверки');
+    const skip = h('button', { type: 'button', class: 'g-restart' }, 'Пропустить задачу');
+    const out = h('div', { class: 'readout' }, 'Одна модель строит по каждому кадру пачку движений и ведёт захват туда, где чашка была на кадре. В двух системах модель в облаке говорит, какую чашку брать, а быстрая система на роботе 200 раз в секунду смотрит на свежий кадр.');
+    const crits = [['move', 'Проверка 1: Ада взяла красную чашку, которую двигают'], ['react', `Проверка 2: повернула к синей быстрее чем за ${fmt(REACT, 1)} с после просьбы`], ['blue', 'Проверка 2: взяла синюю чашку']]
+      .map(([id, t]) => h('li', { class: 'wait', 'data-c': id }, h('i', { 'aria-hidden': 'true' }), h('span', null, t)));
+    const legend = h('div', { class: 'cv-legend' });
+    const wrap = h('div', { class: 'chk-scene' }, cv, note, legend,
+      h('div', { class: 'chk-ctl' }, h('span', { class: 'chk-lab' }, 'Руку ведёт:'), seg),
+      h('div', { class: 'chk-ctl c3-f' }, h('label', { class: 'hd-range' }, h('span', null, 'Частота модели в облаке'), fIn, fOut)),
+      h('div', { class: 'chk-row' }, go, skip), out, h('ul', { class: 'm-crit' }, crits));
+    const P = () => ({ bg: K.css('--surface-2'), surf: K.css('--surface'), grid: K.css('--line'), line: K.css('--line-2'), ink: K.css('--ink'), ink2: K.css('--ink-2'), ink3: K.css('--ink-3'), e2e: K.css('--e2e'), hy: K.css('--hybrid'), good: K.css('--good'), bad: K.css('--critical') });
+    const cupCol = () => (K.dark() ? { red: '#e0675b', blue: '#5b8fe6' } : { red: '#cf4436', blue: '#2f6cc9' });
+    const handCol = (p) => (st.mode === 'dual' ? p.e2e : p.hy);
+    const map = (x, y) => ({ x: OX + x * S, y: OY - y * S });
+    const lbl = (c, k, t, x, y, o) => K.label(c, k, t, x, y, Object.assign({ px: 11, weight: 600 }, o || {}));
+    function sync() {
+      $$('button', seg).forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === st.mode)));
+      fIn.value = st.f; fOut.textContent = `${st.f} Гц`; setRangeFill(fIn);
+      legend.innerHTML = '';
+      const C = cupCol(), V2 = (n) => `var(--${n})`;
+      [['Ада сверху', V2('ink-2'), 'body'], [st.mode === 'dual' ? 'захват и след: две системы' : 'захват и след: одна модель', st.mode === 'dual' ? V2('e2e') : V2('hybrid'), 'dot'], ['красная чашка', C.red, 'cup'], ['синяя чашка', C.blue, 'cup'], ['путь красной чашки', V2('ink-3'), 'dash'], ['куда ведёт захват', st.mode === 'dual' ? V2('e2e') : V2('hybrid'), 'cross']]
+        .forEach(([t, col, kind]) => legend.append(h('span', null, h('i', { class: kind, style: `--c:${col}` }), t)));
+    }
+    function crit(r) {
+      const set = (id, ok) => { const li = crits.find((x) => x.dataset.c === id); li.className = ok == null ? 'wait' : ok ? 'ok' : 'no'; };
+      set('move', r ? r.move.ok && r.move.caught === 'red' : null);
+      set('react', r ? r.sw.react != null && r.sw.react < REACT : null);
+      set('blue', r ? r.sw.ok && r.sw.caught === 'blue' : null);
+    }
+    const passed = (r) => r.move.ok && r.move.caught === 'red' && r.sw.react != null && r.sw.react < REACT && r.sw.ok && r.sw.caught === 'blue';
+    const frameAt = (run, i) => run.frames[Math.min(run.frames.length - 1, i)];
+    function drawAda(c, p) {
+      const b0 = map(-0.42, 0.09), b1 = map(0.06, -0.2);
+      c.beginPath(); c.roundRect(b0.x, b0.y, b1.x - b0.x, b1.y - b0.y, 14); c.fillStyle = alpha(p.ink3, 0.12); c.fill(); c.strokeStyle = p.ink3; c.lineWidth = 1.2; c.setLineDash([4, 3]); c.stroke(); c.setLineDash([]);
+      const t0 = map(-0.36, 0.05), t1 = map(0.03, -0.1);
+      c.beginPath(); c.roundRect(t0.x, t0.y, t1.x - t0.x, t1.y - t0.y, 12); c.fillStyle = p.surf; c.fill(); c.strokeStyle = p.ink2; c.lineWidth = 2; c.stroke();
+      const hd = map(-0.165, -0.03); c.beginPath(); c.arc(hd.x, hd.y, 0.075 * S, 0, 7); c.fillStyle = p.surf; c.fill(); c.stroke();
+      c.fillStyle = '#eb6834'; for (const dx of [-0.03, 0.03]) { const e = map(-0.165 + dx, 0.025); c.beginPath(); c.arc(e.x, e.y, 2.6, 0, 7); c.fill(); }
+      const ls = map(-0.33, 0), le = map(-0.45, 0.12), lh = map(-0.36, 0.2);
+      c.lineCap = 'round'; c.lineJoin = 'round';
+      c.strokeStyle = p.ink3; c.lineWidth = 8; c.beginPath(); c.moveTo(ls.x, ls.y); c.lineTo(le.x, le.y); c.lineTo(lh.x, lh.y); c.stroke();
+      c.strokeStyle = p.surf; c.lineWidth = 4; c.stroke();
+    }
+    function drawCup(c, q0, col, p) {
+      const q = map(q0.x, q0.y), r = E.R_CUP * S;
+      c.strokeStyle = col; c.lineWidth = 3; c.beginPath(); c.arc(q.x + r + 1, q.y, r * 0.45, -Math.PI / 2, Math.PI / 2); c.stroke();
+      c.beginPath(); c.arc(q.x, q.y, r, 0, 7); c.fillStyle = col; c.fill(); c.lineWidth = 1.5; c.strokeStyle = p.surf; c.stroke();
+      c.beginPath(); c.arc(q.x, q.y, r * 0.55, 0, 7); c.strokeStyle = 'rgba(255,255,255,0.55)'; c.lineWidth = 1.2; c.stroke();
+    }
+    function status(run, scen) {
+      if (!run) return null;
+      if (run.wrong) return ['взяла не ту: красную', 'bad'];
+      if (run.caught) return [`взяла ${run.caught === 'red' ? 'красную' : 'синюю'} за ${fmt(run.tCatch, 2)} с`, 'good'];
+      return [scen === 'move' ? 'не успела за 5 с' : 'не взяла за 5 с', 'bad'];
+    }
+    function drawPane(c, k, run, i, scen, title) {
+      const p = P(), C = cupCol(), col = handCol(p), o = { v: V, scen };
+      c.fillStyle = p.bg; c.fillRect(0, 0, PW, PW);
+      const a = map(E.TABLE.x0, E.TABLE.y1), b = map(E.TABLE.x1, E.TABLE.y0);
+      c.beginPath(); c.roundRect(a.x, a.y, b.x - a.x, b.y - a.y, 8); c.fillStyle = p.surf; c.fill(); c.strokeStyle = p.line; c.lineWidth = 1.2; c.stroke();
+      c.save(); c.beginPath(); c.rect(a.x, a.y, b.x - a.x, b.y - a.y); c.clip(); c.strokeStyle = p.grid; c.lineWidth = 1; c.beginPath();
+      for (let x = -0.6; x <= 0.61; x += 0.1) { const q = map(x, 0); c.moveTo(q.x, a.y); c.lineTo(q.x, b.y); }
+      for (let y = 0.2; y <= 0.91; y += 0.1) { const q = map(0, y); c.moveTo(a.x, q.y); c.lineTo(b.x, q.y); }
+      c.stroke(); c.restore();
+      const p0 = map(E.RED0.x, E.RED0.y), p1 = map(E.X_END, E.RED0.y);
+      c.strokeStyle = p.ink3; c.lineWidth = 1.4; c.setLineDash([5, 4]); c.beginPath(); c.moveTo(p0.x, p0.y); c.lineTo(p1.x, p1.y); c.stroke(); c.setLineDash([]);
+      c.fillStyle = p.ink3; c.beginPath(); c.moveTo(p1.x + 7, p1.y); c.lineTo(p1.x - 1, p1.y - 5); c.lineTo(p1.x - 1, p1.y + 5); c.closePath(); c.fill();
+      drawAda(c, p);
+      const f = run ? frameAt(run, i) : { t: 0, q: E.Arm.ik(E.HAND0.x, E.HAND0.y)[0], red: E.cupAt('red', 0, o), blue: E.cupAt('blue', 0, o), aim: null, lat: 0, caught: null };
+      if (run) { c.strokeStyle = alpha(col, 0.75); c.lineWidth = 2; c.beginPath(); for (let j = 0; j <= Math.min(i, run.frames.length - 1); j++) { const q = map(run.frames[j].h.x, run.frames[j].h.y); if (j) c.lineTo(q.x, q.y); else c.moveTo(q.x, q.y); } c.stroke(); }
+      const fk = E.Arm.fk(f.q), hand = { x: fk.x, y: fk.y };
+      drawCup(c, f.caught === 'blue' ? hand : f.blue, C.blue, p);
+      drawCup(c, f.caught === 'red' ? hand : f.red, C.red, p);
+      if (f.aim && !f.caught) { const q = map(f.aim.x, f.aim.y); K.cross(c, q.x, q.y, 6, col, 2.2); }
+      const sh = map(0, 0), el = map(fk.x1, fk.y1), hd = map(fk.x, fk.y);
+      c.lineCap = 'round'; c.strokeStyle = p.ink2; c.lineWidth = 9; c.beginPath(); c.moveTo(sh.x, sh.y); c.lineTo(el.x, el.y); c.lineTo(hd.x, hd.y); c.stroke();
+      c.strokeStyle = p.surf; c.lineWidth = 5; c.beginPath(); c.moveTo(sh.x, sh.y); c.lineTo(el.x, el.y); c.lineTo(hd.x, hd.y); c.stroke();
+      for (const [pt, r] of [[sh, 6], [el, 5]]) { c.beginPath(); c.arc(pt.x, pt.y, r, 0, 7); c.fillStyle = p.surf; c.fill(); c.lineWidth = 2; c.strokeStyle = p.ink2; c.stroke(); }
+      c.beginPath(); c.arc(hd.x, hd.y, 6, 0, 7); c.fillStyle = col; c.fill(); c.lineWidth = 2; c.strokeStyle = p.surf; c.stroke();
+      // подписи: проверка и время сверху, итог проверки под ними, просьба человека — справа внизу
+      const narrow = k > 1.35, y1 = 9 + 8 * Math.max(1, k), y2 = y1 + 15 * Math.max(1, k);
+      lbl(c, k, title, 10, y1, { align: 'left', px: 11.5, weight: 700, color: p.ink, haloColor: p.bg });
+      lbl(c, k, `t = ${fmt(f.t, 2)} с`, PW - 10, y1, { align: 'right', px: 11, mono: true, color: p.ink2, haloColor: p.bg });
+      lbl(c, k, narrow ? `ответов модели: ${f.lat}` : `ответов модели в облаке: ${f.lat}`, PW - 10, y2, { align: 'right', px: 10.5, color: p.hy, haloColor: p.bg });
+      const done = run && (st.idx == null || st.idx >= run.frames.length - 1), s2 = done ? status(run, scen) : null;
+      if (s2) lbl(c, k, s2[0], 10, y2, { align: 'left', px: 10.5, weight: 700, color: s2[1] === 'good' ? p.good : p.bad, haloColor: p.bg });
+      const said = scen === 'switch' && f.t >= E.T_SWITCH ? '«нет, дай синюю»' : '«дай красную»', sp = map(0.36, -0.13);
+      lbl(c, k, said, sp.x, sp.y, { px: narrow ? 10 : 11, weight: 700, color: p.ink, haloColor: p.bg });
+    }
+    function draw() {
+      const narrow = (cv.getBoundingClientRect().width || 800) < 600;
+      cv.classList.toggle('narrow', narrow);
+      const W = narrow ? PW : 2 * PW + GAP, H = narrow ? 2 * PW + GAP : PW, { c, k } = K.fit(cv, W, H), p = P();
+      c.fillStyle = p.surf; c.fillRect(0, 0, W, H);
+      const i = st.idx == null ? 1e9 : st.idx, R = st.res || {};
+      [['move', 'Проверка 1 · чашку двигают', R.move], ['switch', 'Проверка 2 · человек передумал', R.sw]].forEach(([scen, title, run], n) => {
+        c.save(); c.translate(narrow ? 0 : n * (PW + GAP), narrow ? n * (PW + GAP) : 0);
+        c.beginPath(); c.roundRect(0, 0, PW, PW, 10); c.clip();
+        drawPane(c, k, run, i, scen, title); c.restore();
+      });
+    }
+    function text(r) {
+      const who = st.mode === 'dual' ? 'Две системы' : 'Одна модель', m = r.move, s = r.sw;
+      const p1 = m.ok ? `взяла движущуюся чашку за <b>${fmt(m.tCatch, 2)} с</b>` : `не взяла движущуюся чашку за 5 с: захват отставал от неё на <b>${fmt(m.lagMin, 1)}–${fmt(m.lagMax, 1)} см</b>, а допуск — 2 см`;
+      const turn = s.react == null ? 'к синей так и не повернула' : `повернула к синей через <b>${fmt(s.react, 2)} с</b> после просьбы`;
+      const p2 = s.wrong ? `сомкнула захват на красной за ${fmt(s.tCatch, 2)} с, раньше чем пришёл ответ с новой просьбой` : s.ok ? `${turn} и взяла её за ${fmt(s.tCatch, 2)} с` : turn;
+      return `${who}, модель в облаке — <b>${st.f} Гц</b>, сеть — 100 мс. Проверка 1: ${p1}. Проверка 2: ${p2}.`;
+    }
+    function finish() {
+      st.busy = false; st.idx = null; draw(); const r = st.res; crit(r);
+      out.innerHTML = text(r);
+      if (passed(r)) { skip.hidden = true; go.disabled = true; api.done(true); } else go.disabled = false;
+    }
+    function play() {
+      const n = Math.max(st.res.move.frames.length, st.res.sw.frames.length), t0 = performance.now(), speed = K.reduced() ? 50 : 1.6;
+      const step = () => {
+        st.idx = Math.min(n - 1, Math.floor((performance.now() - t0) * speed / 10));
+        draw(); if (st.idx < n - 1) requestAnimationFrame(step); else finish();
+      };
+      requestAnimationFrame(step);
+    }
+    go.addEventListener('click', () => {
+      if (st.busy || api.isDone()) return;
+      st.busy = true; go.disabled = true; crit(null);
+      const o = { mode: st.mode, f: st.f, cloud: CLOUD, v: V };
+      st.res = { move: E.chase(Object.assign({ scen: 'move' }, o)), sw: E.chase(Object.assign({ scen: 'switch' }, o)) };
+      out.textContent = 'Ада тянется к чашкам…'; st.idx = 0; play();
+    });
+    seg.addEventListener('click', (ev) => { const b = ev.target.closest('button'); if (!b || st.busy) return; st.mode = b.dataset.v; sync(); draw(); });
+    fIn.addEventListener('input', () => { if (st.busy) { fIn.value = st.f; return; } st.f = +fIn.value; sync(); });
+    skip.addEventListener('click', () => {
+      if (api.isDone() || st.busy) return;
+      skip.hidden = true; go.disabled = true;
+      api.hint('Подходят две системы и модель в облаке не реже 5 раз в секунду. Быстрая система ведёт захват по свежим кадрам, а новая просьба доходит до руки за ожидание кадра, вывод и сеть: при 5 Гц — 0,45 с, при 4 Гц — уже 0,55 с.');
+      api.done(false);
+    });
+    sync(); crit(null); draw();
+    App.on('theme', () => { sync(); draw(); }); App.on('resize', draw);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(draw);
+    return wrap;
+  }
+
+  const n = Q.length; const cnt = document.getElementById('chkCount'); if (cnt) cnt.textContent = `${n - 1} ${plural(n - 1, 'вопрос', 'вопроса', 'вопросов')} и задача на сцене`;
+  PartCheck({ lessons: LESSON, questions: Q, scene, passText: 'Часть 3 усвоена, можно идти дальше.', expose: '__c3' });
 })();

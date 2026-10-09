@@ -127,10 +127,10 @@ LESSONS = {
         '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'l21/engine.js', 'shared/check.js', 'c2/ui-c2.js'],
     }),
     'c3': ('proverka-chasti-3.html', ['l01/lesson.css', 'shared/lab.css', 'shared/check.css', 'c3/c3.css'], {
-        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'l21/engine.js', 'shared/check.js', 'c3/ui-c3.js'],
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/arm-core.js', 'l37/engine.js', 'shared/check.js', 'c3/ui-c3.js'],
     }),
     'c4': ('proverka-chasti-4.html', ['l01/lesson.css', 'shared/lab.css', 'shared/check.css', 'c4/c4.css'], {
-        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'l21/engine.js', 'shared/check.js', 'c4/ui-c4.js'],
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'l21/engine.js', 'l46/engine.js', 'shared/check.js', 'c4/ui-c4.js'],
     }),
     'c1': ('proverka-chasti-1.html', ['l01/lesson.css', 'shared/lab.css', 'shared/check.css', 'c1/c1.css'], {
         '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/kettle-core.js', 'shared/kettle-draw.js', 'shared/check.js', 'c1/ui-c1.js'],
