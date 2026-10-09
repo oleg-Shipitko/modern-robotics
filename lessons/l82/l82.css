@@ -1,0 +1,99 @@
+/* ---------- урок 8.2 «Безопасность» ---------- */
+.cv-note { margin: 6px 2px 0; font-size: 13px; line-height: 1.45; color: var(--ink-3); }
+.ctl { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.ctl-l { font-size: 13.5px; font-weight: 650; color: var(--ink-3); }
+.ctl-row .hd-range output { min-width: 40px; }
+.ctl-row .hd-range input { width: 200px; }
+.seg.small button { padding-left: 8px; padding-right: 8px; font-size: 13px; }
+
+/* схемы */
+.flow-card { margin: 18px 0 0; padding: 14px 14px 12px; }
+.flow-card canvas { width: 100%; height: auto; display: block; }
+.flow-card figcaption { margin: 10px 2px 0; }
+
+/* цвета: политика — оранжевым, фильтр — синим */
+.pane-head b::before { content: ""; width: 10px; height: 10px; border-radius: 3px; background: var(--ink-3); flex: none; display: inline-block; }
+.pane-head b.c-pol::before { background: var(--e2e); }
+.pane-head b.c-fil::before { background: var(--classic); }
+
+/* интерактив и лаборатория 2: две картинки рядом */
+.qp-grid, .al-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; align-items: start; }
+.al-grid { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); }
+.qp-pane { margin: 0; min-width: 0; }
+.qp-pane canvas { width: 100%; height: auto; display: block; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.qp-pane figcaption { margin: 4px 2px 0; font-size: 12.5px; font-weight: 650; color: var(--ink-3); text-align: center; }
+#qMap, #qVel { aspect-ratio: 400 / 360; touch-action: none; }
+#qMap { cursor: grab; }
+#qVel { cursor: crosshair; }
+#aPhase { aspect-ratio: 560 / 420; }
+#aMap { aspect-ratio: 600 / 400; }
+
+/* лаборатория 1: две сцены рядом и табло */
+.duo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+.pane { margin: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--surface); display: flex; flex-direction: column; min-width: 0; }
+.pane-head { padding: 7px 10px 6px; border-bottom: 1px solid var(--line); display: grid; gap: 1px; font-size: 12.5px; line-height: 1.35; color: var(--ink-3); }
+.pane-head b { display: flex; align-items: center; gap: 7px; font-size: 14.5px; color: var(--ink); }
+.pane canvas { width: 100%; height: auto; aspect-ratio: 600 / 400; display: block; }
+.pane-stat { padding: 7px 10px; font-size: 13.5px; border-top: 1px solid var(--line); min-height: 36px; color: var(--ink-2); line-height: 1.35; }
+.pane-stat b { color: var(--ink); }
+.pane-stat.ok { background: var(--good-soft); }
+.pane-stat.bad { background: var(--critical-soft); }
+@supports (grid-template-rows: subgrid) {
+  .duo { grid-template-rows: auto auto auto; }
+  .pane { display: grid; grid-row: span 3; grid-template-rows: subgrid; row-gap: 0; }
+}
+.d-board, .a-chart { margin-top: 12px; }
+.d-board canvas { width: 100%; height: auto; display: block; aspect-ratio: 640 / 150; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); cursor: pointer; touch-action: manipulation; }
+.a-chart canvas { width: 100%; height: auto; display: block; aspect-ratio: 640 / 230; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.prog-line { height: 4px; border-radius: 2px; background: var(--surface-2); overflow: hidden; margin-top: 10px; }
+.prog-line i { display: block; height: 100%; width: 0; background: var(--e2e); }
+.prog-line[hidden] { display: none; }
+
+/* лаборатория 3: сцена и журнал */
+#hMap { width: 100%; height: auto; display: block; aspect-ratio: 600 / 400; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.h-log-wrap { margin-top: 12px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--surface); }
+.h-log { width: 100%; border-collapse: collapse; font-size: 13.5px; line-height: 1.35; }
+.h-log th { background: var(--surface-2); font-size: 11.5px; font-weight: 700; color: var(--ink-3); text-transform: uppercase; letter-spacing: .03em; text-align: left; padding: 7px 8px; }
+.h-log td { padding: 6px 8px; border-top: 1px solid var(--line); color: var(--ink-2); }
+.h-log td.n { font-variant-numeric: tabular-nums; font-weight: 650; color: var(--ink); }
+.h-log td.bad { color: var(--critical); }
+.h-log td.t { white-space: nowrap; }
+.h-log td small { display: block; font-weight: 500; font-size: 11px; color: var(--ink-3); }
+.h-log tr.cur td { background: var(--classic-soft); }
+.h-log-empty { margin: 0; padding: 8px 10px; font-size: 13px; color: var(--ink-3); }
+.h-log-empty[hidden] { display: none; }
+
+/* таблица стандартов */
+.num-table { margin: 18px 0 4px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--surface); font-size: 14px; line-height: 1.4; }
+.num-row { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.3fr) minmax(0, 1.5fr); gap: 10px; padding: 9px 12px; border-top: 1px solid var(--line); }
+.num-row:first-child { border-top: 0; }
+.num-h { background: var(--surface-2); font-size: 12px; font-weight: 700; color: var(--ink-3); text-transform: uppercase; letter-spacing: .03em; }
+.num-row b { color: var(--ink); font-weight: 650; }
+.num-row span { color: var(--ink-2); min-width: 0; overflow-wrap: anywhere; }
+
+/* живые миссии: невыполненный критерий — «ещё нет», серым */
+.m-live .m-crit li.no i { border-color: var(--line-2); color: var(--ink-3); background: var(--surface-2); }
+.m-live .m-crit li.no i::before { content: '·'; }
+
+/* мост в урок 8.3 */
+.callout.bridge p { margin: 0; }
+
+@media (max-width: 760px) {
+  .num-row { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .num-h { display: none; }
+  .num-row:not(.num-h) span:nth-child(2) { font-style: italic; }
+  .qp-grid, .al-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 560px) {
+  .duo { gap: 6px; }
+  .pane-head { padding: 6px 7px 5px; font-size: 11.5px; }
+  .pane-head b { font-size: 13px; }
+  .pane-stat { padding: 6px 7px; font-size: 12px; }
+  .ctl-row .hd-range { display: grid; grid-template-columns: 70px 1fr 44px; width: 100%; }
+  .ctl-row .hd-range input { width: 100%; }
+  .d-board canvas { aspect-ratio: 380 / 200; }
+  .a-chart canvas { aspect-ratio: 380 / 260; }
+  .h-log { font-size: 12px; }
+  .h-log th, .h-log td { padding: 5px 5px; }
+  .h-log th { font-size: 10.5px; letter-spacing: 0; text-transform: none; }
+}
