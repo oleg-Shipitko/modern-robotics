@@ -1,0 +1,55 @@
+/* ---------- урок 5.5 «Обучение с привилегированной информацией» ---------- */
+.cv-note { margin: 6px 2px 0; font-size: 13px; line-height: 1.45; color: var(--ink-3); }
+.ctl { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ctl-l { font-size: 13.5px; font-weight: 650; color: var(--ink-3); }
+.ctl-row .hd-range output { min-width: 40px; }
+.ctl-row .hd-range input { width: 200px; }
+.cap-top { margin-top: 0; margin-bottom: 10px; }
+
+/* схемы */
+.flow-card { margin: 18px 0 0; padding: 14px 14px 12px; }
+.flow-card canvas { width: 100%; height: auto; display: block; }
+.flow-card figcaption { margin: 10px 2px 0; }
+
+/* сцены и графики */
+.map-cv, .t-chart, .f-cv, .a-chart { width: 100%; height: auto; display: block; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.map-cv { aspect-ratio: 600 / 400; }
+.t-chart { aspect-ratio: 640 / 240; margin-top: 12px; }
+.f-cv { aspect-ratio: 640 / 300; touch-action: pan-y; cursor: ns-resize; }
+#fMap { margin-top: 12px; }
+.a-chart { aspect-ratio: 640 / 260; margin-top: 12px; }
+.a-map { cursor: pointer; }
+.prog-line { height: 4px; border-radius: 2px; background: var(--surface-2); overflow: hidden; margin-top: 10px; }
+.prog-line i { display: block; height: 100%; width: 0; background: var(--e2e); }
+.prog-line[hidden] { display: none; }
+
+/* лаборатория 1: таблица итогов по полам */
+.t-table { margin-top: 12px; overflow-x: auto; }
+.t-table:empty { display: none; }
+.t-table table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.t-table th, .t-table td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: center; vertical-align: top; }
+.t-table thead th { font-size: 12px; font-weight: 650; color: var(--ink-3); line-height: 1.3; }
+.t-table thead th i { display: block; width: 18px; height: 4px; border-radius: 2px; background: var(--c); margin: 0 auto 4px; }
+.t-table tbody th { text-align: left; font-weight: 650; color: var(--ink-2); }
+.t-table td { font-family: var(--mono); font-size: 13px; color: var(--ink); }
+.t-table td small { display: block; font-size: 11.5px; color: var(--ink-3); }
+.t-table td.ok { background: var(--good-soft); }
+.t-table td.bad { background: var(--critical-soft); }
+.t-table td.na { color: var(--ink-3); }
+.t-table tr.cur th { color: var(--ink); }
+.t-table .t-cap { margin: 6px 2px 0; font-size: 12.5px; color: var(--ink-3); }
+
+/* живые миссии: невыполненный критерий — «ещё нет», серым */
+.m-live .m-crit li.no i { border-color: var(--line-2); color: var(--ink-3); background: var(--surface-2); }
+.m-live .m-crit li.no i::before { content: '·'; }
+
+/* мост в урок 5.6 */
+.callout.bridge p { margin: 0; }
+
+@media (max-width: 560px) {
+  .ctl-row .hd-range { display: grid; grid-template-columns: 90px 1fr 40px; width: 100%; }
+  .ctl-row .hd-range input { width: 100%; }
+  .t-table table { font-size: 12px; }
+  .t-table th, .t-table td { padding: 5px 4px; }
+  .t-table td { font-size: 12px; }
+}
