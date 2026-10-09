@@ -1,6 +1,8 @@
 // Урок 3.3 «RT-2»: интерактивы дают обещанные в тексте исходы, миссии проходятся через интерфейс,
 // числа в разборах совпадают с состоянием, консоль чиста, телефон без горизонтальной прокрутки.
-// Снимки — shots/l33-*.png. Урок собирается с датой: MR_ASOF=2026-10-24 python3 lessons/build.py l33.
+// Снимки — shots/l33-*.png. Урок собирается с датой: MR_ASOF=2026-10-17 python3 lessons/build.py l33.
+// Числа лаборатории сверяются бит-в-бит с прогоном того же движка в Node и в jsc (JavaScriptCore, как в Safari):
+// хэши весов всех четырёх моделей на зёрнах А, Б, В — в REF.
 const path = require('path');
 const { launch, sleep } = require('./cdp');
 const url = 'file://' + path.resolve(__dirname, '../site/lessons/3-3-rt-2.html');
@@ -27,6 +29,19 @@ const critOk = (p, mis) => p.eval(`(() => { const li = [...document.querySelecto
 const outText = (p, mis) => p.eval(`(document.querySelector('${mis} .g-out:not([hidden])') || {}).textContent || ''`);
 /** Ползунок интерактива 1 по номеру поля: как пользователь — значение и событие input. */
 const slide = (p, i, v) => p.eval(`(() => { const inp = document.querySelectorAll('#tSliders input')[${i}]; inp.value = ${v}; inp.dispatchEvent(new Event('input', { bubbles: true })); return true; })()`);
+/** Хэши весов моделей лаборатории (Node и jsc дают одинаковые; движок l33 считает exp, log, tanh, cos сам). */
+const REF = {
+  a: { scratch: 'f99498aca9cd90ba', vlm: '24fad6c9ca67d9d8', ft: 'f4c168f52f60ee4a', co: '377e7e8411a8630' },
+  b: { scratch: 'bc84d2d3455acc6c', vlm: '111bd5b397b77e22', ft: '288d464d58922920', co: '83c5b1de2cc1cd94' },
+  c: { scratch: '8fdc781a70d69100', vlm: '4a975d33bb9cdea3', ft: '307e24b5c1bfda0e', co: 'b071dbecd7acac35' },
+};
+/** Тот же хэш, что в сверке Node/jsc: FNV по двум словам каждого числа float64, все параметры L33.PARAMS подряд. */
+const weightHashes = (p, seed) => p.eval(`(() => {
+  const hashNums = (arr) => { const f = new Float64Array(1), u = new Uint32Array(f.buffer); let h1 = 0x811c9dc5, h2 = 0x01000193; for (const x of arr) { f[0] = x; h1 = Math.imul(h1 ^ u[0], 16777619) >>> 0; h2 = Math.imul(h2 ^ u[1], 16777619) >>> 0; h1 = Math.imul(h1 ^ u[1], 2246822519) >>> 0; } return (h1 >>> 0).toString(16) + (h2 >>> 0).toString(16); };
+  const st = window.__l33.LabVla.st, o = {};
+  for (const k of ['scratch', 'vlm', 'ft', 'co']) { const r = st.M[k === 'scratch' ? 'scratch:${seed}' : k + ':240:${seed}']; o[k] = r ? hashNums([].concat(...L33.PARAMS.map((q) => Array.from(r.model[q].v)))) : null; }
+  return JSON.stringify(o);
+})()`).then(J);
 const labsFit = (p) => p.eval(`JSON.stringify([...document.querySelectorAll('.lab')].map((l) => [...l.children].map((c) => c.scrollWidth - c.clientWidth)).flat().filter((d) => d > 1))`).then(J);
 
 /** Обучить все четыре модели лаборатории на зерне seed в отдельном браузере — для чисел «по трём зёрнам». */
@@ -38,6 +53,7 @@ async function seedRun(seed) {
     await p.eval(`window.__l33.LabVla.api.setSeed('${seed}'); true`);
     const r = {};
     for (const k of ['scratch', 'vlm', 'ft', 'co']) r[k] = J(await p.eval(`window.__l33.LabVla.api.train('${k}').then((x) => JSON.stringify(x))`, true));
+    r.wh = await weightHashes(p, seed);
     return r;
   } finally { await B.close(); }
 }
@@ -50,7 +66,7 @@ async function seedRun(seed) {
   await p.waitFor('window.__lessonReady === true', 30000); await sleep(600);
   check(/^8 миссий с целью$/.test(await p.eval(`document.getElementById('heroMis').textContent`)), 'число миссий в шапке: ' + await p.eval(`document.getElementById('heroMis').textContent`));
   check((await p.eval(`document.querySelectorAll('#recall .rc-q').length`)) === 3, 'разминка по уроку 3.2: три вопроса');
-  check(await p.eval(`!!document.querySelector('a[href="3-4-open-x-embodiment.html"]')`), 'ссылка «Дальше» на урок 3.4 на месте (сборка на 24.10)');
+  check(await p.eval(`!!document.querySelector('a[href="3-4-open-x-embodiment.html"]')`), 'ссылка «Дальше» на урок 3.4 на месте (сборка на 17.10)');
   check(await p.eval(`!!document.querySelector('a[href="https://robotics-transformer2.github.io"]')`), 'ссылка на страницу проекта RT-2');
 
   // ---------- 1. Действие словами ----------
@@ -121,9 +137,13 @@ async function seedRun(seed) {
   console.log(`  зёрна А/Б/В: дообучение — подписи ${ftCap}, фиолетовый ${ftP}; совместное — подписи ${coCap}, фиолетовый ${coP}`);
   const txt3 = await p.eval(`window.__l33.LabVla.MIS[2].explain(window.__l33.LabVla.api.summary('ft'))`), txt4 = await p.eval(`window.__l33.LabVla.MIS[3].explain(window.__l33.LabVla.api.summary('co'))`);
   check(txt3.includes(`от ${ftCap[0]} до ${ftCap[1]} из 48`), `разбор 3: подписи после дообучения «от ${ftCap[0]} до ${ftCap[1]}» по трём зёрнам`);
-  const coCapTxt = coCap[0] === coCap[1] ? `${coCap[0]} из 48 на всех зёрнах` : `${coCap[0]}–${coCap[1]}`;
+  const coCapTxt = coCap[0] === coCap[1] ? `${coCap[0]} из 48 на всех зёрнах` : `${coCap[0]}–${coCap[1]} из 48`;
   check(txt4.includes(`в ${coP[0]}–${coP[1]} сценах`) && txt4.includes(`— в ${ftP[0]}–${ftP[1]};`) && txt4.includes(`${coCapTxt} против ${ftCap[0]}–${ftCap[1]}`), `разбор 4: диапазоны по трём зёрнам ${coP.join('–')}, ${ftP.join('–')}, ${coCapTxt} против ${ftCap.join('–')}`);
+  check(txt4.includes('на зерне В совместная даже уступает') === (sc.co.purple < sc.ft.purple), `разбор 4: про зерно В сказано верно (совместная ${sc.co.purple}, дообученная ${sc.ft.purple})`);
   check(all.every((x) => x.co.cap > x.ft.cap + 5 && x.scratch.purple <= 8), 'на всех трёх зёрнах: совместная сохраняет подписи лучше дообученной, модель с нуля не берёт фиолетовый');
+  // Chrome = Node = jsc: веса всех моделей на трёх зёрнах совпадают бит-в-бит с эталоном
+  const whA = await weightHashes(p, 'a');
+  for (const [nm, got] of [['a', whA], ['b', sb.wh], ['c', sc.wh]]) check(JSON.stringify(got) === JSON.stringify(REF[nm]), `зерно ${({ a: 'А', b: 'Б', c: 'В' })[nm]}: веса четырёх моделей совпадают с Node и jsc бит-в-бит` + (JSON.stringify(got) === JSON.stringify(REF[nm]) ? '' : ' — ' + JSON.stringify(got)));
 
   // ---------- 3. Сортировка ----------
   console.log('Что появилось само');
