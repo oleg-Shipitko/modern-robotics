@@ -106,6 +106,15 @@ LESSONS = {
     'l53': ('5-3-sac.html', ['l01/lesson.css', 'shared/lab.css', 'l53/l53.css'], {
         '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'shared/arm-core.js', 'l53/engine.js', 'l53/ui-l53.js'],
     }),
+    'l54': ('5-4-perenos-iz-simulyatsii.html', ['l01/lesson.css', 'shared/lab.css', 'l54/l54.css'], {
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'shared/arm-core.js', 'l54/engine.js', 'l54/ui-l54.js'],
+    }),
+    'l55': ('5-5-privilegirovannyy-uchitel.html', ['l01/lesson.css', 'shared/lab.css', 'l55/l55.css'], {
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'shared/drive-core.js', 'l55/engine.js', 'l55/ui-l55.js'],
+    }),
+    'l56': ('5-6-offline-rl.html', ['l01/lesson.css', 'shared/lab.css', 'l56/l56.css'], {
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'shared/drive-core.js', 'l56/engine.js', 'l56/ui-l56.js'],
+    }),
     # глоссарий: все термины из shared/glossary.json, без отзыва и «спасибо»
     'gl': ('glossariy.html', ['l01/lesson.css', 'gl/gl.css'], {
         '/*@@JS@@*/': ['l01/ui-core.js', 'gl/ui-gl.js'],
