@@ -88,6 +88,15 @@ LESSONS = {
     'l43': ('4-3-datasety-robotov.html', ['l01/lesson.css', 'shared/lab.css', 'l43/l43.css'], {
         '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'l21/engine.js', 'l43/engine.js', 'l43/ui-l43.js'],
     }),
+    'l44': ('4-4-video-lyudey.html', ['l01/lesson.css', 'shared/lab.css', 'l44/l44.css'], {
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'shared/arm-core.js', 'l21/engine.js', 'l44/engine.js', 'l44/ui-l44.js'],
+    }),
+    'l45': ('4-5-simulyatsiya.html', ['l01/lesson.css', 'shared/lab.css', 'l45/l45.css'], {
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'l21/engine.js', 'l45/engine.js', 'l45/ui-l45.js'],
+    }),
+    'l46': ('4-6-piramida-dannykh.html', ['l01/lesson.css', 'shared/lab.css', 'l46/l46.css'], {
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'l21/engine.js', 'l46/engine.js', 'l46/ui-l46.js'],
+    }),
     # глоссарий: все термины из shared/glossary.json, без отзыва и «спасибо»
     'gl': ('glossariy.html', ['l01/lesson.css', 'gl/gl.css'], {
         '/*@@JS@@*/': ['l01/ui-core.js', 'gl/ui-gl.js'],
