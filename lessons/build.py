@@ -115,6 +115,15 @@ LESSONS = {
     'l56': ('5-6-offline-rl.html', ['l01/lesson.css', 'shared/lab.css', 'l56/l56.css'], {
         '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'shared/drive-core.js', 'l56/engine.js', 'l56/ui-l56.js'],
     }),
+    'l81': ('8-1-klassika-v-konture.html', ['l01/lesson.css', 'shared/lab.css', 'l81/l81.css'], {
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'shared/arm-core.js', 'l81/engine.js', 'l81/ui-l81.js'],
+    }),
+    'l82': ('8-2-bezopasnost.html', ['l01/lesson.css', 'shared/lab.css', 'l82/l82.css'], {
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'shared/kettle-core.js', 'shared/kettle-draw.js', 'l82/engine.js', 'l82/ui-l82.js'],
+    }),
+    'l83': ('8-3-nadezhnost.html', ['l01/lesson.css', 'shared/lab.css', 'l83/l83.css'], {
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'l83/engine.js', 'l83/ui-l83.js'],
+    }),
     # глоссарий: все термины из shared/glossary.json, без отзыва и «спасибо»
     'gl': ('glossariy.html', ['l01/lesson.css', 'gl/gl.css'], {
         '/*@@JS@@*/': ['l01/ui-core.js', 'gl/ui-gl.js'],
