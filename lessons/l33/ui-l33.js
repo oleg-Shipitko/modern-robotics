@@ -184,7 +184,7 @@ const LabVla = (() => {
   ];
   const SEEDS = { a: 35, b: 34, c: 33 };
   const EPOCHS = { vlm: 60, scratch: 100, ft: 120, co: 120 };
-  const st = { color: 'purple', web: NWEB, seed: 'a', scene: 1, busy: null, M: {}, bms: {}, prog: 0 };
+  const st = { color: 'purple', web: NWEB, seed: 'a', scene: 2, busy: null, M: {}, bms: {}, prog: 0 };
   let ctl = null, robot = null, webAll = null;
   function data() { if (!robot) { robot = E.robotData(NR, 300); webAll = E.webData(NWEB, 500); } return { robot, web: webAll.slice(0, st.web) }; }
   const key = (kind) => (kind === 'scratch' ? `scratch:${st.seed}` : `${kind}:${st.web}:${st.seed}`);
@@ -287,7 +287,7 @@ const LabVla = (() => {
   function setSeed(v) { st.seed = v; segSet('#lSeed', v); render(); if (ctl) ctl.update(); }
   function setScene(v) { st.scene = +v; $('#lScene').value = st.scene; syncRange($('#lScene'), String(st.scene)); render(); }
   const api = {
-    reset() { if (st.busy) return; setWeb(NWEB); setSeed('a'); setScene(1); setColor('purple'); },
+    reset() { if (st.busy) return; setWeb(NWEB); setSeed('a'); setScene(2); setColor('purple'); },
     state, train, trainAll, setColor, setWeb, setSeed, setScene, summary,
   };
   const missions = [
@@ -325,7 +325,7 @@ const LabVla = (() => {
     box.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b && !st.busy) setColor(b.dataset.v); });
     legend('#lLegend', [['кубик из команды', 'var(--ink)', 'sqd'], ...KINDS.filter((k) => k.acts).map((k) => [k.name.split(':')[0] + ': выбор модели', `var(${k.col})`, 'ring']), ['промах: не тот предмет', 'var(--ink-2)', 'ringd'], ['внимание на патче', 'var(--e2e)', 'patch']]);
     segBind('#lWeb', (v) => { if (!st.busy) setWeb(v); }); segBind('#lSeed', (v) => { if (!st.busy) setSeed(v); });
-    $('#lScene').addEventListener('input', (e) => setScene(+e.target.value)); syncRange($('#lScene'), '1');
+    $('#lScene').addEventListener('input', (e) => setScene(+e.target.value)); syncRange($('#lScene'), '2');
     ctl = mountMissions('#lMis', missions, api, { controls: { color: '#wrapLColor', web: '#wrapLWeb', seed: '#wrapLSeed', scene: '#wrapLScene' }, scene: '#lCv' });
     render(); redrawOn(render);
     // данные готовим, когда раздел приближается к экрану
