@@ -17,11 +17,99 @@
       цвет, форма, <eos>.
    Обучение — генераторы с yield, чтобы гонять кусками между кадрами.
    Все случайности — с зерном.
+   0) Своя математика: exp, log, tanh, sin, cos и степени в Adam собраны из
+      сложений, умножений, деления и корня, чтобы числа лабораторий
+      совпадали во всех браузерах. Иконки из урока 2.1 (шум Бокса — Мюллера,
+      формы предметов) здесь — копии на этой математике.
    ===================================================================== */
 'use strict';
 (function (root) {
   const L = (typeof module !== 'undefined' && module.exports) ? require('../l21/engine.js') : root.L21;
-  const { rng, randn, COLORS, SHAPES, VOCAB, IS, icon, isHeld } = L;
+  const { rng, clamp, COLORS, SHAPES, VOCAB, IS, isHeld } = L;
+
+  /* ---------- 0. переносимая математика ----------
+     Math.exp, Math.log, Math.tanh, Math.sin, Math.cos, Math.hypot и даже Math.pow в V8
+     (Chrome, Node) и JavaScriptCore (Safari, любой браузер на iPhone) иногда расходятся
+     в последнем бите. Обучение энкодера с нуля раздувает такую разницу примерно в 10 раз
+     за проход, и к концу у модели другие ответы. Здесь функции собраны из сложений,
+     умножений, деления и Math.sqrt: по IEEE 754 их результат одинаков везде.
+     Отличие от Math.* — около 1e-16 относительно. */
+  const F64 = new Float64Array(1), U32 = new Uint32Array(F64.buffer);
+  const HI = (() => { F64[0] = 1; return U32[1] === 0x3ff00000 ? 1 : 0; })(), LO = 1 - HI;
+  /** 2^k для целого k от −1022 до 1023. */
+  function pow2(k) { U32[LO] = 0; U32[HI] = (k + 1023) << 20; return F64[0]; }
+  const LN2_HI = 6.93147180369123816490e-01, LN2_LO = 1.90821492927058770002e-10, INV_LN2 = 1.44269504088896338700e+00;
+  const EXPC = []; for (let n = 0, f = 1; n <= 17; n++) { EXPC.push(1 / f); f *= n + 1; }   // 1/n!
+  /** e^r − 1 при |r| ≤ 1: ряд Тейлора по схеме Горнера. */
+  function expm1Small(r) { let p = EXPC[17]; for (let n = 16; n >= 1; n--) p = EXPC[n] + r * p; return r * p; }
+  function exp(x) {
+    if (x !== x) return x; if (x > 709) return Infinity; if (x < -745) return 0;
+    const k = Math.round(x * INV_LN2), r = (x - k * LN2_HI) - k * LN2_LO;   // |r| ≤ ln2 / 2
+    let p = EXPC[14]; for (let n = 13; n >= 0; n--) p = EXPC[n] + r * p;
+    return k < -1022 ? p * pow2(k + 600) * pow2(-600) : p * pow2(k);
+  }
+  const LOGC = []; for (let j = 1; j <= 25; j += 2) LOGC.push(1 / j);
+  function log(x) {
+    if (!(x > 0)) return x === 0 ? -Infinity : NaN; if (x === Infinity) return x;
+    let e = 0; if (x < 2.2250738585072014e-308) { x *= pow2(54); e = -54; }
+    F64[0] = x; e += ((U32[HI] >>> 20) & 0x7ff) - 1023;
+    U32[HI] = (U32[HI] & 0x000fffff) | 0x3ff00000; let m = F64[0];           // мантисса в [1, 2)
+    if (m > 1.4142135623730951) { m *= 0.5; e += 1; }
+    const z = (m - 1) / (m + 1), z2 = z * z; let t = LOGC[LOGC.length - 1];   // ln m = 2 (z + z³/3 + z⁵/5 + …)
+    for (let j = LOGC.length - 2; j >= 0; j--) t = LOGC[j] + z2 * t;
+    return e * LN2_HI + (e * LN2_LO + 2 * z * t);
+  }
+  function tanh(x) {
+    const ax = x < 0 ? -x : x; let v;
+    if (ax > 20) v = 1; else if (ax < 0.5) { const e = expm1Small(2 * ax); v = e / (e + 2); } else v = 1 - 2 / (exp(2 * ax) + 1);
+    return x < 0 ? -v : v;
+  }
+  const PIO2_HI = 1.57079632673412561417e+00, PIO2_LO = 6.07710050650619224932e-11, INV_PIO2 = 6.36619772367581382433e-01;
+  const COSC = [], SINC = []; for (let n = 0, f = 1; n <= 21; n++) { (n % 2 ? SINC : COSC).push((n % 4 < 2 ? 1 : -1) / f); f *= n + 1; }
+  /** [sin x, cos x] для умеренных x: приведение к |r| ≤ π/4 и ряды Тейлора. */
+  function sincos(x) {
+    const k = Math.round(x * INV_PIO2), r = (x - k * PIO2_HI) - k * PIO2_LO, r2 = r * r;
+    let s = SINC[SINC.length - 1], c = COSC[COSC.length - 1];
+    for (let j = SINC.length - 2; j >= 0; j--) s = SINC[j] + r2 * s;
+    for (let j = COSC.length - 2; j >= 0; j--) c = COSC[j] + r2 * c;
+    s *= r;
+    switch (((k % 4) + 4) % 4) { case 0: return [s, c]; case 1: return [c, -s]; case 2: return [-s, -c]; default: return [-c, s]; }
+  }
+  const sin = (x) => sincos(x)[0], cos = (x) => sincos(x)[1];
+  /** b^t для целого t ≥ 0 последовательным умножением (Math.pow в Safari и Chrome округляет по-разному). */
+  const POWS = new Map();
+  function powInt(b, t) {
+    let a = POWS.get(b); if (!a) { a = [1]; POWS.set(b, a); }
+    while (a.length <= t) a.push(a[a.length - 1] * b);
+    return a[t];
+  }
+  /** Нормальное случайное число (Бокс — Мюллер), как L21.randn, но на своей математике. */
+  function randn(r) { let u = 0; while (!u) u = r(); return Math.sqrt(-2 * log(u)) * cos(2 * Math.PI * r()); }
+
+  /* ---------- иконки из урока 2.1 — копии на своей математике ---------- */
+  const BG = L.BG;
+  /** Как L21.inShape: есть ли предмет формы shape в точке (dx, dy) от центра; расстояние — через Math.sqrt. */
+  function inShape(shape, dx, dy, R) {
+    const ax = Math.abs(dx), ay = Math.abs(dy), d = Math.sqrt(dx * dx + dy * dy);
+    if (shape === 'cube') return ax <= R * 0.8 && ay <= R * 0.8;
+    if (shape === 'ball') return d <= R * 0.9;
+    if (shape === 'bowl') return d <= R && d >= R * 0.55;
+    return ax <= R * 0.5 && ay <= R;                        // банка: высокий прямоугольник
+  }
+  function paint(img, Wd, Hd, color, shape, cx, cy, R, r, noise) {
+    const rgb = COLORS[L.CI[color]].rgb, x0 = Math.floor(cx - R - 1), x1 = Math.ceil(cx + R + 1), y0 = Math.floor(cy - R - 1), y1 = Math.ceil(cy + R + 1);
+    for (let y = Math.max(0, y0); y <= Math.min(Hd - 1, y1); y++) for (let x = Math.max(0, x0); x <= Math.min(Wd - 1, x1); x++) {
+      if (!inShape(shape, x + 0.5 - cx, y + 0.5 - cy, R)) continue;
+      const o = (y * Wd + x) * 3; for (let c = 0; c < 3; c++) img[o + c] = clamp(rgb[c] + (r ? randn(r) * (noise || 0) : 0), 0, 1);
+    }
+  }
+  function blank(Wd, Hd, r, noise) { const img = new Float32Array(Wd * Hd * 3); for (let i = 0; i < Wd * Hd; i++) for (let c = 0; c < 3; c++) img[i * 3 + c] = clamp(BG[c] + (r ? randn(r) * (noise || 0) : 0), 0, 1); return img; }
+  /** Как L21.icon: картинка одного предмета 16×16 со случайным сдвигом, размером и шумом. */
+  function icon(color, shape, r) {
+    const img = blank(IS, IS, r, 0.02), R = 5.2 + r() * 1.3;
+    paint(img, IS, IS, color, shape, IS / 2 + (r() - 0.5) * 3, IS / 2 + (r() - 0.5) * 3, R, r, 0.04);
+    return img;
+  }
 
   /* ---------- размеры ---------- */
   const P = 4, NP = (IS / P) * (IS / P), PD = P * P * 3;      // патч 4×4×3 = 48 чисел, 16 патчей
@@ -36,7 +124,7 @@
   /* ---------- параметры и Adam ---------- */
   function param(n, r, scale) { const w = new Float64Array(n); if (scale) for (let i = 0; i < n; i++) w[i] = randn(r) * scale; return { w, g: new Float64Array(n), m: new Float64Array(n), v: new Float64Array(n) }; }
   function adamStep(p, lr, t, bs) {
-    const b1 = 0.9, b2 = 0.999, c1 = 1 - Math.pow(b1, t), c2 = 1 - Math.pow(b2, t), { w, g, m, v } = p;
+    const b1 = 0.9, b2 = 0.999, c1 = 1 - powInt(b1, t), c2 = 1 - powInt(b2, t), { w, g, m, v } = p;
     for (let i = 0; i < w.length; i++) { const gi = g[i] / bs; m[i] = b1 * m[i] + (1 - b1) * gi; v[i] = b2 * v[i] + (1 - b2) * gi * gi; w[i] -= lr * (m[i] / c1) / (Math.sqrt(v[i] / c2) + 1e-8); g[i] = 0; }
   }
   const zero = (ps) => { for (const p of ps) p.g.fill(0); };
@@ -51,8 +139,8 @@
   /** LayerNorm без аффинных параметров по каждому токену. */
   function lnF(X, n, d) { const Y = new Float64Array(n * d), inv = new Float64Array(n); for (let t = 0; t < n; t++) { const o = t * d; let mu = 0; for (let i = 0; i < d; i++) mu += X[o + i]; mu /= d; let s2 = 0; for (let i = 0; i < d; i++) { const z = X[o + i] - mu; s2 += z * z; } const iv = 1 / Math.sqrt(s2 / d + 1e-5); inv[t] = iv; for (let i = 0; i < d; i++) Y[o + i] = (X[o + i] - mu) * iv; } return { Y, inv }; }
   function lnB(tape, n, d, dY) { const { Y, inv } = tape, dX = new Float64Array(n * d); for (let t = 0; t < n; t++) { const o = t * d; let sdy = 0, sdyy = 0; for (let i = 0; i < d; i++) { sdy += dY[o + i]; sdyy += dY[o + i] * Y[o + i]; } for (let i = 0; i < d; i++) dX[o + i] = inv[t] * (dY[o + i] - sdy / d - Y[o + i] * sdyy / d); } return dX; }
-  const gelu = (x) => 0.5 * x * (1 + Math.tanh(0.7978845608 * (x + 0.044715 * x * x * x)));
-  const dgelu = (x) => { const u = 0.7978845608 * (x + 0.044715 * x * x * x), th = Math.tanh(u); return 0.5 * (1 + th) + 0.5 * x * (1 - th * th) * 0.7978845608 * (1 + 3 * 0.044715 * x * x); };
+  const gelu = (x) => 0.5 * x * (1 + tanh(0.7978845608 * (x + 0.044715 * x * x * x)));
+  const dgelu = (x) => { const u = 0.7978845608 * (x + 0.044715 * x * x * x), th = tanh(u); return 0.5 * (1 + th) + 0.5 * x * (1 - th * th) * 0.7978845608 * (1 + 3 * 0.044715 * x * x); };
   /** Блок: x + Wo·Attn(LN(x)) затем + MLP(LN(·)). mask(i, j) → можно ли токену i смотреть на j. */
   function block(d, dh, r) { return { d, dh, q: linear(d, d, r), k: linear(d, d, r), v: linear(d, d, r), o: linear(d, d, r), f1: linear(d, dh, r), f2: linear(dh, d, r) }; }
   function blockF(bl, X, n, mask) {
@@ -62,7 +150,7 @@
     for (let i = 0; i < n; i++) {
       let mx = -1e9; const row = i * n;
       for (let j = 0; j < n; j++) { if (!mask(i, j)) { A[row + j] = -Infinity; continue; } let s = 0; for (let c = 0; c < d; c++) s += Q[i * d + c] * K[j * d + c]; s *= sc; A[row + j] = s; if (s > mx) mx = s; }
-      let z = 0; for (let j = 0; j < n; j++) { const e = A[row + j] === -Infinity ? 0 : Math.exp(A[row + j] - mx); A[row + j] = e; z += e; }
+      let z = 0; for (let j = 0; j < n; j++) { const e = A[row + j] === -Infinity ? 0 : exp(A[row + j] - mx); A[row + j] = e; z += e; }
       for (let j = 0; j < n; j++) { A[row + j] /= z; const a = A[row + j]; if (a === 0) continue; for (let c = 0; c < d; c++) Z[i * d + c] += a * Vv[j * d + c]; }
     }
     const O = linF(bl.o, Z, n), H = new Float64Array(n * d); for (let i = 0; i < n * d; i++) H[i] = X[i] + O[i];
@@ -142,8 +230,8 @@
       const F = batch.map(([c, s]) => encF(m.enc, patchify(icon(c, s, r)))), U = F.map((f) => f.pooled), Un = U.map(unit);
       const Vt = batch.map(([c, s]) => textVec(m, c, s)), Vn = Vt.map(unit);
       const Lg = Un.map((u) => Vn.map((v) => dot(u, v) / m.tau)), dLg = batch.map(() => new Float64Array(B)); let loss = 0;
-      for (let i = 0; i < B; i++) { const mx = Math.max(...Lg[i]); let z = 0; for (let j = 0; j < B; j++) z += Math.exp(Lg[i][j] - mx); for (let j = 0; j < B; j++) dLg[i][j] += (Math.exp(Lg[i][j] - mx) / z - (i === j ? 1 : 0)) / (2 * B); loss -= (Lg[i][i] - mx - Math.log(z)) / (2 * B); }
-      for (let j = 0; j < B; j++) { let mx = -1e9; for (let i = 0; i < B; i++) mx = Math.max(mx, Lg[i][j]); let z = 0; for (let i = 0; i < B; i++) z += Math.exp(Lg[i][j] - mx); for (let i = 0; i < B; i++) dLg[i][j] += (Math.exp(Lg[i][j] - mx) / z - (i === j ? 1 : 0)) / (2 * B); loss -= (Lg[j][j] - mx - Math.log(z)) / (2 * B); }
+      for (let i = 0; i < B; i++) { const mx = Math.max(...Lg[i]); let z = 0; for (let j = 0; j < B; j++) z += exp(Lg[i][j] - mx); for (let j = 0; j < B; j++) dLg[i][j] += (exp(Lg[i][j] - mx) / z - (i === j ? 1 : 0)) / (2 * B); loss -= (Lg[i][i] - mx - log(z)) / (2 * B); }
+      for (let j = 0; j < B; j++) { let mx = -1e9; for (let i = 0; i < B; i++) mx = Math.max(mx, Lg[i][j]); let z = 0; for (let i = 0; i < B; i++) z += exp(Lg[i][j] - mx); for (let i = 0; i < B; i++) dLg[i][j] += (exp(Lg[i][j] - mx) / z - (i === j ? 1 : 0)) / (2 * B); loss -= (Lg[j][j] - mx - log(z)) / (2 * B); }
       for (let i = 0; i < B; i++) {
         const gu = new Float64Array(DE); for (let j = 0; j < B; j++) for (let k = 0; k < DE; k++) gu[k] += dLg[i][j] * Vn[j][k] / m.tau;
         const n = norm(U[i]), pj = dot(Un[i], gu), dTok = new Float64Array(NP * DE);
@@ -171,13 +259,13 @@
     const b = blockF(lm.blk, X, n, imgTok ? PREFIX : CAUSAL), nt = words.length, Ht = new Float64Array(nt * DL);
     Ht.set(b.Y.subarray(nImg * DL, n * DL));
     const ln = lnF(Ht, nt, DL), logits = new Float64Array(nt * V), probs = new Float64Array(nt * V);
-    for (let t = 0; t < nt; t++) { let mx = -1e9; for (let w = 0; w < V; w++) { let s = 0; for (let c = 0; c < DL; c++) s += ln.Y[t * DL + c] * lm.E.w[w * DL + c]; logits[t * V + w] = s; if (s > mx) mx = s; } let z = 0; for (let w = 0; w < V; w++) { probs[t * V + w] = Math.exp(logits[t * V + w] - mx); z += probs[t * V + w]; } for (let w = 0; w < V; w++) probs[t * V + w] /= z; }
+    for (let t = 0; t < nt; t++) { let mx = -1e9; for (let w = 0; w < V; w++) { let s = 0; for (let c = 0; c < DL; c++) s += ln.Y[t * DL + c] * lm.E.w[w * DL + c]; logits[t * V + w] = s; if (s > mx) mx = s; } let z = 0; for (let w = 0; w < V; w++) { probs[t * V + w] = exp(logits[t * V + w] - mx); z += probs[t * V + w]; } for (let w = 0; w < V; w++) probs[t * V + w] /= z; }
     return { probs, h: ln.Y, tape: { b, ln, nImg, n, nt, words } };
   }
   /** Обратный проход от перекрёстной энтропии по целям targets[t]; возвращает градиент по токенам картинки (или null). Потери усредняются по позициям. */
   function lmB(m, out, targets) {
     const lm = m.lm, { b, ln, nImg, n, nt, words } = out.tape, dLn = new Float64Array(nt * DL); let loss = 0;
-    for (let t = 0; t < nt; t++) for (let w = 0; w < V; w++) { const p = out.probs[t * V + w], g = (p - (w === targets[t] ? 1 : 0)) / nt; if (w === targets[t]) loss -= Math.log(p + 1e-12) / nt; for (let c = 0; c < DL; c++) { dLn[t * DL + c] += g * lm.E.w[w * DL + c]; lm.E.g[w * DL + c] += g * ln.Y[t * DL + c]; } }
+    for (let t = 0; t < nt; t++) for (let w = 0; w < V; w++) { const p = out.probs[t * V + w], g = (p - (w === targets[t] ? 1 : 0)) / nt; if (w === targets[t]) loss -= log(p + 1e-12) / nt; for (let c = 0; c < DL; c++) { dLn[t * DL + c] += g * lm.E.w[w * DL + c]; lm.E.g[w * DL + c] += g * ln.Y[t * DL + c]; } }
     const dHt = lnB(ln, nt, DL, dLn), dY = new Float64Array(n * DL); dY.set(dHt, nImg * DL);
     const dX = blockB(lm.blk, b.tape, dY);
     words.forEach((w, t) => { const o = (nImg + t) * DL; for (let c = 0; c < DL; c++) { lm.E.g[w * DL + c] += dX[o + c]; lm.pos.g[t * DL + c] += dX[o + c]; } });
@@ -255,8 +343,8 @@
   function cosine(a, b) { return dot(a, b) / (norm(a) * norm(b)); }
   /** Иконка с заданными сдвигом (dx, dy в пикселях), радиусом R и шумом — для свободного режима. */
   function iconAt(color, shape, o) {
-    o = o || {}; const r = rng(o.seed || 1), img = L.blank(IS, IS, r, o.noise == null ? 0.02 : o.noise);
-    L.paint(img, IS, IS, color, shape, IS / 2 + (o.dx || 0), IS / 2 + (o.dy || 0), o.R == null ? 5.8 : o.R, r, o.noise == null ? 0.04 : o.noise * 2);
+    o = o || {}; const r = rng(o.seed || 1), img = blank(IS, IS, r, o.noise == null ? 0.02 : o.noise);
+    paint(img, IS, IS, color, shape, IS / 2 + (o.dx || 0), IS / 2 + (o.dy || 0), o.R == null ? 5.8 : o.R, r, o.noise == null ? 0.04 : o.noise * 2);
     return img;
   }
   /** Что «видит» энкодер: ближайшая подпись в контрастном пространстве среди всех 24 сочетаний. */
@@ -273,7 +361,7 @@
       const C = new Float64Array(d * d); for (const v of vecs) for (let i = 0; i < d; i++) for (let j = 0; j < d; j++) C[i * d + j] += (v[i] - mu[i]) * (v[j] - mu[j]) / n;
       const axes = [], lam = []; let tr = 0; for (let i = 0; i < d; i++) tr += C[i * d + i];
       for (let a = 0; a < 2; a++) {
-        let u = new Float64Array(d); for (let i = 0; i < d; i++) u[i] = Math.sin(i * 1.3 + a);
+        let u = new Float64Array(d); for (let i = 0; i < d; i++) u[i] = sin(i * 1.3 + a);
         for (let it = 0; it < 200; it++) { const w = new Float64Array(d); for (let i = 0; i < d; i++) for (let j = 0; j < d; j++) w[i] += C[i * d + j] * u[j]; for (const q of axes) { const pj = dot(w, q); for (let i = 0; i < d; i++) w[i] -= pj * q[i]; } u = unit(w); }
         let l = 0; for (let i = 0; i < d; i++) for (let j = 0; j < d; j++) l += u[i] * C[i * d + j] * u[j];
         axes.push(u); lam.push(l / (tr || 1));
@@ -293,6 +381,6 @@
 
   const API = { P, NP, PD, DE, DL, V, WORDS, TOK, BOS, EOS, NT, T, wid, patchify, permutePatches, encF, imageTokens, vlmInit, pretrainEncoder, pretrainLM, makeData, trainVLM, generate, evaluate,
     cosine, iconAt, clipNearest, pca2, unit, dot, norm, pairs, textVec, lmF, wordVectors, cloneParams, loadParams, finish, paramCount, rng, icon, isHeld,
-    encParams: (m) => encParams(m.enc), lmParams: (m) => lmParams(m.lm), projParams };
+    encParams: (m) => encParams(m.enc), lmParams: (m) => lmParams(m.lm), projParams, math: { exp, log, tanh, sincos, powInt } };
   if (typeof module !== 'undefined' && module.exports) module.exports = API; else root.L32 = API;
 })(typeof window !== 'undefined' ? window : globalThis);

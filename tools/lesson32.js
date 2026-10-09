@@ -1,7 +1,12 @@
 // Урок 3.2 «Vision-language модели»: мини-VLM обучается в браузере и даёт обещанные в текстах исходы, миссии проходятся
 // через интерфейс, консоль чиста, телефон без горизонтальной прокрутки, схема движется. Снимки — shots/l32-*.png.
-// Урок собирается на дату выпуска части: MR_ASOF=2026-10-24 python3 lessons/build.py l32.
+// Числа лабораторий одинаковы везде: тест сам обучает обе модели в Node и (если есть jsc, macOS) в JavaScriptCore,
+// как в Safari, и сравнивает хэши весов и точности с Chrome до последнего бита.
+// Урок собирается на дату выпуска части: MR_ASOF=2026-10-17 python3 lessons/build.py l32.
 const path = require('path');
+const fs = require('fs');
+const os = require('os');
+const { execFile } = require('child_process');
 const { launch, sleep } = require('./cdp');
 const url = 'file://' + path.resolve(__dirname, '../site/lessons/3-2-vision-language-modeli.html');
 const out = (n) => path.resolve(__dirname, '../shots/' + n);
@@ -22,6 +27,31 @@ async function viaUI(p, mis, bet) {
 }
 const nextMission = (p, mis) => p.eval(`(() => { const b = document.querySelector('${mis} .g-next'); if (!b || b.hidden) return false; b.click(); return true; })()`);
 const critOk = (p, mis) => p.eval(`(() => { const li = [...document.querySelectorAll('${mis} .m-crit li')]; return li.length > 0 && li.every((x) => x.className === 'ok'); })()`);
+/* ---------- эталон вне браузера: те же стадии, что Store.train и Store.trainScratch ---------- */
+// Хэш всех весов модели (биты Float64), как hashNums в сверке /tmp/jscmp.
+const FP = `function __fp(E, m) { const f = new Float64Array(1), u = new Uint32Array(f.buffer); let h1 = 0x811c9dc5, h2 = 0x01000193;
+  for (const p of [].concat(E.encParams(m), E.lmParams(m), E.projParams(m), [m.Ec])) for (let i = 0; i < p.w.length; i++) { f[0] = p.w[i]; h1 = Math.imul(h1 ^ u[0], 16777619) >>> 0; h2 = Math.imul(h2 ^ u[1], 16777619) >>> 0; h1 = Math.imul(h1 ^ u[1], 2246822519) >>> 0; }
+  return (h1 >>> 0).toString(16) + (h2 >>> 0).toString(16); }`;
+const refSrc = (C) => `${FP}
+(function () {
+  const E = globalThis.L32, C = ${JSON.stringify(C)}, say = typeof print === 'function' ? print : console.log;
+  const m = E.vlmInit(C.SEED), data = E.makeData(C.N, 100);
+  E.finish(E.pretrainEncoder(m, { iters: C.encIters, lr: C.encLr })); E.finish(E.pretrainLM(m, { iters: C.lmIters }));
+  E.finish(E.trainVLM(m, data, { stage: 'proj', epochs: C.projEp, lr: C.projLr })); E.finish(E.trainVLM(m, data, { stage: 'lm', epochs: C.lmEp, lr: C.lmLr }));
+  const s = E.vlmInit(C.SEED); E.finish(E.pretrainLM(s, { iters: C.lmIters }));
+  E.finish(E.trainVLM(s, data.map((d) => ({ c: d.c, s: d.s, img: d.img, patches: d.patches, tok: null })), { stage: 'all', epochs: C.lmEp, lr: C.lmLr }));
+  say('REF ' + JSON.stringify({ m: __fp(E, m), s: __fp(E, s), acc: E.evaluate(m, 777, 4).acc, accB: E.evaluate(s, 777, 4).acc }));
+})();`;
+const JSC = '/System/Library/Frameworks/JavaScriptCore.framework/Versions/Current/Helpers/jsc';
+/** Запустить эталон в Node и в jsc; вернуть { node, jsc } (jsc — null, если его нет). */
+function startRef(C) {
+  const dir = path.join(os.tmpdir(), 'lesson32-ref'); fs.mkdirSync(dir, { recursive: true });
+  const eng = (f) => path.resolve(__dirname, '../lessons/' + f), drv = path.join(dir, 'ref.js'), nodeDrv = path.join(dir, 'ref-node.js');
+  fs.writeFileSync(drv, refSrc(C));
+  fs.writeFileSync(nodeDrv, `globalThis.L32 = require(${JSON.stringify(eng('l32/engine.js'))});\n` + refSrc(C));
+  const run = (cmd, args) => new Promise((res) => execFile(cmd, args, { maxBuffer: 1 << 20 }, (err, out) => { const m = /REF (.*)/.exec(out || ''); res(m ? JSON.parse(m[1]) : { error: String(err || out) }); }));
+  return { node: run(process.execPath, [nodeDrv]), jsc: fs.existsSync(JSC) ? run(JSC, [eng('l21/engine.js'), eng('l32/engine.js'), drv]) : Promise.resolve(null) };
+}
 const shotSec = async (p, id, file, sel, pad) => { await p.eval(`document.getElementById('${id}').scrollIntoView({ behavior: 'instant' }); true`); await sleep(300); await p.shotEl(out(file), sel || `#${id} .lab`, pad == null ? 6 : pad); };
 (async () => {
   const B = await launch({ w: 1300, h: 1000 });
@@ -32,6 +62,8 @@ const shotSec = async (p, id, file, sel, pad) => { await p.eval(`document.getEle
   check((await p.eval(`document.querySelectorAll('#recall .rc-q').length`)) === 3, 'разминка по уроку 3.1: три вопроса');
   check((await p.eval(`!!document.querySelector('a[href="3-3-rt-2.html"]')`)), 'ссылка на урок 3.3 в callout «Дальше»');
   await p.eval('window.__l32.SPEED.k = 20; true');
+  const C = J(await p.eval(`JSON.stringify(Object.assign({ SEED: window.__l32.Store.SEED, N: window.__l32.Store.data.length }, window.__l32.Store.CFG))`));
+  const ref = startRef(C);
 
   // ---------- 1. патчи → токены ----------
   console.log('патчи → токены');
@@ -69,11 +101,26 @@ const shotSec = async (p, id, file, sel, pad) => { await p.eval(`document.getEle
   check(/Ставка сыграла/.test(r.out), 'ставка «предобученный точнее» сыграла');
   const resB = J(await p.eval(`JSON.stringify(window.__l32.LabVLM.st.resB)`));
   check(resB.held === 0, 'энкодер с нуля фиолетовый кубик не описывает: ' + resB.held * 8 + ' из 8');
+  // числа урока при зерне 9 — те, что названы в INTEGRATION.md
+  const n92 = (a) => Math.round(a * 92), n8 = (a) => Math.round(a * 8);
+  check(n92(v2.acc) === 88 && n92(v2.accB) === 80 && /96%/.test(r.out) && /87%/.test(r.out), `точности 88 и 80 из 92 (95,7% и 87,0%), разбор называет 96% и 87%: ${n92(v2.acc)} и ${n92(v2.accB)}`);
+  check(n8(res.held) === 0 && n8(res.heldColor) === 8 && n8(res.encHeld) === 7 && res.heldTop === 'фиолетовый мяч' && res.heldTopN === 8, `основная модель, фиолетовый кубик: точно ${n8(res.held)}, цвет ${n8(res.heldColor)}, энкодер ${n8(res.encHeld)}, «${res.heldTop}» ${res.heldTopN} из 8 (ждём 0, 8, 7, «фиолетовый мяч» 8)`);
+  check(n8(resB.heldColor) === 8 && n8(resB.encHeld) === 1 && resB.heldTop === 'фиолетовый мяч' && resB.heldTopN === 7, `модель с нуля, фиолетовый кубик: цвет ${n8(resB.heldColor)}, энкодер ${n8(resB.encHeld)}, «${resB.heldTop}» ${resB.heldTopN} из 8 (ждём 8, 1, «фиолетовый мяч» 7)`);
+  const grid = J(await p.eval(`JSON.stringify(window.__l32.LabVLM.st.tests.map((t) => [t.a.words.join(' '), t.b.words.join(' ')]))`));
+  const gridBad = (k) => grid.map((g, i) => [g[k], i]).filter(([w, i]) => w !== ['red', 'blue', 'green', 'yellow', 'purple', 'orange'][i % 6] + ' ' + ['cube', 'ball', 'bowl', 'can'][Math.floor(i / 6)]).map(([w]) => w).join(', ');
+  check(gridBad(0) === 'purple ball' && gridBad(1) === 'red ball, yellow ball, purple ball, blue cube', `сетка проверки: ошибки основной модели — ${gridBad(0)}; модели с нуля — ${gridBad(1)}`);
+  // Chrome против Node и JavaScriptCore (Safari): веса обеих моделей до последнего бита
+  const fpC = J(await p.eval(`(() => { ${FP}; const S = window.__l32.Store; return JSON.stringify({ m: __fp(L32, S.m), s: __fp(L32, S.scratch), acc: window.__l32.LabVLM.st.res.acc, accB: window.__l32.LabVLM.st.resB.acc }); })()`));
+  const [fpN, fpJ] = await Promise.all([ref.node, ref.jsc]);
+  const same = (a) => !!a && a.m === fpC.m && a.s === fpC.s && a.acc === fpC.acc && a.accB === fpC.accB;
+  check(same(fpN), `Chrome = Node: веса ${fpC.m} / ${fpC.s}, точности ${(fpC.acc * 100).toFixed(1)}% / ${(fpC.accB * 100).toFixed(1)}%` + (same(fpN) ? '' : ` — Node: ${JSON.stringify(fpN)}`));
+  if (fpJ) check(same(fpJ), 'Chrome = JavaScriptCore (как в Safari): те же хэши весов и точности' + (same(fpJ) ? '' : ` — jsc: ${JSON.stringify(fpJ)}`));
+  else console.log('  · jsc не найден, сверка с JavaScriptCore пропущена');
   await shotSec(p, 'vlm', 'l32-vlm-compare.png');
   await nextMission(p, '#vMis');
   await p.eval(`window.__l32.LabVLM.api.setObj('red', 'cube'); window.__l32.LabVLM.api.setDx(0); true`);
   const shifts = J(await p.eval(`JSON.stringify([0, 1, 2, 3, 4, 5].map((dx) => { window.__l32.LabVLM.api.setDx(dx); return window.__l32.LabVLM.api.state().okNow; }))`));
-  check(shifts[0] && !shifts[shifts.length - 1], 'свободный режим: при сдвиге 0 верно, при сдвиге 5 px ошибка — ' + shifts.map((x) => (x ? '✓' : '✗')).join(' '));
+  check(shifts.map((x) => (x ? '✓' : '✗')).join(' ') === '✓ ✓ ✓ ✗ ✓ ✗', 'свободный режим: при сдвиге 0 верно, при сдвиге 5 px ошибка — ' + shifts.map((x) => (x ? '✓' : '✗')).join(' ') + ' (ждём ✓ ✓ ✓ ✗ ✓ ✗)');
   await p.eval(`window.__l32.LabVLM.api.setDx(0); true`);
 
   // ---------- 3. пространство слов ----------
@@ -91,6 +138,7 @@ const shotSec = async (p, id, file, sel, pad) => { await p.eval(`document.getEle
   await p.eval(`window.__l32.LabSpace.api.setWhat('tok'); true`); await sleep(100);
   const s3 = J(await p.eval(`JSON.stringify(window.__l32.LabSpace.api.state())`));
   check(s3.near < 0.5 && await critOk(p, '#sMis'), `миссия 3: средний токен картинки рядом со своим словом лишь у ${Math.round(s3.near * 24)} из 24`);
+  check([s1.near0, s1.near, s2.near, s3.near].map((v) => Math.round(v * 24)).join(' ') === '4 16 23 2', 'пространство слов: 4 → 16 из 24 перед цветом, 23 перед формой, 2 у токенов (как в INTEGRATION.md)');
   await shotSec(p, 'space', 'l32-space-tokens.png');
 
   // ---------- схема, квиз, глоссарий, консоль ----------
@@ -113,6 +161,7 @@ const shotSec = async (p, id, file, sel, pad) => { await p.eval(`document.getEle
   await m.waitFor('window.__lessonReady === true', 30000); await sleep(600);
   await m.eval('window.__l32.SPEED.k = 20; true');
   await m.eval(`window.__l32.LabVLM.api.train().then(() => window.__l32.LabSpace.api.ensure()).then(() => true)`, true);
+  check((await m.eval(`(() => { ${FP}; return __fp(L32, window.__l32.Store.m); })()`)) === fpC.m, 'телефон: обученная модель та же до последнего бита');
   await m.eval(`window.__l32.LabPatches.api.setPerm(1); true`);
   check((await m.eval('document.documentElement.scrollWidth')) <= 390, 'телефон: ширина ' + await m.eval('document.documentElement.scrollWidth'));
   check(await m.eval(`[...document.querySelectorAll('.lab')].every((l) => l.getBoundingClientRect().width <= l.parentElement.getBoundingClientRect().width + 1)`), 'телефон: ни одна лаборатория не шире своей карточки');
