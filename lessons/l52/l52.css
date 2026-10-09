@@ -1,0 +1,89 @@
+/* ---------- урок 5.2 «Policy gradient и PPO» ---------- */
+.cv-note { margin: 6px 2px 0; font-size: 13px; line-height: 1.45; color: var(--ink-3); }
+.ctl { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ctl-l { font-size: 13.5px; font-weight: 650; color: var(--ink-3); }
+.ctl-row .hd-range output { min-width: 40px; }
+.ctl-row .hd-range input { width: 200px; }
+
+/* схемы */
+.flow-card { margin: 18px 0 0; padding: 14px 14px 12px; }
+.flow-card canvas { width: 100%; height: auto; display: block; }
+.flow-card figcaption { margin: 10px 2px 0; }
+
+/* интерактив: поездка по шагам */
+#eCv, .e-chart { width: 100%; height: auto; display: block; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+#eCv { aspect-ratio: 600 / 400; }
+.e-chart { aspect-ratio: 600 / 220; margin-top: 10px; }
+
+/* лаборатория 1: две сцены рядом и график */
+.duo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+.pane { margin: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--surface); display: flex; flex-direction: column; min-width: 0; }
+.pane-head { padding: 7px 10px 6px; border-bottom: 1px solid var(--line); display: grid; gap: 1px; font-size: 12.5px; line-height: 1.35; color: var(--ink-3); }
+.pane-head b { display: flex; align-items: center; gap: 7px; font-size: 14.5px; color: var(--ink); }
+.pane-head b::before { content: ""; width: 10px; height: 10px; border-radius: 3px; background: var(--hybrid); flex: none; }
+.pane-head b.fm::before { background: var(--e2e); }
+.pane-head b.sm::before { background: var(--classic); }
+.pane canvas { width: 100%; height: auto; aspect-ratio: 600 / 400; display: block; }
+.pane-stat { padding: 7px 10px; font-size: 13.5px; border-top: 1px solid var(--line); min-height: 36px; color: var(--ink-2); line-height: 1.35; }
+.pane-stat b { color: var(--ink); }
+.pane-stat.ok { background: var(--good-soft); }
+.pane-stat.bad { background: var(--critical-soft); }
+@supports (grid-template-rows: subgrid) {
+  .duo { grid-template-rows: auto auto auto; }
+  .pane { display: grid; grid-row: span 3; grid-template-rows: subgrid; row-gap: 0; }
+}
+.p-chart { margin-top: 12px; }
+.p-chart canvas { width: 100%; height: auto; display: block; aspect-ratio: 640 / 260; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); cursor: crosshair; touch-action: pan-y; }
+.prog-line { height: 4px; border-radius: 2px; background: var(--surface-2); overflow: hidden; margin-top: 10px; }
+.prog-line i { display: block; height: 100%; width: 0; background: var(--e2e); }
+.prog-line[hidden] { display: none; }
+.seg.small button { padding-left: 9px; padding-right: 9px; }
+
+/* лаборатория 2: график одного члена и гистограммы */
+.k-cv, .k-hist { width: 100%; height: auto; display: block; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.k-cv { aspect-ratio: 600 / 300; touch-action: pan-y; }
+.k-hist { aspect-ratio: 600 / 250; margin-top: 14px; }
+
+/* лаборатория 3: калькулятор */
+.calc { display: grid; gap: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); }
+.calc-row { display: grid; grid-template-columns: minmax(0, 220px) minmax(0, 1fr) 76px; gap: 10px; align-items: center; font-size: 14px; font-weight: 600; color: var(--ink-2); }
+.calc-row input { width: 100%; min-width: 0; accent-color: var(--ink); }
+.calc-row output { font-family: var(--mono); font-size: 13px; text-align: right; color: var(--ink); }
+.calc-fixed { margin: 2px 0 0; font-size: 13px; color: var(--ink-3); }
+.calc-out { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+.calc-out:empty { display: none; }
+.calc-out .co { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; background: var(--surface); min-width: 0; }
+.calc-out .co span { display: block; font-size: 12px; color: var(--ink-3); line-height: 1.3; }
+.calc-out .co b { display: block; margin-top: 3px; font-family: var(--mono); font-size: 16px; color: var(--ink); font-weight: 650; overflow-wrap: anywhere; }
+.calc-out .co.main { border-color: var(--e2e); }
+.calc-out .co small { display: block; font-size: 12px; color: var(--ink-3); margin-top: 2px; }
+.calc-wait { grid-column: 1 / -1; padding: 12px; border: 1px dashed var(--line-2); border-radius: 10px; color: var(--ink-3); font-size: 14px; text-align: center; }
+.calc-warn { display: grid; gap: 6px; margin-top: 10px; }
+.calc-warn:empty { display: none; }
+.calc-warn p { margin: 0; padding: 7px 10px; border-radius: 9px; font-size: 13.5px; line-height: 1.45; color: var(--ink-2); background: var(--surface-2); border-left: 3px solid var(--line-2); }
+.calc-warn p.warn { border-left-color: var(--critical); background: var(--critical-soft); }
+.calc-warn p.good { border-left-color: var(--good); background: var(--good-soft); }
+.s-cv { width: 100%; height: auto; display: block; aspect-ratio: 640 / 250; margin-top: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+
+/* живые миссии: невыполненный критерий — «ещё нет», серым */
+.m-live .m-crit li.no i { border-color: var(--line-2); color: var(--ink-3); background: var(--surface-2); }
+.m-live .m-crit li.no i::before { content: '·'; }
+
+/* мост в урок 5.3 */
+.callout.bridge p { margin: 0; }
+
+@media (max-width: 760px) {
+  .calc-out { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .duo { gap: 6px; }
+  .pane-head { padding: 6px 7px 5px; font-size: 11.5px; }
+  .pane-head b { font-size: 13px; }
+  .pane-stat { padding: 6px 7px; font-size: 12px; }
+  .ctl-row .hd-range { display: grid; grid-template-columns: 112px 1fr 44px; width: 100%; }
+  .ctl-row .hd-range input { width: 100%; }
+  .calc-row { grid-template-columns: minmax(0, 1fr) 70px; row-gap: 2px; }
+  .calc-row span { grid-column: 1 / -1; }
+  .calc-row input { grid-column: 1; }
+  .calc-out .co b { font-size: 14.5px; }
+}
