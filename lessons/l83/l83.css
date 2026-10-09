@@ -1,0 +1,66 @@
+/* ---------- урок 8.3 «Надёжность» ---------- */
+.cv-note { margin: 6px 2px 0; font-size: 13px; line-height: 1.45; color: var(--ink-3); }
+.ctl { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.ctl-l { font-size: 13.5px; font-weight: 650; color: var(--ink-3); }
+.ctl-row .hd-range output { min-width: 48px; }
+.ctl-row .hd-range input { width: 170px; }
+.seg.small button { padding-left: 8px; padding-right: 8px; font-size: 13px; }
+
+/* схемы */
+.flow-card { margin: 18px 0 0; padding: 14px 14px 12px; }
+.flow-card canvas { width: 100%; height: auto; display: block; }
+.flow-card figcaption { margin: 10px 2px 0; }
+
+/* лаборатория 1: две сетки по сто латте рядом */
+.duo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+.pane { margin: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--surface); display: flex; flex-direction: column; min-width: 0; }
+.pane-head { padding: 7px 10px 6px; border-bottom: 1px solid var(--line); display: grid; gap: 1px; font-size: 12.5px; line-height: 1.35; color: var(--ink-3); }
+.pane-head b { font-size: 14.5px; color: var(--ink); }
+.pane canvas { width: 100%; height: auto; aspect-ratio: 400 / 430; display: block; }
+.pane-stat { padding: 7px 10px; font-size: 13.5px; border-top: 1px solid var(--line); min-height: 36px; color: var(--ink-2); line-height: 1.35; }
+.pane-stat b { color: var(--ink); }
+.pane-stat.ok { background: var(--good-soft); }
+.pane-stat.bad { background: var(--critical-soft); }
+@supports (grid-template-rows: subgrid) {
+  .duo { grid-template-rows: auto auto auto; }
+  .pane { display: grid; grid-row: span 3; grid-template-rows: subgrid; row-gap: 0; }
+}
+.pane.off canvas { opacity: .55; }
+
+/* лаборатория 2: гистограммы, плитки, лента дня */
+#tHist { width: 100%; height: auto; aspect-ratio: 640 / 360; display: block; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); touch-action: pan-y; }
+#tDay { width: 100%; height: auto; aspect-ratio: 640 / 110; display: block; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); margin-top: 10px; }
+.t-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
+.t-tile { padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2); display: grid; gap: 1px; min-width: 0; }
+.t-tile b { font-size: 22px; font-weight: 780; font-variant-numeric: tabular-nums; color: var(--ink); line-height: 1.15; }
+.t-tile span { font-size: 12.5px; color: var(--ink-3); line-height: 1.3; }
+.t-tile.bad { border-color: color-mix(in srgb, var(--critical) 45%, transparent); }
+.t-tile.good { border-color: color-mix(in srgb, var(--good) 45%, transparent); }
+
+/* лаборатория 3: серии запусков и кривая */
+#rRows { width: 100%; height: auto; aspect-ratio: 640 / 400; display: block; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+#rCurve { width: 100%; height: auto; aspect-ratio: 640 / 260; display: block; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); margin-top: 10px; }
+
+/* живые миссии: невыполненный критерий — «ещё нет», серым */
+.m-live .m-crit li.no i { border-color: var(--line-2); color: var(--ink-3); background: var(--surface-2); }
+.m-live .m-crit li.no i::before { content: '·'; }
+
+/* мост в урок 8.4 */
+.callout.bridge p { margin: 0; }
+
+@media (max-width: 760px) {
+  .t-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .duo { gap: 6px; }
+  .pane-head { padding: 6px 7px 5px; font-size: 11.5px; }
+  .pane-head b { font-size: 13px; }
+  .pane-stat { padding: 6px 7px; font-size: 12px; }
+  .ctl-row .hd-range { display: grid; grid-template-columns: 118px 1fr 52px; width: 100%; }
+  .ctl-row .hd-range input { width: 100%; }
+  #tHist { aspect-ratio: 380 / 330; }
+  #tDay { aspect-ratio: 380 / 120; }
+  #rRows { aspect-ratio: 380 / 400; }
+  #rCurve { aspect-ratio: 380 / 260; }
+  .t-tile b { font-size: 19px; }
+}
