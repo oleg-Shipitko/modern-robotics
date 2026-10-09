@@ -189,7 +189,9 @@ def add_stats(page):
 # ---------- Глоссарий: подсказки к терминам при первом упоминании (shared/glossary.*) ----------
 GLOSSARY_ALL = json.loads((root / 'shared/glossary.json').read_text(encoding='utf-8'))
 # термины уроков, которые ещё не вышли на момент сборки, не показываем: ни в подсказках, ни на странице глоссария
-GLOSSARY = [g for g in GLOSSARY_ALL if LESSONS[g['l']][0] in PUB]
+# термин, который переезжает в более поздний урок, до его выхода берёт поля из 'before' (урок, раздел, определение)
+GLOSSARY = [g if LESSONS[g['l']][0] in PUB else {**g, **g['before']} for g in GLOSSARY_ALL
+            if LESSONS[g['l']][0] in PUB or (g.get('before') and LESSONS[g['before']['l']][0] in PUB)]
 SKIP_TAGS = {'a', 'h1', 'h2', 'h3', 'h4', 'button', 'label', 'code', 'pre', 'script', 'style', 'summary', 'svg', 'canvas', 'select', 'textarea', 'figcaption'}
 _gl_info = None
 def gl_info():
