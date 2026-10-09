@@ -1,0 +1,89 @@
+/* ---------- урок 5.1 «Основы RL: награда, ценность, преимущество» ---------- */
+.cv-note { margin: 6px 2px 0; font-size: 13px; line-height: 1.45; color: var(--ink-3); }
+.lab-legend { margin-top: 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); }
+.lab-legend > summary { cursor: pointer; padding: 7px 12px; font-size: 13.5px; font-weight: 650; color: var(--ink-2); }
+.lab-legend .cv-legend { margin: 0; padding: 4px 12px 10px; }
+.cv-legend i.box { width: 14px; height: 14px; border-radius: 3px; background: var(--c); }
+.cv-legend i.hatch { width: 14px; height: 14px; border-radius: 2px; border: 1.5px solid var(--c); background: repeating-linear-gradient(45deg, var(--c) 0 1px, transparent 1px 4px); }
+.cv-legend i.wall { width: 18px; height: 5px; border-radius: 1px; background: var(--c); }
+.cv-legend i.ring { width: 11px; height: 11px; border-radius: 50%; background: transparent; border: 2px solid var(--c); }
+.cv-legend i.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
+.cv-legend i.ada { width: 13px; height: 13px; border-radius: 50%; background: #f4efe6; border: 2px solid var(--ink); box-shadow: inset -4px 0 0 #1f2430; }
+.cv-legend i.goal { width: 12px; height: 12px; border-radius: 50%; background: transparent; border: 2px solid var(--c); position: relative; }
+.cv-legend i.goal::before { content: ""; position: absolute; left: 50%; top: -5px; bottom: -5px; width: 2px; margin-left: -1px; background: var(--c); }
+.cv-legend i.goal::after { content: ""; position: absolute; top: 50%; left: -5px; right: -5px; height: 2px; margin-top: -1px; background: var(--c); }
+.cv-legend i.puddle { width: 16px; height: 11px; border-radius: 50%; background: var(--hybrid-soft); border: 1.5px solid var(--hybrid); }
+.cv-legend i.arrow { width: 0; height: 0; border-radius: 0; background: none; border-left: 10px solid var(--c); border-top: 6px solid transparent; border-bottom: 6px solid transparent; }
+.cv-legend i.heat { width: 34px; height: 10px; border-radius: 3px; background: linear-gradient(90deg, color-mix(in srgb, var(--classic) 6%, transparent), color-mix(in srgb, var(--classic) 70%, transparent)); border: 1px solid var(--line); }
+.cv-legend i.heat-neg { width: 18px; height: 10px; border-radius: 3px; background: color-mix(in srgb, var(--critical) 45%, transparent); border: 1px solid var(--line); }
+
+/* схемы */
+.flow-card { margin: 18px 0 0; padding: 14px 14px 12px; }
+.flow-card canvas { width: 100%; height: auto; display: block; }
+.flow-card figcaption { margin: 10px 2px 0; }
+
+/* прогноз отдачи */
+.fc-grid { display: grid; grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr); gap: 10px; align-items: start; }
+.fc-grid figure { margin: 0; min-width: 0; }
+.fc-map canvas { width: 100%; height: auto; aspect-ratio: 3 / 2; display: block; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.fc-chart canvas { width: 100%; height: auto; aspect-ratio: 440 / 320; display: block; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); touch-action: none; cursor: crosshair; }
+.fc-chart canvas.locked { cursor: default; }
+
+/* две сцены рядом */
+.duo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+.duo:has(> .pane[hidden]) { grid-template-columns: minmax(0, 1fr); }
+.pane { margin: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--surface); display: flex; flex-direction: column; min-width: 0; }
+.pane[hidden] { display: none; }
+.pane-head { padding: 7px 10px 6px; border-bottom: 1px solid var(--line); display: grid; gap: 1px; font-size: 12.5px; line-height: 1.35; color: var(--ink-3); }
+.pane-head b { display: flex; align-items: center; gap: 7px; font-size: 14.5px; color: var(--ink); }
+.pane-head b::before { content: ""; width: 10px; height: 10px; border-radius: 3px; background: var(--classic); flex: none; }
+.pane-head b.fm::before { background: var(--e2e); }
+.pane canvas { width: 100%; height: auto; aspect-ratio: 3 / 2; display: block; cursor: pointer; touch-action: manipulation; }
+.pane-stat { padding: 7px 10px; font-size: 13.5px; border-top: 1px solid var(--line); min-height: 36px; color: var(--ink-2); line-height: 1.35; }
+.pane-stat b { color: var(--ink); }
+.pane-stat.ok { background: var(--good-soft); }
+.pane-stat.bad { background: var(--critical-soft); }
+
+/* строка отладчика итераций */
+.vi-iter { margin-top: 10px; font-family: var(--mono); font-size: 12.5px; color: var(--ink-2); padding: 7px 10px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--line); min-height: 34px; line-height: 1.5; }
+.vi-iter b { color: var(--ink); font-weight: 650; }
+.vi-iter:empty { display: none; }
+.ctl-row .hd-range output { min-width: 44px; }
+.bell { margin: 8px 0 0; padding: 0; list-style: none; display: grid; gap: 3px; font-family: var(--mono); font-size: 12.5px; color: var(--ink-2); }
+.bell li.best { color: var(--ink); font-weight: 650; }
+
+/* клетка лаборатории 2: четыре действия и их преимущество */
+.av-cell { margin-top: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); font-size: 13.5px; color: var(--ink-2); line-height: 1.45; }
+.av-cell:empty { display: none; }
+.av-cell .av-h { font-weight: 650; color: var(--ink); margin-bottom: 6px; }
+.av-acts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.av-acts button { display: grid; gap: 1px; padding: 6px 6px 5px; border-radius: 10px; border: 1.5px solid var(--line-2); background: var(--surface); color: var(--ink); font: inherit; font-size: 12.5px; line-height: 1.25; cursor: pointer; text-align: center; min-width: 0; }
+.av-acts button b { font-size: 16px; }
+.av-acts button .q { font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); }
+.av-acts button .a { font-family: var(--mono); font-size: 12.5px; font-weight: 650; }
+.av-acts button.pos { border-color: var(--good); background: var(--good-soft); }
+.av-acts button.neg .a { color: var(--critical); }
+.av-acts button.pos .a { color: var(--good); }
+.av-acts button[aria-pressed="true"] { border-color: var(--ink); box-shadow: 0 0 0 2px color-mix(in srgb, var(--ink) 20%, transparent); }
+.av-acts button:disabled { cursor: default; opacity: .55; }
+.av-cell .av-note { margin-top: 6px; font-size: 12.5px; color: var(--ink-3); }
+
+/* живые миссии: невыполненный критерий — «ещё нет», серым */
+.m-live .m-crit li.no i { border-color: var(--line-2); color: var(--ink-3); background: var(--surface-2); }
+.m-live .m-crit li.no i::before { content: '·'; }
+
+/* мост в урок 5.2 */
+.callout.bridge p { margin: 0; }
+
+@media (max-width: 560px) {
+  .fc-grid { grid-template-columns: minmax(0, 1fr); }
+  .duo { grid-template-columns: minmax(0, 1fr); }
+  .pane-head { padding: 6px 8px 5px; font-size: 12px; }
+  .pane-head b { font-size: 13.5px; }
+  .pane-stat { padding: 6px 8px; font-size: 12.5px; }
+  .ctl-row .hd-range { display: grid; grid-template-columns: 118px 1fr 48px; width: 100%; }
+  .ctl-row .hd-range input { width: 100%; }
+  .av-acts { gap: 4px; }
+  .av-acts button { padding: 5px 3px; font-size: 11.5px; }
+  .vi-iter { font-size: 11.5px; }
+}
