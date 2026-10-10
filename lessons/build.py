@@ -154,7 +154,8 @@ LESSONS = {
 import json, re, urllib.parse, html as _html
 CFG = json.loads((root.parent / 'site' / 'config.json').read_text(encoding='utf-8'))
 sys.path.insert(0, str(root.parent / 'site'))
-from published import published  # noqa: E402
+from published import published, asof  # noqa: E402
+import seo  # noqa: E402
 PUB = {pathlib.Path(p['file']).name for p in published(CFG)}  # опубликованное на момент сборки (MR_ASOF)
 def only_published(page):
     """Блок <!--if:proverka-chasti-1.html-->…<!--/if--> остаётся, только если страница уже опубликована:
@@ -179,6 +180,13 @@ def add_og(page, name):
             f'<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">\n'
             f'<meta property="og:locale" content="ru_RU">\n<meta name="twitter:card" content="summary_large_image">\n'
             f'<link rel="canonical" href="{url}">\n')
+    # разметка для поисковиков: урок как часть курса и «хлебные крошки» курс → часть → урок
+    today = asof().date().isoformat()
+    file = f'lessons/{name}'
+    kick = re.search(r'<div class="kicker"><span class="num">[\d.]+</span>\s*(Часть \d+)\s*·\s*([^<]+)</div>', page)
+    part = f'{kick.group(1)}. {kick.group(2).strip()}' if kick else None
+    modified = seo.page_date(file, CFG, today)
+    tags += seo.lesson_ld(SITE_URL, file, title, d.group(1), min(seo.page_first_date(file, CFG, today), today), min(modified, today), part)
     return page.replace(d.group(0), d.group(0) + '\n' + tags, 1)
 FEEDBACK = ('  <div class="fb" data-fb>\n'
             '    <div class="fb-q">Урок был понятен?</div>\n'

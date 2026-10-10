@@ -9,6 +9,7 @@ import json, pathlib, re, shutil, sys
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from published import asof, published as published_on  # noqa: E402
+import seo  # noqa: E402
 cfg = json.loads((HERE / 'config.json').read_text(encoding='utf-8'))
 sprite = (HERE / 'assets/sprite.svg.html').read_text(encoding='utf-8')
 shutil.copyfile(HERE.parent / 'lessons/shared/kit.js', HERE / 'assets/hero/kit.js')  # один источник для сайта и уроков
@@ -58,9 +59,27 @@ for p in published:
     if not (HERE / p['file']).exists():
         print(f'ВНИМАНИЕ: опубликованный урок {p["n"]} не собран: {p["file"]}', file=sys.stderr)
 today = asof().date().isoformat()
-urls = [f'{site_url}/', f'{site_url}/changelog.html', f'{site_url}/privacy.html'] + [f'{site_url}/{p["file"]}' for p in published]
+# даты страниц: последний коммит исходников, но не раньше дня выпуска; главная меняется с каждым выпуском и записью «Что нового»
+log_date = shown[0]['date'] if shown else ''
+index_date = max(seo.git_date(HERE / 'index.src.html', HERE / 'config.json') or today, log_date, max((p.get('date', '') for p in published), default=''))
+urls = [(f'{site_url}/', index_date), (f'{site_url}/changelog.html', max(seo.git_date(HERE / 'changelog.src.html') or today, log_date)),
+        (f'{site_url}/privacy.html', seo.git_date(HERE / 'privacy.src.html') or today)] + \
+       [(f'{site_url}/{p["file"]}', seo.page_date(p['file'], cfg, today)) for p in published]
 (HERE / 'sitemap.xml').write_text('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
-    ''.join(f'  <url><loc>{u}</loc><lastmod>{today}</lastmod></url>\n' for u in urls) + '</urlset>\n', encoding='utf-8')
+    ''.join(f'  <url><loc>{u}</loc><lastmod>{min(d, today)}</lastmod></url>\n' for u, d in urls) + '</urlset>\n', encoding='utf-8')
+# разметка курса для поисковиков на главной: Course + список опубликованных уроков
+index_html = (HERE / 'index.html').read_text(encoding='utf-8')
+if 'application/ld+json' not in index_html:
+    names = {}
+    for p in published:
+        f = HERE / p['file']
+        if f.exists():
+            m = re.search(r'<title>(.*?)</title>', f.read_text(encoding='utf-8'), flags=re.S)
+            if m:
+                names[p['file']] = m.group(1).split(' — ')[0].strip()
+    desc = re.search(r'<meta name="description" content="([^"]*)">', index_html)
+    index_html = index_html.replace('</head>', seo.course_ld(site_url, desc.group(1) if desc else '', published, names) + '</head>', 1)
+    (HERE / 'index.html').write_text(index_html, encoding='utf-8')
 (HERE / 'robots.txt').write_text(f'User-agent: *\nAllow: /\nSitemap: {site_url}/sitemap.xml\n', encoding='utf-8')
 print(f'sitemap.xml: {len(urls)} адресов, robots.txt')
 if not cfg.get('THANKS_API'):
