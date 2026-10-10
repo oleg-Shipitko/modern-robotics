@@ -1,7 +1,7 @@
 // Урок 4.1 «Масштаб данных в робототехнике»: калькулятор, лаборатория масштабирования и интерактив «удвоение»
 // дают обещанные в тексте исходы, миссии проходятся через интерфейс, схема движется, консоль чиста,
 // телефон без горизонтальной прокрутки. Снимки — shots/l41-*.png.
-// Урок собирается на дату выпуска: MR_ASOF=2026-10-31 python3 lessons/build.py l41.
+// Урок собирается на дату выпуска: MR_ASOF=2026-10-24 python3 lessons/build.py l41.
 const path = require('path');
 const { launch, sleep } = require('./cdp');
 const url = 'file://' + path.resolve(__dirname, '../site/lessons/4-1-masshtab-dannykh.html');

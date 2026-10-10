@@ -1,6 +1,6 @@
 // Урок 5.3 «Off-policy и SAC»: лаборатории дают обещанные в тексте исходы, миссии проходятся через интерфейс,
 // числа в разборах и текстах совпадают с движком, схемы движутся, консоль чиста, телефон без горизонтальной прокрутки.
-// Снимки — shots/l53-*.png. Урок собирается на дату выпуска: MR_ASOF=2026-11-14 python3 lessons/build.py l53.
+// Снимки — shots/l53-*.png. Урок собирается на дату выпуска: MR_ASOF=2026-10-31 python3 lessons/build.py l53.
 const path = require('path');
 const { launch, sleep } = require('./cdp');
 const url = 'file://' + path.resolve(__dirname, '../site/lessons/5-3-sac.html');

@@ -1,6 +1,6 @@
 // Урок 5.4 «Перенос из симуляции: рандомизация»: лаборатории дают обещанные в тексте исходы, миссии проходятся через интерфейс,
 // числа в разборах и текстах совпадают с движком, схемы движутся, консоль чиста, телефон без горизонтальной прокрутки.
-// Снимки — shots/l54-*.png. Урок собирается на дату выпуска: MR_ASOF=2026-11-14 python3 lessons/build.py l54.
+// Снимки — shots/l54-*.png. Урок собирается на дату выпуска: MR_ASOF=2026-10-31 python3 lessons/build.py l54.
 const path = require('path');
 const { launch, sleep } = require('./cdp');
 const url = 'file://' + path.resolve(__dirname, '../site/lessons/5-4-perenos-iz-simulyatsii.html');
@@ -45,7 +45,7 @@ const clickCell = (p, cv, i, j) => p.eval(`(() => {
     const hero = await p.eval(`document.getElementById('heroMis').textContent`);
     check(/^9 миссий с целью$/.test(hero), 'число миссий в шапке: ' + hero);
     check((await p.eval(`document.querySelectorAll('#recall .rc-q').length`)) === 3, 'разминка по уроку 5.3: три вопроса');
-    check(await p.eval(`!document.querySelector('a[href^="5-5"]')`), 'на дату 14.11 ссылки на урок 5.5 нет: блок <!--if--> вырезан при сборке');
+    check(await p.eval(`!!document.querySelector('a[href^="5-5"]')`), 'ссылка на урок 5.5 на месте (часть 5 выходит целиком 31.10)');
     const bridge = await text(p, '#finale .bridge');
     check(/5\.5/.test(bridge) && /привилегированной информацией/.test(bridge) && /в каком мире/.test(bridge), 'в итогах — абзац-мост в 5.5 «Обучение с привилегированной информацией»');
     await p.eval("window.__l54.SPEED.k = 20; document.querySelector('.topbar').style.visibility = 'hidden'; true");

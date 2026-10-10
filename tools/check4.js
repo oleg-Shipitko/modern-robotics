@@ -1,6 +1,6 @@
 // Проверка части 4: все задания отвечаются, задача «Бюджет на 60 у. е.» решается только смесью
 // демонстраций робота и симуляции, задачу можно пропустить, итог считается по урокам. Снимки — shots/c4-*.png.
-// Страница датирована днём выпуска, собирать так: MR_ASOF=2026-11-07 python3 lessons/build.py c4
+// Страница датирована днём выпуска, собирать так: MR_ASOF=2026-10-24 python3 lessons/build.py c4
 const path = require('path');
 const { launch, sleep } = require('./cdp');
 const url = 'file://' + path.resolve(__dirname, '../site/lessons/proverka-chasti-4.html');

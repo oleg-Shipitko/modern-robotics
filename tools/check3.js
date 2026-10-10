@@ -1,6 +1,6 @@
 // Проверка части 3: все задания отвечаются, задача «Ада в облаке» решается только двумя системами
 // с моделью в облаке не реже 5 Гц, задачу можно пропустить, итог считается по урокам. Снимки — shots/c3-*.png.
-// Страница датирована днём выпуска, собирать так: MR_ASOF=2026-10-24 python3 lessons/build.py c3
+// Страница датирована днём выпуска, собирать так: MR_ASOF=2026-10-17 python3 lessons/build.py c3
 const path = require('path');
 const { launch, sleep } = require('./cdp');
 const url = 'file://' + path.resolve(__dirname, '../site/lessons/proverka-chasti-3.html');

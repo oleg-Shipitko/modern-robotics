@@ -1,6 +1,6 @@
 // Урок 3.5 «Открытые VLA: Octo и OpenVLA»: миссии проходятся через интерфейс и дают обещанные в тексте исходы,
 // числа в браузере совпадают с движком в Node, консоль чиста, телефон без горизонтальной прокрутки. Снимки — shots/l35-*.png.
-// Урок собирается на дату выпуска: MR_ASOF=2026-10-24 python3 lessons/build.py l35.
+// Урок собирается на дату выпуска: MR_ASOF=2026-10-17 python3 lessons/build.py l35.
 const path = require('path');
 const { launch, sleep } = require('./cdp');
 const E = require('../lessons/l35/engine.js');

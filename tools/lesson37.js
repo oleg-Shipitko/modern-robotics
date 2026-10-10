@@ -1,6 +1,6 @@
 // Урок 3.7 «Двухуровневые архитектуры: Helix, GR00T, Gemini Robotics»: лаборатории дают обещанные в тексте исходы,
 // миссии проходятся через интерфейс, схемы движутся, консоль чиста, телефон без горизонтальной прокрутки.
-// Снимки — shots/l37-*.png. Урок собирается на дату выпуска: MR_ASOF=2026-10-24 python3 lessons/build.py l37.
+// Снимки — shots/l37-*.png. Урок собирается на дату выпуска: MR_ASOF=2026-10-17 python3 lessons/build.py l37.
 const path = require('path');
 const { launch, sleep } = require('./cdp');
 const E = require('../lessons/l37/engine.js');

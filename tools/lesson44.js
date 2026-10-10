@@ -1,6 +1,6 @@
 // Урок 4.4 «Обучение на видео людей»: лаборатории и интерактив дают обещанные в тексте исходы, миссии проходятся через
 // интерфейс, схемы движутся, консоль чиста, телефон без горизонтальной прокрутки. Снимки — shots/l44-*.png.
-// Урок собирается на дату выпуска: MR_ASOF=2026-11-07 python3 lessons/build.py l44.
+// Урок собирается на дату выпуска: MR_ASOF=2026-10-24 python3 lessons/build.py l44.
 const path = require('path');
 const { launch, sleep } = require('./cdp');
 const url = 'file://' + path.resolve(__dirname, '../site/lessons/4-4-video-lyudey.html');

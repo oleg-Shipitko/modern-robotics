@@ -1,6 +1,6 @@
 // Урок 3.6 «π0»: лаборатория и интерактивы дают обещанные в тексте исходы, миссии проходятся через интерфейс,
 // схема движется, консоль чиста, телефон без горизонтальной прокрутки. Снимки — shots/l36-*.png.
-// Урок собирается на дату выпуска: MR_ASOF=2026-10-24 python3 lessons/build.py l36.
+// Урок собирается на дату выпуска: MR_ASOF=2026-10-17 python3 lessons/build.py l36.
 const path = require('path');
 const { launch, sleep } = require('./cdp');
 const url = 'file://' + path.resolve(__dirname, '../site/lessons/3-6-pi0.html');

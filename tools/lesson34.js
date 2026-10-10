@@ -1,6 +1,6 @@
 // Урок 3.4 «Open X-Embodiment»: карточки формата, таблицы статьи и лаборатория смеси дают обещанные в тексте исходы,
 // миссии проходятся через интерфейс, схема движется, консоль чиста, телефон без горизонтальной прокрутки. Снимки — shots/l34-*.png.
-// Урок собирается на дату выпуска части: MR_ASOF=2026-10-24 python3 lessons/build.py l34.
+// Урок собирается на дату выпуска части: MR_ASOF=2026-10-17 python3 lessons/build.py l34.
 const path = require('path');
 const { launch, sleep } = require('./cdp');
 const url = 'file://' + path.resolve(__dirname, '../site/lessons/3-4-open-x-embodiment.html');

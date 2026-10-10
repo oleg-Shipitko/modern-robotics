@@ -1,6 +1,6 @@
 // Урок 4.6 «Пирамида данных и маховик»: лаборатории дают обещанные в тексте исходы, миссии проходятся через
 // интерфейс, схемы движутся, консоль чиста, телефон без горизонтальной прокрутки. Снимки — shots/l46-*.png.
-// Урок собирается на дату выпуска: MR_ASOF=2026-11-07 python3 lessons/build.py l46.
+// Урок собирается на дату выпуска: MR_ASOF=2026-10-24 python3 lessons/build.py l46.
 const path = require('path');
 const { launch, sleep } = require('./cdp');
 const url = 'file://' + path.resolve(__dirname, '../site/lessons/4-6-piramida-dannykh.html');
@@ -35,7 +35,7 @@ const visible = (p, sel) => p.eval(`(() => { const e = document.querySelector('$
   const hero = await p.eval(`document.getElementById('heroMis').textContent`);
   check(/^6 миссий с целью$/.test(hero), 'число миссий в шапке: ' + hero);
   check((await p.eval(`document.querySelectorAll('#recall .rc-q').length`)) === 3, 'разминка по уроку 4.5: три вопроса');
-  check(await p.eval(`!document.querySelector('a[href="proverka-chasti-4.html"]')`), 'ссылки на неопубликованную проверку части 4 нет (блок <!--if--> вырезан)');
+  check(await p.eval(`!!document.querySelector('a[href="proverka-chasti-4.html"]')`), 'ссылка на проверку части 4 на месте (выходит вместе с уроком 24.10)');
   check(/часть 5|части 5/.test(await text(p, '#finale .bridge')), 'в итогах — абзац-мост в часть 5');
   await p.eval('window.__l46.SPEED.k = 20; true');
 
