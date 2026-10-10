@@ -142,7 +142,7 @@ LESSONS = {
         '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/arm-core.js', 'l37/engine.js', 'shared/check.js', 'c3/ui-c3.js'],
     }),
     'c5': ('proverka-chasti-5.html', ['l01/lesson.css', 'shared/lab.css', 'shared/check.css', 'c5/c5.css'], {
-        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/arm-core.js', 'shared/check.js', 'c5/ui-c5.js'],
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/arm-core.js', 'l51/engine.js', 'shared/check.js', 'c5/ui-c5.js'],
     }),
     'c4': ('proverka-chasti-4.html', ['l01/lesson.css', 'shared/lab.css', 'shared/check.css', 'c4/c4.css'], {
         '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'l21/engine.js', 'l46/engine.js', 'shared/check.js', 'c4/ui-c4.js'],
