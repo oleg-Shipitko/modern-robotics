@@ -115,6 +115,9 @@ LESSONS = {
     'l56': ('5-6-offline-rl.html', ['l01/lesson.css', 'shared/lab.css', 'l56/l56.css'], {
         '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'shared/drive-core.js', 'l56/engine.js', 'l56/ui-l56.js'],
     }),
+    'l57': ('5-7-rl-na-realnykh-robotakh.html', ['l01/lesson.css', 'shared/lab.css', 'l57/l57.css'], {
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'shared/arm-core.js', 'l57/engine.js', 'l57/ui-l57.js'],
+    }),
     'l81': ('8-1-klassika-v-konture.html', ['l01/lesson.css', 'shared/lab.css', 'l81/l81.css'], {
         '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'shared/arm-core.js', 'l81/engine.js', 'l81/ui-l81.js'],
     }),
@@ -137,6 +140,9 @@ LESSONS = {
     }),
     'c3': ('proverka-chasti-3.html', ['l01/lesson.css', 'shared/lab.css', 'shared/check.css', 'c3/c3.css'], {
         '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/arm-core.js', 'l37/engine.js', 'shared/check.js', 'c3/ui-c3.js'],
+    }),
+    'c5': ('proverka-chasti-5.html', ['l01/lesson.css', 'shared/lab.css', 'shared/check.css', 'c5/c5.css'], {
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/arm-core.js', 'shared/check.js', 'c5/ui-c5.js'],
     }),
     'c4': ('proverka-chasti-4.html', ['l01/lesson.css', 'shared/lab.css', 'shared/check.css', 'c4/c4.css'], {
         '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'l21/engine.js', 'l46/engine.js', 'shared/check.js', 'c4/ui-c4.js'],
