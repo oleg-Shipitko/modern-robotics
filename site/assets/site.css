@@ -79,7 +79,7 @@ p { margin: 0 0 1em; color: var(--ink-2); }
 @media (max-width: 400px) { .nav-in { gap: 10px; padding: 8px 16px; } .logo { white-space: normal; font-size: 13.5px; line-height: 1.15; } .wrap { padding: 0 16px; } }
 
 /* благодарности читателям */
-.contrib { list-style: none; padding: 0; margin: 18px 0 0; display: grid; gap: 10px; max-width: 760px; }
+.contrib { list-style: none; padding: 0; margin: 18px 0 0; display: flex; flex-wrap: wrap; gap: 10px; max-width: 760px; }
 .contrib li { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; padding: 12px 16px; border: 1px solid var(--line, #e3ded3); border-radius: 12px; background: var(--surface, #fff); }
 .contrib a { font-weight: 700; text-decoration: none; }
 .contrib span { color: var(--ink-2, #5a574f); }

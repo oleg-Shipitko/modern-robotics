@@ -46,9 +46,16 @@ window.Missions = (function () {
     root.innerHTML = ''; root.append(card);
     const gcard = root.parentElement; if (gcard && gcard.classList.contains('guide-card')) gcard.classList.add('m-split'); // разрешает раскладку вокруг сцены в lab.css
     // В раскладке в одну колонку условие стоит над сценой: после «Следующая миссия» и «Начать заново» поднимаемся к нему
+    // После «Следующая миссия» и «Начать заново» условие новой миссии должно быть перед глазами: в раскладке в одну
+    // колонку оно стоит над сценой, в две колонки — вверху правой панели и может уйти за край экрана при длинном разборе.
+    // Поднимаемся к нему, если оно не видно целиком, и на секунду подсвечиваем рамкой.
     function revealTop() {
-      if (!view || !view.top || getComputedStyle(card).display !== 'contents') return;
-      if (view.top.getBoundingClientRect().top < 64) view.top.scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+      if (!view || !view.top) return;
+      const r = view.top.getBoundingClientRect(), split = getComputedStyle(card).display === 'contents';
+      if ((split && r.top < 64) || (!split && (r.top < 0 || r.bottom > window.innerHeight))) {
+        view.top.scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+      }
+      view.top.classList.remove('flash'); void view.top.offsetWidth; view.top.classList.add('flash');
     }
     const lab = root.closest('.lab'), scene = opts.scene ? document.querySelector(opts.scene) : lab && lab.querySelector('canvas');
     function showScene() {

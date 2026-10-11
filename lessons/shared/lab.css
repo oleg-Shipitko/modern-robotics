@@ -205,3 +205,8 @@ label.opt { display: inline-flex; gap: 7px; align-items: center; font-size: 14px
 canvas[data-anim] { width: 100%; height: auto; display: block; border-radius: 10px; background: var(--surface-2); cursor: pointer; }
 canvas[data-anim].paused { outline: 2px dashed var(--line-2); outline-offset: 2px; }
 .anim-play { justify-self: start; margin-top: 6px; }
+
+/* подсветка условия новой миссии после перехода */
+.m-top.flash { animation: mTopFlash 1.4s ease-out; border-radius: var(--radius); }
+@keyframes mTopFlash { 0% { box-shadow: 0 0 0 3px var(--accent, #eb6834); } 100% { box-shadow: 0 0 0 0 transparent; } }
+@media (prefers-reduced-motion: reduce) { .m-top.flash { animation: none; } }
