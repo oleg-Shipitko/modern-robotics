@@ -95,7 +95,7 @@ const Lab1 = (() => {
     const io = new IntersectionObserver((list) => { if (list.some((e) => e.isIntersecting)) { labSeen = true; if (window.MRStats) window.MRStats.ev(`mis:lab1:${step}:seen`); io.disconnect(); } }, { rootMargin: '0px 0px -40% 0px' });
     io.observe($('#arena'));
   }
-  function setStep(i) {
+  function setStep(i, fromNext) {
     stopRun();
     step = i;
     if (window.MRStats && labSeen) window.MRStats.ev(`mis:lab1:${i}:seen`);
@@ -110,6 +110,11 @@ const Lab1 = (() => {
     renderStepper(); renderMission();
     $('#explain').hidden = true;
     resetEpisodes();
+    if (fromNext) {  // по кнопке «Эксперимент N из 5» поднимаемся к условию нового эксперимента и подсвечиваем его
+      const card = $('#mission');
+      card.scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+      card.classList.remove('flash'); void card.offsetWidth; card.classList.add('flash');
+    }
   }
 
   function goFree() {
@@ -162,7 +167,7 @@ const Lab1 = (() => {
     const st = STEPS[step], hint = $('#runHint');
     if (hint) hint.textContent = running ? 'Три версии Ады едут одновременно.'
       : st.free ? 'Меняй условия и предметы ниже и запускай снова.'
-      : finishedRun ? 'Разбор — ниже. Дальше — кнопка «Следующий эксперимент».'
+      : finishedRun ? 'Разбор — ниже. Дальше — кнопка «Эксперимент N из 5» в конце разбора.'
       : 'Сделай прогноз выше и запусти: все три версии Ады поедут одновременно. Разбор появится прямо здесь.';
   }
 
@@ -228,7 +233,7 @@ const Lab1 = (() => {
     if (!ep) return { ico: '⏸', html: 'Готова к запуску' };
     if (!ep.done) {
       if (kind !== 'e2e' && ep.agent.kf && !ep.agent.kf.x) return { ico: '🔎', html: `Ищу чашку… шаг ${ep.t}` };
-      if (ep.agent.view && ep.agent.view.safetyStop) return { ico: '🛑', html: `Монитор безопасности притормозил · шаг ${ep.t}` };
+      if (ep.agent.view && ep.agent.view.safetyStop) return { ico: '🛑', html: `Правило безопасности остановило руку · шаг ${ep.t}` };
       return { ico: '🤖', html: `Еду к цели · шаг ${ep.t}` };
     }
     const d = ep.detail || {};
@@ -286,7 +291,7 @@ const Lab1 = (() => {
     }
     if (verdict) box.append(verdict);
     const next = h('div', { style: 'margin-top:12px' });
-    if (step < STEPS.length - 1) next.append(h('button', { class: 'btn', type: 'button', onclick: () => setStep(step + 1) }, step === STEPS.length - 2 ? 'В свободный режим →' : 'Следующий эксперимент →'));
+    if (step < STEPS.length - 1) next.append(h('button', { class: 'btn', type: 'button', onclick: () => setStep(step + 1, true) }, step === STEPS.length - 2 ? 'В свободный режим →' : `Эксперимент ${step + 2} из 5 →`));
     box.append(next);
     box.hidden = false;
   }

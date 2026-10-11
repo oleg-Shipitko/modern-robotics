@@ -635,3 +635,7 @@ a.brand:hover small { color: var(--ink-2); }
 #lab1 .free-tools[hidden] { display: none; }
 #lab1 .free-tools { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
 #lab1 .stepper button.locked { opacity: .55; cursor: not-allowed; }
+
+/* подсветка условия после перехода к следующему эксперименту */
+.mission.flash { animation: mcFlash 1.4s ease-out; }
+@keyframes mcFlash { 0% { box-shadow: 0 0 0 3px var(--accent, #eb6834); } 100% { box-shadow: 0 0 0 0 transparent; } }
