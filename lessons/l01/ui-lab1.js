@@ -288,9 +288,9 @@ const Lab1 = (() => {
       if (!notes.length) notes.push('Скорее всего, сцена изменилась: передвинуты предметы, изменён шум камеры или сети обучены заново. Так и выглядит экспериментальная работа.');
       box.append(h('p', null, notes.join(' ')));
       box.append(h('p', { html: '<span class="muted">Типичный исход этого эксперимента:</span> ' + st.explain }));
-      if (step === 0) box.append(h('p', { html: '<strong>Это был первый из пяти экспериментов.</strong> Дальше условия меняются по одному: свет, препятствие на пути, цвет чашки. Переходи кнопкой ниже.' }));
     }
     if (verdict) box.append(verdict);
+    if (step === 0) box.append(h('p', { html: '<strong>Это был первый из пяти экспериментов.</strong> Дальше условия меняются по одному: свет, препятствие на пути, цвет чашки. Переходи кнопкой ниже.' }));
     const next = h('div', { style: 'margin-top:12px' });
     if (step < STEPS.length - 1) next.append(h('button', { class: 'btn', type: 'button', onclick: () => setStep(step + 1, true) }, step === STEPS.length - 2 ? 'В свободный режим →' : `Эксперимент ${step + 2} из 5 →`));
     box.append(next);
