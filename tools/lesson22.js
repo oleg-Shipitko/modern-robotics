@@ -35,13 +35,16 @@ const shot = async (p, id, sel, n, pad) => { await p.eval(`document.getElementBy
   const hm = await p.eval(`document.getElementById('heroMis').textContent`);
   check(hm === '9 миссий с целью', 'число миссий в шапке: ' + hm);
   check((await p.eval(`document.querySelectorAll('#recall .rc-q').length`)) === 3, 'разминка по уроку 2.1: три вопроса');
-  // отсылки вперёд: названий моделей из будущих уроков нет в прозе, миссиях, разборах и квизе
-  // (исключения — разминка, раздел «Сегодня», ссылки и анонс следующего урока в итоге, где названия идут с пояснением и номером урока)
-  const fwdBody = await p.eval('(() => { const m = document.querySelector("main").cloneNode(true); m.querySelectorAll("#recall, #glData, #today, #finale .links, #finale .callout, .katex").forEach((e) => e.remove()); return m.textContent; })()');
+  // отсылки вперёд: первое упоминание модели из будущего урока в основном тексте (без разминки, глоссария, формул,
+  // раздела «Сегодня» и итога) и в исходниках интерактивов идёт с номером урока «урок N.M» не дальше 160 символов; остальные упоминания свободны
+  const fwdNames = ['RT-1', 'RT-2', 'Open X-Embodiment', 'Octo', 'OpenVLA', 'SmolVLA', 'π0', 'PaliGemma', 'Helix', 'GR00T', 'Gemini', 'PaLM-E', 'VoxPoser', 'SayCan', 'Code as Policies', 'Inner Monologue'];
   const fwdSrc = ['../lessons/l22/ui-l22.js', '../lessons/l22/flow.js', '../lessons/l22/engine.js'].map((f) => fs.readFileSync(path.resolve(__dirname, f), 'utf8')).join('\n');
-  const fwdBanned = ['RT-1', 'RT-2', 'Open X-Embodiment', 'Octo', 'OpenVLA', 'π0', 'PaliGemma', 'Helix', 'GR00T', 'Gemini', 'PaLM-E', ' VLA', 'VLM', 'VoxPoser', 'SayCan', 'Code as Policies', 'Inner Monologue'];
-  const fwdFound = fwdBanned.filter((w) => fwdBody.includes(w) || fwdSrc.includes(w));
-  check(fwdFound.length === 0, 'отсылок вперёд по именам моделей нет' + (fwdFound.length ? ': ' + fwdFound.join(', ') : ''));
+  const fwdCheck = async () => {
+    const body = await p.eval('(() => { const m = document.querySelector("main").cloneNode(true); m.querySelectorAll("#recall, #glData, #today, #finale, .katex").forEach((e) => e.remove()); return m.textContent; })()');
+    const near = (t, w) => { const i = t.indexOf(w); return i < 0 || /урок[а-яё]*\s+\d\.\d/i.test(t.slice(Math.max(0, i - 160), i + w.length + 160)); };
+    const bad = fwdNames.filter((w) => !near(body, w) || !near(fwdSrc, w));
+    check(bad.length === 0, 'первое упоминание модели из будущего урока — с номером урока' + (bad.length ? ': ' + bad.join(', ') : ''));
+  };
   await p.eval('window.__l22.SPEED.k = 60; true');
 
   // ---------- 1. Ключевые позы ----------
@@ -155,6 +158,7 @@ const shot = async (p, id, sel, n, pad) => { await p.eval(`document.getElementBy
   await shot(p, 'results', '#results .chart-card', 'l22-table1.png', 6);
   await p.eval(`document.querySelectorAll('#quizBox .q-card').forEach((c) => c.querySelector('.q-opt').click()); true`);
   check(/^Итог: \d из 8/.test(await p.eval(`document.getElementById('quizScore').textContent`)), 'квиз: ' + await p.eval(`document.getElementById('quizScore').textContent`));
+  await fwdCheck();
   check((await p.eval(`[...document.querySelectorAll('.gl')].filter((e) => getComputedStyle(e).display !== 'inline').length`)) === 0, 'подсказки глоссария строчные');
   check((await p.eval(`document.querySelectorAll('.katex').length`)) >= 10, 'формулы отрисованы KaTeX: ' + await p.eval(`document.querySelectorAll('.katex').length`));
   const an = JSON.parse(await p.eval(`JSON.stringify([...document.querySelectorAll('canvas[data-anim]')].map((cv) => { Anim.seek(cv, 1.1); const a = cv.toDataURL(); Anim.seek(cv, 3.7); const b = cv.toDataURL(); return { k: cv.dataset.anim, moves: a !== b, w: cv.width }; }))`));

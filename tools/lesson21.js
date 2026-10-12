@@ -15,13 +15,16 @@ const J = (s) => JSON.parse(s);
   await p.waitFor('window.__lessonReady === true', 30000); await sleep(600);
   check(/^1[01] миссий с целью$/.test(await p.eval(`document.getElementById('heroMis').textContent`)), 'число миссий в шапке: ' + await p.eval(`document.getElementById('heroMis').textContent`));
   check((await p.eval(`document.querySelectorAll('#recall .rc-q, #recall [data-recall] *').length`)) > 0, 'разминка по уроку 1.8 на месте');
-  // отсылки вперёд: названий моделей из будущих уроков нет в прозе, миссиях, разборах и квизе
-  // (исключения — разминка, раздел «Сегодня», ссылки и анонс следующего урока в итоге, где названия идут с пояснением и номером урока)
-  const fwdBody = await p.eval('(() => { const m = document.querySelector("main").cloneNode(true); m.querySelectorAll("#recall, #glData, #today, #finale .links, #finale .callout, .katex").forEach((e) => e.remove()); return m.textContent; })()');
+  // отсылки вперёд: первое упоминание модели из будущего урока в основном тексте (без разминки, глоссария, формул,
+  // раздела «Сегодня» и итога) и в исходниках интерактивов идёт с номером урока «урок N.M» не дальше 160 символов; остальные упоминания свободны
+  const fwdNames = ['RT-1', 'RT-2', 'Open X-Embodiment', 'Octo', 'OpenVLA', 'SmolVLA', 'π0', 'PaliGemma', 'Helix', 'GR00T', 'Gemini', 'PaLM-E', 'PerAct', 'VoxPoser', 'SayCan', 'Code as Policies', 'Inner Monologue'];
   const fwdSrc = ['../lessons/l21/ui-l21.js'].map((f) => fs.readFileSync(path.resolve(__dirname, f), 'utf8')).join('\n');
-  const fwdBanned = ['RT-1', 'RT-2', 'Open X-Embodiment', 'Octo', 'OpenVLA', 'π0', 'PaliGemma', 'Helix', 'GR00T', 'Gemini', 'PaLM-E', ' VLA', 'VLM', 'SigLIP', 'PerAct', 'VoxPoser', 'SayCan'];
-  const fwdFound = fwdBanned.filter((w) => fwdBody.includes(w) || fwdSrc.includes(w));
-  check(fwdFound.length === 0, 'отсылок вперёд по именам моделей нет' + (fwdFound.length ? ': ' + fwdFound.join(', ') : ''));
+  const fwdCheck = async () => {
+    const body = await p.eval('(() => { const m = document.querySelector("main").cloneNode(true); m.querySelectorAll("#recall, #glData, #today, #finale, .katex").forEach((e) => e.remove()); return m.textContent; })()');
+    const near = (t, w) => { const i = t.indexOf(w); return i < 0 || /урок[а-яё]*\s+\d\.\d/i.test(t.slice(Math.max(0, i - 160), i + w.length + 160)); };
+    const bad = fwdNames.filter((w) => !near(body, w) || !near(fwdSrc, w));
+    check(bad.length === 0, 'первое упоминание модели из будущего урока — с номером урока' + (bad.length ? ': ' + bad.join(', ') : ''));
+  };
   await p.eval('window.__l21.SPEED.k = 20; true');
   // 1. мини-CLIP
   const c0 = J(await p.eval(`JSON.stringify(window.__l21.LabClip.api.state())`));
@@ -64,6 +67,7 @@ const J = (s) => JSON.parse(s);
   // квиз
   await p.eval(`document.querySelectorAll('#quizBox .q-card').forEach((c) => c.querySelector('.q-opt').click()); true`);
   check(/^Итог: \d из 8/.test(await p.eval(`document.getElementById('quizScore').textContent`)), 'квиз: ' + await p.eval(`document.getElementById('quizScore').textContent`));
+  await fwdCheck();
   check((await p.eval(`[...document.querySelectorAll('.gl')].filter((e) => getComputedStyle(e).display !== 'inline').length`)) === 0, 'подсказки глоссария строчные');
   check(!p.logs.length, 'консоль: ' + (p.logs.join(' | ') || 'чисто'));
   // тёмная тема

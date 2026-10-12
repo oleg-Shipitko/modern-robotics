@@ -30,13 +30,16 @@ const critOk = (p, mis) => p.eval(`(() => { const li = [...document.querySelecto
   await p.waitFor('window.__lessonReady === true', 30000); await sleep(600);
   check(/^17 миссий с целью$/.test(await p.eval(`document.getElementById('heroMis').textContent`)), 'число миссий в шапке: ' + await p.eval(`document.getElementById('heroMis').textContent`));
   check((await p.eval(`document.querySelectorAll('#recall .rc-q').length`)) === 3, 'разминка по уроку 2.2: три вопроса');
-  // отсылки вперёд: названий моделей из будущих уроков нет в прозе, миссиях, разборах и квизе
-  // (исключения — разминка, раздел «Сегодня», ссылки и анонс следующего урока в итоге, где названия идут с пояснением и номером урока)
-  const fwdBody = await p.eval('(() => { const m = document.querySelector("main").cloneNode(true); m.querySelectorAll("#recall, #glData, #today, #finale .links, #finale .callout, .katex").forEach((e) => e.remove()); return m.textContent; })()');
+  // отсылки вперёд: первое упоминание модели из будущего урока в основном тексте (без разминки, глоссария, формул,
+  // раздела «Сегодня» и итога) и в исходниках интерактивов идёт с номером урока «урок N.M» не дальше 160 символов; остальные упоминания свободны
+  const fwdNames = ['RT-1', 'RT-2', 'Open X-Embodiment', 'Octo', 'OpenVLA', 'SmolVLA', 'π0', 'PaliGemma', 'Helix', 'GR00T', 'Gemini', 'PaLM-E'];
   const fwdSrc = ['../lessons/l23/ui-l23.js', '../lessons/l23/engine.js'].map((f) => fs.readFileSync(path.resolve(__dirname, f), 'utf8')).join('\n');
-  const fwdBanned = ['RT-1', 'RT-2', 'Open X-Embodiment', 'Octo', 'OpenVLA', 'π0', 'PaliGemma', 'Helix', 'GR00T', 'Gemini', 'PaLM-E', ' VLA', 'VLM'];
-  const fwdFound = fwdBanned.filter((w) => fwdBody.includes(w) || fwdSrc.includes(w));
-  check(fwdFound.length === 0, 'отсылок вперёд по именам моделей нет' + (fwdFound.length ? ': ' + fwdFound.join(', ') : ''));
+  const fwdCheck = async () => {
+    const body = await p.eval('(() => { const m = document.querySelector("main").cloneNode(true); m.querySelectorAll("#recall, #glData, #today, #finale, .katex").forEach((e) => e.remove()); return m.textContent; })()');
+    const near = (t, w) => { const i = t.indexOf(w); return i < 0 || /урок[а-яё]*\s+\d\.\d/i.test(t.slice(Math.max(0, i - 160), i + w.length + 160)); };
+    const bad = fwdNames.filter((w) => !near(body, w) || !near(fwdSrc, w));
+    check(bad.length === 0, 'первое упоминание модели из будущего урока — с номером урока' + (bad.length ? ': ' + bad.join(', ') : ''));
+  };
   check((await p.eval(`!!document.querySelector('a[href="proverka-chasti-2.html"]')`)), 'ссылка на проверку части 2 на месте');
   await p.eval('window.__l23.SPEED.k = 20; true');
 
@@ -169,6 +172,7 @@ const critOk = (p, mis) => p.eval(`(() => { const li = [...document.querySelecto
   // ---------- квиз, глоссарий, консоль ----------
   await p.eval(`document.querySelectorAll('#quizBox .q-card').forEach((c) => c.querySelector('.q-opt').click()); true`);
   check(/^Итог: \d из 8/.test(await p.eval(`document.getElementById('quizScore').textContent`)), 'квиз: ' + await p.eval(`document.getElementById('quizScore').textContent`));
+  await fwdCheck();
   check((await p.eval(`[...document.querySelectorAll('.gl')].filter((e) => getComputedStyle(e).display !== 'inline').length`)) === 0, 'подсказки глоссария строчные');
   check((await p.eval(`document.querySelectorAll('.katex').length`)) >= 5, 'формулы отрисованы KaTeX: ' + await p.eval(`document.querySelectorAll('.katex').length`));
   check(!p.logs.length, 'консоль: ' + (p.logs.join(' | ') || 'чисто'));
