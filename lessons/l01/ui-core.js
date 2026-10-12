@@ -138,3 +138,20 @@ const Chart = {
     return points.map((p, i) => (i ? 'L' : 'M') + x(p[0]).toFixed(1) + ',' + y(p[1]).toFixed(1)).join('');
   },
 };
+
+/* ---------- Шапка урока: прячется при прокрутке вниз, возвращается при прокрутке вверх ---------- */
+(function topbarAutoHide() {
+  const bar = document.querySelector('.topbar');
+  if (!bar) return;
+  let last = window.scrollY, acc = 0, ticking = false;
+  function update() {
+    ticking = false;
+    const y = window.scrollY, dy = y - last; last = y;
+    if (y < 80) { bar.classList.remove('hide'); acc = 0; return; }   // у верха страницы шапка всегда видна
+    acc = Math.sign(dy) === Math.sign(acc) ? acc + dy : dy;           // накапливаем движение в одну сторону
+    if (acc > 24) { bar.classList.add('hide'); acc = 0; }             // вниз — спрятать
+    else if (acc < -24) { bar.classList.remove('hide'); acc = 0; }   // вверх — показать
+  }
+  window.addEventListener('scroll', () => { if (!ticking) { ticking = true; requestAnimationFrame(update); } }, { passive: true });
+  bar.addEventListener('focusin', () => bar.classList.remove('hide'));  // переход по Tab к ссылкам шапки
+})();

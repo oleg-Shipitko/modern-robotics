@@ -90,6 +90,7 @@ img, svg, canvas { display: block; }
 /* ---------- Верхняя панель ---------- */
 .topbar {
   position: sticky; top: 0; z-index: 50;
+  transition: transform .28s ease;
   background: color-mix(in srgb, var(--bg) 86%, transparent);
   backdrop-filter: saturate(1.4) blur(12px);
   -webkit-backdrop-filter: saturate(1.4) blur(12px);
@@ -639,3 +640,7 @@ a.brand:hover small { color: var(--ink-2); }
 /* подсветка условия после перехода к следующему эксперименту */
 .mission.flash { animation: mcFlash 1.4s ease-out; }
 @keyframes mcFlash { 0% { box-shadow: 0 0 0 3px var(--accent, #eb6834); } 100% { box-shadow: 0 0 0 0 transparent; } }
+
+/* шапка прячется при прокрутке вниз и возвращается при прокрутке вверх (ui-core.js) */
+.topbar.hide { transform: translateY(-100%); }
+@media (prefers-reduced-motion: reduce) { .topbar { transition: none; } }

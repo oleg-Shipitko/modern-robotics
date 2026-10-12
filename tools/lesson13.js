@@ -185,7 +185,7 @@ async function desktop() {
   check(hm1 !== hm2, 'схема «четыре способа» движется');
   await p.eval('document.querySelector("canvas[data-anim=modes4b]").closest("details").open = true'); await sleep(150);
   const hb1 = await animHash(p, 'modes4b', 0.4), hb2 = await animHash(p, 'modes4b', 2.0);
-  check(hb1 !== hb2, 'схема «ещё четыре способа» движется');
+  check(hb1 !== hb2, 'схема «ещё три способа» движется');
   await p.shotEl(out('l13-modes4b.png'), 'canvas[data-anim=modes4b]', 4);
   await center(p, '#binsMis');
   await bet(p, '#binsMis', 'Около половины'); await go(p, '#binsMis', 'bins');
