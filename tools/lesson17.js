@@ -288,19 +288,23 @@ async function desktop() {
   console.log('Десктоп 1440');
   check(await p.eval('document.querySelectorAll("[id]").length === new Set([...document.querySelectorAll("[id]")].map((e) => e.id)).size'), 'id без повторов');
   check(await p.eval('typeof Guide === "undefined" && !document.querySelector(".g-card")'), 'старая пошаговая карточка не используется');
-  // отсылки вперёд: модели из будущих уроков в прозе, миссиях и квизе либо не названы, либо идут с номером урока в той же фразе;
-  // π0 — сквозной пример урока 1.6, здесь при первом упоминании в прозе напоминаем, откуда она
+  // отсылки вперёд: модели из будущих уроков названы своими именами; π0 — сквозной пример урока 1.6, при первом упоминании в прозе напоминаем, откуда она.
+  // Правило: первое упоминание имени в main (без разминки, глоссария, формул, таблицы-справки и ссылок финала) идёт с «урок N.M»
+  // в пределах 160 символов; остальные упоминания свободны. Проверяем при загрузке и после миссий и квиза.
   check(/π0 \(большой политике из урока 1\.6\)/.test(await p.eval('document.querySelector("#te").textContent')), 'π0 при первом упоминании отсылает к уроку 1.6');
-  const body = await p.eval('(() => { const m = document.querySelector("main").cloneNode(true); m.querySelectorAll("#finale .links, #finale .links + *, #recall, #glData").forEach((e) => e.remove()); return m.textContent; })()');
-  const banned = ['RT-1', 'RT-2', 'OpenVLA', 'Octo', 'GR00T', 'Helix', 'CLIPort', 'Transporter', 'PerAct', 'SayCan', 'VoxPoser', 'SmolVLA', 'Gemini Robotics', 'π0.5', 'π0.6', 'FAST'];
-  const bare = (w) => { let i = -1, n = 0; while ((i = body.indexOf(w, i + 1)) >= 0) if (!/урок[а-я]* \d\.\d/.test(body.slice(i, i + 140))) n++; return n; };
-  const found = banned.filter((w) => bare(w) > 0);
-  check(found.length === 0, 'отсылок вперёд по именам моделей без номера урока нет' + (found.length ? ': ' + found.join(', ') : ''));
+  const fwdRefs = async (when) => {
+    const body = await p.eval('(() => { const m = document.querySelector("main").cloneNode(true); m.querySelectorAll("#recall, #glData, .katex, #finale .links, #finale .links + *, #systems .table-wrap").forEach((e) => e.remove()); return m.textContent; })()');
+    const names = ['RT-1', 'RT-2', 'OpenVLA', 'Octo', 'GR00T', 'Helix', 'CLIPort', 'Transporter', 'PerAct', 'SayCan', 'VoxPoser', 'SmolVLA', 'Gemini Robotics', 'π0.5', 'π0.6', 'π0.7', 'FAST'];
+    const bare = names.filter((w) => { const i = body.indexOf(w); return i >= 0 && !/урок[а-я]* \d\.\d/.test(body.slice(i, i + 160)); });
+    check(bare.length === 0, `первое упоминание модели из будущего урока идёт с номером урока (${when})` + (bare.length ? ': ' + bare.join(', ') : ''));
+  };
+  await fwdRefs('при загрузке');
   check(await p.eval('document.querySelectorAll("#alohaBars .rb").length === 6 && document.querySelectorAll(".vid").length === 2'), 'ALOHA: 6 результатов и 2 обложки видео');
   await p.shotEl(out('l17-aloha.png'), '#aloha .wrap', 6);
   await p.shot(out('l17-hero.png'));
   await errLab(p); await chunkLab(p); await archLab(p); await cvaeLab(p); await teLab(p); await delayLab(p);
   await p.eval('document.querySelectorAll("#quizBox .q-card").forEach((c) => c.querySelectorAll(".q-opt")[1].click())');
+  await fwdRefs('после миссий и квиза');
   console.log('  квиз:', await p.eval('document.querySelector("#quizScore").textContent'));
   await p.shotEl(out('l17-quiz.png'), '#quiz .prose', 6);
   await p.shotEl(out('l17-systems.png'), '#systems .wrap', 6);

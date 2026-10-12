@@ -287,14 +287,17 @@ async function desktop() {
   console.log('Десктоп 1440');
   check(await p.eval('document.querySelectorAll("[id]").length === new Set([...document.querySelectorAll("[id]")].map((e) => e.id)).size'), 'id без повторов');
   check(await p.eval('typeof Guide === "undefined" && !document.querySelector(".g-card")'), 'старая пошаговая карточка не используется');
-  // отсылки вперёд: π0 — сквозной пример урока, представлена в разделе 1; остальные модели из будущих уроков в прозе, миссиях и квизе
-  // либо не названы, либо идут с номером урока в той же фразе. Раздел «Модели» (справка с уроками) и кнопки пресетов пропускаем.
+  // отсылки вперёд: модели из будущих уроков названы своими именами; π0 — сквозной пример, представлена в разделе 1.
+  // Правило: первое упоминание имени в main (без разминки, глоссария, формул, таблицы-справки, карточек сортировки, кнопок пресетов
+  // и ссылок финала) идёт с «урок N.M» в пределах 160 символов; остальные упоминания свободны. Проверяем при загрузке и после миссий и квиза.
   check(/Physical Intelligence/.test(await p.eval('document.querySelector("#inputs").textContent')) && /урок[а-я]* 3\.6/.test(await p.eval('document.querySelector("#inputs").textContent')), 'π0 представлена в разделе 1 с отсылкой к уроку 3.6');
-  const body = await p.eval('(() => { const m = document.querySelector("main").cloneNode(true); m.querySelectorAll("#finale .links, #finale .links + *, #recall, #glData, #models, #costPresets").forEach((e) => e.remove()); return m.textContent; })()');
-  const banned = ['RT-1', 'RT-2', 'OpenVLA', 'Octo', 'GR00T', 'Helix', 'ACT ', 'CVAE', 'ALOHA', 'CLIPort', 'PerAct', 'SayCan', 'VoxPoser', 'PaliGemma', 'π0-FAST'];
-  const bare = (w) => { let i = -1, n = 0; while ((i = body.indexOf(w, i + 1)) >= 0) if (!/урок[а-я]* \d\.\d/.test(body.slice(i, i + 140))) n++; return n; };
-  const found = banned.filter((w) => bare(w) > 0);
-  check(found.length === 0, 'отсылок вперёд по именам моделей без номера урока нет' + (found.length ? ': ' + found.join(', ') : ''));
+  const fwdRefs = async (when) => {
+    const body = await p.eval('(() => { const m = document.querySelector("main").cloneNode(true); m.querySelectorAll("#recall, #glData, .katex, #finale .links, #finale .links + *, #models .tbl-wrap, #modelSort, #costPresets").forEach((e) => e.remove()); return m.textContent; })()');
+    const names = ['RT-1', 'RT-2', 'OpenVLA', 'Octo', 'GR00T', 'Helix', 'ACT ', 'ALOHA', 'CLIPort', 'PerAct', 'SayCan', 'VoxPoser', 'PaliGemma', 'π0-FAST', 'SmolVLA', 'Gemini Robotics', 'π0.5'];
+    const bare = names.filter((w) => { const i = body.indexOf(w); return i >= 0 && !/урок[а-я]* \d\.\d/.test(body.slice(i, i + 160)); });
+    check(bare.length === 0, `первое упоминание модели из будущего урока идёт с номером урока (${when})` + (bare.length ? ': ' + bare.join(', ') : ''));
+  };
+  await fwdRefs('при загрузке');
   await p.shot(out('l16-hero.png'));
   await p.eval('document.querySelector(".topbar").style.visibility = "hidden"');
   await p.shotEl(out('l16-inputs.png'), '#seqFig', 6);
@@ -305,6 +308,7 @@ async function desktop() {
   await kv(p, true);
   await models(p, true);
   await p.eval('document.querySelectorAll("#quizBox .q-card").forEach((c) => c.querySelector(".q-opt").click())');
+  await fwdRefs('после миссий и квиза');
   console.log('  квиз:', await p.eval('document.querySelector("#quizScore").textContent'));
   await p.shotEl(out('l16-quiz.png'), '#quiz .prose', 6);
   await p.shotEl(out('l16-finale.png'), '#finale .prose', 6);
