@@ -288,6 +288,14 @@ async function desktop() {
   console.log('Десктоп 1440');
   check(await p.eval('document.querySelectorAll("[id]").length === new Set([...document.querySelectorAll("[id]")].map((e) => e.id)).size'), 'id без повторов');
   check(await p.eval('typeof Guide === "undefined" && !document.querySelector(".g-card")'), 'старая пошаговая карточка не используется');
+  // отсылки вперёд: модели из будущих уроков в прозе, миссиях и квизе либо не названы, либо идут с номером урока в той же фразе;
+  // π0 — сквозной пример урока 1.6, здесь при первом упоминании в прозе напоминаем, откуда она
+  check(/π0 \(большой политике из урока 1\.6\)/.test(await p.eval('document.querySelector("#te").textContent')), 'π0 при первом упоминании отсылает к уроку 1.6');
+  const body = await p.eval('(() => { const m = document.querySelector("main").cloneNode(true); m.querySelectorAll("#finale .links, #finale .links + *, #recall, #glData").forEach((e) => e.remove()); return m.textContent; })()');
+  const banned = ['RT-1', 'RT-2', 'OpenVLA', 'Octo', 'GR00T', 'Helix', 'CLIPort', 'Transporter', 'PerAct', 'SayCan', 'VoxPoser', 'SmolVLA', 'Gemini Robotics', 'π0.5', 'π0.6', 'FAST'];
+  const bare = (w) => { let i = -1, n = 0; while ((i = body.indexOf(w, i + 1)) >= 0) if (!/урок[а-я]* \d\.\d/.test(body.slice(i, i + 140))) n++; return n; };
+  const found = banned.filter((w) => bare(w) > 0);
+  check(found.length === 0, 'отсылок вперёд по именам моделей без номера урока нет' + (found.length ? ': ' + found.join(', ') : ''));
   check(await p.eval('document.querySelectorAll("#alohaBars .rb").length === 6 && document.querySelectorAll(".vid").length === 2'), 'ALOHA: 6 результатов и 2 обложки видео');
   await p.shotEl(out('l17-aloha.png'), '#aloha .wrap', 6);
   await p.shot(out('l17-hero.png'));

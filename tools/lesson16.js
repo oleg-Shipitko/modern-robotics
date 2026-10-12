@@ -287,6 +287,14 @@ async function desktop() {
   console.log('Десктоп 1440');
   check(await p.eval('document.querySelectorAll("[id]").length === new Set([...document.querySelectorAll("[id]")].map((e) => e.id)).size'), 'id без повторов');
   check(await p.eval('typeof Guide === "undefined" && !document.querySelector(".g-card")'), 'старая пошаговая карточка не используется');
+  // отсылки вперёд: π0 — сквозной пример урока, представлена в разделе 1; остальные модели из будущих уроков в прозе, миссиях и квизе
+  // либо не названы, либо идут с номером урока в той же фразе. Раздел «Модели» (справка с уроками) и кнопки пресетов пропускаем.
+  check(/Physical Intelligence/.test(await p.eval('document.querySelector("#inputs").textContent')) && /урок[а-я]* 3\.6/.test(await p.eval('document.querySelector("#inputs").textContent')), 'π0 представлена в разделе 1 с отсылкой к уроку 3.6');
+  const body = await p.eval('(() => { const m = document.querySelector("main").cloneNode(true); m.querySelectorAll("#finale .links, #finale .links + *, #recall, #glData, #models, #costPresets").forEach((e) => e.remove()); return m.textContent; })()');
+  const banned = ['RT-1', 'RT-2', 'OpenVLA', 'Octo', 'GR00T', 'Helix', 'ACT ', 'CVAE', 'ALOHA', 'CLIPort', 'PerAct', 'SayCan', 'VoxPoser', 'PaliGemma', 'π0-FAST'];
+  const bare = (w) => { let i = -1, n = 0; while ((i = body.indexOf(w, i + 1)) >= 0) if (!/урок[а-я]* \d\.\d/.test(body.slice(i, i + 140))) n++; return n; };
+  const found = banned.filter((w) => bare(w) > 0);
+  check(found.length === 0, 'отсылок вперёд по именам моделей без номера урока нет' + (found.length ? ': ' + found.join(', ') : ''));
   await p.shot(out('l16-hero.png'));
   await p.eval('document.querySelector(".topbar").style.visibility = "hidden"');
   await p.shotEl(out('l16-inputs.png'), '#seqFig', 6);

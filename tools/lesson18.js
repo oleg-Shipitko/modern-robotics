@@ -107,6 +107,14 @@ async function desktop() {
   check(await p.eval('document.querySelectorAll("[id]").length === new Set([...document.querySelectorAll("[id]")].map((e) => e.id)).size'), 'id без повторов');
   check(await p.eval('typeof Guide === "undefined" && !document.querySelector(".g-card")'), 'старая пошаговая карточка не используется');
   console.log('  первый экран:', await p.eval('document.querySelector("#heroMis").textContent'));
+  // отсылки вперёд: π0 — сквозной пример из урока 1.6, в разделе «Робот» напоминаем, откуда она; остальные модели из будущих уроков
+  // в прозе, миссиях и квизе либо не названы, либо идут с номером урока в той же фразе. Задачу «Кто сколько шагов делает» (справка с уроками) пропускаем.
+  check(/π0 — большой политике из урока 1\.6/.test(await p.eval('document.querySelector("#robot").textContent')), 'π0 в разделе «Робот» отсылает к уроку 1.6');
+  const body = await p.eval('(() => { const m = document.querySelector("main").cloneNode(true); m.querySelectorAll("#finale .links, #finale .links + *, #finale .callout, #recall, #glData, #who, #stepSort").forEach((e) => e.remove()); return m.textContent; })()');
+  const banned = ['RT-1', 'RT-2', 'OpenVLA', 'Octo', 'GR00T', 'Helix', 'ACT ', 'CVAE', 'CLIPort', 'Transporter', 'PerAct', 'SayCan', 'VoxPoser', 'SmolVLA', 'π0.5', 'UMI', 'FAST'];
+  const bare = (w) => { let i = -1, n = 0; while ((i = body.indexOf(w, i + 1)) >= 0) if (!/урок[а-я]* \d\.\d/.test(body.slice(i, i + 140))) n++; return n; };
+  const found = banned.filter((w) => bare(w) > 0);
+  check(found.length === 0, 'отсылок вперёд по именам моделей без номера урока нет' + (found.length ? ': ' + found.join(', ') : ''));
   await p.shot(out('l18-hero.png'));
 
   // --- лаборатория 1: два пятна

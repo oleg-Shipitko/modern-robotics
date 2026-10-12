@@ -62,6 +62,11 @@ async function desktop() {
   console.log('Десктоп 1440');
   check(await p.eval('new Set([...document.querySelectorAll("[id]")].map((e) => e.id)).size === document.querySelectorAll("[id]").length'), 'id без повторов');
   check(await p.eval('document.querySelectorAll(".katex").length > 10'), 'формулы отрисованы KaTeX: ' + await p.eval('document.querySelectorAll(".katex").length'));
+  // отсылки вперёд: названий моделей из будущих уроков нет в тексте урока и квизе (таблица шагов — справка с номерами уроков, её пропускаем; RTC разбирается в этом уроке)
+  const body = await p.eval('(() => { const m = document.querySelector("main").cloneNode(true); m.querySelectorAll("#finale .links, #finale .links + *, #recall, #glData, .speed-tbl").forEach((e) => e.remove()); return m.textContent; })()');
+  const banned = ['RT-1', 'RT-2', 'OpenVLA', 'Octo', 'π0', 'GR00T', 'Helix', 'ACT ', 'CVAE', 'ALOHA', 'CLIPort', 'PerAct', 'SayCan', 'VoxPoser', 'FAST'];
+  const found = banned.filter((w) => body.includes(w));
+  check(found.length === 0, 'отсылок вперёд по именам моделей нет' + (found.length ? ': ' + found.join(', ') : ''));
   await p.shotEl(out('l15-hero.png'), '#top', 0);
 
   // --- 1. Push-T: перетащить блок мышью, повернуть ползунком, подогнать стрелками

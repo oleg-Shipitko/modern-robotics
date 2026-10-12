@@ -158,6 +158,11 @@ async function desktop() {
   console.log('Десктоп 1440');
   check(await p.eval('document.querySelectorAll("[id]").length === new Set([...document.querySelectorAll("[id]")].map((e) => e.id)).size'), 'id без повторов');
   check(await p.eval('typeof Guide === "undefined" && typeof Cards !== "undefined" && !document.querySelector(".c-sort")'), 'нет пошаговой карточки guide.js и сортировки карточек');
+  // отсылки вперёд: названий моделей из будущих уроков нет в тексте урока и квизе (таблица шагов — справка с номерами уроков, её пропускаем)
+  const body = await p.eval('(() => { const m = document.querySelector("main").cloneNode(true); m.querySelectorAll("#finale .links, #finale .links + *, #recall, #glData, .steps-table").forEach((e) => e.remove()); return m.textContent; })()');
+  const banned = ['RT-1', 'RT-2', 'OpenVLA', 'Octo', 'π0', 'GR00T', 'Helix', 'ACT ', 'CVAE', 'ALOHA', 'Diffusion Policy', 'Real-Time Chunking', 'RTC', 'CLIPort', 'PerAct', 'SayCan', 'VoxPoser', 'FAST'];
+  const found = banned.filter((w) => body.includes(w));
+  check(found.length === 0, 'отсылок вперёд по именам моделей нет' + (found.length ? ': ' + found.join(', ') : ''));
   await p.eval('window.__l14.SPEED.k = 6');
   await p.shot(out('l14-hero.png'));
 
