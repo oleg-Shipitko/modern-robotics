@@ -10,6 +10,26 @@ const f1 = (v, d) => (+v).toFixed(d == null ? 1 : d);
 let fails = 0;
 const check = (ok, msg) => { console.log((ok ? '  ✓ ' : '  ✗ ') + msg); if (!ok) fails++; };
 
+/* Отсылки вперёд: модели из будущих уроков называем по имени, но первое упоминание в тексте урока должно
+   сопровождаться номером урока «урок N.M» — в том же предложении или в 160 символах после имени.
+   Возвращает список имён, у которых первого упоминания с номером урока нет. */
+const FWD = ['RT-1', 'RT-2', 'OpenVLA', 'Octo', 'π0', 'GR00T', 'Helix', 'ACT', 'CVAE', 'ALOHA', 'CLIPort', 'PerAct', 'SayCan', 'VoxPoser', 'FAST'];
+function fwdRefs(text, names) {
+  const bad = [];
+  for (const name of names) {
+    const ascii = /^[A-Za-z]/.test(name) && /[A-Za-z0-9]$/.test(name);
+    const re = ascii ? new RegExp('(?<![A-Za-z0-9])' + name.replace(/[-.]/g, '\\$&') + '(?![A-Za-z0-9])') : null;
+    const i = re ? text.search(re) : text.indexOf(name);
+    if (i < 0) continue;
+    const back = text.slice(Math.max(0, i - 400), i), bm = back.match(/[.!?](?=\s)[^.!?]*$/);
+    const start = bm ? i - bm[0].length + 1 : Math.max(0, i - 400);
+    const em = text.slice(i).match(/[.!?](?=\s|$)/), end = em ? i + em.index + 1 : i + 160;
+    const win = text.slice(start, Math.max(end, i + 160));
+    if (!/урок[а-я]*\s+\d\.\d/.test(win)) bad.push(`${name} («…${text.slice(Math.max(0, i - 30), i + 70).replace(/\s+/g, ' ').trim()}…»)`);
+  }
+  return bad;
+}
+
 /* ---------- 1. Цифры движка в Node: те же данные и зёрна, что в браузере ---------- */
 const NODE = {};
 function nodeNumbers() {
@@ -62,11 +82,10 @@ async function desktop() {
   console.log('Десктоп 1440');
   check(await p.eval('new Set([...document.querySelectorAll("[id]")].map((e) => e.id)).size === document.querySelectorAll("[id]").length'), 'id без повторов');
   check(await p.eval('document.querySelectorAll(".katex").length > 10'), 'формулы отрисованы KaTeX: ' + await p.eval('document.querySelectorAll(".katex").length'));
-  // отсылки вперёд: названий моделей из будущих уроков нет в тексте урока и квизе (таблица шагов — справка с номерами уроков, её пропускаем; RTC разбирается в этом уроке)
-  const body = await p.eval('(() => { const m = document.querySelector("main").cloneNode(true); m.querySelectorAll("#finale .links, #finale .links + *, #recall, #glData, .speed-tbl").forEach((e) => e.remove()); return m.textContent; })()');
-  const banned = ['RT-1', 'RT-2', 'OpenVLA', 'Octo', 'π0', 'GR00T', 'Helix', 'ACT ', 'CVAE', 'ALOHA', 'CLIPort', 'PerAct', 'SayCan', 'VoxPoser', 'FAST'];
-  const found = banned.filter((w) => body.includes(w));
-  check(found.length === 0, 'отсылок вперёд по именам моделей нет' + (found.length ? ': ' + found.join(', ') : ''));
+  // отсылки вперёд: первое упоминание каждой модели из будущих уроков — с номером урока (разминку, глоссарий, формулы и таблицу систем — справку с номерами уроков — пропускаем; Diffusion Policy и RTC разбираются в этом уроке)
+  const fwdText = () => p.eval('(() => { const m = document.querySelector("main").cloneNode(true); m.querySelectorAll("#finale .links, #finale .links + *, #recall, #glData, .katex, .speed-tbl").forEach((e) => e.remove()); return m.textContent; })()');
+  const fwdBad = fwdRefs(await fwdText(), FWD);
+  check(fwdBad.length === 0, 'отсылки вперёд: первое упоминание каждой модели — с номером урока' + (fwdBad.length ? '; нет у: ' + fwdBad.join('; ') : ''));
   await p.shotEl(out('l15-hero.png'), '#top', 0);
 
   // --- 1. Push-T: перетащить блок мышью, повернуть ползунком, подогнать стрелками
@@ -166,6 +185,9 @@ async function desktop() {
   check(/Итог: \d из 8/.test(await p.eval('document.querySelector("#quizScore").textContent')), 'квиз: ' + (await p.eval('document.querySelector("#quizScore").textContent')));
   await p.shotEl(out('l15-quiz.png'), '#quiz', 4);
   await p.shotEl(out('l15-finale.png'), '#finale', 4);
+  // те же отсылки вперёд после прохождения миссий: в DOM появились разборы миссий
+  const fwdBad2 = fwdRefs(await fwdText(), FWD);
+  check(fwdBad2.length === 0, 'отсылки вперёд после миссий: первое упоминание каждой модели — с номером урока' + (fwdBad2.length ? '; нет у: ' + fwdBad2.join('; ') : ''));
   check(p.logs.length === 0, 'консоль десктопа: ' + (p.logs.join(' | ') || 'чисто'));
   await B.close();
 

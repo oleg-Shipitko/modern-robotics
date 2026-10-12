@@ -12,6 +12,26 @@ const p100 = (v, d) => (v * 100).toFixed(d || 0);
 let fails = 0;
 const check = (ok, msg) => { console.log((ok ? '  ✓ ' : '  ✗ ') + msg); if (!ok) fails++; };
 
+/* Отсылки вперёд: модели из будущих уроков называем по имени, но первое упоминание в тексте урока должно
+   сопровождаться номером урока «урок N.M» — в том же предложении или в 160 символах после имени.
+   Возвращает список имён, у которых первого упоминания с номером урока нет. */
+const FWD = ['RT-1', 'RT-2', 'OpenVLA', 'Octo', 'π0', 'GR00T', 'Helix', 'ACT', 'CVAE', 'ALOHA', 'Diffusion Policy', 'Real-Time Chunking', 'RTC', 'CLIPort', 'PerAct', 'SayCan', 'VoxPoser', 'FAST'];
+function fwdRefs(text, names) {
+  const bad = [];
+  for (const name of names) {
+    const ascii = /^[A-Za-z]/.test(name) && /[A-Za-z0-9]$/.test(name);
+    const re = ascii ? new RegExp('(?<![A-Za-z0-9])' + name.replace(/[-.]/g, '\\$&') + '(?![A-Za-z0-9])') : null;
+    const i = re ? text.search(re) : text.indexOf(name);
+    if (i < 0) continue;
+    const back = text.slice(Math.max(0, i - 400), i), bm = back.match(/[.!?](?=\s)[^.!?]*$/);
+    const start = bm ? i - bm[0].length + 1 : Math.max(0, i - 400);
+    const em = text.slice(i).match(/[.!?](?=\s|$)/), end = em ? i + em.index + 1 : i + 160;
+    const win = text.slice(start, Math.max(end, i + 160));
+    if (!/урок[а-я]*\s+\d\.\d/.test(win)) bad.push(`${name} («…${text.slice(Math.max(0, i - 30), i + 70).replace(/\s+/g, ' ').trim()}…»)`);
+  }
+  return bad;
+}
+
 const DATA = D.spirals(1000, 7), NN = D.nnIndex(DATA, 0.1), RM = D.medianRadius(DATA), LIN = D.schedule('lin'), COS = D.schedule('cos');
 const MEAN = (() => { let x = 0, y = 0; for (let i = 0; i < DATA.N; i++) { x += DATA.X[2 * i]; y += DATA.X[2 * i + 1]; } return { x: x / DATA.N, y: y / DATA.N }; })();
 const holds = (s) => s.on >= 0.8 && s.outer >= 0.25;
@@ -158,11 +178,10 @@ async function desktop() {
   console.log('Десктоп 1440');
   check(await p.eval('document.querySelectorAll("[id]").length === new Set([...document.querySelectorAll("[id]")].map((e) => e.id)).size'), 'id без повторов');
   check(await p.eval('typeof Guide === "undefined" && typeof Cards !== "undefined" && !document.querySelector(".c-sort")'), 'нет пошаговой карточки guide.js и сортировки карточек');
-  // отсылки вперёд: названий моделей из будущих уроков нет в тексте урока и квизе (таблица шагов — справка с номерами уроков, её пропускаем)
-  const body = await p.eval('(() => { const m = document.querySelector("main").cloneNode(true); m.querySelectorAll("#finale .links, #finale .links + *, #recall, #glData, .steps-table").forEach((e) => e.remove()); return m.textContent; })()');
-  const banned = ['RT-1', 'RT-2', 'OpenVLA', 'Octo', 'π0', 'GR00T', 'Helix', 'ACT ', 'CVAE', 'ALOHA', 'Diffusion Policy', 'Real-Time Chunking', 'RTC', 'CLIPort', 'PerAct', 'SayCan', 'VoxPoser', 'FAST'];
-  const found = banned.filter((w) => body.includes(w));
-  check(found.length === 0, 'отсылок вперёд по именам моделей нет' + (found.length ? ': ' + found.join(', ') : ''));
+  // отсылки вперёд: первое упоминание каждой модели из будущих уроков — с номером урока (разминку, глоссарий, формулы и таблицу шагов — справку с номерами уроков — пропускаем)
+  const fwdText = () => p.eval('(() => { const m = document.querySelector("main").cloneNode(true); m.querySelectorAll("#finale .links, #finale .links + *, #recall, #glData, .katex, .steps-table").forEach((e) => e.remove()); return m.textContent; })()');
+  const fwdBad = fwdRefs(await fwdText(), FWD);
+  check(fwdBad.length === 0, 'отсылки вперёд: первое упоминание каждой модели — с номером урока' + (fwdBad.length ? '; нет у: ' + fwdBad.join('; ') : ''));
   await p.eval('window.__l14.SPEED.k = 6');
   await p.shot(out('l14-hero.png'));
 
@@ -317,6 +336,9 @@ async function desktop() {
   await p.shotEl(out('l14-quiz.png'), '#quiz .prose', 6);
   await p.shotEl(out('l14-steps.png'), '#steps .prose', 6);
   await p.shotEl(out('l14-finale.png'), '#finale .prose', 6);
+  // те же отсылки вперёд после прохождения миссий: в DOM появились разборы миссий
+  const fwdBad2 = fwdRefs(await fwdText(), FWD);
+  check(fwdBad2.length === 0, 'отсылки вперёд после миссий: первое упоминание каждой модели — с номером урока' + (fwdBad2.length ? '; нет у: ' + fwdBad2.join('; ') : ''));
   // тёмная тема
   await p.click('#themeBtn'); await sleep(400);
   await p.shotEl(out('l14-forward-dark.png'), '#forward .lab', 6);
