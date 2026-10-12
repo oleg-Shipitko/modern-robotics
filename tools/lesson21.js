@@ -1,6 +1,7 @@
 // Урок 2.1 «Transporter и CLIPort»: лаборатории дают обещанные в тексте исходы, консоль чиста, телефон без горизонтальной прокрутки.
 // Снимки — shots/l21-*.png. Урок собирается на дату выпуска: MR_ASOF=2026-10-10 python3 lessons/build.py l21.
 const path = require('path');
+const fs = require('fs');
 const { launch, sleep } = require('./cdp');
 const url = 'file://' + path.resolve(__dirname, '../site/lessons/2-1-transporter-i-cliport.html');
 const out = (n) => path.resolve(__dirname, '../shots/' + n);
@@ -14,6 +15,13 @@ const J = (s) => JSON.parse(s);
   await p.waitFor('window.__lessonReady === true', 30000); await sleep(600);
   check(/^1[01] миссий с целью$/.test(await p.eval(`document.getElementById('heroMis').textContent`)), 'число миссий в шапке: ' + await p.eval(`document.getElementById('heroMis').textContent`));
   check((await p.eval(`document.querySelectorAll('#recall .rc-q, #recall [data-recall] *').length`)) > 0, 'разминка по уроку 1.8 на месте');
+  // отсылки вперёд: названий моделей из будущих уроков нет в прозе, миссиях, разборах и квизе
+  // (исключения — разминка, раздел «Сегодня», ссылки и анонс следующего урока в итоге, где названия идут с пояснением и номером урока)
+  const fwdBody = await p.eval('(() => { const m = document.querySelector("main").cloneNode(true); m.querySelectorAll("#recall, #glData, #today, #finale .links, #finale .callout, .katex").forEach((e) => e.remove()); return m.textContent; })()');
+  const fwdSrc = ['../lessons/l21/ui-l21.js'].map((f) => fs.readFileSync(path.resolve(__dirname, f), 'utf8')).join('\n');
+  const fwdBanned = ['RT-1', 'RT-2', 'Open X-Embodiment', 'Octo', 'OpenVLA', 'π0', 'PaliGemma', 'Helix', 'GR00T', 'Gemini', 'PaLM-E', ' VLA', 'VLM', 'SigLIP', 'PerAct', 'VoxPoser', 'SayCan'];
+  const fwdFound = fwdBanned.filter((w) => fwdBody.includes(w) || fwdSrc.includes(w));
+  check(fwdFound.length === 0, 'отсылок вперёд по именам моделей нет' + (fwdFound.length ? ': ' + fwdFound.join(', ') : ''));
   await p.eval('window.__l21.SPEED.k = 20; true');
   // 1. мини-CLIP
   const c0 = J(await p.eval(`JSON.stringify(window.__l21.LabClip.api.state())`));

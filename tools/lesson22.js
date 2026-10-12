@@ -3,6 +3,7 @@
 // на телефоне ничего не вылезает за экран. Снимки — shots/l22-*.png.
 // Урок собирается на дату выпуска: MR_ASOF=2026-10-10 python3 lessons/build.py l22.
 const path = require('path');
+const fs = require('fs');
 const { launch, sleep } = require('./cdp');
 const url = 'file://' + path.resolve(__dirname, '../site/lessons/2-2-peract.html');
 const out = (n) => path.resolve(__dirname, '../shots/' + n);
@@ -34,6 +35,13 @@ const shot = async (p, id, sel, n, pad) => { await p.eval(`document.getElementBy
   const hm = await p.eval(`document.getElementById('heroMis').textContent`);
   check(hm === '9 миссий с целью', 'число миссий в шапке: ' + hm);
   check((await p.eval(`document.querySelectorAll('#recall .rc-q').length`)) === 3, 'разминка по уроку 2.1: три вопроса');
+  // отсылки вперёд: названий моделей из будущих уроков нет в прозе, миссиях, разборах и квизе
+  // (исключения — разминка, раздел «Сегодня», ссылки и анонс следующего урока в итоге, где названия идут с пояснением и номером урока)
+  const fwdBody = await p.eval('(() => { const m = document.querySelector("main").cloneNode(true); m.querySelectorAll("#recall, #glData, #today, #finale .links, #finale .callout, .katex").forEach((e) => e.remove()); return m.textContent; })()');
+  const fwdSrc = ['../lessons/l22/ui-l22.js', '../lessons/l22/flow.js', '../lessons/l22/engine.js'].map((f) => fs.readFileSync(path.resolve(__dirname, f), 'utf8')).join('\n');
+  const fwdBanned = ['RT-1', 'RT-2', 'Open X-Embodiment', 'Octo', 'OpenVLA', 'π0', 'PaliGemma', 'Helix', 'GR00T', 'Gemini', 'PaLM-E', ' VLA', 'VLM', 'VoxPoser', 'SayCan', 'Code as Policies', 'Inner Monologue'];
+  const fwdFound = fwdBanned.filter((w) => fwdBody.includes(w) || fwdSrc.includes(w));
+  check(fwdFound.length === 0, 'отсылок вперёд по именам моделей нет' + (fwdFound.length ? ': ' + fwdFound.join(', ') : ''));
   await p.eval('window.__l22.SPEED.k = 60; true');
 
   // ---------- 1. Ключевые позы ----------

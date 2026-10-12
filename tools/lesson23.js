@@ -2,6 +2,7 @@
 // консоль чиста, телефон без горизонтальной прокрутки. Снимки — shots/l23-*.png.
 // Урок собирается на дату выпуска: MR_ASOF=2026-10-10 python3 lessons/build.py l23.
 const path = require('path');
+const fs = require('fs');
 const { launch, sleep } = require('./cdp');
 const url = 'file://' + path.resolve(__dirname, '../site/lessons/2-3-llm-planirovshchiki.html');
 const out = (n) => path.resolve(__dirname, '../shots/' + n);
@@ -29,6 +30,13 @@ const critOk = (p, mis) => p.eval(`(() => { const li = [...document.querySelecto
   await p.waitFor('window.__lessonReady === true', 30000); await sleep(600);
   check(/^17 миссий с целью$/.test(await p.eval(`document.getElementById('heroMis').textContent`)), 'число миссий в шапке: ' + await p.eval(`document.getElementById('heroMis').textContent`));
   check((await p.eval(`document.querySelectorAll('#recall .rc-q').length`)) === 3, 'разминка по уроку 2.2: три вопроса');
+  // отсылки вперёд: названий моделей из будущих уроков нет в прозе, миссиях, разборах и квизе
+  // (исключения — разминка, раздел «Сегодня», ссылки и анонс следующего урока в итоге, где названия идут с пояснением и номером урока)
+  const fwdBody = await p.eval('(() => { const m = document.querySelector("main").cloneNode(true); m.querySelectorAll("#recall, #glData, #today, #finale .links, #finale .callout, .katex").forEach((e) => e.remove()); return m.textContent; })()');
+  const fwdSrc = ['../lessons/l23/ui-l23.js', '../lessons/l23/engine.js'].map((f) => fs.readFileSync(path.resolve(__dirname, f), 'utf8')).join('\n');
+  const fwdBanned = ['RT-1', 'RT-2', 'Open X-Embodiment', 'Octo', 'OpenVLA', 'π0', 'PaliGemma', 'Helix', 'GR00T', 'Gemini', 'PaLM-E', ' VLA', 'VLM'];
+  const fwdFound = fwdBanned.filter((w) => fwdBody.includes(w) || fwdSrc.includes(w));
+  check(fwdFound.length === 0, 'отсылок вперёд по именам моделей нет' + (fwdFound.length ? ': ' + fwdFound.join(', ') : ''));
   check((await p.eval(`!!document.querySelector('a[href="proverka-chasti-2.html"]')`)), 'ссылка на проверку части 2 на месте');
   await p.eval('window.__l23.SPEED.k = 20; true');
 
