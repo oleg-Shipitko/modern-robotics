@@ -329,6 +329,8 @@ def build(key):
         html = html.replace('</footer>', '  <p class="foot-gl"><a href="glossariy.html">Глоссарий курса</a> — термины с определениями и ссылками на уроки.</p>\n</footer>', 1)
     # политика конфиденциальности — в подвале каждой страницы курса
     html = html.replace('</footer>', '  <p class="foot-pp"><a href="../privacy.html">Политика конфиденциальности</a></p>\n</footer>', 1)
+    if CFG.get('NOTICE'):  # временная плашка под шапкой, как на сайте (site/config.json → NOTICE)
+        html = re.sub(r'(<main[^>]*>)', lambda m: m.group(1) + '\n<div class="site-notice" role="status">' + CFG['NOTICE'] + '</div>', html, count=1)
     if key.startswith('l'):
         html = add_thanks(html, name)
     html = add_stats(html)

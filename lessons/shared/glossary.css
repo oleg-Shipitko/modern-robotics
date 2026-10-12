@@ -17,3 +17,8 @@
 .foot-gl a, .foot-pp a { color: inherit; }
 @media (max-width: 820px) { .topbar-gl, .toc + .topbar-gl { margin-left: auto; } } /* оглавление на узких экранах скрыто — ссылка уходит вправо */
 @media (max-width: 560px) { .topbar-gl { display: none; } }
+
+/* временная плашка (NOTICE в site/config.json) */
+.site-notice { margin: 0 auto 4px; max-width: 1180px; padding: 10px 16px; border: 1px solid rgba(235,104,52,.35); background: rgba(235,104,52,.08); border-radius: 12px; font-size: 14px; line-height: 1.45; color: var(--ink, #1a1a1a); }
+.site-notice a { font-weight: 600; }
+ .site-notice { margin: 12px auto 0; }

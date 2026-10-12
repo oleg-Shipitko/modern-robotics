@@ -1,6 +1,8 @@
 {
   "_comment": "Ссылки сайта. Пустое значение — ссылка ещё не задана, на странице будет '#'.",
   "CHANNEL": "https://t.me/c3po_robotics",
+  "_comment_notice": "NOTICE — временная плашка под шапкой на всех страницах (HTML); пустая строка — плашки нет",
+  "NOTICE": "Счётчик «спасибо» и отзывы в конце уроков временно не работают: у Yandex Cloud сбой после атак на дата-центры, <a href=\"https://status.yandex.cloud/ru/incidents/2136\" target=\"_blank\" rel=\"noopener\">официальное сообщение</a>. Держитесь, Яндекс ❤️. Если есть что сказать, напиши в сообщения канала <a href=\"https://t.me/c3po_robotics\" target=\"_blank\" rel=\"noopener\">«Продакт роботов»</a>.",
   "LINKEDIN": "https://www.linkedin.com/in/shipitkooleg",
   "GITHUB": "https://github.com/oleg-Shipitko",
   "REPO": "https://github.com/oleg-Shipitko/modern-robotics",

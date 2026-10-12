@@ -83,3 +83,7 @@ p { margin: 0 0 1em; color: var(--ink-2); }
 .contrib li { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; padding: 12px 16px; border: 1px solid var(--line, #e3ded3); border-radius: 12px; background: var(--surface, #fff); }
 .contrib a { font-weight: 700; text-decoration: none; }
 .contrib span { color: var(--ink-2, #5a574f); }
+
+/* временная плашка (NOTICE в site/config.json) */
+.site-notice { margin: 0 auto 4px; max-width: 1180px; padding: 10px 16px; border: 1px solid rgba(235,104,52,.35); background: rgba(235,104,52,.08); border-radius: 12px; font-size: 14px; line-height: 1.45; color: var(--ink, #1a1a1a); }
+.site-notice a { font-weight: 600; }

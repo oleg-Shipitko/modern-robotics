@@ -50,6 +50,8 @@ for src in sorted(HERE.glob('*.src.html')):
             return '#'
         return val
     html = re.sub(r'\{\{([A-Z_]+)\}\}', sub, html)
+    if cfg.get('NOTICE'):  # временная плашка под шапкой
+        html = re.sub(r'(<main[^>]*>)', lambda m: m.group(1) + '\n<div class="site-notice" role="status">' + cfg['NOTICE'] + '</div>', html, count=1)
     out = HERE / src.name.replace('.src.html', '.html')
     out.write_text(html, encoding='utf-8')
     print(f'{out.name}: {len(html) // 1024} КБ')
