@@ -1,6 +1,8 @@
-// Проверка урока 1.4: сначала цифры движка в Node (те же зёрна, что в браузере), потом все миссии
-// в браузере — рисование прогноза мышью, перемотка, обучение сети, генерации, перетаскивание стартов,
-// guidance, шторка, действия Ады (денойзер на действиях объезда чайника, регрессия рядом), квиз с калибровкой;
+// Проверка урока 1.4: сначала цифры движка в Node (те же зёрна, что в браузере), потом в браузере —
+// схема замысла (прямой и обратный путь, shared/anim.js: движется, обе раскладки, честные снимки),
+// все миссии — рисование прогноза мышью, перемотка, обучение сети, генерации (условия говорят, с чего
+// начинаем: 1000 точек шума), перетаскивание стартов, guidance, шторка, действия Ады (денойзер на
+// действиях объезда чайника, регрессия рядом), квиз о подходе в целом (без названий приёмов в вопросах);
 // тёмная тема и телефон 390 px. Снимки — в shots/l14-*.png.
 // Запуск: node tools/lesson14.js        (только цифры: node tools/lesson14.js node)
 const { launch, sleep } = require('./cdp');
@@ -219,6 +221,34 @@ async function desktop() {
   await p.eval('window.__l14.SPEED.k = 6');
   await p.shot(out('l14-hero.png'));
 
+  // --- 0. схема замысла: прямой и обратный путь (shared/anim.js) ---
+  check(await p.eval('typeof Anim !== "undefined" && Anim.kinds().includes("cycle") && document.querySelector("canvas[data-anim=cycle]").dataset.animOn === "1"'), 'схема «cycle» зарегистрирована в Anim и смонтирована (shared/anim.js подключён в сборке)');
+  const cyc = await p.eval(`(() => { const cv = document.querySelector('canvas[data-anim="cycle"]'); const mv = [[1.1, 3.7], [7, 9.5]].map(([a, b]) => { Anim.seek(cv, a); const x = cv.toDataURL(); Anim.seek(cv, b); return x !== cv.toDataURL(); }); return { moves: mv.every(Boolean), layout: cv.dataset.layout }; })()`);
+  check(cyc.moves && cyc.layout === 'w', `схема движется (обучение и генерация — разные кадры), раскладка широкая: ${cyc.layout}`);
+  // снимки схемы — настоящие: данные и финал обратного пути лежат внутри круга радиуса 1,75 (там все спирали) и на спиралях,
+  // а облака на шагах 1000 и 500 обоих рядов выходят за круг, как гауссов шум (за радиусом 1,75 у него около 22% точек)
+  const cNum = await p.eval('(() => { const C = window.__l14.Cycle, F = C.frames(), D = window.Diff, data = window.__l14.DATA, nn = D.nnIndex(data, 0.1), n = C.NPT; const on = (x) => D.onSpiral(data, nn, x, n).frac, out = (x) => { let o = 0; for (let i = 0; i < n; i++) if (Math.hypot(x[2 * i], x[2 * i + 1]) > 1.75) o++; return o / n; }; return { npt: n, steps: F.steps, dataOn: on(F.fwd[0]), dataOut: out(F.fwd[0]), noiseOut: out(F.fwd[1000]), mid1Out: out(F.fwd[500]), newOn: on(F.back[0]), newOut: out(F.back[0]), bNoiseOut: out(F.back[1000]), mid2Out: out(F.back[500]) }; })()');
+  check(cNum.dataOn >= 0.99 && cNum.dataOut === 0 && cNum.newOn >= 0.95 && cNum.newOut === 0 && [cNum.noiseOut, cNum.mid1Out, cNum.bNoiseOut, cNum.mid2Out].every((v) => v > 0.1), `снимки схемы честные: данные на спиралях ${p100(cNum.dataOn)}%, финал обратного пути (${cNum.steps} шагов идеального денойзера) на спиралях ${p100(cNum.newOn)}%; за кругом 1,75 на шагах 1000 и 500: прямой ряд ${p100(cNum.noiseOut)}% и ${p100(cNum.mid1Out)}%, обратный ${p100(cNum.bNoiseOut)}% и ${p100(cNum.mid2Out)}%`);
+  const cNote = await p.eval('document.querySelector("figure.scheme-fig figcaption.cv-note").textContent');
+  check(cNote.includes(`${cNum.npt} точек двух спиралей`) && cNote.includes('250, 500, 750 и 1000') && cNote.includes('750, 500, 250 и 0') && /идеальным денойзером из раздела 3/.test(cNote) && /Нажми на схему/.test(cNote), `подпись под схемой: число точек ${cNum.npt} и шаги из движка, оговорка про идеальный денойзер`);
+  check(await p.eval('document.querySelectorAll("#cycleLegend span").length === 3 && /Верхний ряд схемы — этот раздел/.test(document.querySelector("#forward").textContent) && /Нижний ряд — раздел 3/.test(document.querySelector("#forward").textContent)'), 'легенда схемы из трёх значков; текст связывает ряды схемы с разделами 2 и 3');
+  check(await p.eval('/зашумлённую точку и номер шага, а она угадывает добавленный шум/.test(document.querySelector("#forward").textContent) && /новое случайное облако/.test(document.querySelector("#forward").textContent)'), 'текст раздела 2: обучение по прямому пути, генерация из нового случайного облака');
+  await center(p, 'figure.scheme-fig');
+  await p.eval('Anim.seek(document.querySelector("canvas[data-anim=cycle]"), 2.2)'); await p.shotEl(out('l14-cycle.png'), 'figure.scheme-fig', 6);
+  await p.eval('Anim.seek(document.querySelector("canvas[data-anim=cycle]"), 8.3)'); await p.shotEl(out('l14-cycle-gen.png'), 'figure.scheme-fig', 6);
+
+  // --- 0б. схема «DDPM против DDIM»: один старт, один денойзер ---
+  const smp = await p.eval(`(() => { const cv = document.querySelector('canvas[data-anim="samplers"]'); Anim.seek(cv, 1.5); const x = cv.toDataURL(); Anim.seek(cv, 4.5); return { moves: x !== cv.toDataURL(), layout: cv.dataset.layout, on: cv.dataset.animOn }; })()`);
+  check(smp.moves && smp.layout === 'w' && smp.on === '1', `схема «samplers» смонтирована, движется, раскладка широкая: ${smp.layout}`);
+  const sNum = await p.eval('(() => { const S = window.__l14.Samp, F = S.paths(), D = window.Diff, data = window.__l14.DATA, nn = D.nnIndex(data, 0.1); const end = (tr) => [tr[tr.length - 2], tr[tr.length - 1]], on = (q) => !!nn.near(q[0], q[1], 0.1); const ends = F.ddpm.map(end); let minD = 9; for (let i = 0; i < ends.length; i++) for (let j = i + 1; j < ends.length; j++) minD = Math.min(minD, Math.hypot(ends[i][0] - ends[j][0], ends[i][1] - ends[j][1])); const e50 = end(F.d50), e10 = end(F.d10); const jump = (tr) => { let m = 0; for (let j = 1; j < tr.length / 2; j++) m = Math.max(m, Math.hypot(tr[2 * j] - tr[2 * j - 2], tr[2 * j + 1] - tr[2 * j - 1])); return m; }; return { nrun: S.NRUN, sp: S.S_P, sd: S.S_D, sd2: S.S_D2, nsub: S.NSUB, minD, allOn: ends.every(on) && on(e50) && on(e10), dd: Math.hypot(e50[0] - e10[0], e50[1] - e10[1]), jP: Math.max(...F.ddpm.map(jump)), jD: jump(F.d50), sameStart: F.ddpm.every((tr) => tr[0] === F.d50[0] && tr[1] === F.d50[1]) && F.d10[0] === F.d50[0] }; })()');
+  check(sNum.sameStart && sNum.minD > 0.3 && sNum.allOn && sNum.dd < 0.1 && sNum.jP > 5 * sNum.jD, `схема честная: один старт; ${sNum.nrun} концов DDPM не ближе ${f(sNum.minD, 2)} друг к другу, все на спиралях; DDIM ${sNum.sd} и ${sNum.sd2} шагов расходятся на ${f(sNum.dd, 3)}; самый крупный прыжок DDPM ${f(sNum.jP, 2)} против ${f(sNum.jD, 2)} у DDIM`);
+  const sNote = await p.eval('document.querySelector("canvas[data-anim=samplers]").parentElement.querySelector("figcaption.cv-note").textContent');
+  check(sNote.includes(`${sNum.nsub} из ${DATA.N} обучающих точек`) && new RegExp(`${sNum.nrun} прогон[а-я]* DDPM по ${sNum.sp} шагов`).test(sNote) && sNote.includes(`${sNum.sd} шагов`) && sNote.includes(`${sNum.sd2} шагов`) && /идеальный из раздела 3/.test(sNote) && /Нажми на схему/.test(sNote), 'подпись под схемой DDPM/DDIM: числа прогонов, шагов и точек — из кода схемы');
+  check(await p.eval('document.querySelectorAll("#sampLegend span").length === 4') && [sNum.sp, sNum.sd, sNum.sd2].every((s) => [3, 4, 5, 6, 7, 8, 10, 12, 15, 20, 30, 50, 100, 200].includes(s)), 'легенда схемы DDPM/DDIM из четырёх значков; числа шагов есть в ползунке лаборатории');
+  await center(p, 'canvas[data-anim=samplers]');
+  await p.eval('Anim.seek(document.querySelector("canvas[data-anim=samplers]"), 3.0)'); await p.shotEl(out('l14-samplers.png'), 'canvas[data-anim=samplers]', 4);
+  await p.eval('Anim.seek(document.querySelector("canvas[data-anim=samplers]"), 7.0)'); await p.shotEl(out('l14-samplers-end.png'), 'canvas[data-anim=samplers]', 4);
+
   // --- 1. прогноз ᾱ: рисуем мышью ---
   await center(p, '#abMis');
   await go(p, '#abMis', 'ab');
@@ -268,6 +298,20 @@ async function desktop() {
 
   // --- 3. лаборатория ---
   await center(p, '#labMis');
+  // условия миссий говорят, с чего начинаем, что делаем и что считается результатом; числа — из движка
+  const labN = await p.eval('({ n: window.__l14.DATA.N, gen: window.__l14.Lab.NGEN, keep: window.__l14.Lab.KEEP, basin: window.__l14.Lab.BASIN.steps })');
+  const labNote = await p.eval('document.querySelector("#lab .scene-card .cv-note").textContent');
+  check(labNote.includes(`${labN.n} обучающих точек`) && labNote.includes(`${labN.gen} случайных точек гауссова шума`) && labNote.includes(`пути ${labN.keep} из них`) && /Генерация удалась, если точки легли на спирали/.test(labNote), `подпись под сценой лаборатории: ${labN.n} обучающих, старт с ${labN.gen} точек шума, пути ${labN.keep}, успех — точки на спиралях`);
+  check(await p.eval(`new RegExp('Генерация всегда начинается с ${labN.gen} случайных точек').test([...document.querySelectorAll('#lab .lab-prose')].map((e) => e.textContent).join(' '))`), 'вводный текст лаборатории: генерация начинается с точек шума');
+  const gtext = () => p.eval('document.querySelector("#labMis .g-text").textContent');
+  const LAB_TEXT = [
+    [new RegExp(`Начинаем с необученной сети.*${labN.n} серых обучающих точек.*Задача выполнена, когда ошибка`), 'М1: начало — необученная сеть, результат — ошибка ниже порога'],
+    [new RegExp(`Начинаем с ${labN.gen} случайных точек гауссова шума.*пути ${labN.keep} из них.*Результат засчитан, когда точки легли на спирали.*те же ${labN.gen} стартовых точек шума`), `М2: начало — ${labN.gen} точек шума, результат — точки на спиралях, регрессии те же старты`],
+    [new RegExp(`Те же ${labN.gen} стартовых точек шума.*Результат — число шагов`), 'М3: те же старты, результат — число шагов без формы'],
+    [new RegExp(`те же ${labN.gen} стартовых точек шума и та же сеть, слева DDPM, справа DDIM`), 'М4: те же старты на обеих панелях'],
+    [new RegExp(`стартуем не из облака, а из двух точек А и Б.*${labN.basin} шагов`), `М5: старт из двух точек, ${labN.basin} шагов DDIM`],
+  ];
+  check(LAB_TEXT[0][0].test(await gtext()), 'условие ' + LAB_TEXT[0][1]);
   check(await p.eval('document.querySelector("#wrapSteps").hidden && document.querySelector("#labTrain").hidden && !document.querySelector("#wrapEpochs").hidden'), 'лаборатория М1: видна только ручка эпох');
   check(await p.eval('document.querySelector("#labMis .g-go").disabled'), 'лаборатория М1: кнопка заблокирована до ставки');
   await bet(p, '#labMis', 'Выйдет на плато');
@@ -280,12 +324,14 @@ async function desktop() {
   check(await p.eval('document.querySelector("#labMis .m-bet .bet-right") !== null && document.querySelector("#labMis .m-bet .bet-wrong") === null'), 'М1: ставка «плато» отмечена ✓');
   await p.shotEl(out('l14-lab-train.png'), '#lab .lab', 6);
   await next(p, '#labMis');
+  check(LAB_TEXT[1][0].test(await gtext()), 'условие ' + LAB_TEXT[1][1]);
   check(await p.eval('!document.querySelector("#labTrain").hidden'), 'М2: появилась кнопка «Дообучить»');
   await bet(p, '#labMis', 'Облаком'); await go(p, '#labMis', 'lab');
   const g2 = await p.eval('window.__l14.mis.lab.ctx.results[1]');
   check(await done(p, 'lab') && Math.abs(g2.A.on - NUM.lab.on200) < 1e-9, `М2: DDPM 100 шагов — на спиралях ${p100(g2.A.on)}% (в Node ${p100(NUM.lab.on200)}%), доли ${p100(g2.A.share[0])}/${p100(g2.A.share[1])}; регрессия ${p100(g2.reg.on)}%, радиус ${f(g2.regR, 2)}`);
   await p.shotEl(out('l14-lab-gen.png'), '#lab .lab', 6);
   await next(p, '#labMis');
+  check(LAB_TEXT[2][0].test(await gtext()), 'условие ' + LAB_TEXT[2][1]);
   check(await p.eval('!document.querySelector("#wrapSteps").hidden'), 'М3: появился ползунок шагов');
   await bet(p, '#labMis', 'Примерно до 10');
   await setRange(p, 'labSteps', 11); await go(p, '#labMis', 'lab');
@@ -295,6 +341,7 @@ async function desktop() {
   check(await done(p, 'lab') && await p.eval('document.querySelector("#labMis .m-bet .bet-right") !== null && document.querySelector("#labMis .m-bet .bet-wrong") === null'), `М3, ${s3} шагов: ` + (await outText(p, '#labMis')).slice(0, 140));
   console.log('  журнал М3:', await p.eval('document.querySelector("#labMis .m-log").textContent'));
   await next(p, '#labMis');
+  check(LAB_TEXT[3][0].test(await gtext()), 'условие ' + LAB_TEXT[3][1]);
   check(await p.eval('window.__l14.Lab.api.state().duo && window.__l14.Lab.api.state().S === 8 && !document.querySelector("#labPaneB").hidden'), 'М4: DDIM рядом включён, 8 шагов');
   await bet(p, '#labMis', 'Виноват способ'); await go(p, '#labMis', 'lab');
   const g4 = await p.eval('window.__l14.mis.lab.ctx.results[3]');
@@ -304,6 +351,7 @@ async function desktop() {
   check(await done(p, 'lab'), 'М4: ' + (await outText(p, '#labMis')).slice(0, 150));
   await p.shotEl(out('l14-lab-duo.png'), '#lab .lab', 6);
   await next(p, '#labMis');
+  check(LAB_TEXT[4][0].test(await gtext()), 'условие ' + LAB_TEXT[4][1]);
   check(await p.eval('window.__l14.Lab.st.view === "basin" && document.querySelector("#labPaneB").hidden'), 'М5: режим бассейнов, одна панель');
   // тащим старты мышью к центру, по разные стороны
   await center(p, '#labCvA');
@@ -389,12 +437,22 @@ async function desktop() {
   check(a3.share === 0.9 && a3.S === 3 && a3.eta === 0 && a3.stray > 0 && !a3.meanBand, `свободный режим, 90 на 10, DDIM на 3 шагах: вне сгустков ${a3.stray}, в полосе ${a3.band}; регрессия в полосе ${a3.rBand}, среднее вне полосы`);
   console.log('  журнал действий:', await p.eval('[...document.querySelectorAll("#acMis .m-log li")].map((l) => l.textContent).join(" | ")'));
 
-  // --- квиз с калибровкой ---
+  // --- квиз: о подходе в целом, как в остальных уроках (без калибровки уверенности) ---
   await center(p, '#quizBox');
-  check(await p.eval('document.querySelector("#quizBox .q-opt").disabled'), 'квиз: ответы закрыты, пока не выбрана уверенность');
-  await p.eval('document.querySelectorAll("#quizBox .q-card").forEach((c, i) => { c.querySelectorAll(".q-conf button")[i % 3].click(); c.querySelector(".q-opt").click(); })');
+  const qh = JSON.parse(await p.eval('JSON.stringify([...document.querySelectorAll("#quizBox .q-card h4")].map((h) => h.textContent))'));
+  check(qh.length === 8 && !await p.eval('document.querySelector("#quizBox .q-conf, #quizBox .q-opt:disabled")') && !/калибров|уверенност/.test(await p.eval('document.querySelector("#quiz .prose > p").textContent')), 'квиз: 8 вопросов, ответы открыты сразу, без кнопок уверенности и калибровки');
+  const qBad = qh.filter((t) => /DDIM|DDPM|DPM|β|ᾱ|η\b|расписани|flow matching|score|x_T|classifier/i.test(t));
+  check(qBad.length === 0, 'в вопросах квиза нет названий приёмов (DDIM, DDPM, расписание, score…)' + (qBad.length ? ': ' + qBad.join(' | ') : ''));
+  const qTopics = [/регресси/, /шумом постепенно|за много шагов/, /на обучении.*на генерации/, /разные ответы/, /дорого по времени/, /условие.*guidance/, /новые примеры/, /действия робота/];
+  check(qTopics.every((re, i) => re.test(qh[i])), 'темы вопросов: регрессия, шаги, обучение и генерация, разные ответы, цена генерации, условие и guidance, память, действия робота');
+  await p.eval('document.querySelectorAll("#quizBox .q-card").forEach((c) => c.querySelector(".q-opt").click())');
   const qs = await p.eval('document.querySelector("#quizScore").textContent');
-  check(/Итог: \d из 8/.test(qs) && /штраф калибровки/.test(qs), 'квиз: ' + qs.slice(0, 160));
+  check(/^Итог: \d из 8\./.test(qs) && !/калибров/.test(qs), 'квиз: ' + qs.slice(0, 120));
+  const qe = JSON.parse(await p.eval('JSON.stringify([...document.querySelectorAll("#quizBox .q-exp")].map((e) => e.textContent))'));
+  check(qe.length === 8 && qe.every((t) => /^(Верно|Не совсем)\./.test(t)), 'после ответа у каждого вопроса есть пояснение');
+  check(qe[7].includes(`на ${D.ACT.n} действиях`) && qe[7].includes(`из ${D.ACT.gen} сгенерированных действий ни одно не попало в полосу`) && NUM.acts.left + NUM.acts.right === D.ACT.gen, `пояснение 8: ${D.ACT.n} действий и ${D.ACT.gen} сгенерированных — из движка, «ни одно в полосе» — как в Node`);
+  check(/на восьми точках.*больше половины/.test(qe[6]) && /128 точках — меньше четверти/.test(qe[6]) && NUM.memo.c8[8] > 0.5 && NUM.memo.end[128] < 0.25, 'пояснение 7 (память) согласовано с цифрами раздела: N = 8 — больше половины копий, N = 128 — меньше четверти');
+  check(/облако в центр/.test(qe[1]) && /ближе 0,25/.test(qe[3]) && /6–8 шагах/.test(qe[4]) && /перелетали спираль/.test(qe[5]), 'пояснения 2, 4, 5, 6 ссылаются на опыты урока (регрессия в центре, бассейны 0,25, 6–8 шагов, перелёт спирали)');
   await p.shotEl(out('l14-quiz.png'), '#quiz .prose', 6);
   await p.shotEl(out('l14-steps.png'), '#steps .prose', 6);
   await p.shotEl(out('l14-finale.png'), '#finale .prose', 6);
@@ -403,6 +461,8 @@ async function desktop() {
   check(fwdBad2.length === 0, 'отсылки вперёд после миссий: первое упоминание каждой модели — с номером урока' + (fwdBad2.length ? '; нет у: ' + fwdBad2.join('; ') : ''));
   // тёмная тема
   await p.click('#themeBtn'); await sleep(400);
+  await p.eval('Anim.seek(document.querySelector("canvas[data-anim=cycle]"), 8.3)'); await p.shotEl(out('l14-cycle-dark.png'), 'figure.scheme-fig', 6);
+  await p.eval('Anim.seek(document.querySelector("canvas[data-anim=samplers]"), 7.0)'); await p.shotEl(out('l14-samplers-dark.png'), 'canvas[data-anim=samplers]', 4);
   await p.shotEl(out('l14-forward-dark.png'), '#forward .lab', 6);
   await p.shotEl(out('l14-score-dark.png'), '#score .lab', 6);
   await p.shotEl(out('l14-lab-dark.png'), '#lab .lab', 6);
@@ -419,6 +479,14 @@ async function phone() {
   await m.waitFor('window.__lessonReady === true', 60000);
   console.log('Телефон 390');
   await m.eval('window.__l14.SPEED.k = 6');
+  const mcyc = await m.eval(`(() => { const cv = document.querySelector('canvas[data-anim="cycle"]'); Anim.seek(cv, 1.1); const x = cv.toDataURL(); Anim.seek(cv, 3.7); return { moves: x !== cv.toDataURL(), layout: cv.dataset.layout }; })()`);
+  check(mcyc.moves && mcyc.layout === 'n', `телефон: схема в узкой раскладке (${mcyc.layout}) и движется`);
+  await m.eval('document.querySelector("figure.scheme-fig").scrollIntoView({ block: "start", behavior: "instant" })'); await sleep(200);
+  await m.eval('Anim.seek(document.querySelector("canvas[data-anim=cycle]"), 2.2)'); await m.shotEl(out('l14-m-cycle.png'), 'figure.scheme-fig', 4);
+  const msmp = await m.eval(`(() => { const cv = document.querySelector('canvas[data-anim="samplers"]'); Anim.seek(cv, 1.5); const x = cv.toDataURL(); Anim.seek(cv, 7.0); return { moves: x !== cv.toDataURL(), layout: cv.dataset.layout }; })()`);
+  check(msmp.moves && msmp.layout === 'n', `телефон: схема DDPM/DDIM в узкой раскладке (${msmp.layout}) и движется`);
+  await m.eval('document.querySelector("canvas[data-anim=samplers]").scrollIntoView({ block: "start", behavior: "instant" })'); await sleep(200);
+  await m.shotEl(out('l14-m-samplers.png'), 'canvas[data-anim=samplers]', 4);
   await center(m, '#abPlot');
   await drawForecast(m, (t) => Math.exp(-t / 300));
   await m.shotEl(out('l14-m-forward-draw.png'), '#forward .lab', 4);
@@ -441,6 +509,8 @@ async function phone() {
   check(await done(m, 'acts'), 'телефон: действия Ады — М1 пройдена: ' + (await outText(m, '#acMis')).slice(0, 60));
   await m.shotEl(out('l14-m-actions.png'), '#actions .lab', 4);
   await m.shotEl(out('l14-m-steps.png'), '#steps .prose', 4);
+  await m.eval('document.querySelectorAll("#quizBox .q-card").forEach((c, i) => { if (i < 2) c.querySelector(".q-opt").click(); })');
+  check(/Отвечено 2 из 8/.test(await m.eval('document.querySelector("#quizScore").textContent')), 'телефон: квиз отвечается без выбора уверенности');
   await m.shotEl(out('l14-m-quiz.png'), '#quiz .prose', 4);
   const wdt = await m.eval('document.documentElement.scrollWidth');
   check(wdt <= 390, `телефон: ширина ${wdt} из 390`);
