@@ -86,6 +86,14 @@
   .ctl-row .seg button { flex: 1 1 auto; }
   .scrub-strip .ss { font-size: 9.5px; padding: 4px 0; }
 }
+/* схема Real-Time Chunking (shared/anim.js) */
+.scheme-fig { margin: 0 0 22px; padding: 14px 16px 12px; max-width: 820px; }
+.scheme-fig canvas { display: block; width: 100%; height: auto; }
+.scheme-fig figcaption { margin-top: 8px; }
+@media (max-width: 520px) { .scheme-fig { padding: 10px 10px 8px; } }
+.cv-legend i.hatch { width: 12px; height: 12px; border-radius: 2px; border: 1px solid var(--c); background: repeating-linear-gradient(45deg, var(--c) 0 1.5px, transparent 1.5px 4px); }
+/* полоска прогонов: ряды кликабельны, когда есть прогоны */
+.flips-cv.has-rows { cursor: pointer; }
 /* подписи под сценами */
 .cv-note { margin: 8px 0 0; font-size: 14px; line-height: 1.5; color: var(--ink-3); }
 .strip-legend .sl-h { color: var(--ink-2); }

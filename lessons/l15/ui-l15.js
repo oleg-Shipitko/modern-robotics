@@ -4,7 +4,9 @@
    (перемотка шагов: где выбирается сторона); собери политику по шагам;
    лаборатория «Ада и диффузионная политика» на миссиях (shared/missions.js):
    десять прогонов, регрессия рядом, исполнение по одному шагу, шаги
-   денойзинга, сколько исполнять из 16 при сдвиге чайника; квиз.
+   денойзинга, сколько исполнять из 16 при сдвиге чайника; схема
+   Real-Time Chunking (shared/anim.js); интерактив «положение или скорость»
+   (lessons/l15/engine.js); квиз.
    Движок без DOM — shared/kettle-core.js, рисование — shared/kettle-draw.js.
    ===================================================================== */
 'use strict';
@@ -309,6 +311,7 @@ const Lab = (() => {
   const st = {
     share: 0.5, Ta: 8, steps: 16, reg: false, shift: false, plan: true,
     data: null, dataKey: '', cache: {}, res: null, play: null, batchNo: 0, training: false, prog: 0, loss: { den: [], reg: [] }, log: [], curve: {},
+    sel: null, flipGeo: null,   // выбранный на полоске прогон и геометрия полоски для клика
   };
   let ctl = null;
   const key = () => String(st.share);
@@ -352,7 +355,7 @@ const Lab = (() => {
     return { cells, flips };
   }
   async function run(o) {
-    o = o || {}; const D = ensureData();
+    o = o || {}; const D = ensureData(); st.sel = null; flipsNote();
     if (needTrain()) {
       st.training = true; st.prog = 0; draw();
       const m = models(), it = { den: m.den ? 1 : 0, reg: st.reg && !m.reg ? 0 : 1 };
@@ -371,7 +374,7 @@ const Lab = (() => {
     const r = { share: st.share, Ta: st.Ta, steps: st.steps, shift: st.shift, reg: st.reg, n, nLeft: D.nLeft, nRight: D.nRight, den: summ(res.den), regS: st.reg ? summ(res.reg) : null };
     if (st.shift && n >= 20) st.curve[st.Ta] = r.den.ok;
     st.log.push(r);
-    return new Promise((resolve) => { st.res = res; st.play = playback(2200, () => { st.play = null; try { draw(); plotCurve(); plotFlips(); } finally { resolve(r); } }); });
+    return new Promise((resolve) => { st.res = res; st.play = playback(2200, () => { st.play = null; try { draw(); plotCurve(); plotFlips(); flipsNote(); } finally { resolve(r); } }); });
   }
   /* ---------- рисование ---------- */
   function drawPlan(c, P, plan, color) {
@@ -388,15 +391,17 @@ const Lab = (() => {
     KD.demos(c, P, D.demos, st.res ? 0.18 : 0.4);
     const u = st.play ? st.play.u() : 1;
     if (st.res) {
-      const q0 = st.res.den[0], tN = Math.min(q0.pts.length - 1, Math.round(u * (q0.pts.length - 1)));
+      const sel = st.sel != null && !st.play && st.res.den[st.sel] ? st.sel : null, m0 = sel == null ? 0 : sel;
+      const q0 = st.res.den[m0], tN = Math.min(q0.pts.length - 1, Math.round(u * (q0.pts.length - 1)));
       const kx = q0.kpath[Math.min(tN, q0.kpath.length - 1)];
       if (st.shift && Math.abs(kx - E.KETTLE.x) > 0.5) KD.kettle(c, k, P, E.KETTLE, { ghost: true });
       KD.kettle(c, k, P, { x: kx, y: E.KETTLE.y }, { label: true });
       c.lineJoin = 'round'; c.lineCap = 'round';
       for (const p of ['reg', 'den']) {
         const runs = st.res[p]; if (!runs.length) continue; const color = p === 'den' ? P.dif : P.reg;
-        if (!st.play) { c.strokeStyle = color; if (p === 'reg') c.setLineDash([6, 5]); for (let i = 1; i < runs.length; i++) { const hi = p === 'den' && runs[i].flips >= 2; c.lineWidth = hi ? 2.4 : 1.3; c.globalAlpha = hi ? 0.9 : 0.4; KD.pathPts(c, runs[i].pts, runs[i].hit ? runs[i].hit.t + 1 : null); } c.setLineDash([]); c.globalAlpha = 1; for (let i = 1; i < runs.length; i++) if (runs[i].hit) HeroKit.cross(c, runs[i].hit.x, runs[i].hit.y, 4, P.bad, 1.8); }
-        const q = runs[0], tq = Math.min(tN, q.pts.length - 1), stop = q.hit ? Math.min(tq, q.hit.t + 1) : tq;
+        // остальные прогоны тонкие; при выбранном прогоне они приглушены, выбранный — ярко
+        if (!st.play) { c.strokeStyle = color; if (p === 'reg') c.setLineDash([6, 5]); for (let i = 0; i < runs.length; i++) { if (i === m0) continue; const hi = sel == null && p === 'den' && runs[i].flips >= 2; c.lineWidth = hi ? 2.4 : 1.3; c.globalAlpha = sel != null ? 0.15 : hi ? 0.9 : 0.4; KD.pathPts(c, runs[i].pts, runs[i].hit ? runs[i].hit.t + 1 : null); } c.setLineDash([]); c.globalAlpha = sel != null ? 0.3 : 1; for (let i = 0; i < runs.length; i++) if (i !== m0 && runs[i].hit) HeroKit.cross(c, runs[i].hit.x, runs[i].hit.y, 4, P.bad, 1.8); c.globalAlpha = 1; }
+        const q = runs[Math.min(m0, runs.length - 1)], tq = Math.min(tN, q.pts.length - 1), stop = q.hit ? Math.min(tq, q.hit.t + 1) : tq;
         c.strokeStyle = color; c.lineWidth = 3; if (p === 'reg') c.setLineDash([7, 5]); KD.pathPts(c, q.pts, stop); c.setLineDash([]);
         if (st.plan) { const pl = activePlan(q, stop); if (pl) drawPlan(c, P, pl, color); }
         const a = q.pts[stop], b = q.pts[Math.max(0, stop - 1)];
@@ -408,17 +413,27 @@ const Lab = (() => {
       KD.ada(c, E.START.x, E.START.y, -Math.PI / 2, P.dif, 0.95);
       if (st.reg) KD.ada(c, E.START.x - 9, E.START.y, -Math.PI / 2, P.reg, 0.7);
     }
-    const D2 = ensureData(), txt = (st.training ? `обучение ${fmt1(st.prog * 100, 0)}%` : st.play ? `прогон 1 · шаг ${Math.round(u * (st.res.den[0].pts.length - 1))}` : st.res ? `${st.res.den.length} прогонов` : 'до запуска') + ` · демонстраций ${D2.nLeft} слева, ${D2.nRight} справа`;
+    const D2 = ensureData(), selQ = !st.play && st.sel != null && st.res ? st.res.den[st.sel] : null, narrow = k > 1.5;
+    const txt = (st.training ? `обучение ${fmt1(st.prog * 100, 0)}%` : st.play ? `прогон 1 · шаг ${Math.round(u * (st.res.den[0].pts.length - 1))}` : selQ ? (narrow ? `прогон ${st.sel + 1}: смен стороны ${selQ.flips}${selQ.touch ? ', касание' : ''}` : `показан ${selTxt(selQ, st.sel)}`) : st.res ? `${st.res.den.length} прогонов` : 'до запуска') + (selQ && narrow ? '' : ` · демонстраций ${D2.nLeft} слева, ${D2.nRight} справа`);
     HeroKit.label(c, k, txt, 10, E.H - 12, { align: 'left', mono: true, px: 11, color: P.ink3, haloColor: P.bg });
     drawStats(); labLegend();
   }
   /** Легенда сцены: пункт про яркие пути появляется, когда среди прогонов есть такие, где план менял сторону два раза и больше. */
   function labLegend() {
-    const hi = !!(st.res && !st.play && st.res.den.some((q) => q.flips >= 2)), sig = `${st.reg}|${hi}`;
+    const selOn = st.sel != null && !!st.res && !st.play, hi = !selOn && !!(st.res && !st.play && st.res.den.some((q) => q.flips >= 2)), sig = `${st.reg}|${hi}|${selOn}`;
     const box = $('#labLegend'); if (box.dataset.sig === sig) return; box.dataset.sig = sig;
     const items = [['диффузионная политика', 'var(--pol-dif)'], ['регрессия с пачками', 'var(--pol-reg)', 'dash'], ['план: исполнит / заменит', 'var(--pol-dif)', 'dot'], ['демонстрации', 'var(--ink-3)'], ['касание', 'var(--critical)']];
     if (hi) items.splice(1, 0, ['прогон, где план менял сторону ≥ 2 раз', 'var(--pol-dif)', 'thick']);
+    if (selOn) items.splice(1, 0, ['выбранный на полоске прогон; остальные приглушены', 'var(--pol-dif)', 'thick']);
     legend('#labLegend', items);
+  }
+  const selTxt = (q, i) => `прогон ${i + 1}: сторона менялась ${nWord(q.flips, 'раз', 'раза', 'раз')}${q.touch ? ', касание' : ', без касания'}`;
+  /** Клик по ряду полоски: показать путь этого прогона на сцене; повторный клик, клик мимо рядов или по сцене снимает выделение. */
+  function selectRun(i) { st.sel = i == null || st.sel === i ? null : i; draw(); plotFlips(); flipsNote(); }
+  function flipsNote() {
+    const el = $('#flipsOut'); if (!el) return;
+    const q = st.sel != null && st.res && !st.play ? st.res.den[st.sel] : null;
+    setOut(el, q ? `Показан ${selTxt(q, st.sel)}. Нажми на ряд ещё раз или на сцену, чтобы снять выделение.` : st.res && !st.play ? 'Нажми на ряд, чтобы показать на сцене путь этого прогона.' : '');
   }
   /** Полоска прогонов: ряд — прогон, клетки — пачки у чайника по порядку, цвет — сторона; ряды с ≥ 2 сменами в рамке. */
   function plotFlips() {
@@ -430,14 +445,16 @@ const Lab = (() => {
     const { c, k } = HeroKit.fit(cv, W, H), P = KD.pal();
     c.fillStyle = P.bg; c.fillRect(0, 0, W, H);
     const runs = st.res ? st.res.den : null;
+    st.flipGeo = { top, rowH, H, rows: runs ? Math.min(ROWS, runs.length) : 0 }; cv.classList.toggle('has-rows', !!runs);
     if (!runs) { HeroKit.label(c, k, narrow ? 'Нажми «Прогнать 10 раз» — здесь появятся цепочки пачек' : 'Нажми «Прогнать 10 раз»: здесь появятся цепочки пачек каждого прогона', W / 2, H / 2, { px: narrow ? 11 : 12, color: P.ink3, halo: false }); return; }
     const L = narrow ? 40 : 30, R = narrow ? 70 : 80, px = narrow ? 10 : 10.5;
     const maxN = Math.max(1, ...runs.map((q) => q.chain.cells.length)), cw = (W - L - R) / maxN, gap = Math.min(2, cw * 0.22);
     HeroKit.label(c, k, narrow ? 'прогон · пачки у чайника →' : 'прогон · пачки, построенные у чайника, по порядку →', L, top / 2, { align: 'left', px, mono: true, color: P.ink3, halo: false });
     HeroKit.label(c, k, 'смен', W - 2, top / 2, { align: 'right', px, mono: true, color: P.ink3, halo: false });
     runs.slice(0, ROWS).forEach((q, i) => {
-      const y = top + i * rowH, mark = q.flips >= 2;
-      if (mark) { c.fillStyle = P.surf; c.fillRect(2, y - 1, W - 4, rowH - 1); c.strokeStyle = P.ink; c.lineWidth = 1.3; c.strokeRect(2.5, y - 0.5, W - 5, rowH - 2); }
+      const y = top + i * rowH, mark = q.flips >= 2, isSel = st.sel === i;
+      if (isSel) { c.globalAlpha = 0.2; c.fillStyle = P.dif; c.fillRect(2, y - 1, W - 4, rowH - 1); c.globalAlpha = 1; c.strokeStyle = P.dif; c.lineWidth = 2; c.strokeRect(2.5, y - 0.5, W - 5, rowH - 2); }
+      else if (mark) { c.fillStyle = P.surf; c.fillRect(2, y - 1, W - 4, rowH - 1); c.strokeStyle = P.ink; c.lineWidth = 1.3; c.strokeRect(2.5, y - 0.5, W - 5, rowH - 2); }
       HeroKit.label(c, k, String(i + 1), L - 6, y + rowH / 2 - 1, { align: 'right', px, mono: true, weight: mark ? 750 : 500, color: mark ? P.ink : P.ink3, halo: false });
       q.chain.cells.forEach((cell, j) => {
         const x = L + j * cw; c.beginPath(); c.rect(x + gap / 2, y + 1, Math.max(1, cw - gap), rowH - 4);
@@ -490,8 +507,8 @@ const Lab = (() => {
     st.steps = +stp.value; stp.nextElementSibling.textContent = stp.value;
     st.reg = $('#labReg').checked; st.shift = $('#labShift').checked; st.plan = $('#labPlan').checked;
     $$('#wrapTa button').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.ta === st.Ta)));
-    if (st.res && st.dataKey !== key()) st.res = null;
-    draw(); plotLoss(); plotCurve(); plotFlips(); if (ctl) ctl.update();
+    if (st.res && st.dataKey !== key()) { st.res = null; st.sel = null; }
+    draw(); plotLoss(); plotCurve(); plotFlips(); flipsNote(); if (ctl) ctl.update();
   }
   function setCtl(o) {
     if (o.share != null) $('#labShare').value = Math.round(o.share * 100);
@@ -499,13 +516,14 @@ const Lab = (() => {
     if (o.reg != null) $('#labReg').checked = o.reg;
     if (o.shift != null) $('#labShift').checked = o.shift;
     if (o.Ta != null) st.Ta = o.Ta;
-    if (o.clear) { st.res = null; }
+    if (o.clear) { st.res = null; st.sel = null; }
     syncCtl();
   }
   const api = {
     reset() { st.log = []; st.batchNo = 0; st.res = null; st.curve = {}; $('#labPlan').checked = true; setCtl({ share: 0.5, Ta: 8, steps: 16, reg: false, shift: false }); },
     run, setCtl,
-    state: () => ({ share: st.share, Ta: st.Ta, steps: st.steps, reg: st.reg, shift: st.shift, log: st.log.slice(), curve: Object.assign({}, st.curve) }),
+    state: () => ({ share: st.share, Ta: st.Ta, steps: st.steps, reg: st.reg, shift: st.shift, log: st.log.slice(), curve: Object.assign({}, st.curve), sel: st.sel }),
+    selectRun,
   };
   const shareTxt = (r) => `${Math.round(r.share * 100)} на ${100 - Math.round(r.share * 100)}`;
   const bestTa = (cv) => { let b = null; for (const ta of TAS) if (cv[ta] != null && (b == null || cv[ta] > cv[b])) b = ta; return b; };
@@ -565,6 +583,13 @@ const Lab = (() => {
     for (const id of ['#labReg', '#labShift', '#labPlan']) $(id).addEventListener('change', syncCtl);
     $$('#wrapTa button').forEach((b) => b.addEventListener('click', () => { st.Ta = +b.dataset.ta; syncCtl(); }));
     HeroKit.loop($('#labCv'), () => { if (st.play) draw(); });
+    const fcv = $('#labFlips');
+    fcv.addEventListener('click', (e) => {
+      const g = st.flipGeo, runs = st.res && st.res.den; if (!g || !runs || st.play) return;
+      const r = fcv.getBoundingClientRect(), y = (e.clientY - r.top) * g.H / r.height, row = Math.floor((y - g.top) / g.rowH);
+      selectRun(y >= g.top && row >= 0 && row < g.rows ? row : null);
+    });
+    $('#labCv').addEventListener('click', () => { if (st.sel != null) selectRun(null); });
     ctl = mountMissions('#labMis', missions, api, {
       controls: { plan: '#wrapPlan', reg: '#wrapReg', share: '#wrapShare', Ta: '#wrapTa', steps: '#wrapSteps', shift: '#wrapShift', curve: '#wrapCurve', flips: '#wrapFlips' },
       scene: '#labCv',
@@ -573,6 +598,214 @@ const Lab = (() => {
     return ctl;
   }
   return { init, api, st };
+})();
+
+/* ===================== 5. Схема Real-Time Chunking (shared/anim.js, ключ 'rtc') =====================
+   Две панели с одной и той же картиной: по горизонтали шаги управления, по вертикали смещение Ады вбок.
+   Пачка 1 из LEN действий уходит на моторы по одному; на шаге G0 сеть начинает строить пачку 2 и занята D шагов,
+   робот тем временем продолжает пачку 1. Слева RTC: первые D действий пачки 2 — замороженные копии тех, что
+   исполнялись во время счёта, остальные дорисованы так, чтобы продолжить исполняемую линию, стык без скачка.
+   Справа наивная замена: пачка 2 построена из нового шума по кадрам шага G0, выбрала другой объезд — скачок. */
+const Rtc = (() => {
+  const S = 20, LEN = 16, G0 = 4, D = 4, STEP = 0.45, T0 = 0.8, TT = 12, AMP = 30;
+  const sm = (u) => (u <= 0 ? 0 : u >= 1 ? 1 : u * u * (3 - 2 * u));
+  const prof = (s) => sm((s - 2) / 6) - sm((s - 13) / 7);                 // объезд: выход к шагу 8, возврат к шагу 20
+  const v1 = (s) => -AMP * prof(s);                                       // пачка 1: объезд слева
+  const v2r = (s) => -AMP * prof(s) + 2.5 * Math.sin((s - 8) * 0.7);      // пачка 2 (RTC): тот же объезд, чуть иначе доведён
+  const v2n = (s) => { const b = sm((s - 4) / 4); return (1 - b) * v1(4) + b * AMP * prof(s); }; // наивная: из кадров шага 4 выбран объезд справа
+  const exec = (s, mode) => (s <= G0 + D ? v1(s) : mode === 'rtc' ? v2r(s) : v2n(s));            // что исполняется на шаге s
+  function lock(c, x, y, col) {
+    c.strokeStyle = col; c.lineWidth = 1.3; c.beginPath(); c.arc(x, y - 1.5, 2.6, Math.PI, 0); c.stroke();
+    c.fillStyle = col; c.beginPath(); c.roundRect(x - 3.6, y - 1.5, 7.2, 5.4, 1.2); c.fill();
+  }
+  function panel(c, k, u, P, A, ox, oy, pw, mode, narrow) {
+    const { line, circle, rect, lab, alpha, arrow } = A;
+    const ax0 = ox + 48, ax1 = ox + pw - 16, cy = oy + 170, sc = 1.6, ay = oy + 248, my = oy + 284;
+    const xs = (s) => ax0 + s / S * (ax1 - ax0), ys = (v) => cy - v * sc;
+    const cur = u < T0 ? 0 : Math.min(LEN, (u - T0) / STEP), cs = Math.floor(cur), arrived = cur >= G0 + D, gen = cur >= G0 && !arrived, fin = u >= T0 + LEN * STEP;
+    lab(c, k, mode === 'rtc' ? 'Real-Time Chunking' : 'Наивная замена пачки', ox + pw / 2, oy + 14, { px: 12.5, weight: 750, color: P.ink, halo: false });
+    // полоса «сеть строит пачку 2»
+    const bx0 = xs(G0), bx1 = xs(G0 + D), by = oy + 42;
+    rect(c, bx0, by, bx1 - bx0, 14, 4, P.surf, cur >= G0 ? P.spr : P.line, cur >= G0 ? 1.8 : 1.2);
+    if (cur >= G0) { const f = Math.min(1, (cur - G0) / D); c.fillStyle = alpha(P.spr, arrived ? 0.35 : 0.55); c.beginPath(); c.roundRect(bx0 + 1, by + 1, Math.max(0, (bx1 - bx0 - 2) * f), 12, 3); c.fill(); }
+    lab(c, k, cur < G0 ? 'сеть ждёт заказа на пачку 2' : gen ? `сеть строит пачку 2 · задержка ${D} шага` : 'пачка 2 готова', (bx0 + bx1) / 2, oy + 31, { px: 10, weight: 650, color: cur >= G0 ? P.spr : P.ink3, halo: false });
+    // сетка и оси
+    for (const v of [-AMP, 0, AMP]) line(c, [[ax0, ys(v)], [ax1, ys(v)]], P.grid, 1);
+    lab(c, k, 'справа', ax0 - 6, ys(AMP), { px: 9.5, align: 'right', color: P.ink3, halo: false });
+    lab(c, k, 'прямая', ax0 - 6, ys(0), { px: 9.5, align: 'right', color: P.ink3, halo: false });
+    lab(c, k, 'слева', ax0 - 6, ys(-AMP), { px: 9.5, align: 'right', color: P.ink3, halo: false });
+    lab(c, k, narrow ? 'вбок' : 'смещение вбок', ax0 + 2, oy + 66, { px: 9.5, align: 'left', color: P.ink3, halo: false });
+    line(c, [[ax0, ay], [ax1 + 6, ay]], P.line, 1.4);
+    for (let s = 0; s <= S; s++) line(c, [[xs(s), ay - (s % 4 ? 2 : 5)], [xs(s), ay + (s % 4 ? 2 : 5)]], P.ink3, 1);
+    for (const s of [0, 4, 8, 12, 16, 20]) lab(c, k, String(s), xs(s), ay + 14, { px: 9.5, mono: true, color: P.ink3, halo: false });
+    lab(c, k, 'шаги →', ax1 + 4, ay - 10, { px: 9.5, align: 'right', color: P.ink3, halo: false });
+    // полоса моторов: исполненные действия по одному
+    lab(c, k, 'моторы', ax0 - 6, my + 5, { px: 9.5, align: 'right', color: P.ink3, halo: false });
+    for (let s = 1; s <= LEN; s++) { const on = s <= cs && cur > 0; rect(c, xs(s) - 4, my, 8, 10, 2, on ? (s <= G0 + D ? P.mot : (mode === 'rtc' ? P.spr : P.bad)) : P.surf, on ? null : P.line, 1); }
+    // стык
+    if (arrived) { line(c, [[xs(G0 + D), ys(AMP + 6)], [xs(G0 + D), ay]], P.ink3, 1.2, [3, 3]); lab(c, k, 'стык', xs(G0 + D), ys(AMP + 6) - 8, { px: 9.5, weight: 650, color: P.ink2, haloColor: P.surf }); }
+    // пачка 1: 16 действий, исполненные закрашены
+    for (let s = 1; s <= LEN; s++) { const on = s <= cs && cur > 0; circle(c, xs(s), ys(v1(s)), on ? 3.6 : 3.2, on ? P.mot : P.surf, P.mot, 1.6); }
+    lab(c, k, 'пачка 1', xs(2.2), ys(v1(2)) - 12, { px: 9.5, weight: 650, color: P.mot, haloColor: P.surf });
+    // пачка 2 после прихода
+    if (arrived) {
+      for (let s = G0 + 1; s <= G0 + LEN; s++) {
+        const on = s <= cs;
+        if (mode === 'rtc') {
+          if (s <= G0 + D) { const x = xs(s), y = ys(v1(s)); c.beginPath(); c.rect(x - 5, y - 5, 10, 10); c.fillStyle = P.surf; c.fill(); HeroKit.hatch(c, x - 5, y - 5, x + 5, y + 5, P.ink3, 3, 0.9); c.strokeStyle = P.ink3; c.lineWidth = 1.1; c.strokeRect(x - 5, y - 5, 10, 10); lock(c, x, y - 11, P.ink2); }
+          else circle(c, xs(s), ys(v2r(s)), on ? 3.6 : 3.2, on ? P.spr : P.surf, P.spr, 1.6);
+        } else circle(c, xs(s), ys(v2n(s)), on ? 3.6 : 3.2, on ? P.spr : P.surf, s <= G0 + D ? alpha(P.spr, 0.45) : P.spr, 1.6);
+      }
+      if (mode === 'rtc') { lab(c, k, narrow ? 'заморожены: копии' : 'заморожены: копии исполняемых', xs(G0 + 1.5), ay - 11, { px: 9.5, weight: 650, align: 'left', color: P.ink2, haloColor: P.surf }); lab(c, k, 'пачка 2: дорисована к пути', ax1, ys(v2r(19)) - 13, { px: 9.5, weight: 650, align: 'right', color: P.spr, haloColor: P.surf }); }
+      else { lab(c, k, narrow ? 'опоздали' : 'эти шаги уже прошли', xs(G0 + 2.5), ys(v2n(G0 + 2)) - 12, { px: 9.5, weight: 650, color: P.ink3, haloColor: P.surf }); lab(c, k, 'пачка 2: другой объезд', ax1, ys(AMP) - 13, { px: 9.5, weight: 650, align: 'right', color: P.spr, haloColor: P.surf }); }
+    }
+    // исполненный путь
+    if (cur > 0) {
+      const pts = []; for (let s = 0; s <= cs; s++) pts.push([xs(s), ys(exec(s, mode))]);
+      if (cs < LEN) { const f = cur - cs, a = exec(cs, mode), b = exec(cs + 1, mode); pts.push([xs(cs + f), ys(mode !== 'rtc' && cs === G0 + D ? a : a + (b - a) * f)]); }
+      const jump = mode !== 'rtc' && cs >= G0 + D + 1;
+      line(c, pts.slice(0, Math.min(pts.length, G0 + D + 1)), P.ink, 2.8);
+      if (pts.length > G0 + D + 1) { line(c, pts.slice(G0 + D), jump ? P.bad : P.ink, 2.8); if (jump) HeroKit.cross(c, xs(G0 + D + 0.5), (ys(v1(G0 + D)) + ys(v2n(G0 + D + 1))) / 2, 5, P.bad, 2.2); }
+      const q = pts[pts.length - 1]; circle(c, q[0], q[1], 7, P.surf, P.ink, 2.2); circle(c, q[0] + 2.5, q[1] - 2, 1.3, P.mot, null); circle(c, q[0] + 2.5, q[1] + 2, 1.3, P.mot, null);
+      if (cs >= 1 && cs <= LEN && !fin) arrow(c, xs(cs), ys(exec(cs, mode)) + 10, xs(cs), my - 3, alpha(P.ink2, 0.7), 1.4, 6);
+      lab(c, k, 'Ада', q[0] - 11, q[1], { px: 9.5, weight: 650, align: 'right', color: P.ink, haloColor: P.surf });
+    }
+    // строка состояния
+    const st = fin ? (mode === 'rtc' ? (narrow ? 'стык без скачка: пачка 2 продолжает путь' : 'стык без скачка: пачка 2 продолжает исполняемую линию') : (narrow ? 'скачок на стыке: пачка 2 выбрала другой объезд' : 'скачок на стыке: пачка 2 построена заново и выбрала другой объезд'))
+      : cur <= 0 ? 'пачка 1 готова, действия пойдут на моторы по одному' : gen ? 'робот продолжает пачку 1, пока сеть считает пачку 2' : arrived ? 'с шага 9 исполняется пачка 2' : 'действия пачки 1 уходят на моторы по одному';
+    lab(c, k, st, ox + pw / 2, oy + 318, { px: narrow ? 9.5 : 10.5, weight: 650, color: fin ? (mode === 'rtc' ? P.good : P.bad) : P.ink2, halo: false });
+  }
+  function drawRtc(cols) {
+    return (c, k, t, P, A) => {
+      const u = ((t % TT) + TT) % TT, pw = 360, ph = 340;
+      ['rtc', 'naive'].forEach((m, i) => { const ox = (i % cols) * pw, oy = Math.floor(i / cols) * ph; if (i % cols) A.line(c, [[ox, oy + 24], [ox, oy + ph - 16]], P.grid, 1); panel(c, k, u, P, A, ox, oy, pw, m, cols === 1); });
+    };
+  }
+  if (typeof Anim !== 'undefined') Anim.add('rtc', { W: 720, H: 340, start: 0.3, narrowAt: 600, draw: drawRtc(2), narrow: { W: 360, H: 680, draw: drawRtc(1) } });
+  function init() {
+    if (!$('#rtcLegend')) return;
+    legend('#rtcLegend', [['пачка 1: исполнено / впереди', 'var(--e2e)', 'dot'], ['исполненный путь', 'var(--ink)'], ['сеть строит пачку 2', 'var(--hybrid)', 'band'], ['замороженные действия пачки 2', 'var(--ink-3)', 'hatch'], ['новые действия пачки 2', 'var(--hybrid)', 'dot'], ['скачок на стыке', 'var(--critical)']]);
+  }
+  return { init, S, LEN, G0, D, TT, v1, v2r, v2n, exec };
+})();
+
+/* ===================== 6. Положение или скорость (lessons/l15/engine.js) =====================
+   Одна и та же пачка исполняется двумя регуляторами: позиционным (оранжевая Ада) и скоростным (синяя).
+   Десять пар прогонов с одними и теми же сдвигами при исполнении для любых настроек задержки и шума. */
+const Pv = (() => {
+  const N = 10, SEED0 = 1, PVE = typeof L15 !== 'undefined' ? L15 : null;
+  const st = { delay: 3, noise: 1, res: null, play: null, log: [] };
+  let ctl = null;
+  const pack = (s) => ({ touches: s.touches, k: s.kMean, end: s.endMean, max: s.maxMax, maxMean: s.maxMean });
+  function calc(delay, noise) { const r = PVE.pvBatch(N, SEED0, { delay, noise }); return { r, out: { delay, noise, n: N, pos: pack(r.pos), vel: pack(r.vel), velWorse: r.velWorse } }; }
+  function run() {
+    const { r, out } = calc(st.delay, st.noise);
+    st.log.push(out);
+    return new Promise((resolve) => { st.res = r; st.play = playback(2600, () => { st.play = null; try { draw(); } finally { resolve(out); } }); draw(); });
+  }
+  /** Активная пачка прогона после tN шагов: исполненные точки закрашены, впереди — контуром, пропущенные из-за задержки — серые. */
+  function chunkDots(c, P, q, tN, color) {
+    let ch = null; for (const h of q.chunks) { if (h.from <= tN - 1 || (tN === 0 && h.from === 0)) ch = h; else break; }
+    if (!ch) return;
+    ch.p.forEach((pt, j) => {
+      const step = ch.t0 + j, skipped = step < ch.from, done = step < tN;
+      c.beginPath(); c.arc(pt.x, pt.y, skipped ? 2.2 : done ? 3.4 : 2.8, 0, 7);
+      if (skipped) { c.fillStyle = P.ink3; c.globalAlpha = 0.6; c.fill(); c.globalAlpha = 1; }
+      else if (done) { c.fillStyle = color; c.fill(); }
+      else { c.lineWidth = 1.3; c.strokeStyle = color; c.globalAlpha = 0.75; c.stroke(); c.globalAlpha = 1; }
+    });
+  }
+  function draw() {
+    const { c, k } = HeroKit.fit($('#pvCv'), E.W, E.H), P = KD.pal(), VC = P.classic;
+    KD.house(c, k, P);
+    KD.kettle(c, k, P, E.KETTLE, { label: true });
+    const u = st.play ? st.play.u() : 1;
+    let tN = 0;
+    if (st.res) {
+      const pairs = st.res.pairs, q0 = pairs[0], n = q0.pos.pts.length - 1; tN = Math.min(n, Math.round(u * n));
+      c.setLineDash([3, 5]); c.strokeStyle = P.ink2; c.lineWidth = 1.5; KD.pathPts(c, q0.pos.intend); c.setLineDash([]);
+      c.lineJoin = 'round'; c.lineCap = 'round';
+      for (const [mode, color, dash] of [['vel', VC, [6, 5]], ['pos', P.dif, []]]) {
+        if (!st.play) {
+          c.strokeStyle = color; c.setLineDash(dash); c.lineWidth = 1.3; c.globalAlpha = 0.35;
+          for (let i = 1; i < pairs.length; i++) KD.pathPts(c, pairs[i][mode].pts, pairs[i][mode].hit ? pairs[i][mode].hit.t + 1 : null);
+          c.setLineDash([]); c.globalAlpha = 1;
+          for (let i = 1; i < pairs.length; i++) if (pairs[i][mode].hit) HeroKit.cross(c, pairs[i][mode].hit.x, pairs[i][mode].hit.y, 4, P.bad, 1.8);
+        }
+        const q = q0[mode], stop = q.hit ? Math.min(tN, q.hit.t + 1) : tN;
+        c.strokeStyle = color; c.lineWidth = 3; c.setLineDash(dash); KD.pathPts(c, q.pts, stop); c.setLineDash([]);
+        chunkDots(c, P, q, stop, color);
+        const a = q.pts[stop], b = q.pts[Math.max(0, stop - 1)];
+        KD.ada(c, a.x, a.y, KD.heading(b.x, b.y, a.x, a.y), color);
+        if (q.hit && tN >= q.hit.t + 1) HeroKit.cross(c, q.hit.x, q.hit.y - E.RA - 8, 6, P.bad, 2.6);
+      }
+    } else {
+      KD.ada(c, E.START.x + 10, E.START.y, -Math.PI / 2, P.dif, 0.95);
+      KD.ada(c, E.START.x - 10, E.START.y, -Math.PI / 2, VC, 0.95);
+    }
+    const txt = `${st.play ? `прогон 1 · шаг ${tN}` : st.res ? `${N} прогонов` : 'до запуска'} · задержка ${nWord(st.delay, 'шаг', 'шага', 'шагов')} · шум ${fmt1(st.noise)} см`;
+    HeroKit.label(c, k, txt, 10, E.H - 12, { align: 'left', mono: true, px: 11, color: P.ink3, haloColor: P.bg });
+    drawStats();
+  }
+  function drawStats() {
+    const box = $('#pvStats'), last = st.res && !st.play ? st.log[st.log.length - 1] : null;
+    const sig = [last ? st.log.length : 0, st.delay, st.noise].join('|');
+    if (box.dataset.sig === sig) return; box.dataset.sig = sig; box.innerHTML = '';
+    const card = (name, col, sub, v) => box.append(h('div', { class: 'st', style: `--c:${col}` }, h('b', null, name), h('span', null, sub), h('div', { class: 'v' }, v)));
+    const sub = `задержка ${nWord(st.delay, 'шаг', 'шага', 'шагов')} · шум ${fmt1(st.noise)} см`;
+    const v = (s) => (s ? `отклонение от пачки: у чайника ${fmt1(s.k)} см, в конце пути ${fmt1(s.end)} см (в среднем) · самое большое ${fmt1(s.max)} см · касаний ${s.touches} из ${N}` : '—');
+    card('Пачка как положения', 'var(--pol-dif)', sub, last ? v(last.pos) : '—');
+    card('Та же пачка как скорости', 'var(--classic)', sub, last ? v(last.vel) : '—');
+  }
+  function syncCtl() {
+    const d = $('#pvDelay'), nz = $('#pvNoise');
+    st.delay = +d.value; d.nextElementSibling.textContent = nWord(st.delay, 'шаг', 'шага', 'шагов');
+    st.noise = +nz.value; nz.nextElementSibling.textContent = `${fmt1(st.noise)} см`;
+    draw(); if (ctl) ctl.update();
+  }
+  function setCtl(o) {
+    if (o.delay != null) $('#pvDelay').value = o.delay;
+    if (o.noise != null) $('#pvNoise').value = o.noise;
+    if (o.clear) st.res = null;
+    syncCtl();
+  }
+  const api = {
+    reset() { st.log = []; st.res = null; setCtl({ delay: 3, noise: 1 }); },
+    run, setCtl, calc,
+    state: () => ({ delay: st.delay, noise: st.noise, log: st.log.slice() }),
+  };
+  const ratio = (r) => (r.pos.end > 0 ? r.vel.end / r.pos.end : 99);
+  const missions = [
+    { short: 'Задержка 3 шага', title: 'Одна пачка, два регулятора', text: 'Пачка приходит с задержкой 3 шага, на каждом шаге исполнение промахивается в среднем на 1 см. Оранжевая Ада исполняет пачку как положения, синяя — ту же пачку как скорости. Десять прогонов с одними и теми же промахами.',
+      onEnter: (X) => X.setCtl({ delay: 3, noise: 1, clear: true }),
+      bet: { q: 'какой регулятор уедет от задуманного пути?', options: ['Оба одинаково: пачка одна и та же', 'Скоростной', 'Позиционный'], answer: (r) => (ratio(r) > 2 ? 1 : ratio(r) < 0.5 ? 2 : 0) },
+      action: { label: 'Прогнать 10 раз', run: (X) => X.run() },
+      criteria: [{ label: 'Скорости отклонились от пачки сильнее положений во всех 10 прогонах', test: (r) => r.velWorse === N }, { label: 'К концу пути ошибка скоростей хотя бы вдвое больше, чем у положений', test: (r) => ratio(r) >= 2 }],
+      summary: (r) => `задержка ${r.delay}, шум ${fmt1(r.noise)} см: в конце пути положения ${fmt1(r.pos.end)} см, скорости ${fmt1(r.vel.end)} см`,
+      fail: (r) => `Скорости отклонились сильнее в ${r.velWorse} прогонах из 10; в конце пути ${fmt1(r.vel.end)} см против ${fmt1(r.pos.end)} см. Нажми ещё раз.`,
+      explain: (r) => `Положения: у чайника ${fmt1(r.pos.k)} см, в конце пути ${fmt1(r.pos.end)} см — ошибка одного шага, она не растёт: каждый шаг регулятор тянет Аду к точке пачки, и прошлый промах стирается. Скорости: у чайника ${fmt1(r.vel.k)} см, в конце ${fmt1(r.vel.end)} см — промахи складываются, потому что каждая команда сдвигает Аду от того места, где она оказалась на самом деле. Поправка к маршруту сидит в первых командах новой пачки, а они из-за задержки приходят, когда их шаги уже прошли: серые точки на сцене — пропущенные команды. Авторы Diffusion Policy выдают именно положения: у них позиционное управление стабильно лучше скоростного, хотя у прежних методов было наоборот.` },
+    { short: 'Без задержки', title: 'Убери задержку', text: 'Поставь задержку 0: пачка приходит сразу, и скоростной регулятор получает её первую команду с поправкой к маршруту.', controls: ['delay'],
+      onEnter: (X) => X.setCtl({ delay: 0, noise: 1, clear: true }),
+      bet: { q: 'без задержки скорости перестанут уезжать от пачки?', options: ['Да: без задержки оба регулятора исполняют пачку одинаково', 'Нет: между пачками промахи всё равно складываются, поправка приходит только с новой пачкой', 'Нет: без задержки скорости отклонятся ещё сильнее'], answer: (r) => { const d3 = st.log.find((q) => q.delay === 3 && q.noise === r.noise); return ratio(r) < 1.3 ? 0 : d3 && r.vel.end > d3.vel.end ? 2 : 1; } },
+      action: { label: 'Прогнать 10 раз', run: (X) => X.run() },
+      criteria: [{ label: 'Задержка 0 шагов', test: (r) => r.delay === 0 }, { label: 'Скорости всё ещё отклоняются сильнее положений', test: (r) => r.velWorse >= 7 && r.vel.end > r.pos.end }, { label: 'Но меньше, чем при задержке 3 шага', test: (r, s) => s.log.some((q) => q.delay === 3 && q.noise === r.noise && q.vel.end > r.vel.end) }],
+      summary: (r) => `задержка ${r.delay}, шум ${fmt1(r.noise)} см: в конце пути положения ${fmt1(r.pos.end)} см, скорости ${fmt1(r.vel.end)} см`,
+      hint: 'Ползунок задержки появился под сценой. Поставь 0 и запусти прогоны.',
+      fail: (r) => (r.delay !== 0 ? 'Поставь задержку 0.' : !st.log.some((q) => q.delay === 3 && q.noise === r.noise) ? 'Сначала нужен прогон с задержкой 3 (миссия 1).' : `При задержке 0 скорости в конце пути: ${fmt1(r.vel.end)} см, положения: ${fmt1(r.pos.end)} см. Нажми ещё раз.`),
+      explain: (r) => { const d3 = st.log.find((q) => q.delay === 3 && q.noise === r.noise), sweep = [0, 1, 2, 3].map((d) => `${d} — ${fmt1(api.calc(d, r.noise).out.vel.end)} см`).join(', '); return `Без задержки скорости в конце пути отклоняются на ${fmt1(r.vel.end)} см${d3 ? ` вместо ${fmt1(d3.vel.end)} см при задержке 3` : ''}, но всё ещё больше ${fmt1(r.pos.end)} см у положений: между пачками 8 шагов, и промахи этих шагов никто не исправляет до следующей пачки. Ошибка скоростей в конце пути по задержкам: ${sweep}. Поправка сидит в первой команде пачки: задержка в один шаг теряет большую её часть, в два-три — почти всю, дальше расти почти нечему. У положений задержка ничего не меняет: цель абсолютная, регулятор доводит до неё в любом случае.`; } },
+    { short: 'Свободно', title: 'Свободный режим', text: 'Доступны задержка и шум. Проверь, как ошибка скоростей растёт с шумом и где перестаёт расти с задержкой. Касания появляются только при большом шуме: в этой модели пачка проходит мимо чайника с запасом в 22 см.', final: true, controls: ['delay', 'noise'],
+      action: { label: 'Прогнать 10 раз', run: (X) => X.run() }, summary: (r) => `задержка ${r.delay}, шум ${fmt1(r.noise)} см → в конце пути положения ${fmt1(r.pos.end)} см, скорости ${fmt1(r.vel.end)} см` },
+  ];
+  function init() {
+    if (!PVE || !$('#pvCv')) return null;
+    legend('#pvLegend', [['пачка как положения', 'var(--pol-dif)'], ['та же пачка как скорости', 'var(--classic)', 'dash'], ['задуманный путь: точки пачек', 'var(--ink-2)', 'dotted'], ['пачка: исполнено / впереди / пропущено', 'var(--pol-dif)', 'dot'], ['касание', 'var(--critical)']]);
+    for (const id of ['#pvDelay', '#pvNoise']) $(id).addEventListener('input', syncCtl);
+    HeroKit.loop($('#pvCv'), () => { if (st.play) draw(); });
+    ctl = mountMissions('#pvMis', missions, api, { controls: { delay: '#wrapPvDelay', noise: '#wrapPvNoise' }, scene: '#pvCv' });
+    syncCtl(); redrawOn(draw);
+    return ctl;
+  }
+  return { init, api, st, N, SEED0 };
 })();
 
 /* ===================== Квиз ===================== */
@@ -601,11 +834,11 @@ function initQuiz() {
   renderQuiz('#quizBox', [
     { q: 'Diffusion Policy выдаёт одно действие за вывод?', o: ['Да, как обычная политика', 'Нет: пачку из 16 действий, из которых исполняет 8', 'Нет: всю траекторию до цели'], a: 1, e: 'Пачка из 16 действий держит выбранную стратегию, а исполнение половины пачки оставляет возможность реагировать на сцену. В лаборатории так Ада объезжала чайник 10 раз из 10.' },
     { q: 'Шум добавляют и к кадрам с камер?', o: ['Да, вместе с действиями', 'Нет: наблюдения — только условие, шумится пачка действий', 'Только к первому кадру'], a: 1, e: 'Кадры сеть получает на каждом шаге денойзинга как условие. Энкодер считает их признаки один раз на всю пачку.' },
-    { q: 'На роботе нужно 100 шагов денойзинга, как при обучении?', o: ['Да, иначе пачка будет шумной', 'Нет: при выводе 16 шагов DDIM у Diffusion Policy, 10 у π0, 4 у GR00T N1, 1–3 после дистилляции', 'Нет, достаточно одного шага без дистилляции'], a: 1, e: 'В лаборатории хватало трёх-четырёх шагов, а один шаг без дистилляции давал оценку, близкую к среднему демонстраций, и Ада задевала чайник.' },
+    { q: 'При выводе нужно столько же шагов денойзинга, сколько уровней шума было при обучении?', o: ['Да: сеть училась на 100 уровнях шума, их все и надо пройти', 'Нет: обучение учит убирать шум на любом уровне, а расписание вывода — отдельный выбор, и крупных шагов хватает нескольких', 'Нет: достаточно одного шага, дистилляция не нужна'], a: 1, e: 'Сеть на каждом шаге оценивает чистую пачку, а DDIM шагает без свежего шума, поэтому крупные шаги не ломают форму. В лаборатории хватало трёх-четырёх шагов; один шаг без дистилляции давал оценку, близкую к среднему демонстраций, и Ада задевала чайник.' },
     { q: 'Пачку лучше исполнять целиком или по одному действию?', o: ['Целиком: так движение плавнее', 'Ни то ни другое: лучший результат посередине, у авторов — 8 из 16', 'По одному: так быстрее реакция'], a: 1, e: 'При исполнении по одному шагу план меняет сторону, а при исполнении целиком робот поздно замечает изменения сцены. В лаборатории лучший результат был в середине кривой.' },
     { q: 'Стыки пачек можно сгладить, усреднив старую и новую пачку?', o: ['Да, это безопасно', 'Нет: среднее двух стратегий бывает недопустимым действием', 'Да, если пачки длинные'], a: 1, e: 'Если старая пачка объезжает чайник слева, а новая справа, их среднее ведёт в чайник. Поэтому в Real-Time Chunking новую пачку достраивают к уже исполняемой, а не усредняют с ней.' },
-    { q: 'Диффузионной политике удобнее выдавать скорости, а не положения?', o: ['Да, скорости гладче', 'Нет: в статье позиционное управление стабильно лучше скоростного', 'Разницы нет'], a: 1, e: 'У бейзлайнов в статье было наоборот. Авторы объясняют это тем, что позиционное управление меньше страдает от накопления ошибки и задержки исполнения пачки.' },
-    { q: 'Прирост 46,9% из статьи — это результат на реальных роботах?', o: ['Да, на четырёх роботах', 'Нет: это средний прирост по задачам в симуляции', 'Да, на Push-T'], a: 1, e: 'На реальных роботах авторы приводят отдельные цифры: 95% на Push-T против 0% у IBC и 20% у LSTM-GMM, 90% на задаче с кружкой.' },
+    { q: 'Пачку действий лучше выдавать как скорости, а не как положения?', o: ['Да: скорости не зависят от того, где робот сейчас', 'Нет: при скоростях промахи исполнения складываются, а запоздавшая команда исполняется не там, где её посчитали; положение — цель, к которой регулятор доводит сам', 'Разницы нет: это одна и та же пачка в другой записи'], a: 1, e: 'Пачка одна, но исполняется по-разному. В интерактиве при задержке 3 шага и шуме 1 см позиционный регулятор держал ошибку одного шага, а скоростной уезжал от пачки в разы сильнее. Авторы Diffusion Policy выдают положения.' },
+    { q: 'Почему регрессия с пачками проигрывает диффузии, когда операторы объезжают чайник с разных сторон?', o: ['У регрессии меньше параметров, и ей не хватает выразительности', 'Регрессия со средним квадратом ошибки выдаёт среднее демонстраций — путь между объездами, а диффузия берёт сэмпл из одного из них', 'Регрессия не умеет выдавать пачки, только одно действие'], a: 1, e: 'В лаборатории при 50 на 50 регрессия задевала чайник, а при сильном перекосе проезжала: среднее уходит от чайника, только когда почти все объезды с одной стороны. Диффузии распределение любой формы не мешает, и когда стратегия в данных одна, регрессия с пачками не хуже и дешевле.' },
     { q: 'Доказано, что метод выигрывает из-за мультимодальности данных?', o: ['Да, это показано на всех бенчмарках', 'Нет: это объяснение авторов, и у него есть контраргументы', 'Нет, мультимодальность здесь ни при чём'], a: 1, e: 'На стандартных бенчмарках условных мод почти нет (урок 1.3), а работа 2025 года связывает выигрыш генеративных политик с шумом при обучении и итеративными шагами. Когда демонстрации разных операторов действительно расходятся, генеративная голова нужна.' },
   ], '#quizScore');
 }
@@ -617,8 +850,9 @@ function initQuiz() {
     safe('theme', initTheme); safe('nav', initNav);
     safe('pusht', () => { mis.pusht = PushT.init(); }); safe('scrub', () => { mis.scrub = Scrub.init(); }); safe('pipe', () => { mis.pipe = Pipe.init(); });
     safe('lab', () => { mis.lab = Lab.init(); });
+    safe('rtc', Rtc.init); safe('posvel', () => { mis.pv = Pv.init(); });
     safe('quiz', initQuiz);
-    window.__l15 = { mis, SPEED, PushT, Scrub, Pipe, Lab }; window.__lessonReady = true;
+    window.__l15 = { mis, SPEED, PushT, Scrub, Pipe, Lab, Pv, Rtc }; window.__lessonReady = true;
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();

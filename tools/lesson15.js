@@ -1,9 +1,11 @@
 // Проверка урока 1.5: сначала цифры движка в Node, потом все интерактивы в браузере —
-// награда Push-T, денойзинг пачки, сборка цикла, лаборатория (пять миссий и свободный режим), квиз;
-// тёмная тема и телефон 390 px. Снимки — в shots/l15-*.png.
+// награда Push-T, денойзинг пачки, сборка цикла, лаборатория (пять миссий и свободный режим, клик по ряду
+// полоски прогонов), интерактив «положение или скорость» (l15/engine.js), схема Real-Time Chunking (shared/anim.js),
+// квиз; тёмная тема и телефон 390 px. Снимки — в shots/l15-*.png.
 const { launch, sleep } = require('./cdp');
 const path = require('path');
 const K = require('../lessons/shared/kettle-core.js');
+const PVE = require('../lessons/l15/engine.js');
 const URL0 = 'file://' + path.resolve(__dirname, '../site/lessons/1-5-diffusion-policy.html');
 const out = (n) => path.resolve(__dirname, '../shots/' + n);
 const f1 = (v, d) => (+v).toFixed(d == null ? 1 : d);
@@ -60,6 +62,16 @@ function nodeNumbers() {
   const o1 = K.ddimExact(MUS, null, 16, 16, K.rng(4001), true), d1 = o1.x0s.map((x0) => x0[9] * K.SC), s1 = d1.map((d) => (d > 6 ? 1 : d < -6 ? -1 : 0));
   check(s1[0] === 0 && s1[1] === 0 && s1.slice(2).every((v) => v === 1) && Math.abs(d1[1]) < 6 && Math.abs(d1[1]) > 3, `стартовая пачка: оценка у чайника по шагам ${d1.slice(0, 4).map((v) => f1(v)).join(', ')} см — сторона выбрана на шаге 3, а на шаге 2 кольцо ещё в коридоре`);
   NODE.at2 = hist[2];
+  // положение или скорость: одна пачка, два регулятора; десять прогонов с зёрнами 1–10, одни и те же для любых настроек
+  const pv3 = PVE.pvBatch(10, 1, { delay: 3, noise: 1 }), pv0 = PVE.pvBatch(10, 1, { delay: 0, noise: 1 });
+  NODE.pv = { d3: pv3, d0: pv0, sweep: [0, 1, 2, 3].map((d) => PVE.pvBatch(10, 1, { delay: d, noise: 1 }).vel.endMean) };
+  check(pv3.velWorse === 10 && pv3.vel.endMean >= 2 * pv3.pos.endMean && pv3.pos.endMean < 1 && pv3.pos.maxMax < 5 && pv3.pos.touches === 0 && pv3.vel.touches === 0,
+    `положения/скорости, задержка 3, шум 1: в конце пути положения ${f1(pv3.pos.endMean)} см, скорости ${f1(pv3.vel.endMean)} см; у чайника ${f1(pv3.pos.kMean)} и ${f1(pv3.vel.kMean)}; скорости хуже в ${pv3.velWorse} парах из 10; касаний ${pv3.pos.touches}/${pv3.vel.touches}`);
+  check(pv0.velWorse >= 7 && pv0.vel.endMean > pv0.pos.endMean && pv0.vel.endMean < pv3.vel.endMean && NODE.pv.sweep.every((v, i) => i === 0 || v > NODE.pv.sweep[i - 1]),
+    `без задержки скорости ${f1(pv0.vel.endMean)} см против ${f1(pv0.pos.endMean)} у положений; ошибка скоростей по задержкам 0–3: ${NODE.pv.sweep.map((v) => f1(v)).join(', ')} см`);
+  // один и тот же ряд промахов у обоих регуляторов: при нулевом шуме оба идут по пачке без отклонений
+  const z = PVE.pvPair(1, { delay: 3, noise: 0 });
+  check(z.pos.maxDev < 1e-9 && z.vel.maxDev < 1e-9 && z.pos.chunks.length === z.vel.chunks.length && z.pos.chunks.every((ch, i) => ch.from === z.vel.chunks[i].from && (i === 0 || ch.from - ch.t0 === 3)), `без шума оба регулятора идут точно по пачке; пачек за прогон ${z.pos.chunks.length}, каждая после первой приходит через 3 шага`);
 }
 
 /* ---------- 2. Браузер ---------- */
@@ -98,6 +110,7 @@ async function desktop() {
   const tbl = await p.eval('(() => { const tds = [...document.querySelectorAll("#speed .speed-tbl tbody tr:first-child td")]; const w = tds.map((e) => e.getBoundingClientRect().width); const pr = tds.map((e) => parseFloat(getComputedStyle(e).paddingRight)); return { w, pr }; })()');
   check(tbl.w[2] >= 110 && tbl.pr.slice(0, 3).every((v) => v >= 12), `таблица систем: ширины столбцов ${tbl.w.map((v) => f1(v, 0)).join(' / ')}, отступ справа ${tbl.pr.map((v) => f1(v, 0)).join(' / ')}`);
   await p.shotEl(out('l15-speed.png'), '#speed .tbl-wrap', 6);
+  check(await p.eval('/11 миссий с целью/.test(document.querySelector(".hero-meta").textContent) && /4 интерактива/.test(document.querySelector(".hero-meta").textContent) && !!document.querySelector(".toc a[href=\'#posvel\']") && document.querySelector("#posvel h2").textContent === "Положение или скорость: что выдаёт политика"'), 'шапка: 11 миссий, 4 интерактива; раздел «Положение или скорость» в оглавлении');
 
   // --- 1. Push-T: перетащить блок мышью, повернуть ползунком, подогнать стрелками
   await center(p, '#ptCv');
@@ -181,6 +194,17 @@ async function desktop() {
   check(await p.eval('/прогон, где план менял сторону/.test(document.querySelector("#labLegend").textContent)'), 'лаба М3: в легенде сцены появился пункт про яркие пути');
   await p.shotEl(out('l15-lab-ta1.png'), '#lab .lab', 6);
   await p.shotEl(out('l15-lab-flips.png'), '#wrapFlips', 6);
+  // клик по ряду полоски: на сцене остаётся путь этого прогона, подпись называет прогон и число смен; повторный клик и клик по сцене снимают выделение
+  const rowClick = async (pg, row) => { const r = await pg.eval(`(() => { const cv = document.querySelector("#labFlips"); const g = window.__l15.Lab.st.flipGeo; const b = cv.getBoundingClientRect(); return { x: b.left + b.width * 0.5, y: b.top + (g.top + (${row} + 0.5) * g.rowH) * b.height / g.H }; })()`); await pg.S('Input.dispatchMouseEvent', { type: 'mousePressed', x: r.x, y: r.y, button: 'left', clickCount: 1 }); await pg.S('Input.dispatchMouseEvent', { type: 'mouseReleased', x: r.x, y: r.y, button: 'left', clickCount: 1 }); await sleep(120); };
+  check(/Нажми на ряд/.test(await p.eval('document.querySelector("#flipsOut").textContent')) && await p.eval('document.querySelector("#labFlips").classList.contains("has-rows")'), 'полоска: до клика подсказка «нажми на ряд», курсор-указатель');
+  await rowClick(p, r3.den.worst);
+  const selS = await p.eval('(() => { const L = window.__l15.Lab; const q = L.st.res.den[L.st.sel]; return { sel: L.st.sel, flips: q && q.flips, touch: q && q.touch, note: document.querySelector("#flipsOut").textContent, legend: document.querySelector("#labLegend").textContent }; })()');
+  check(selS.sel === r3.den.worst && selS.note.includes(`Показан прогон ${r3.den.worst + 1}: сторона менялась ${selS.flips} раз`) && selS.note.includes(selS.touch ? ', касание' : 'без касания') && /выбранный на полоске прогон/.test(selS.legend), `клик по ряду ${r3.den.worst + 1}: выбран прогон ${selS.sel + 1}, подпись «${selS.note.slice(0, 60)}…», в легенде пункт про выбранный прогон`);
+  await p.shotEl(out('l15-lab-sel.png'), '#lab .lab', 6);
+  await rowClick(p, r3.den.worst);
+  check(await p.eval('window.__l15.Lab.st.sel === null') && /Нажми на ряд/.test(await p.eval('document.querySelector("#flipsOut").textContent')), 'повторный клик по ряду снимает выделение');
+  await rowClick(p, 0); await p.eval('document.querySelector("#labCv").click()'); await sleep(80);
+  check(await p.eval('window.__l15.Lab.st.sel === null'), 'клик по сцене снимает выделение');
   await next(p, '#labMis');
   check(await p.eval('window.__l15.Lab.st.steps === 1 && !document.querySelector("#wrapSteps").hidden'), 'лаба М4: один шаг денойзинга');
   await bet(p, '#labMis', 'Начнёт задевать');
@@ -203,10 +227,45 @@ async function desktop() {
   const rf = await p.eval('window.__l15.Lab.st.log.at(-1)');
   check(!!rf.regS, `свободный режим: регрессия со сдвигом чайника — касаний ${rf.regS.touches} из 10, диффузия ${rf.den.touches}`);
 
+  // --- положение или скорость
+  await center(p, '#pvMis');
+  check(await p.eval('["#wrapPvDelay", "#wrapPvNoise"].every((s) => document.querySelector(s).hidden) && window.__l15.Pv.st.delay === 3 && window.__l15.Pv.st.noise === 1'), 'положения/скорости М1: ручки скрыты, задержка 3, шум 1');
+  await bet(p, '#pvMis', 'Скоростной'); await go(p, '#pvMis', 'pv');
+  const pv1 = await p.eval('window.__l15.mis.pv.ctx.results[0]'), N3 = NODE.pv.d3;
+  const same = (a, b) => Math.abs(a - b) < 1e-9;
+  check(await done(p, 'pv') && same(pv1.pos.end, N3.pos.endMean) && same(pv1.vel.end, N3.vel.endMean) && same(pv1.pos.k, N3.pos.kMean) && same(pv1.vel.k, N3.vel.kMean) && pv1.velWorse === N3.velWorse, `положения/скорости М1 пройдена: в конце пути ${f1(pv1.pos.end)} и ${f1(pv1.vel.end)} см — совпало с Node`);
+  const pvStats = await p.eval('document.querySelector("#pvStats").textContent'), pvEx = await outText(p, '#pvMis');
+  check(pvStats.includes(`в конце пути ${f1(pv1.pos.end).replace('.', ',')} см`) && pvStats.includes(`в конце пути ${f1(pv1.vel.end).replace('.', ',')} см`) && pvEx.includes(`в конце ${f1(pv1.vel.end).replace('.', ',')} см`) && /Ставка сыграла/.test(pvEx) && /пропущенные команды/.test(pvEx), 'положения/скорости М1: цифры в карточках и разборе совпадают с движком, ставка «Скоростной» сыграла');
+  check(await p.eval('document.querySelectorAll("#pvLegend span").length === 5 && /Вид сверху/.test(document.querySelector("#posvel .scene-card .cv-note").textContent)'), 'положения/скорости: легенда из пяти значков и подпись «вид сверху»');
+  await p.shotEl(out('l15-posvel.png'), '#posvel .lab', 6);
+  await next(p, '#pvMis');
+  check(await p.eval('!document.querySelector("#wrapPvDelay").hidden && document.querySelector("#wrapPvNoise").hidden && window.__l15.Pv.st.delay === 0'), 'положения/скорости М2: появилась задержка, стоит 0');
+  await bet(p, '#pvMis', 'Нет: между'); await go(p, '#pvMis', 'pv');
+  const pv2 = await p.eval('window.__l15.mis.pv.ctx.results[1]'), N0 = NODE.pv.d0, pvEx2 = await outText(p, '#pvMis');
+  check(await done(p, 'pv') && same(pv2.vel.end, N0.vel.endMean) && same(pv2.pos.end, N0.pos.endMean) && NODE.pv.sweep.every((v, i) => pvEx2.includes(`${i} — ${f1(v).replace('.', ',')} см`)) && /Ставка сыграла/.test(pvEx2), `положения/скорости М2 пройдена: без задержки скорости ${f1(pv2.vel.end)} см; в разборе ряд по задержкам ${NODE.pv.sweep.map((v) => f1(v)).join(', ')} совпал с Node`);
+  await p.shotEl(out('l15-posvel-m2.png'), '#posvel .lab', 6);
+  await next(p, '#pvMis');
+  check(await p.eval('["#wrapPvDelay", "#wrapPvNoise"].every((s) => !document.querySelector(s).hidden)'), 'положения/скорости, свободный режим: обе ручки видны');
+  await setRange(p, 'pvNoise', 2); await setRange(p, 'pvDelay', 3); await go(p, '#pvMis', 'pv');
+  const pvF = await p.eval('window.__l15.Pv.st.log.at(-1)');
+  check(pvF.noise === 2 && pvF.delay === 3 && pvF.vel.end > pv1.vel.end, `свободный режим: шум 2 см — скорости в конце пути ${f1(pvF.vel.end)} см, положения ${f1(pvF.pos.end)} см`);
+
+  // --- схема Real-Time Chunking
+  await center(p, 'canvas[data-anim=rtc]');
+  check(await p.eval('typeof Anim !== "undefined" && Anim.kinds().includes("rtc") && document.querySelector("canvas[data-anim=rtc]").dataset.animOn === "1"'), 'схема «rtc» зарегистрирована в Anim и смонтирована (shared/anim.js подключён в сборке)');
+  const rtc = await p.eval(`(() => { const cv = document.querySelector('canvas[data-anim="rtc"]'); const mv = [[0.1, 3.6], [6.5, 9.5]].map(([a, b]) => { Anim.seek(cv, a); const x = cv.toDataURL(); Anim.seek(cv, b); return x !== cv.toDataURL(); }); return { moves: mv.every(Boolean), layout: cv.dataset.layout }; })()`);
+  check(rtc.moves && rtc.layout === 'w', `схема RTC движется (до и во время счёта, стык и финал — разные кадры), раскладка широкая: ${rtc.layout}`);
+  const rtcNote = await p.eval('document.querySelector("canvas[data-anim=rtc]").parentElement.querySelector("figcaption.cv-note").textContent');
+  check(await p.eval('document.querySelectorAll("#rtcLegend span").length === 6') && /по горизонтали шаги управления/.test(rtcNote) && /заморожены/.test(rtcNote) && /занята 4 шага/.test(rtcNote) && /скачком/.test(rtcNote) && !(await p.eval('document.querySelector("canvas[data-anim=rtc]").parentElement.querySelector(".katex")')), 'схема RTC: легенда из шести значков, подпись объясняет оси, заморозку, задержку 4 шага и скачок, формул нет');
+  await p.eval('Anim.seek(document.querySelector("canvas[data-anim=rtc]"), 3.6)'); await p.shotEl(out('l15-rtc.png'), 'figure.scheme-fig', 6);
+  await p.eval('Anim.seek(document.querySelector("canvas[data-anim=rtc]"), 9.5)'); await p.shotEl(out('l15-rtc-end.png'), 'figure.scheme-fig', 6);
+
   // --- квиз
   await center(p, '#quizBox');
   await p.eval('document.querySelectorAll(".q-card").forEach((c) => c.querySelector(".q-opt").click())'); await sleep(80);
   check(/Итог: \d из 8/.test(await p.eval('document.querySelector("#quizScore").textContent')), 'квиз: ' + (await p.eval('document.querySelector("#quizScore").textContent')));
+  const qTexts = await p.eval('[...document.querySelectorAll(".q-card h4")].map((e) => e.textContent)');
+  check(qTexts.length === 8 && !qTexts.some((t) => /π0|GR00T|RT-1|OpenVLA|Helix|ACT\b|46,9/.test(t)) && qTexts.some((t) => /скорости, а не как положения/.test(t)) && qTexts.some((t) => /регрессия с пачками проигрывает/.test(t)) && qTexts.some((t) => /столько же шагов денойзинга/.test(t)), 'квиз: 8 вопросов, в формулировках нет моделей из будущих уроков и числа 46,9; есть вопросы про положения/скорости, регрессию и шаги вывода');
   await p.shotEl(out('l15-quiz.png'), '#quiz', 4);
   await p.shotEl(out('l15-finale.png'), '#finale', 4);
   // те же отсылки вперёд после прохождения миссий: в DOM появились разборы миссий
@@ -223,6 +282,9 @@ async function desktop() {
   await q.shotEl(out('l15-scrub-dark.png'), '#chunk .lab', 6);
   await q.eval('window.__l15.SPEED.k = 4'); await center(q, '#labMis'); await bet(q, '#labMis', 'Ни разу'); await go(q, '#labMis', 'lab');
   await q.shotEl(out('l15-lab-dark.png'), '#lab .lab', 6);
+  await center(q, '#pvMis'); await bet(q, '#pvMis', 'Скоростной'); await go(q, '#pvMis', 'pv');
+  await q.shotEl(out('l15-posvel-dark.png'), '#posvel .lab', 6);
+  await center(q, 'canvas[data-anim=rtc]'); await q.eval('Anim.seek(document.querySelector("canvas[data-anim=rtc]"), 9.5)'); await q.shotEl(out('l15-rtc-dark.png'), 'figure.scheme-fig', 6);
   check(q.logs.length === 0, 'консоль тёмной темы: ' + (q.logs.join(' | ') || 'чисто'));
   await B2.close();
 }
@@ -251,6 +313,20 @@ async function phone() {
   await m.eval('document.querySelector(".topbar").style.visibility = ""');
   const fh = await m.eval('(() => { const r = document.querySelector("#labFlips").getBoundingClientRect(); return r.height / r.width; })()');
   check(fh > 0.4, `телефон: полоска прогонов выше (${f1(fh, 2)} от ширины), ряды не слипаются`);
+  const mWorst = await m.eval('window.__l15.Lab.st.res.den.reduce((b, q, i, a) => (q.flips > a[b].flips ? i : b), 0)');
+  const mr = await m.eval(`(() => { const cv = document.querySelector("#labFlips"); const g = window.__l15.Lab.st.flipGeo; const b = cv.getBoundingClientRect(); return { x: b.left + b.width * 0.5, y: b.top + (g.top + (${mWorst} + 0.5) * g.rowH) * b.height / g.H }; })()`);
+  await m.S('Input.dispatchMouseEvent', { type: 'mousePressed', x: mr.x, y: mr.y, button: 'left', clickCount: 1 }); await m.S('Input.dispatchMouseEvent', { type: 'mouseReleased', x: mr.x, y: mr.y, button: 'left', clickCount: 1 }); await sleep(120);
+  check(await m.eval(`window.__l15.Lab.st.sel === ${mWorst}`) && (await m.eval('document.querySelector("#flipsOut").textContent')).includes(`Показан прогон ${mWorst + 1}`), `телефон: клик по ряду ${mWorst + 1} выделяет прогон`);
+  await m.eval('document.querySelector(".topbar").style.visibility = "hidden"'); await m.shotEl(out('l15-m-lab-sel.png'), '#lab .lab', 4); await m.eval('document.querySelector(".topbar").style.visibility = ""');
+  await m.eval('window.__l15.Lab.api.selectRun(null)');
+  // положения/скорости и схема RTC на телефоне
+  await center(m, '#pvMis'); await bet(m, '#pvMis', 'Скоростной'); await go(m, '#pvMis', 'pv');
+  check(await done(m, 'pv'), 'телефон: положения/скорости М1 пройдена');
+  await m.shotEl(out('l15-m-posvel.png'), '#posvel .lab', 4);
+  const mrtc = await m.eval(`(() => { const cv = document.querySelector('canvas[data-anim="rtc"]'); Anim.seek(cv, 3.6); const x = cv.toDataURL(); Anim.seek(cv, 9.5); return { moves: x !== cv.toDataURL(), layout: cv.dataset.layout }; })()`);
+  check(mrtc.moves && mrtc.layout === 'n', `телефон: схема RTC в узкой раскладке (${mrtc.layout}) и движется`);
+  await m.eval('document.querySelector("canvas[data-anim=rtc]").scrollIntoView({ block: "start", behavior: "instant" })'); await sleep(200);
+  await m.shotEl(out('l15-m-rtc.png'), 'canvas[data-anim=rtc]', 4);
   await m.shotEl(out('l15-m-speed.png'), '#speed', 4);
   check(await m.eval('getComputedStyle(document.querySelector("#speed .tbl-hint")).display === "block"'), 'телефон: под таблицей видна подсказка о прокрутке');
   const tw = await m.eval('(() => { const w = document.querySelector("#speed .tbl-wrap"); return { sw: w.scrollWidth, cw: w.clientWidth, ox: getComputedStyle(w).overflowX }; })()');
