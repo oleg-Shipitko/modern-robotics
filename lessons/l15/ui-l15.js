@@ -146,12 +146,17 @@ const Scrub = (() => {
   const MUS = D.demos.map((d) => { const v = new Float64Array(16); for (let j = 0; j < 16; j++) v[j] = (d.xs[T0 + j] - E.RX) / E.SC; return v; });
   const YS = Array.from({ length: 16 }, (_, j) => E.START.y - E.V * (T0 + j));
   const VIEW = { x0: E.RX - 175, x1: E.RX + 175, y0: 196, y1: 337 };
-  const st = { seed: 1, s: 0, out: null, sides: [], decide: 1, mark: null, seen: { l: false, r: false }, samples: 0 };
+  const CORR = 6;   // коридор ±6 см вокруг маршрута: внутри него сторона не выбрана (та же мёртвая зона, что в движке)
+  const st = { seed: 1, s: 0, out: null, sides: [], dists: [], decide: 1, mark: null, seen: { l: false, r: false }, samples: 0 };
   let ctl = null;
-  const sideOf = (v) => (v * E.SC > 6 ? 1 : v * E.SC < -6 ? -1 : 0);
+  const sideOf = (d) => (d > CORR ? 1 : d < -CORR ? -1 : 0);
+  const sideTxt = (v) => (v < 0 ? 'слева' : v > 0 ? 'справа' : 'не выбрана');
+  /** Оценка на уровне чайника словами: «4,6 см правее маршрута, в коридоре» / «10,9 см правее, вне коридора». */
+  const distTxt = (d) => (Math.abs(d) < 0.05 ? 'на маршруте' : `${fmt1(Math.abs(d))} см ${d < 0 ? 'левее' : 'правее'} маршрута`) + (sideOf(d) ? ', вне коридора' : ', в коридоре');
   function sample() {
     st.out = E.ddimExact(MUS, null, 16, STEPS, E.rng(4000 + st.seed), true);
-    st.sides = st.out.x0s.map((x0) => sideOf(x0[JK]));
+    st.dists = st.out.x0s.map((x0) => x0[JK] * E.SC);
+    st.sides = st.dists.map(sideOf);
     const fin = st.sides[STEPS - 1]; let f = STEPS - 1; while (f > 0 && st.sides[f - 1] === fin) f--;
     st.decide = f + 1; st.mark = null; st.samples++;
     if (fin < 0) st.seen.l = true; else if (fin > 0) st.seen.r = true;
@@ -161,6 +166,8 @@ const Scrub = (() => {
     c.fillStyle = P.bg; c.fillRect(0, 0, W, H);
     c.save(); c.scale(sx, sx); c.translate(-VIEW.x0, -VIEW.y0);
     KD.house(c, k / sx, P, { labels: false });
+    // коридор ±6 см вокруг маршрута: пока оценка на уровне чайника внутри него, сторона не выбрана
+    c.fillStyle = P.ink3; c.globalAlpha = 0.13; c.fillRect(E.RX - CORR, VIEW.y0, 2 * CORR, VIEW.y1 - VIEW.y0); c.globalAlpha = 1;
     // демонстрации — тонкие линии
     c.save(); c.strokeStyle = P.demo; c.lineWidth = 1.1 / sx * 1.4; c.globalAlpha = 0.35; for (const d of D.demos) KD.pathXs(c, d.xs); c.restore();
     KD.kettle(c, k / sx, P, KT, {});
@@ -171,6 +178,8 @@ const Scrub = (() => {
     c.strokeStyle = P.dif; c.globalAlpha = 0.5; c.lineWidth = 1.4; c.beginPath();
     for (let j = 0; j < 16; j++) { const x = E.RX + Math.max(-3.4, Math.min(3.4, fr[j])) * E.SC; j ? c.lineTo(x, YS[j]) : c.moveTo(x, YS[j]); } c.stroke(); c.globalAlpha = 1;
     for (let j = 0; j < 16; j++) { const x = E.RX + Math.max(-3.4, Math.min(3.4, fr[j])) * E.SC; c.beginPath(); c.arc(x, YS[j], 4, 0, 7); c.fillStyle = P.dif; c.fill(); }
+    // кольцо — точка оценки чистой пачки на уровне чайника: по ней считается сторона
+    if (x0) { const sd = st.sides[s - 1]; c.beginPath(); c.arc(E.RX + x0[JK] * E.SC, YS[JK], 6.5, 0, 7); c.lineWidth = 2; c.strokeStyle = sd < 0 ? P.left : sd > 0 ? P.right : P.ink; c.stroke(); }
     c.restore();
     // подписи: кто есть кто на сцене
     const toCv = (x, y) => [(x - VIEW.x0) * sx, (y - VIEW.y0) * sx];
@@ -178,15 +187,21 @@ const Scrub = (() => {
     HeroKit.label(c, k, '← чайник', kx + 112, ky, { align: 'left', px: 12, weight: 700, color: P.ink2, haloColor: P.bg });
     HeroKit.label(c, k, '← Ада', ax + 112, ay, { align: 'left', px: 12, weight: 700, color: P.ink2, haloColor: P.bg });
     HeroKit.label(c, k, s === 0 ? 'шаг 0: чистый шум' : s === STEPS ? `шаг ${s}: готовая пачка` : `шаг ${s} из ${STEPS}`, 10, H - 12, { align: 'left', mono: true, px: 11, color: P.ink3, haloColor: P.bg });
+    { const [cx, cy] = toCv(E.RX, VIEW.y0); HeroKit.label(c, k, k > 1.5 ? '±6 см' : 'коридор ±6 см', cx, cy + 11, { px: 10.5, mono: true, color: P.ink3, haloColor: P.bg }); }
     // полоска сторон
     const strip = $('#scrubStrip'); strip.innerHTML = '';
     for (let i = 1; i <= STEPS; i++) {
       const sd = st.sides[i - 1], cell = h('span', { class: 'ss ' + (sd < 0 ? 'l' : sd > 0 ? 'r' : 'n') + (i === s ? ' cur' : '') + (i === st.mark ? ' mark' : ''), title: `шаг ${i}: ${sd < 0 ? 'слева' : sd > 0 ? 'справа' : 'сторона не выбрана'}` }, String(i));
       cell.addEventListener('click', () => setStep(i)); strip.append(cell);
     }
-    const sideTxt = (v) => (v < 0 ? 'слева' : v > 0 ? 'справа' : 'не выбрана');
-    let msg = s === 0 ? 'Шаг 0 — чистый гауссов шум. Двигай ползунок вправо.' : `На шаге ${s} оценка чистой пачки (пунктир) объезжает чайник: <b>${sideTxt(st.sides[s - 1])}</b>.`;
-    if (st.mark != null) msg += st.mark === st.decide ? ` Отмечен шаг ${st.mark}: дальше сторона не меняется.` : st.mark < st.decide ? ` Отмечен шаг ${st.mark}, но после него сторона ещё менялась.` : ` Отмечен шаг ${st.mark}, но сторона была выбрана раньше.`;
+    const sd = s ? st.sides[s - 1] : 0;
+    let msg = s === 0 ? 'Шаг 0 — чистый гауссов шум, оценки чистой пачки ещё нет. Двигай ползунок вправо.' : `Шаг ${s}: оценка чистой пачки на уровне чайника (кольцо) — ${distTxt(st.dists[s - 1])}. ${sd ? `Сторона выбрана: <b>${sideTxt(sd)}</b>.` : '<b>Сторона не выбрана.</b>'}`;
+    if (st.mark != null) {
+      const m = st.mark, ms = st.sides[m - 1];
+      msg += m === st.decide ? ` Отмечен шаг ${m}: с него и до шага 16 сторона одна и та же.`
+        : m < st.decide ? (ms ? ` Отмечен шаг ${m}: сторона на нём есть, но позже она ещё менялась. Нужен первый шаг, с которого цвет полоски уже не меняется.` : ` Отмечен шаг ${m}, но на нём сторона ещё не выбрана: кольцо в коридоре. Нужен первый шаг с цветной клеткой, после которого цвет не меняется.`)
+        : ` Отмечен шаг ${m}, но сторона была выбрана раньше. Нужен первый шаг, с которого цвет полоски уже не меняется.`;
+    }
     setOut($('#scrubOut'), msg);
     $('#scrubS').value = s; $('#scrubS').nextElementSibling.textContent = String(s);
     if (ctl) ctl.update();
@@ -194,25 +209,29 @@ const Scrub = (() => {
   function setStep(s) { st.s = Math.max(0, Math.min(STEPS, s)); draw(); }
   const api = {
     reset() { st.seed = 1; st.seen = { l: false, r: false }; st.samples = 0; sample(); st.s = 0; draw(); },
-    state: () => ({ s: st.s, decide: st.decide, mark: st.mark, seen: Object.assign({}, st.seen), samples: st.samples, side: st.sides[STEPS - 1] }),
+    state: () => ({ s: st.s, decide: st.decide, mark: st.mark, seen: Object.assign({}, st.seen), samples: st.samples, side: st.sides[STEPS - 1], dists: st.dists.slice(), sides: st.sides.slice() }),
     setStep, newNoise() { st.seed++; sample(); st.s = 0; draw(); }, mark() { st.mark = st.s || null; draw(); },
   };
   const missions = [
-    { short: 'Шаг выбора', title: 'Найди, где выбрана сторона', text: 'Оранжевые точки — пачка из 16 шагов на текущем шаге денойзинга, пунктир — оценка чистой пачки. Перематывай ползунком и на шаге, после которого сторона объезда уже не меняется, нажми «Сторона выбрана здесь».', controls: ['mark'],
-      criteria: [{ label: 'Отмечен шаг, после которого сторона не меняется', test: (r, s) => s.mark != null && s.mark === s.decide }],
-      hint: 'Полоска под сценой показывает сторону оценки на каждом шаге. Найди, с какого шага цвет больше не меняется.',
-      explain: (s) => `Сторона выбрана уже на шаге <b>${s.decide} из 16</b>. Пока шум большой, оценка чистой пачки смотрит в середину между объездами. Но пачка — это 16 точек сразу, и даже сквозь сильный шум видно, к какому объезду она ближе целиком. Поэтому выбор происходит рано, а оставшиеся шаги доводят форму объезда. Из 60 пачек с разным шумом сторона выбрана уже на втором шаге у 51, а не позже шестого — у всех.` },
+    { short: 'Шаг выбора', title: 'Найди, где выбрана сторона', text: 'Оранжевые точки — пачка из 16 шагов на текущем шаге денойзинга, пунктир — оценка чистой пачки, кольцо на пунктире — её точка на уровне чайника. Шаги считаем с 1: это первая оценка из чистого шума. Сторона выбрана на том шаге, с которого кольцо вышло из коридора ±6 см и до шага 16 остаётся по одну сторону. Перемотай ползунком на этот шаг и нажми «Сторона выбрана здесь».', controls: ['mark'],
+      criteria: [{ label: 'Отмечен первый шаг, с которого сторона уже не меняется', test: (r, s) => s.mark != null && s.mark === s.decide }],
+      hint: 'Полоска под сценой — сторона на каждом шаге; серая клетка — кольцо ещё в коридоре. Нужен первый цветной шаг, после которого цвет не меняется. Шаг перед ним — ещё не выбор: там кольцо в коридоре или на другой стороне.',
+      explain: (s) => {
+        const d = s.decide, steps = s.dists.slice(0, d - 1).map((v, i) => `шаг ${i + 1} — ${distTxt(v)}`).join(', ');
+        const why = d > 1 ? ` До него сторона ещё не была постоянной: ${steps}. На шаге ${d} оценка — ${distTxt(s.dists[d - 1])}, и дальше она остаётся ${sideTxt(s.side)}.` : '';
+        return `Сторона выбрана на шаге <b>${d} из 16</b>.${why} Отклонение меньше 6 см считаем шумом, а не выбором, поэтому${d > 2 ? ` шаг ${d - 1} не подходит, хотя оценка уже тянулась в ту же сторону` : ' серые клетки в счёт не идут'}. Пока шум большой, оценка чистой пачки смотрит в середину между объездами. Но пачка — это 16 точек сразу, и даже сквозь сильный шум видно, к какому объезду она ближе целиком. Поэтому выбор происходит рано, а оставшиеся шаги доводят форму объезда. Из 60 пачек с разным шумом сторона выбрана на шаге 2 у 51, на шаге 3 — у 8, на шаге 5 — у одной.`;
+      } },
     { short: 'Другая сторона', title: 'Получи другую сторону', text: 'Нажимай «Новый шум»: найди пачку, которая объезжает чайник с другой стороны.', controls: ['mark', 'noise'],
       criteria: [{ label: 'Есть пачка с объездом слева', test: (r, s) => s.seen.l }, { label: 'Есть пачка с объездом справа', test: (r, s) => s.seen.r }],
       explain: () => 'Сеть, данные и наблюдение те же, отличается только начальный шум. Он и выбирает стратегию, как на спиралях в уроке 1.4: соседние стартовые точки уходят в один бассейн, далёкие — в разные. Денойзинг не усредняет объезды, а доводит пачку до одного из них.' },
-    { short: 'Свободно', title: 'Свободный режим', text: 'Перематывай и пробуй новый шум. Найди пачку, где сторона менялась на полпути.', final: true },
+    { short: 'Свободно', title: 'Свободный режим', text: 'Перематывай и пробуй новый шум. Сравни, на каком шаге выбирается сторона у разных пачек: найди пачку, у которой на шаге 2 кольцо ещё в коридоре, и пачку, у которой сторона выбрана уже на шаге 2.', final: true },
   ];
   function init() {
     sample();
     $('#scrubS').addEventListener('input', (e) => setStep(+e.target.value));
     $('#scrubNew').addEventListener('click', () => api.newNoise());
     $('#scrubMark').addEventListener('click', () => api.mark());
-    legend('#scrubLegend', [['пачка на этом шаге', 'var(--pol-dif)', 'dot'], ['оценка чистой пачки', 'var(--ink-2)', 'dash'], ['демонстрации', 'var(--ink-3)']]);
+    legend('#scrubLegend', [['пачка на этом шаге', 'var(--pol-dif)', 'dot'], ['оценка чистой пачки', 'var(--ink-2)', 'dash'], ['её точка на уровне чайника', 'var(--ink)', 'ring'], ['коридор ±6 см', 'var(--ink-3)', 'band'], ['демонстрации', 'var(--ink-3)']]);
     ctl = mountMissions('#scrubMis', missions, api, { controls: { mark: '#scrubMark', noise: '#scrubNew' }, scene: '#scrubCv' });
     draw(); redrawOn(draw);
     return ctl;
@@ -316,7 +335,22 @@ const Lab = (() => {
     return null;
   }
   const summ = (rs) => ({ n: rs.length, touches: rs.filter((q) => q.touch).length, maxSw: Math.max(...rs.map((q) => q.sw)), flips2: rs.filter((q) => q.flips >= 2).length,
+    maxFlip: Math.max(...rs.map((q) => q.flips)), worst: rs.reduce((b, q, i) => (q.flips > rs[b].flips ? i : b), 0),
     left: rs.filter((q) => !q.touch && q.side < 0).length, right: rs.filter((q) => !q.touch && q.side > 0).length, ok: rs.filter((q) => !q.touch && q.flips < 2).length, passes: rs[0].passes / Math.max(1, rs[0].chunks) });
+  /** Цепочка пачек прогона у чайника: для каждой пачки, у которой есть точки не дальше 60 см от чайника, — её сторона
+   *  (−1 слева, 1 справа, 0 — отклонение меньше 6 см, сторона не выбрана). Смены стороны считаются так же, как в движке:
+   *  пачки без стороны пропускаются. Это и рисует полоска прогонов под сценой. */
+  function chainOf(q) {
+    const cells = []; let intent = 0, flips = 0;
+    for (const pl of q.plans || []) {
+      const cs = E.chunkSide(pl.c, pl.x0, pl.y0, { x: q.kpath[Math.min(pl.t, q.kpath.length - 1)], y: E.KETTLE.y });
+      if (cs == null) continue;
+      const sd = Math.abs(cs) > 6 ? (cs > 0 ? 1 : -1) : 0;
+      if (sd && intent && sd !== intent) flips++; if (sd) intent = sd;
+      cells.push({ t: pl.t, sd, cs });
+    }
+    return { cells, flips };
+  }
   async function run(o) {
     o = o || {}; const D = ensureData();
     if (needTrain()) {
@@ -329,15 +363,15 @@ const Lab = (() => {
       st.training = false;
     }
     const n = o.n || 10, m = models(), seed0 = st.shift ? 500 : 1 + 10 * st.batchNo++;
-    const opt = (i) => { const q = { Ta: st.Ta, steps: st.steps, keepPlans: i === 0 }; if (st.shift) q.kpush = { t: 8 + ((seed0 + i) * 7) % 12, dx: SHIFT, toward: true }; return q; };
+    const opt = (i) => { const q = { Ta: st.Ta, steps: st.steps, keepPlans: true }; if (st.shift) q.kpush = { t: 8 + ((seed0 + i) * 7) % 12, dx: SHIFT, toward: true }; return q; };
     const res = { den: [], reg: [] };
     for (let i = 0; i < n; i++) res.den.push(E.run15(m.den, E.KETTLE, seed0 + i, opt(i)));
     if (st.reg) for (let i = 0; i < n; i++) res.reg.push(E.run15(m.reg, E.KETTLE, seed0 + i, opt(i)));
-    for (const p of ['den', 'reg']) res[p].forEach((q) => { q.hit = q.touch ? hitAt(q) : null; });
+    for (const p of ['den', 'reg']) res[p].forEach((q) => { q.hit = q.touch ? hitAt(q) : null; q.chain = chainOf(q); });
     const r = { share: st.share, Ta: st.Ta, steps: st.steps, shift: st.shift, reg: st.reg, n, nLeft: D.nLeft, nRight: D.nRight, den: summ(res.den), regS: st.reg ? summ(res.reg) : null };
     if (st.shift && n >= 20) st.curve[st.Ta] = r.den.ok;
     st.log.push(r);
-    return new Promise((resolve) => { st.res = res; st.play = playback(2200, () => { st.play = null; try { draw(); plotCurve(); } finally { resolve(r); } }); });
+    return new Promise((resolve) => { st.res = res; st.play = playback(2200, () => { st.play = null; try { draw(); plotCurve(); plotFlips(); } finally { resolve(r); } }); });
   }
   /* ---------- рисование ---------- */
   function drawPlan(c, P, plan, color) {
@@ -361,7 +395,7 @@ const Lab = (() => {
       c.lineJoin = 'round'; c.lineCap = 'round';
       for (const p of ['reg', 'den']) {
         const runs = st.res[p]; if (!runs.length) continue; const color = p === 'den' ? P.dif : P.reg;
-        if (!st.play) { c.strokeStyle = color; c.lineWidth = 1.3; c.globalAlpha = 0.4; if (p === 'reg') c.setLineDash([6, 5]); for (let i = 1; i < runs.length; i++) KD.pathPts(c, runs[i].pts, runs[i].hit ? runs[i].hit.t + 1 : null); c.setLineDash([]); c.globalAlpha = 1; for (let i = 1; i < runs.length; i++) if (runs[i].hit) HeroKit.cross(c, runs[i].hit.x, runs[i].hit.y, 4, P.bad, 1.8); }
+        if (!st.play) { c.strokeStyle = color; if (p === 'reg') c.setLineDash([6, 5]); for (let i = 1; i < runs.length; i++) { const hi = p === 'den' && runs[i].flips >= 2; c.lineWidth = hi ? 2.4 : 1.3; c.globalAlpha = hi ? 0.9 : 0.4; KD.pathPts(c, runs[i].pts, runs[i].hit ? runs[i].hit.t + 1 : null); } c.setLineDash([]); c.globalAlpha = 1; for (let i = 1; i < runs.length; i++) if (runs[i].hit) HeroKit.cross(c, runs[i].hit.x, runs[i].hit.y, 4, P.bad, 1.8); }
         const q = runs[0], tq = Math.min(tN, q.pts.length - 1), stop = q.hit ? Math.min(tq, q.hit.t + 1) : tq;
         c.strokeStyle = color; c.lineWidth = 3; if (p === 'reg') c.setLineDash([7, 5]); KD.pathPts(c, q.pts, stop); c.setLineDash([]);
         if (st.plan) { const pl = activePlan(q, stop); if (pl) drawPlan(c, P, pl, color); }
@@ -376,7 +410,41 @@ const Lab = (() => {
     }
     const D2 = ensureData(), txt = (st.training ? `обучение ${fmt1(st.prog * 100, 0)}%` : st.play ? `прогон 1 · шаг ${Math.round(u * (st.res.den[0].pts.length - 1))}` : st.res ? `${st.res.den.length} прогонов` : 'до запуска') + ` · демонстраций ${D2.nLeft} слева, ${D2.nRight} справа`;
     HeroKit.label(c, k, txt, 10, E.H - 12, { align: 'left', mono: true, px: 11, color: P.ink3, haloColor: P.bg });
-    drawStats();
+    drawStats(); labLegend();
+  }
+  /** Легенда сцены: пункт про яркие пути появляется, когда среди прогонов есть такие, где план менял сторону два раза и больше. */
+  function labLegend() {
+    const hi = !!(st.res && !st.play && st.res.den.some((q) => q.flips >= 2)), sig = `${st.reg}|${hi}`;
+    const box = $('#labLegend'); if (box.dataset.sig === sig) return; box.dataset.sig = sig;
+    const items = [['диффузионная политика', 'var(--pol-dif)'], ['регрессия с пачками', 'var(--pol-reg)', 'dash'], ['план: исполнит / заменит', 'var(--pol-dif)', 'dot'], ['демонстрации', 'var(--ink-3)'], ['касание', 'var(--critical)']];
+    if (hi) items.splice(1, 0, ['прогон, где план менял сторону ≥ 2 раз', 'var(--pol-dif)', 'thick']);
+    legend('#labLegend', items);
+  }
+  /** Полоска прогонов: ряд — прогон, клетки — пачки у чайника по порядку, цвет — сторона; ряды с ≥ 2 сменами в рамке. */
+  function plotFlips() {
+    const wrap = $('#wrapFlips'); if (wrap.hidden) return;
+    // на узком экране (k > 1,5) подписи в экранных пикселях выше ряда — ряды делаем выше, высота канваса подстраивается
+    const cv = $('#labFlips'), W = 520, ROWS = 10, k0 = W / (cv.getBoundingClientRect().width || W), narrow = k0 > 1.5;
+    const rowH = narrow ? 20 : 12, top = narrow ? 26 : 20, H = top + ROWS * rowH + 6;
+    cv.style.aspectRatio = `${W} / ${H}`;
+    const { c, k } = HeroKit.fit(cv, W, H), P = KD.pal();
+    c.fillStyle = P.bg; c.fillRect(0, 0, W, H);
+    const runs = st.res ? st.res.den : null;
+    if (!runs) { HeroKit.label(c, k, narrow ? 'Нажми «Прогнать 10 раз» — здесь появятся цепочки пачек' : 'Нажми «Прогнать 10 раз»: здесь появятся цепочки пачек каждого прогона', W / 2, H / 2, { px: narrow ? 11 : 12, color: P.ink3, halo: false }); return; }
+    const L = narrow ? 40 : 30, R = narrow ? 70 : 80, px = narrow ? 10 : 10.5;
+    const maxN = Math.max(1, ...runs.map((q) => q.chain.cells.length)), cw = (W - L - R) / maxN, gap = Math.min(2, cw * 0.22);
+    HeroKit.label(c, k, narrow ? 'прогон · пачки у чайника →' : 'прогон · пачки, построенные у чайника, по порядку →', L, top / 2, { align: 'left', px, mono: true, color: P.ink3, halo: false });
+    HeroKit.label(c, k, 'смен', W - 2, top / 2, { align: 'right', px, mono: true, color: P.ink3, halo: false });
+    runs.slice(0, ROWS).forEach((q, i) => {
+      const y = top + i * rowH, mark = q.flips >= 2;
+      if (mark) { c.fillStyle = P.surf; c.fillRect(2, y - 1, W - 4, rowH - 1); c.strokeStyle = P.ink; c.lineWidth = 1.3; c.strokeRect(2.5, y - 0.5, W - 5, rowH - 2); }
+      HeroKit.label(c, k, String(i + 1), L - 6, y + rowH / 2 - 1, { align: 'right', px, mono: true, weight: mark ? 750 : 500, color: mark ? P.ink : P.ink3, halo: false });
+      q.chain.cells.forEach((cell, j) => {
+        const x = L + j * cw; c.beginPath(); c.rect(x + gap / 2, y + 1, Math.max(1, cw - gap), rowH - 4);
+        if (cell.sd) { c.fillStyle = cell.sd < 0 ? P.left : P.right; c.fill(); } else { c.fillStyle = P.surf; c.fill(); c.strokeStyle = P.grid; c.lineWidth = 1; c.stroke(); }
+      });
+      HeroKit.label(c, k, `${q.flips}${narrow ? '' : (q.touch ? ' · касание' : '')}`, W - 4, y + rowH / 2 - 1, { align: 'right', px, mono: true, weight: mark ? 750 : 500, color: mark ? P.ink : P.ink3, halo: false });
+    });
   }
   function drawStats() {
     const box = $('#labStats'), last = st.res && !st.play ? st.log[st.log.length - 1] : null;
@@ -423,7 +491,7 @@ const Lab = (() => {
     st.reg = $('#labReg').checked; st.shift = $('#labShift').checked; st.plan = $('#labPlan').checked;
     $$('#wrapTa button').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.ta === st.Ta)));
     if (st.res && st.dataKey !== key()) st.res = null;
-    draw(); plotLoss(); plotCurve(); if (ctl) ctl.update();
+    draw(); plotLoss(); plotCurve(); plotFlips(); if (ctl) ctl.update();
   }
   function setCtl(o) {
     if (o.share != null) $('#labShare').value = Math.round(o.share * 100);
@@ -460,15 +528,15 @@ const Lab = (() => {
       hint: 'Сдвигай долю шагами по 10%. Регрессия выдаёт среднее, и оно уходит от чайника только при заметном перекосе.',
       fail: (r) => (!r.regS ? 'Включи регрессию флажком под сценой.' : r.regS.touches ? `При ${shareTxt(r)} регрессия задела чайник ${nWord(r.regS.touches, 'раз', 'раза', 'раз')} из 10.` : !(r.nLeft > 0 && r.nRight > 0) ? 'Регрессия проехала, но в демонстрациях осталась одна сторона. Оставь хотя бы несколько объездов с другой.' : `Регрессия проехала, а диффузия задела чайник ${nWord(r.den.touches, 'раз', 'раза', 'раз')}. Нажми ещё раз.`),
       explain: (r) => `При ${shareTxt(r)} регрессия проехала 10 из 10, потратив <b>1 проход сети</b> на пачку против ${r.steps} у диффузии. При 50 на 50 она иногда тоже проезжает: Ада видит своё положение, и случайный уход в сторону закрепляется. Но гарантии нет, и часть прогонов заканчивается в чайнике. Когда стратегия в данных одна, регрессия с пачками не хуже и намного дешевле: OpenVLA-OFT (открытая политика, Стэнфорд, 2025; урок 3.5) с L1 даёт 97,1% на бенчмарке LIBERO и генерирует в 26 раз быстрее, с оговоркой авторов про «a consistent strategy per task». Pan и соавторы на 28 бенчмарках не нашли преимущества генеративной головы, кроме задач на высокую точность. Когда демонстрации разных операторов расходятся, выигрывает диффузия: в ALOHA Unleashed (урок 1.7) — 70% против 25% у L1.` },
-    { short: 'По одному шагу', title: 'Исполняй по одному шагу', text: 'Пусть политика строит новую пачку на каждом шаге и исполняет только её первое действие. Найди прогон, в котором план Ады дважды или больше сменил сторону объезда.', controls: ['plan', 'Ta'],
+    { short: 'По одному шагу', title: 'Исполняй по одному шагу', text: 'Пусть политика строит новую пачку на каждом шаге и исполняет только её первое действие. Полоска под сценой покажет для каждого прогона цепочку пачек у чайника и сторону каждой пачки. Найди прогон, в котором план Ады дважды или больше сменил сторону объезда.', controls: ['plan', 'Ta', 'flips'],
       onEnter: (X) => X.setCtl({ share: 0.5, Ta: 1, steps: 16, reg: false, shift: false, clear: true }),
       bet: { q: 'что будет, если пересчитывать пачку на каждом шаге?', options: ['Ада поедет точнее', 'Ничего не изменится', 'План начнёт менять сторону'], answer: (r) => (r.den.flips2 > 0 ? 2 : 1) },
       action: { label: 'Прогнать 10 раз', run: (X) => X.run() },
       criteria: [{ label: 'Исполняется по одному шагу из пачки', test: (r) => r.Ta === 1 }, { label: 'Найден прогон, где план сменил сторону два раза или больше', test: (r) => r.den.flips2 > 0 }],
       summary: (r) => `исполнять ${r.Ta} из 16: план менял сторону ≥ 2 раз в ${r.den.flips2} прогонах из 10, касаний ${r.den.touches}`,
-      hint: 'Включи показ плана и следи за точками перед Адой у развилки: при исполнении по одному шагу они перескакивают с одной стороны на другую.',
+      hint: 'Включи показ плана и следи за точками перед Адой у развилки: при исполнении по одному шагу они перескакивают с одной стороны на другую. После прогона смотри на полоску под сценой: ряды с двумя и больше сменами стороны обведены рамкой.',
       fail: (r) => (r.Ta !== 1 ? 'Выбери исполнение по одному шагу.' : 'В этих прогонах план держал сторону. Нажми ещё раз: зёрна новые.'),
-      explain: (r) => `В ${r.den.flips2} прогонах из 10 план дважды и больше менял сторону. Каждая пачка — новый сэмпл, и пока Ада у развилки, он с близкой вероятностью выбирает любой объезд. Здесь Ада успевает по каждому плану сделать один шаг и почти не отклоняется, поэтому касаний мало. Зато решения нет: Ада держится середины, и если чайник сдвинется, уйти она не успеет — это миссия 5. Авторы Diffusion Policy описывают такое поведение как «jittery actions that alternate between the two valid trajectories», в статье BID — как «oscillations between different strategies».` },
+      explain: (r) => `В ${r.den.flips2} прогонах из 10 план дважды и больше менял сторону: на полоске под сценой это ряды в рамке, больше всего смен — ${r.den.maxFlip} в прогоне ${r.den.worst + 1}; на сцене пути этих прогонов нарисованы ярче. Каждая клетка ряда — пачка, построенная у чайника, цвет — сторона, с которой она его объезжает, и при исполнении по одному шагу цвет вдоль ряда чередуется. Каждая пачка — новый сэмпл, и пока Ада у развилки, он с близкой вероятностью выбирает любой объезд. Ада успевает по каждому плану сделать один шаг и почти не отклоняется, поэтому касаний мало: ${r.den.touches} из 10. Зато решения нет: Ада держится середины, и если чайник сдвинется, уйти она не успеет — это миссия 5. Авторы Diffusion Policy описывают такое поведение как «jittery actions that alternate between the two valid trajectories», в статье BID — как «oscillations between different strategies».` },
     { short: 'Шаги денойзинга', title: 'Сколько шагов денойзинга нужно', text: 'Сейчас пачку строят за 1 шаг денойзинга вместо 16. Посмотри, что сделает Ада, а потом найди число шагов не больше 4, при котором она проезжает 10 из 10.', controls: ['plan', 'steps'],
       onEnter: (X) => X.setCtl({ share: 0.5, Ta: 8, steps: 1, reg: false, shift: false, clear: true }),
       bet: { q: 'что сделает Ада при одном шаге денойзинга?', options: ['Объедет, как при 16', 'Начнёт задевать чайник', 'Будет менять сторону'], answer: (r) => (r.den.touches > 0 ? 1 : r.den.flips2 > 0 ? 2 : 0) },
@@ -491,17 +559,17 @@ const Lab = (() => {
       action: { label: 'Прогнать 10 раз', run: (X) => X.run() }, summary: (r) => `${shareTxt(r)}, исполнять ${r.Ta}, шагов ${r.steps}${r.shift ? ', сдвиг' : ''} → диффузия ${r.den.touches}/10${r.regS ? `, регрессия ${r.regS.touches}/10` : ''}` },
   ];
   function init() {
-    legend('#labLegend', [['диффузионная политика', 'var(--pol-dif)'], ['регрессия с пачками', 'var(--pol-reg)', 'dash'], ['план: исполнит / заменит', 'var(--pol-dif)', 'dot'], ['демонстрации', 'var(--ink-3)'], ['касание', 'var(--critical)']]);
+    labLegend();
     legend('#labLossLegend', [['ошибка денойзера', 'var(--pol-dif)'], ['регрессии', 'var(--pol-reg)']]);
     for (const id of ['#labShare', '#labSteps']) $(id).addEventListener('input', syncCtl);
     for (const id of ['#labReg', '#labShift', '#labPlan']) $(id).addEventListener('change', syncCtl);
     $$('#wrapTa button').forEach((b) => b.addEventListener('click', () => { st.Ta = +b.dataset.ta; syncCtl(); }));
     HeroKit.loop($('#labCv'), () => { if (st.play) draw(); });
     ctl = mountMissions('#labMis', missions, api, {
-      controls: { plan: '#wrapPlan', reg: '#wrapReg', share: '#wrapShare', Ta: '#wrapTa', steps: '#wrapSteps', shift: '#wrapShift', curve: '#wrapCurve' },
+      controls: { plan: '#wrapPlan', reg: '#wrapReg', share: '#wrapShare', Ta: '#wrapTa', steps: '#wrapSteps', shift: '#wrapShift', curve: '#wrapCurve', flips: '#wrapFlips' },
       scene: '#labCv',
     });
-    syncCtl(); plotLoss(); plotCurve(); redrawOn(() => { draw(); plotLoss(); plotCurve(); });
+    syncCtl(); plotLoss(); plotCurve(); redrawOn(() => { draw(); plotLoss(); plotCurve(); plotFlips(); });
     return ctl;
   }
   return { init, api, st };

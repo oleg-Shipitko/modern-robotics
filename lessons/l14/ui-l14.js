@@ -5,7 +5,8 @@
    «Куда указывает денойзер» — стрелки идеального денойзера («мысли» модели);
    лаборатория — сеть учится в браузере, DDPM и DDIM рядом на одной сети,
    граница бассейнов перетаскиванием стартов;
-   «Генерация по заказу» — кривая «точность — разнообразие», которую строишь сам;
+   «Генерация по заказу» — кривая «точность — разнообразие», которую строишь сам,
+   и схема «вес w сдвигает ответ» на той же сети;
    «Память или обобщение» — шторка «идеальный денойзер — сеть»;
    «Те же точки, но это действия Ады» — денойзер лаборатории на действиях
    объезда чайника, рядом регрессия; квиз.
@@ -825,11 +826,12 @@ const Guid = (() => {
     st.promise = runChunked(g, (e) => { st.prog = e.step / e.total; drawT(); }, 12).then(() => { st.trained = true; draw(); });
     return st.promise;
   }
-  async function gen(w, c) {
-    await train();
+  /** Генерация обученной сетью: NS точек, DDIM на 20 шагах, один и тот же стартовый шум. Её же берёт схема раздела. */
+  function genSync(w, c) {
     const s = DF.sample(DF.cfgEps(st.Dc, c, w), SCH.lin, { n: NS, steps: 20, eta: 0, seed: 3 });
     return Object.assign({ x: s.x, w, c }, DF.precCov(DATA, NN, s.x, NS, c));
   }
+  async function gen(w, c) { await train(); return genSync(w, c); }
   async function generate() {
     const w = W(), c = st.c, r = await gen(w, c);
     st.last = r; st.pts.push({ w, c, prec: r.prec, cov: r.cov });
@@ -901,7 +903,120 @@ const Guid = (() => {
     setW(0); setC(0); draw(); redrawOn(draw);
     return ctl;
   }
-  return { init, api, st };
+  return { init, api, st, genSync, NS };
+})();
+
+/* =====================================================================
+   4б. Схема «вес w сдвигает ответ» (shared/anim.js, ключ 'cfg'): одна
+   зашумлённая точка X0 на шаге T_STEP, сеть — та же, что в опыте выше
+   (Guid), после её обучения. Слева, увеличенный фрагмент плоскости: серая
+   стрелка — оценка чистой точки без условия, оранжевая — с условием
+   «спираль 1», толстая тёмная — итог: из того же старта в сторону условной
+   и дальше неё, конец = условная + w·(условная − безусловная), то есть от
+   безусловной в (1 + w) раз дальше, чем условная. Анимация перебирает w из WS.
+   Справа, вся плоскость: те же NS точек, что получит читатель в опыте при
+   этом w (Guid.genSync), с точностью и покрытием. Пока сеть учится, на схеме
+   ход обучения; генерации считаются по одной между кадрами, один раз.
+   ===================================================================== */
+const Cfg = (() => {
+  const T_STEP = 175, X0 = [-1.6, -0.35], WS = [0, 1, 2, 4], HOLD = 3.0, MOVE = 0.9, T = WS.length * HOLD, START = 1.0;
+  const EL = 1.3, CL = [-1.2, 0.35], ER = 2.3, NSUB = 500, NS = Guid.NS;
+  let F = null, queued = false, hooked = false;
+  const net = () => (Guid.st.trained ? Guid.st.Dc : null);
+  /** Концы стрелок (оценка чистой точки с условием и без); при all — и генерации по всем w. null, пока сеть не обучена. */
+  function calc(all) {
+    const D = net(); if (!D) return null;
+    if (!F) {
+      const a = SCH.lin.abar[T_STEP], sa = Math.sqrt(a), s1 = Math.sqrt(1 - a), xs = new Float64Array(X0);
+      const est = (cl) => { const e = DF.predEps(D, xs, 1, T_STEP, cl); return [(X0[0] - s1 * e[0]) / sa, (X0[1] - s1 * e[1]) / sa]; };
+      F = { c: est(0), u: est(-1), gens: {}, sub: DF.subset(DATA, NSUB, 19) };
+    }
+    if (all) for (const w of WS) if (!F.gens[w]) F.gens[w] = Guid.genSync(w, 0);
+    return F;
+  }
+  /** Генерации по одной между кадрами, чтобы не задерживать анимацию. */
+  function queue() {
+    if (queued) return; queued = true;
+    const step = () => { const Fr = calc(), w = Fr && WS.find((v) => !Fr.gens[v]); if (w == null) { queued = false; return; } Fr.gens[w] = Guid.genSync(w, 0); setTimeout(step, 30); };
+    setTimeout(step, 30);
+  }
+  /** При «уменьшить движение» кадр один: перерисовать его, когда сеть обучится. */
+  function hook() {
+    if (hooked || !Guid.st.promise || !HeroKit.reduced()) return; hooked = true;
+    Guid.st.promise.then(() => { calc(true); $$('canvas[data-anim=cfg]').forEach((cv) => Anim.frame(cv, START)); });
+  }
+  const end = (w) => [F.c[0] + w * (F.c[0] - F.u[0]), F.c[1] + w * (F.c[1] - F.u[1])];
+  const LEFT = { 0: 'w = 0: итог — как с условием, до спирали 1 не дотянул', 1: 'w = 1: вдвое дальше от безусловного — на спирали 1', 2: 'w = 2: втрое дальше — на спирали 1', 4: 'w = 4: впятеро дальше — уже за спиралью' };
+  const LEFT_N = { 0: 'w = 0: как с условием, не дотянул', 1: 'w = 1: вдвое дальше — на спирали 1', 2: 'w = 2: втрое дальше — на спирали 1', 4: 'w = 4: впятеро дальше — за спиралью' };
+  const RIGHT = { 0: 'часть точек не на спирали 1', 1: 'на спирали 1, с разбросом', 2: 'точнее, покрытие меньше', 4: 'кучнее, часть точек за спиралью' };
+  function drawC(L) {
+    return (c, k, t, P, A) => {
+      const { rect, lab, alpha, circle, arrow, line, ease, clamp } = A, Fr = calc();
+      const u = ((t % T) + T) % T, i = Math.min(WS.length - 1, Math.floor(u / HOLD)), s = ease(clamp((u - i * HOLD) / MOVE, 0, 1));
+      const wPrev = WS[(i + WS.length - 1) % WS.length], wCur = WS[i], wNow = wPrev + (wCur - wPrev) * s;
+      const [lx, ly, ls] = L.left, [rx, ry, rs] = L.right, narrow = L.narrow;
+      const mapL = (x, y) => [lx + (x - CL[0] + EL) / (2 * EL) * ls, ly + ls - (y - CL[1] + EL) / (2 * EL) * ls];
+      const mapR = (x, y) => [rx + (x + ER) / (2 * ER) * rs, ry + rs - (y + ER) / (2 * ER) * rs];
+      lab(c, k, L.titles[0], lx + ls / 2, ly - 14, { px: 12, weight: 750, color: P.ink, halo: false });
+      lab(c, k, L.titles[1], rx + rs / 2, ry - 14, { px: 12, weight: 750, color: P.ink, halo: false });
+      rect(c, lx, ly, ls, ls, 8, P.surf, P.grid, 1); rect(c, rx, ry, rs, rs, 8, P.surf, P.grid, 1);
+      if (!Fr) {
+        const txt = `сеть с условием учится: ${pc(Guid.st.prog)}`;
+        lab(c, k, txt, lx + ls / 2, ly + ls / 2, { px: 12, weight: 650, color: P.ink3, halo: false });
+        lab(c, k, txt, rx + rs / 2, ry + rs / 2, { px: 12, weight: 650, color: P.ink3, halo: false });
+        hook(); return;
+      }
+      if (WS.some((w) => !Fr.gens[w])) queue();
+      /* ---- слева: фрагмент плоскости, точка и три стрелки ---- */
+      c.save(); c.beginPath(); c.rect(lx, ly, ls, ls); c.clip();
+      for (const [kk, al] of [[0, 0.5], [1, 0.16]]) {
+        c.fillStyle = P.ink3; c.globalAlpha = al; c.beginPath();
+        for (let j = 0; j < DATA.N; j++) { if (DATA.lab[j] !== kk) continue; const [px, py] = mapL(DATA.X[2 * j], DATA.X[2 * j + 1]); if (px < lx - 3 || px > lx + ls + 3 || py < ly - 3 || py > ly + ls + 3) continue; c.moveTo(px + 1.7, py); c.arc(px, py, 1.7, 0, 6.283); }
+        c.fill();
+      }
+      c.globalAlpha = 1;
+      const sp1 = mapL(-0.78, 1.22), sp2 = mapL(-0.44, 0.77); // подписи на дугах: спираль 1 — внешний виток, спираль 2 — внутренний
+      lab(c, k, 'спираль 1', sp1[0], sp1[1], { px: 10, weight: 700, color: P.ink2, haloColor: P.surf });
+      lab(c, k, 'спираль 2', sp2[0], sp2[1], { px: 10, weight: 700, color: P.ink3, haloColor: P.surf });
+      const p0 = mapL(X0[0], X0[1]), pu = mapL(Fr.u[0], Fr.u[1]), pcn = mapL(Fr.c[0], Fr.c[1]), pe = mapL(...end(wNow)), pmax = mapL(...end(WS[WS.length - 1]));
+      line(c, [pu, pmax], alpha(P.ink, 0.45), 1, [3, 3]);
+      WS.forEach((w) => { const q = mapL(...end(w)), r = w > 0; circle(c, q[0], q[1], 2.6, w === wCur ? P.ink : P.surf, P.ink, 1.2); lab(c, k, `w = ${w}`, q[0] + (r ? 8 : -8), q[1], { px: 9.5, weight: w === wCur ? 750 : 600, align: r ? 'left' : 'right', color: w === wCur ? P.ink : P.ink3, haloColor: P.surf }); }); // метки справа от линии: толстая стрелка проходит слева
+      arrow(c, p0[0], p0[1], pe[0], pe[1], alpha(P.ink, 0.5), 6, 12);
+      arrow(c, p0[0], p0[1], pu[0], pu[1], P.ink3, 2.4, 8);
+      arrow(c, p0[0], p0[1], pcn[0], pcn[1], P.mot, 2.4, 8);
+      lab(c, k, 'без условия', pu[0] + 9, pu[1] + 4, { px: 10.5, weight: 700, align: 'left', color: P.ink2, haloColor: P.surf });
+      lab(c, k, 'с условием «спираль 1»', pcn[0] + 9, pcn[1] - 6, { px: 10.5, weight: 700, align: 'left', color: P.mot, haloColor: P.surf });
+      circle(c, p0[0], p0[1], 5.5, P.surf, P.ink, 2.4);
+      lab(c, k, narrow ? 'зашумлённая точка' : `зашумлённая точка, шаг t = ${T_STEP}`, p0[0], p0[1] + 16, { px: 10.5, weight: 700, color: P.ink, haloColor: P.surf });
+      lab(c, k, `w = ${wCur}`, lx + 12, ly + 16, { px: 15, weight: 800, align: 'left', color: P.ink, haloColor: P.surf });
+      c.restore();
+      lab(c, k, (narrow ? LEFT_N : LEFT)[wCur], lx + ls / 2, ly + ls + 12, { px: 10.5, weight: 650, color: P.ink, halo: false });
+      /* ---- справа: вся плоскость, те же 500 точек, что в опыте ---- */
+      c.save(); c.beginPath(); c.rect(rx, ry, rs, rs); c.clip();
+      for (const [kk, al] of [[0, 0.5], [1, 0.16]]) {
+        c.fillStyle = P.ink3; c.globalAlpha = al; c.beginPath();
+        for (let j = 0; j < NSUB; j++) { if (Fr.sub.lab[j] !== kk) continue; const [px, py] = mapR(Fr.sub.X[2 * j], Fr.sub.X[2 * j + 1]); c.moveTo(px + 1.4, py); c.arc(px, py, 1.4, 0, 6.283); }
+        c.fill();
+      }
+      c.globalAlpha = 1;
+      for (const sp of [0, 1]) { const p = DF.spiralPt(sp, 1), q = mapR(p[0] * 1.13, p[1] * 1.13); lab(c, k, `спираль ${sp + 1}`, q[0], q[1], { px: 10, weight: 700, color: sp ? P.ink3 : P.ink2, haloColor: P.surf }); }
+      const gC = Fr.gens[wCur], gP = Fr.gens[wPrev];
+      if (gC) {
+        c.fillStyle = P.mot; c.globalAlpha = 0.85; c.beginPath();
+        for (let j = 0; j < NS; j++) { let x = gC.x[2 * j], y = gC.x[2 * j + 1]; if (gP && s < 1) { x = gP.x[2 * j] + (x - gP.x[2 * j]) * s; y = gP.x[2 * j + 1] + (y - gP.x[2 * j + 1]) * s; } const [px, py] = mapR(x, y); c.moveTo(px + 2, py); c.arc(px, py, 2, 0, 6.283); }
+        c.fill(); c.globalAlpha = 1;
+        lab(c, k, `w = ${wCur} · точность ${pc(gC.prec, 1)} · покрытие ${pc(gC.cov, 1)}`, rx + rs / 2, ry + rs - 12, { px: 10.5, weight: 700, color: P.ink, haloColor: P.surf });
+      } else lab(c, k, `считаю ${NS} точек для w = ${wCur}…`, rx + rs / 2, ry + rs / 2, { px: 12, weight: 650, color: P.ink3, halo: false });
+      lab(c, k, `w = ${wCur}`, rx + 12, ry + 16, { px: 15, weight: 800, align: 'left', color: P.ink, haloColor: P.surf });
+      c.restore();
+      lab(c, k, `w = ${wCur}: ${RIGHT[wCur]}`, rx + rs / 2, ry + rs + 12, { px: 10.5, weight: 650, color: P.ink, halo: false });
+    };
+  }
+  if (typeof Anim !== 'undefined') Anim.add('cfg', {
+    W: 720, H: 350, start: START, narrowAt: 600, draw: drawC({ left: [30, 30, 300], right: [390, 30, 300], titles: ['Одна точка: куда её тянет сеть', `Те же ${NS} точек, что в опыте ниже`] }),
+    narrow: { W: 360, H: 744, draw: drawC({ left: [20, 28, 320], right: [20, 400, 320], narrow: true, titles: ['Одна точка: куда её тянет сеть', `Те же ${NS} точек, что в опыте`] }) },
+  });
+  return { calc, T_STEP, X0, WS, NS, NSUB, HOLD, T };
 })();
 
 /* =====================================================================
@@ -1257,10 +1372,11 @@ function initQuiz() {
     safe('theme', initTheme); safe('nav', initNav);
     safe('cycle', () => legend('#cycleLegend', [['точки данных, их зашумлённые копии и случайный шум', 'var(--ink-3)', 'dot'], ['точки на обратном пути: с каждым шагом ближе к спиралям', 'var(--e2e)', 'dot'], ['сеть-денойзер', 'color-mix(in srgb, var(--e2e) 25%, transparent)', 'box']]));
     safe('samplers', () => legend('#sampLegend', [['обучающие точки', 'var(--ink-3)', 'dot'], ['старт: одна и та же точка шума', 'var(--ink)', 'ring'], ['путь к данным и его конец', 'var(--e2e)'], ['DDIM за 10 шагов: узлы — шаги', 'var(--hybrid)', 'dash']]));
+    safe('cfg', () => legend('#cfgLegend', [['обучающие точки, спираль 1 темнее', 'var(--ink-3)', 'dot'], ['зашумлённая точка', 'var(--ink)', 'ring'], ['без условия', 'var(--ink-3)'], ['с условием «спираль 1»', 'var(--e2e)'], ['итог с весом w', 'var(--ink)'], ['сгенерированные точки', 'var(--e2e)', 'dot']]));
     safe('ab', () => { mis.ab = AB.init(); }); safe('score', () => { mis.score = Score.init(); });
     safe('lab', () => { mis.lab = Lab.init(); }); safe('guide', () => { mis.guide = Guid.init(); }); safe('memo', () => { mis.memo = Memo.init(); }); safe('acts', () => { mis.acts = Acts.init(); });
     safe('quiz', initQuiz);
-    window.__l14 = { mis, SPEED, Cycle, Samp, AB, Score, Lab, Guid, Memo, Acts, DATA, RM }; window.__lessonReady = true;
+    window.__l14 = { mis, SPEED, Cycle, Samp, AB, Score, Lab, Guid, Cfg, Memo, Acts, DATA, RM }; window.__lessonReady = true;
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();

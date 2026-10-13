@@ -1,7 +1,7 @@
 // Проверка урока 1.4: сначала цифры движка в Node (те же зёрна, что в браузере), потом в браузере —
 // схема замысла (прямой и обратный путь, shared/anim.js: движется, обе раскладки, честные снимки),
 // все миссии — рисование прогноза мышью, перемотка, обучение сети, генерации (условия говорят, с чего
-// начинаем: 1000 точек шума), перетаскивание стартов, guidance, шторка, действия Ады (денойзер на
+// начинаем: 1000 точек шума), перетаскивание стартов, guidance и схема «вес w сдвигает ответ» на той же сети, шторка, действия Ады (денойзер на
 // действиях объезда чайника, регрессия рядом), квиз о подходе в целом (без названий приёмов в вопросах);
 // тёмная тема и телефон 390 px. Снимки — в shots/l14-*.png.
 // Запуск: node tools/lesson14.js        (только цифры: node tools/lesson14.js node)
@@ -375,6 +375,22 @@ async function desktop() {
   // --- 4. guidance ---
   await center(p, '#gdMis');
   await p.waitFor('window.__l14.Guid.st.trained', 120000);
+  // --- 4б. схема «вес w сдвигает ответ»: та же сеть, что в опыте, после обучения ---
+  check(await p.eval('Anim.kinds().includes("cfg") && document.querySelector("canvas[data-anim=cfg]").dataset.animOn === "1"'), 'схема «cfg» зарегистрирована в Anim и смонтирована');
+  const cfg = await p.eval(`(() => { const cv = document.querySelector('canvas[data-anim="cfg"]'); window.__l14.Cfg.calc(true); const mv = [[1.5, 4.5], [7.5, 10.5]].map(([a, b]) => { Anim.seek(cv, a); const x = cv.toDataURL(); Anim.seek(cv, b); return x !== cv.toDataURL(); }); return { moves: mv.every(Boolean), layout: cv.dataset.layout }; })()`);
+  check(cfg.moves && cfg.layout === 'w', `схема guidance движется (w = 0 → 1 и 2 → 4 — разные кадры), раскладка широкая: ${cfg.layout}`);
+  const gNum = await p.eval('(() => { const C = window.__l14.Cfg, F = C.calc(true), D = window.Diff, data = window.__l14.DATA; const idx = [0, 1].map((kk) => { const X = []; for (let i = 0; i < data.N; i++) if (data.lab[i] === kk) X.push(data.X[2 * i], data.X[2 * i + 1]); return D.nnIndex({ X: Float64Array.from(X), N: X.length / 2 }, 0.1); }); const dist = (q, kk) => { const r = idx[kk].near(q[0], q[1], 2); return r ? r.d : 9; }; const end = (w) => [F.c[0] + w * (F.c[0] - F.u[0]), F.c[1] + w * (F.c[1] - F.u[1])]; const ratio = (w) => Math.hypot(end(w)[0] - F.u[0], end(w)[1] - F.u[1]) / Math.hypot(F.c[0] - F.u[0], F.c[1] - F.u[1]); const nnAll = D.nnIndex(data, 0.1), off = (g) => { let o = 0; for (let j = 0; j < C.NS; j++) if (!nnAll.near(g.x[2 * j], g.x[2 * j + 1], 0.1)) o++; return o / C.NS; }; return { t: C.T_STEP, ws: C.WS, ns: C.NS, nsub: C.NSUB, u2: dist(F.u, 1), c1: dist(F.c, 0), c2: dist(F.c, 1), e1: dist(end(1), 0), e2: dist(end(2), 0), e4: Math.min(dist(end(4), 0), dist(end(4), 1)), r1: ratio(1), r4: ratio(4), gens: Object.fromEntries(C.WS.map((w) => [w, { prec: F.gens[w].prec, cov: F.gens[w].cov, off: off(F.gens[w]) }])) }; })()');
+  check(gNum.u2 < 0.1 && gNum.c1 > 0.1 && gNum.c1 < gNum.c2 && gNum.e1 < 0.1 && gNum.e2 < 0.1 && gNum.e4 > 0.25 && Math.abs(gNum.r1 - 2) < 1e-9 && Math.abs(gNum.r4 - 5) < 1e-9, `схема честная (сеть опыта, шаг t = ${gNum.t}): без условия — на спирали 2 (${f(gNum.u2, 2)}), с условием — к спирали 1, но не на ней (${f(gNum.c1, 2)}), итог при w = 1 и 2 на спирали 1 (${f(gNum.e1, 2)}, ${f(gNum.e2, 2)}), при w = 4 за спиралью (${f(gNum.e4, 2)}); от безусловного вдвое и впятеро дальше`);
+  check(gNum.ws.every((w) => Math.abs(gNum.gens[w].prec - NUM.guide[w].prec) < 1e-9 && Math.abs(gNum.gens[w].cov - NUM.guide[w].cov) < 1e-9), `правая панель схемы — те же ${gNum.ns} точек, что в опыте: ${gNum.ws.map((w) => `w ${w}: ${p100(gNum.gens[w].prec, 1)}/${p100(gNum.gens[w].cov, 1)}`).join(' · ')} — как в Node`);
+  check(gNum.gens[1].prec > gNum.gens[0].prec && gNum.gens[2].prec > gNum.gens[1].prec && gNum.gens[2].cov < gNum.gens[1].cov && gNum.gens[4].cov < gNum.gens[2].cov && gNum.gens[4].prec < gNum.gens[2].prec && gNum.gens[4].off > gNum.gens[2].off, `поведение на данных как в подписях: точность растёт до w = 2, покрытие падает, при w = 4 точность ниже и мимо спиралей ${p100(gNum.gens[4].off, 1)}% против ${p100(gNum.gens[2].off, 1)}% при w = 2`);
+  const gNote = await p.eval('document.querySelector("canvas[data-anim=cfg]").parentElement.querySelector("figcaption.cv-note").textContent');
+  const pr = (w) => p100(NUM.guide[w].prec, 1).replace('.', ',') + '%', cvr = (w) => p100(NUM.guide[w].cov, 1).replace('.', ',') + '%';
+  check(gNote.includes(`t = ${gNum.t} из 1000`) && gNote.includes(`${gNum.nsub} из ${DATA.N} обучающих точек`) && gNote.includes(`${gNum.ns} сгенерированных точек`) && gNote.includes(`w = 1 точность ${pr(1)}, покрытие ${cvr(1)}`) && gNote.includes(`w = 4 — ${pr(4)} и ${cvr(4)}`) && gNote.includes(gNum.ws.join(', ')) && /та же, что в опыте/.test(gNote) && /Нажми на схему/.test(gNote), 'подпись под схемой guidance: шаг, число точек, веса и проценты — из движка и Node');
+  check(await p.eval('document.querySelectorAll("#cfgLegend span").length === 6') && /при w = 0 он совпадает с условным предсказанием, при w = 1 уходит от безусловного вдвое дальше, при w = 4 — впятеро/.test(await p.eval('document.querySelector("#guide .prose").textContent')) && !(await p.eval('document.querySelector("canvas[data-anim=cfg]").parentElement.querySelector(".katex")')), 'легенда схемы guidance из шести значков; текст перед схемой объясняет вес словами, в подписи формул нет');
+  await center(p, 'canvas[data-anim=cfg]');
+  await p.eval('Anim.seek(document.querySelector("canvas[data-anim=cfg]"), 4.5)'); await p.shotEl(out('l14-cfg.png'), 'canvas[data-anim=cfg]', 4);
+  await p.eval('Anim.seek(document.querySelector("canvas[data-anim=cfg]"), 10.5)'); await p.shotEl(out('l14-cfg-w4.png'), 'canvas[data-anim=cfg]', 4);
+  await center(p, '#gdMis');
   await bet(p, '#gdMis', 'Около 80%');
   for (const w of [0, 1, 2, 4]) { await setRange(p, 'gdW', w * 2); await go(p, '#gdMis', 'guide'); }
   const gst = await p.eval('window.__l14.Guid.api.state()');
@@ -463,6 +479,7 @@ async function desktop() {
   await p.click('#themeBtn'); await sleep(400);
   await p.eval('Anim.seek(document.querySelector("canvas[data-anim=cycle]"), 8.3)'); await p.shotEl(out('l14-cycle-dark.png'), 'figure.scheme-fig', 6);
   await p.eval('Anim.seek(document.querySelector("canvas[data-anim=samplers]"), 7.0)'); await p.shotEl(out('l14-samplers-dark.png'), 'canvas[data-anim=samplers]', 4);
+  await p.eval('Anim.seek(document.querySelector("canvas[data-anim=cfg]"), 10.5)'); await p.shotEl(out('l14-cfg-dark.png'), 'canvas[data-anim=cfg]', 4);
   await p.shotEl(out('l14-forward-dark.png'), '#forward .lab', 6);
   await p.shotEl(out('l14-score-dark.png'), '#score .lab', 6);
   await p.shotEl(out('l14-lab-dark.png'), '#lab .lab', 6);
@@ -502,7 +519,12 @@ async function phone() {
   await m.shotEl(out('l14-m-lab.png'), '#lab .lab', 4);
   await m.eval('window.__l14.mis.lab.goto(4)'); await sleep(200);
   await m.shotEl(out('l14-m-lab-basin.png'), '#lab .lab', 4);
-  await center(m, '#gdCv'); await m.eval('window.__l14.Guid.api.train()'); await m.waitFor('window.__l14.Guid.st.trained', 120000); await center(m, '#gdMis'); await bet(m, '#gdMis', 'Около'); await setRange(m, 'gdW', 4); await go(m, '#gdMis', 'guide');
+  await center(m, '#gdCv'); await m.eval('window.__l14.Guid.api.train()'); await m.waitFor('window.__l14.Guid.st.trained', 120000);
+  const mcfg = await m.eval(`(() => { const cv = document.querySelector('canvas[data-anim="cfg"]'); window.__l14.Cfg.calc(true); Anim.seek(cv, 4.5); const x = cv.toDataURL(); Anim.seek(cv, 10.5); return { moves: x !== cv.toDataURL(), layout: cv.dataset.layout }; })()`);
+  check(mcfg.moves && mcfg.layout === 'n', `телефон: схема guidance в узкой раскладке (${mcfg.layout}) и движется`);
+  await m.eval('document.querySelector("canvas[data-anim=cfg]").scrollIntoView({ block: "start", behavior: "instant" })'); await sleep(200);
+  await m.shotEl(out('l14-m-cfg.png'), 'canvas[data-anim=cfg]', 4);
+  await center(m, '#gdMis'); await bet(m, '#gdMis', 'Около'); await setRange(m, 'gdW', 4); await go(m, '#gdMis', 'guide');
   await m.shotEl(out('l14-m-guide.png'), '#guide .lab', 4);
   await m.shotEl(out('l14-m-memo.png'), '#memo .lab', 4);
   await center(m, '#acMis'); await bet(m, '#acMis', 'В оба'); await go(m, '#acMis', 'acts');

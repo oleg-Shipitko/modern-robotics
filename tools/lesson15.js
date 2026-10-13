@@ -54,9 +54,12 @@ function nodeNumbers() {
   const ex = [], MUS = D.demos.map((d) => { const v = new Float64Array(16); for (let j = 0; j < 16; j++) v[j] = (d.xs[9 + j] - K.RX) / K.SC; return v; });
   let L = 0, R = 0;
   for (let s = 0; s < 60; s++) { const o = K.ddimExact(MUS, null, 16, 16, K.rng(4000 + s + 1), true); const sd = o.x0s.map((x0) => (x0[9] * K.SC > 6 ? 1 : x0[9] * K.SC < -6 ? -1 : 0)); const fin = sd[15]; let f = 15; while (f > 0 && sd[f - 1] === fin) f--; ex.push(f + 1); if (fin < 0) L++; else if (fin > 0) R++; }
-  const at2 = ex.filter((v) => v === 2).length, le6 = ex.filter((v) => v <= 6).length;
-  check(at2 >= 40 && le6 === 60 && L > 15 && R > 15, `денойзинг пачки: сторона выбрана на 2-м шаге в ${at2} из 60, не позже 6-го в ${le6}; слева ${L}, справа ${R} (в тексте: 51 из 60 и все)`);
-  NODE.at2 = at2;
+  const hist = {}; for (const v of ex) hist[v] = (hist[v] || 0) + 1;
+  check(hist[2] === 51 && hist[3] === 8 && hist[5] === 1 && Object.keys(hist).length === 3 && L > 15 && R > 15, `денойзинг пачки: шаг выбора стороны по 60 пачкам — ${Object.entries(hist).map(([k, v]) => `${k}: ${v}`).join(', ')}; слева ${L}, справа ${R} (в разборе: 51, 8 и 1)`);
+  // стартовая пачка интерактива (зерно 1): на шагах 1–2 оценка у чайника в коридоре ±6 см, с шага 3 — справа
+  const o1 = K.ddimExact(MUS, null, 16, 16, K.rng(4001), true), d1 = o1.x0s.map((x0) => x0[9] * K.SC), s1 = d1.map((d) => (d > 6 ? 1 : d < -6 ? -1 : 0));
+  check(s1[0] === 0 && s1[1] === 0 && s1.slice(2).every((v) => v === 1) && Math.abs(d1[1]) < 6 && Math.abs(d1[1]) > 3, `стартовая пачка: оценка у чайника по шагам ${d1.slice(0, 4).map((v) => f1(v)).join(', ')} см — сторона выбрана на шаге 3, а на шаге 2 кольцо ещё в коридоре`);
+  NODE.at2 = hist[2];
 }
 
 /* ---------- 2. Браузер ---------- */
@@ -87,6 +90,14 @@ async function desktop() {
   const fwdBad = fwdRefs(await fwdText(), FWD);
   check(fwdBad.length === 0, 'отсылки вперёд: первое упоминание каждой модели — с номером урока' + (fwdBad.length ? '; нет у: ' + fwdBad.join('; ') : ''));
   await p.shotEl(out('l15-hero.png'), '#top', 0);
+  const deepSum = await p.eval('[...document.querySelectorAll("#scheme details.deep > summary")].map((e) => e.textContent).join(" | ")');
+  const deepP = await p.eval('(document.querySelector("#scheme details.deep .body > p") || {}).textContent || ""');
+  check(/Diffusion Policy \(Chi и соавторы, 2023\)/.test(deepSum) && /Diffusion Policy \(Chi и соавторы, 2023\)/.test(deepP), 'под капотом: заголовок и первая фраза называют статью — ' + deepSum);
+  // таблица систем: столбцы не слипаются — у ячеек есть отступ справа, третий столбец не уже 110 px
+  await center(p, '#speed .tbl-wrap');
+  const tbl = await p.eval('(() => { const tds = [...document.querySelectorAll("#speed .speed-tbl tbody tr:first-child td")]; const w = tds.map((e) => e.getBoundingClientRect().width); const pr = tds.map((e) => parseFloat(getComputedStyle(e).paddingRight)); return { w, pr }; })()');
+  check(tbl.w[2] >= 110 && tbl.pr.slice(0, 3).every((v) => v >= 12), `таблица систем: ширины столбцов ${tbl.w.map((v) => f1(v, 0)).join(' / ')}, отступ справа ${tbl.pr.map((v) => f1(v, 0)).join(' / ')}`);
+  await p.shotEl(out('l15-speed.png'), '#speed .tbl-wrap', 6);
 
   // --- 1. Push-T: перетащить блок мышью, повернуть ползунком, подогнать стрелками
   await center(p, '#ptCv');
@@ -110,10 +121,16 @@ async function desktop() {
   // --- 2. Денойзинг пачки
   await center(p, '#scrubCv');
   const d0 = await p.eval('window.__l15.Scrub.api.state()');
+  check(d0.decide === 3 && d0.sides[0] === 0 && d0.sides[1] === 0, `денойзинг: стартовая пачка — сторона выбрана на шаге ${d0.decide}, на шагах 1–2 в коридоре (${d0.dists.slice(0, 3).map((v) => f1(v)).join(', ')} см)`);
+  await setRange(p, 'scrubS', 2);
+  const ro2 = await p.eval('document.querySelector("#scrubOut").textContent');
+  check(/Шаг 2:/.test(ro2) && /в коридоре/.test(ro2) && /Сторона не выбрана/.test(ro2) && ro2.includes(f1(Math.abs(d0.dists[1])).replace('.', ',')), 'денойзинг: подпись на шаге 2 — ' + ro2.slice(0, 110));
   await setRange(p, 'scrubS', d0.decide - 1); await p.eval('document.querySelector("#scrubMark").click()'); await sleep(60);
-  check(!(await done(p, 'scrub')), `денойзинг: отметка на шаге ${d0.decide - 1} не засчитана (сторона выбрана на шаге ${d0.decide})`);
+  const roM = await p.eval('document.querySelector("#scrubOut").textContent');
+  check(!(await done(p, 'scrub')) && /ещё не выбрана/.test(roM), `денойзинг: отметка на шаге ${d0.decide - 1} не засчитана, объяснено почему — …${roM.slice(roM.indexOf('Отмечен'), roM.indexOf('Отмечен') + 90)}`);
   await setRange(p, 'scrubS', d0.decide); await p.eval('document.querySelector("#scrubMark").click()'); await sleep(60);
-  check(await done(p, 'scrub'), 'денойзинг М1: ' + (await outText(p, '#scrubMis')).slice(0, 80));
+  const ex1 = await outText(p, '#scrubMis');
+  check(await done(p, 'scrub') && ex1.includes(`на шаге ${d0.decide} из 16`) && ex1.includes(f1(Math.abs(d0.dists[1])).replace('.', ',')) && ex1.includes(f1(Math.abs(d0.dists[2])).replace('.', ',')) && /51, на шаге 3 — у 8, на шаге 5 — у одной/.test(ex1), 'денойзинг М1: ' + ex1.slice(0, 160));
   await p.shotEl(out('l15-scrub.png'), '#chunk .lab', 6);
   await next(p, '#scrubMis');
   let tries = 0; while (!(await done(p, 'scrub')) && tries < 20) { await p.eval('document.querySelector("#scrubNew").click()'); await sleep(40); tries++; }
@@ -137,7 +154,7 @@ async function desktop() {
   // --- 4. Лаборатория
   await p.eval('window.__l15.SPEED.k = 4');
   await center(p, '#labMis');
-  check(await p.eval('["#wrapReg", "#wrapShare", "#wrapTa", "#wrapSteps", "#wrapShift", "#wrapCurve"].every((s) => document.querySelector(s).hidden) && !document.querySelector("#wrapPlan").hidden'), 'лаба М1: из ручек только показ пачки');
+  check(await p.eval('["#wrapReg", "#wrapShare", "#wrapTa", "#wrapSteps", "#wrapShift", "#wrapCurve", "#wrapFlips"].every((s) => document.querySelector(s).hidden) && !document.querySelector("#wrapPlan").hidden'), 'лаба М1: из ручек только показ пачки, полоска прогонов скрыта');
   await bet(p, '#labMis', 'Ни разу'); const tl = Date.now(); await go(p, '#labMis', 'lab');
   const r1 = await p.eval('window.__l15.mis.lab.ctx.results[0]');
   check(await done(p, 'lab') && r1.den.touches === 0, `лаба М1: касаний ${r1.den.touches}, слева ${r1.den.left}, справа ${r1.den.right}; обучение и прогон ${f1((Date.now() - tl) / 1000)} с`);
@@ -152,11 +169,18 @@ async function desktop() {
   console.log('  журнал М2:', await p.eval('document.querySelector("#labMis .m-log").textContent'));
   await p.shotEl(out('l15-lab-reg.png'), '#lab .lab', 6);
   await next(p, '#labMis');
-  check(await p.eval('window.__l15.Lab.st.Ta === 1 && window.__l15.Lab.st.share === 0.5 && !document.querySelector("#wrapTa").hidden'), 'лаба М3: исполнение по одному шагу, доля 50%');
+  check(await p.eval('window.__l15.Lab.st.Ta === 1 && window.__l15.Lab.st.share === 0.5 && !document.querySelector("#wrapTa").hidden && !document.querySelector("#wrapFlips").hidden'), 'лаба М3: исполнение по одному шагу, доля 50%, полоска прогонов видна');
+  check(await p.eval('(() => { const cv = document.querySelector("#labFlips"); const c = cv.getContext("2d"); const d = c.getImageData(0, 0, cv.width, cv.height).data; let n = 0; for (let i = 0; i < d.length; i += 4) if (d[i + 3] && Math.abs(d[i] - d[i + 1]) + Math.abs(d[i + 1] - d[i + 2]) < 20) n++; return cv.width > 0 && n > 0; })()') && (await p.eval('document.querySelector("#wrapFlips .cv-note").textContent.length > 60')), 'лаба М3: до запуска на полоске есть подсказка, под ней подпись и легенда');
   await bet(p, '#labMis', 'План начнёт'); for (let i = 0; i < 3 && !(await done(p, 'lab')); i++) await go(p, '#labMis', 'lab');
   const r3 = await p.eval('window.__l15.mis.lab.ctx.results[2]');
   check(await done(p, 'lab'), `лаба М3: план менял сторону ≥ 2 раз в ${r3.den.flips2} прогонах из 10, касаний ${r3.den.touches}`);
+  // полоска прогонов: смены стороны по клеткам = смены в движке, число рядов в рамке = число в разборе
+  const ch = await p.eval('(() => { const rs = window.__l15.Lab.st.res.den; return { n: rs.length, same: rs.every((q) => q.chain.flips === q.flips), marked: rs.filter((q) => q.flips >= 2).length, cells: rs.map((q) => q.chain.cells.length), max: Math.max(...rs.map((q) => q.flips)) }; })()');
+  const ex3 = await outText(p, '#labMis');
+  check(ch.n === 10 && ch.same && ch.marked === r3.den.flips2 && ch.cells.every((v) => v >= 10) && ex3.includes(`В ${r3.den.flips2} прогонах из 10`) && ex3.includes(`больше всего смен — ${ch.max} в прогоне ${r3.den.worst + 1}`) && ex3.includes(`${r3.den.touches} из 10`), `лаба М3: полоска — рядов в рамке ${ch.marked}, смены по клеткам совпали с движком, пачек у чайника в ряду ${Math.min(...ch.cells)}–${Math.max(...ch.cells)}; разбор: …${ex3.slice(0, 120)}`);
+  check(await p.eval('/прогон, где план менял сторону/.test(document.querySelector("#labLegend").textContent)'), 'лаба М3: в легенде сцены появился пункт про яркие пути');
   await p.shotEl(out('l15-lab-ta1.png'), '#lab .lab', 6);
+  await p.shotEl(out('l15-lab-flips.png'), '#wrapFlips', 6);
   await next(p, '#labMis');
   check(await p.eval('window.__l15.Lab.st.steps === 1 && !document.querySelector("#wrapSteps").hidden'), 'лаба М4: один шаг денойзинга');
   await bet(p, '#labMis', 'Начнёт задевать');
@@ -173,7 +197,7 @@ async function desktop() {
   console.log('  разбор М5:', (await outText(p, '#labMis')).slice(0, 120));
   await p.shotEl(out('l15-lab-curve.png'), '#lab .lab', 6);
   await next(p, '#labMis');
-  check(await p.eval('["#wrapReg", "#wrapShare", "#wrapTa", "#wrapSteps", "#wrapShift", "#wrapCurve", "#wrapPlan"].every((s) => !document.querySelector(s).hidden)'), 'лаба, свободный режим: все ручки видны');
+  check(await p.eval('["#wrapReg", "#wrapShare", "#wrapTa", "#wrapSteps", "#wrapShift", "#wrapCurve", "#wrapPlan", "#wrapFlips"].every((s) => !document.querySelector(s).hidden)'), 'лаба, свободный режим: все ручки и полоска прогонов видны');
   await p.eval('document.querySelector("#labReg").checked = true; document.querySelector("#labReg").dispatchEvent(new Event("change"))'); await sleep(40);
   await go(p, '#labMis', 'lab');
   const rf = await p.eval('window.__l15.Lab.st.log.at(-1)');
@@ -216,7 +240,21 @@ async function phone() {
   await center(m, '#labMis'); await bet(m, '#labMis', 'Ни разу'); await go(m, '#labMis', 'lab');
   check(await done(m, 'lab'), 'телефон: лаба М1 пройдена');
   await m.shotEl(out('l15-m-lab.png'), '#lab .lab', 4);
+  await m.eval('window.__l15.mis.lab.goto(2)'); await sleep(150);
+  await bet(m, '#labMis', 'План начнёт'); for (let i = 0; i < 3 && !(await done(m, 'lab')); i++) await go(m, '#labMis', 'lab');
+  const chm = await m.eval('(() => { const rs = window.__l15.Lab.st.res.den; return rs.every((q) => q.chain.flips === q.flips) && !document.querySelector("#wrapFlips").hidden; })()');
+  check(await done(m, 'lab') && chm, 'телефон: лаба М3 пройдена, полоска прогонов видна и совпадает с движком');
+  // снимок полоски: шапка позиционирована fixed и при снимке за пределами экрана попадает в кадр — прячем её только на время снимка
+  await center(m, '#wrapFlips'); await sleep(400);
+  await m.eval('document.querySelector(".topbar").style.visibility = "hidden"');
+  await m.shotEl(out('l15-m-lab-flips.png'), '#wrapFlips', 4);
+  await m.eval('document.querySelector(".topbar").style.visibility = ""');
+  const fh = await m.eval('(() => { const r = document.querySelector("#labFlips").getBoundingClientRect(); return r.height / r.width; })()');
+  check(fh > 0.4, `телефон: полоска прогонов выше (${f1(fh, 2)} от ширины), ряды не слипаются`);
   await m.shotEl(out('l15-m-speed.png'), '#speed', 4);
+  check(await m.eval('getComputedStyle(document.querySelector("#speed .tbl-hint")).display === "block"'), 'телефон: под таблицей видна подсказка о прокрутке');
+  const tw = await m.eval('(() => { const w = document.querySelector("#speed .tbl-wrap"); return { sw: w.scrollWidth, cw: w.clientWidth, ox: getComputedStyle(w).overflowX }; })()');
+  check(tw.sw > tw.cw && tw.ox === 'auto', `телефон: таблица систем прокручивается внутри обёртки (${tw.sw} в ${tw.cw} px)`);
   const wdt = await m.eval('document.documentElement.scrollWidth');
   check(wdt <= 390, `телефон: ширина ${wdt} из 390`);
   check(m.logs.length === 0, 'консоль телефона: ' + (m.logs.join(' | ') || 'чисто'));
