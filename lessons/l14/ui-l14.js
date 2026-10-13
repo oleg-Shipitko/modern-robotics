@@ -6,7 +6,9 @@
    лаборатория — сеть учится в браузере, DDPM и DDIM рядом на одной сети,
    граница бассейнов перетаскиванием стартов;
    «Генерация по заказу» — кривая «точность — разнообразие», которую строишь сам;
-   «Память или обобщение» — шторка «идеальный денойзер — сеть»; квиз.
+   «Память или обобщение» — шторка «идеальный денойзер — сеть»;
+   «Те же точки, но это действия Ады» — денойзер лаборатории на действиях
+   объезда чайника, рядом регрессия; квиз.
    ===================================================================== */
 'use strict';
 
@@ -819,6 +821,227 @@ const Memo = (() => {
   return { init, api, st, run };
 })();
 
+/* =====================================================================
+   6. Те же точки, но это действия Ады: денойзер лаборатории учится на
+   действиях объезда чайника из урока 1.3, рядом регрессия «шум → действие»
+   ===================================================================== */
+const Acts = (() => {
+  const A = DF.ACT, PW = 420, E = 2.2, STEPS = [3, 5, 10, 20, 50, 100], SHARES = [0.5, 0.7, 0.9], NG = A.gen, GSEED = 2;
+  const box = { l: 50, r: 408, t: 18, b: 376 };
+  const X = (u) => box.l + (u + E) / (2 * E) * (box.r - box.l), Y = (v) => box.b - (v + E) / (2 * E) * (box.b - box.t);
+  const cmv = (u) => fx(u * A.cm, 1);
+  const st = { share: 0.5, data: {}, nets: {}, regs: {}, training: false, prog: 0, preview: null, gen: null, anim: 1, eta: 1, stepsIdx: 5, busy: false, freeSeed: 100, mis: 0, note: '' };
+  let ctl = null;
+  const data = (s) => st.data[s] || (st.data[s] = DF.actions(s, 4));
+  const S = () => STEPS[st.stepsIdx];
+  const drawT = throttle(() => draw(), 60);
+  const sName = (e) => (e >= 0.999 ? 'DDPM' : 'DDIM');
+  const shareTxt = (s) => `${Math.round(s * 100)} на ${Math.round((1 - s) * 100)}`;
+
+  /* ---------- обучение и генерация ---------- */
+  function train(s) {
+    if (st.nets[s]) return Promise.resolve(st.nets[s]);
+    const D = DF.actDenoiser(5), d = data(s); st.training = true; st.prog = 0; st.preview = null; draw();
+    return runChunked(DF.actTrainGen(D, d, { every: 10 }), (e) => {
+      st.prog = e.step / e.total;
+      if (e.step % 500 === 0) st.preview = DF.sample(DF.netEps(D), D.sched, { n: NG, steps: 20, eta: 0, seed: 3 }).x;
+      drawT();
+    }, 12).then(() => { st.training = false; st.preview = null; st.nets[s] = D; draw(); return D; });
+  }
+  function regTrain(s) {
+    if (st.regs[s]) return Promise.resolve(st.regs[s]);
+    const R = DF.regressor(8);
+    return runChunked(DF.regTrainGen(R, data(s), { steps: A.regSteps }), () => {}, 12).then(() => { st.regs[s] = R; return R; });
+  }
+  function sampleChunked(epsFn, sched, o) {
+    const g = DF.sampleGen(epsFn, sched, o);
+    return new Promise((res, rej) => {
+      const step = () => { const t0 = performance.now(); try { for (;;) { const x = g.next(); if (x.done) { res(x.value); return; } if (performance.now() - t0 > 14) break; } } catch (e) { rej(e); return; } setTimeout(step, 0); };
+      step();
+    });
+  }
+  /** Обучить (если ещё нет), сгенерировать NG действий из шума, прогнать те же стартовые шумы через регрессию. */
+  async function run(o) {
+    o = Object.assign({ seed: GSEED, S: 100, eta: 1 }, o || {});
+    const s = st.share; st.busy = true; st.gen = null; draw();
+    const D = await train(s), R = await regTrain(s);
+    st.note = 'считаю…'; draw();
+    const G = await sampleChunked(DF.netEps(D), D.sched, { n: NG, steps: o.S, eta: o.eta, seed: o.seed, frames: true });
+    const ry = DF.regPredict(R, G.x0, NG), sa = DF.actStats(G.x, NG), sr = DF.actStats(ry, NG);
+    st.gen = { x: G.x, frames: G.frames, reg: ry, A: sa, R: sr, S: o.S, eta: o.eta, share: s }; st.note = '';
+    await animate(Math.max(900, Math.min(2000, 500 + o.S * 12)), (p) => { st.anim = p; draw(); });
+    st.busy = false; draw();
+    return { A: sa, R: sr, S: o.S, eta: o.eta, share: s };
+  }
+
+  /* ---------- схема сверху: Ада, чайник, два объезда ---------- */
+  function ada(c, P, x, y) {
+    c.save(); c.translate(x, y);
+    c.fillStyle = P.ink3; c.globalAlpha = 0.8;                                           // колёсная база
+    c.beginPath(); c.roundRect(-20, -14, 40, 30, 7); c.fill(); c.globalAlpha = 1;
+    c.fillStyle = P.ink; c.beginPath(); c.roundRect(-24, -8, 6, 18, 2); c.roundRect(18, -8, 6, 18, 2); c.fill(); // колёса
+    c.beginPath(); c.arc(0, 0, 13, 0, 7); c.fillStyle = P.surf; c.fill(); c.lineWidth = 2.5; c.strokeStyle = P.e2e; c.stroke(); // корпус
+    c.fillStyle = P.surf; c.strokeStyle = P.ink2; c.lineWidth = 1.5;                                                   // руки, вперёд
+    for (const sx of [-1, 1]) { c.beginPath(); c.roundRect(sx * 15 - 3, -16, 6, 16, 3); c.fill(); c.stroke(); }
+    c.beginPath(); c.roundRect(-5, -10, 10, 11, 4); c.fillStyle = '#1f2430'; c.fill();                                // голова, экран вперёд
+    c.fillStyle = '#eb6834'; c.beginPath(); c.arc(-2.3, -6.5, 1.3, 0, 7); c.arc(2.3, -6.5, 1.3, 0, 7); c.fill();
+    c.restore();
+  }
+  function kettle(c, P, x, y, hot) {
+    const R = 13; c.save(); c.translate(x, y); c.lineWidth = 2; c.strokeStyle = hot ? P.bad : P.ink2; c.fillStyle = P.surf;
+    c.beginPath(); c.moveTo(R - 2, -3); c.lineTo(R + 9, -7); c.lineTo(R + 10, -4); c.lineTo(R - 1, 3); c.closePath(); c.fill(); c.stroke();
+    c.beginPath(); c.arc(-R - 1, 0, 6, Math.PI * 0.5, Math.PI * 1.5); c.stroke();
+    c.beginPath(); c.arc(0, 0, R, 0, 7); c.fill(); c.stroke();
+    c.beginPath(); c.arc(0, 0, R * 0.45, 0, 7); c.stroke();
+    c.restore();
+  }
+  function drawScheme() {
+    const W = 300, H = 420, { c, k } = HeroKit.fit($('#acScheme'), W, H), P = pal();
+    c.fillStyle = P.bg; c.fillRect(0, 0, W, H); HeroKit.grid(c, W, H, 30, P.grid);
+    const cx = 150, yA = 372, yK = 212, yG = 46, s1 = 30, s2 = 30, g = st.gen && st.anim >= 1 ? st.gen : null;
+    const route = (sg) => [[cx, yA - 22], [cx + sg * s1, 302], [cx + sg * (s1 + s2), 254], [cx + sg * (s1 + s2), 170], [cx, yG + 26]];
+    const poly = (pts) => { c.beginPath(); pts.forEach((p, i) => (i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]))); c.stroke(); };
+    // цель
+    c.setLineDash([4, 4]); c.strokeStyle = P.ink2; c.lineWidth = 1.5; c.beginPath(); c.arc(cx, yG, 14, 0, 7); c.stroke(); c.setLineDash([]);
+    HeroKit.label(c, k, 'цель', cx + 30, yG, { align: 'left', px: 11, color: P.ink2, haloColor: P.bg });
+    // объезды: до генерации — демонстрации пунктиром, после — доли действий диффузии
+    for (const sg of [-1, 1]) {
+      const pts = route(sg), n = g ? (sg < 0 ? g.A.left : g.A.right) : 0;
+      if (g) { c.strokeStyle = P.e2e; c.lineWidth = n ? 1.5 + 6 * n / NG : 1; c.globalAlpha = n ? 1 : 0.3; c.setLineDash([]); }
+      else { c.strokeStyle = P.ink3; c.lineWidth = 1.6; c.setLineDash([5, 4]); }
+      c.lineJoin = 'round'; poly(pts); c.setLineDash([]); c.globalAlpha = 1;
+      // метки шагов 1 и 2 на концах отрезков
+      for (const [j, t] of [[1, '1'], [2, '2']]) {
+        const p = pts[j]; c.beginPath(); c.arc(p[0], p[1], 7, 0, 7); c.fillStyle = g ? P.e2e : P.ink3; c.fill();
+        HeroKit.label(c, k, t, p[0], p[1], { px: 9.5, weight: 800, color: P.bg, halo: false });
+      }
+      const lx = cx + sg * (s1 + s2) + sg * 10, ly = 210, al = sg < 0 ? 'right' : 'left';
+      if (g) HeroKit.label(c, k, `${n} из ${NG}`, lx, ly, { align: al, px: 11, weight: 700, color: P.e2e, haloColor: P.bg });
+      else { HeroKit.label(c, k, 'объезд', lx, ly - 7, { align: al, px: 10.5, color: P.ink3, haloColor: P.bg }); HeroKit.label(c, k, sg < 0 ? 'слева' : 'справа', lx, ly + 7, { align: al, px: 10.5, color: P.ink3, haloColor: P.bg }); }
+    }
+    // регрессия: среднее двух объездов — прямо в чайник
+    if (g) {
+      const px = (u) => cx + u * A.cm;    // 1 px = 1 см
+      c.strokeStyle = P.ink; c.lineWidth = 2.2; c.setLineDash([]); c.beginPath(); c.moveTo(cx, yA - 22); c.lineTo(px(g.R.mx), 302); c.lineTo(px(g.R.mx + g.R.my), 254); c.lineTo(px(g.R.mx + g.R.my), yK + 4); c.stroke();
+      if (g.R.meanBand) { HeroKit.cross(c, px(g.R.mx + g.R.my), yK, 7, P.bad, 3); HeroKit.label(c, k, 'регрессия: в чайник', cx, yK - 24, { px: 11, weight: 700, color: P.bad, haloColor: P.bg }); }
+      else { c.beginPath(); c.moveTo(px(g.R.mx + g.R.my), yK + 4); c.lineTo(px(g.R.mx + g.R.my), 170); c.lineTo(cx, yG + 26); c.stroke(); HeroKit.label(c, k, 'регрессия: мимо, за большинством', cx, yK - 26, { px: 11, weight: 700, color: P.ink, haloColor: P.bg }); }
+    }
+    kettle(c, P, cx, yK, !!(g && g.R.meanBand));
+    HeroKit.label(c, k, 'чайник', cx, yK + 26, { px: 11, weight: 650, color: P.ink2, haloColor: P.bg });
+    ada(c, P, cx, yA);
+    HeroKit.label(c, k, 'Ада', cx + 36, yA + 2, { align: 'left', px: 11.5, weight: 700, color: P.ink, haloColor: P.bg });
+    HeroKit.label(c, k, 'едет вверх', cx + 36, yA + 16, { align: 'left', px: 10, color: P.ink3, haloColor: P.bg });
+    if (!g) HeroKit.label(c, k, 'демонстрации: пунктир', cx, H - 10, { px: 10.5, color: P.ink3, haloColor: P.bg });
+    else HeroKit.label(c, k, `${sName(g.eta)}, ${nWord(g.S, 'шаг', 'шага', 'шагов')}`, cx, H - 10, { px: 10.5, color: P.ink3, haloColor: P.bg });
+  }
+
+  /* ---------- график действий ---------- */
+  function drawPlot() {
+    const { c, k } = HeroKit.fit($('#acCv'), PW, PW), P = pal(), d = data(st.share), narrow = k > 1.5;
+    c.fillStyle = P.bg; c.fillRect(0, 0, PW, PW);
+    const ticks = [-2, -1, 0, 1, 2];
+    c.strokeStyle = P.grid; c.lineWidth = 1; c.beginPath();
+    for (const u of ticks) { c.moveTo(X(u), box.t); c.lineTo(X(u), box.b); c.moveTo(box.l, Y(u)); c.lineTo(box.r, Y(u)); }
+    c.stroke();
+    c.strokeStyle = P.ink3; c.beginPath(); c.moveTo(X(0), box.t); c.lineTo(X(0), box.b); c.moveTo(box.l, Y(0)); c.lineTo(box.r, Y(0)); c.stroke();
+    for (const u of ticks) {
+      const t = u ? `${u > 0 ? '+' : '−'}${Math.abs(u) * A.cm}` : '0';
+      HeroKit.label(c, k, t, X(u), box.b + Math.max(12, 9 * k), { px: 10, mono: true, color: P.ink3, halo: false });
+      HeroKit.label(c, k, t, box.l - 5, Y(u), { align: 'right', px: 10, mono: true, color: P.ink3, halo: false });
+    }
+    HeroKit.label(c, k, narrow ? 'шаг 1, см: ← влево · вправо →' : 'сдвиг на шаге 1, см: ← влево · вправо →', (box.l + box.r) / 2, PW - 9, { px: 10.5, color: P.ink2, halo: false });
+    c.save(); c.translate(11, (box.t + box.b) / 2); c.rotate(-Math.PI / 2);
+    HeroKit.label(c, k, narrow ? 'шаг 2, см: ← влево · вправо →' : 'сдвиг на шаге 2, см: ← влево · вправо →', 0, 0, { px: 10.5, color: P.ink2, halo: false });
+    c.restore();
+    // полоса чайника: |x + y| < band
+    c.save(); c.beginPath(); c.rect(box.l, box.t, box.r - box.l, box.b - box.t); c.clip();
+    const b = A.band, q = E + 1, pts = [[-q, b + q], [b + q, -q], [-b + q, -q], [-q, -b + q]];
+    c.beginPath(); pts.forEach((p, i) => (i ? c.lineTo(X(p[0]), Y(p[1])) : c.moveTo(X(p[0]), Y(p[1])))); c.closePath();
+    c.fillStyle = P.bad; c.globalAlpha = 0.07; c.fill(); c.globalAlpha = 1;
+    HeroKit.hatch(c, box.l, box.t, box.r, box.b, P.bad, 12, 0.6);
+    c.restore();
+    c.save(); c.translate(X(-1.45), Y(1.45)); c.rotate(Math.PI / 4); HeroKit.label(c, k, narrow ? 'задевает чайник' : 'Ада задевает чайник', 0, 0, { px: 10.5, weight: 700, color: P.bad, haloColor: P.bg }); c.restore();
+    c.save(); c.translate(X(1.15), Y(-1.15)); c.rotate(Math.PI / 4); HeroKit.label(c, k, narrow ? 'сдвиг < 30 см' : 'суммарный сдвиг меньше 30 см', 0, 0, { px: 10.5, weight: 700, color: P.bad, haloColor: P.bg }); c.restore();
+    // сгустки: окружности радиуса R вокруг центров
+    c.setLineDash([4, 4]); c.strokeStyle = P.ink3; c.lineWidth = 1.2;
+    for (const sg of [-1, 1]) { c.beginPath(); c.arc(X(sg * A.c), Y(sg * A.c), A.R / (2 * E) * (box.r - box.l), 0, 7); c.stroke(); }
+    c.setLineDash([]);
+    HeroKit.label(c, k, 'оба шага влево', X(-A.c), Y(-A.c + A.R + 0.17), { px: 10.5, weight: 650, color: P.ink2, haloColor: P.bg });
+    HeroKit.label(c, k, 'оба шага вправо', X(A.c), Y(A.c - A.R - 0.17), { px: 10.5, weight: 650, color: P.ink2, haloColor: P.bg });
+    // демонстрации
+    c.fillStyle = P.ink3; c.globalAlpha = 0.35; c.beginPath();
+    for (let i = 0; i < d.N; i++) { const x = X(d.X[2 * i]), y = Y(d.X[2 * i + 1]); c.moveTo(x + 1.7, y); c.arc(x, y, 1.7, 0, 7); }
+    c.fill(); c.globalAlpha = 1;
+    const dot = (x, y, r, col, al) => { c.globalAlpha = al; c.fillStyle = col; c.beginPath(); c.arc(X(x), Y(y), r, 0, 7); c.fill(); c.globalAlpha = 1; };
+    if (st.training && st.preview) for (let i = 0; i < NG; i++) dot(st.preview[2 * i], st.preview[2 * i + 1], 2.4, P.e2e, 0.6);
+    const g = st.gen;
+    if (g) {
+      const n = g.frames.length - 1, f = Math.max(0, Math.min(1, st.anim)) * n, i0 = Math.min(n, Math.floor(f)), i1 = Math.min(n, i0 + 1), u = f - i0, F0 = g.frames[i0], F1 = g.frames[i1], fin = st.anim >= 1;
+      for (let i = 0; i < NG; i++) { const x = F0[2 * i] + (F1[2 * i] - F0[2 * i]) * u, y = F0[2 * i + 1] + (F1[2 * i + 1] - F0[2 * i + 1]) * u; dot(x, y, 3, fin && g.A.who[i] < 0 ? P.bad : P.e2e, 0.85); }
+      if (fin) {
+        for (let i = 0; i < NG; i++) dot(g.reg[2 * i], g.reg[2 * i + 1], 2.4, P.ink, 0.7);
+        HeroKit.cross(c, X(g.R.mx), Y(g.R.my), 7, P.ink, 3);
+        HeroKit.label(c, k, 'среднее регрессии', X(g.R.mx) + 12 * k, Y(g.R.my) + 12 * k, { align: 'left', px: 10.5, weight: 700, color: P.ink, haloColor: P.bg });
+      }
+    }
+    const txt = st.training ? `сеть учится на ${d.N} действиях: ${pc(st.prog)}` : st.note ? st.note : g ? `${sName(g.eta)} · ${nWord(g.S, 'шаг', 'шага', 'шагов')} · ${NG} действий${st.anim < 1 ? ` · шаг ${Math.min(g.S, Math.round(st.anim * g.S))}` : ''}` : `${d.N} действий из демонстраций · слева ${Math.round(st.share * 100)}%`;
+    HeroKit.label(c, k, txt, box.l + 6, box.t + 9 * k, { align: 'left', mono: true, px: 11, color: P.ink3, haloColor: P.bg });
+    if (!g && !st.training) HeroKit.label(c, k, narrow ? 'нажми «Обучить и сгенерировать»' : 'нажми «Обучить и сгенерировать» в карточке миссии', (box.l + box.r) / 2, Y(0.55), { px: 11.5, weight: 700, color: P.e2e, haloColor: P.bg });
+  }
+  function showLegend() {
+    const it = [['действия из демонстраций', 'var(--ink-3)', 'dot'], ['сгусток: ближе 20 см к его центру', 'var(--ink-3)', 'dash'], ['полоса: Ада задевает чайник', 'var(--critical)', 'box'], ['действия диффузии', 'var(--e2e)', 'dot']];
+    if (st.gen && st.gen.A.stray) it.push(['действие вне сгустков', 'var(--critical)', 'dot']);
+    if (st.gen) it.push(['действия регрессии из тех же стартов, крест — их среднее', 'var(--ink)', 'dot']);
+    legend('#acLegend', it);
+  }
+  function draw() {
+    drawScheme(); drawPlot(); showLegend();
+    const g = st.gen, d = data(st.share);
+    setOut($('#acOut'), st.training ? `Сеть учится на ${d.N} действиях: ${pc(st.prog)}. Это несколько секунд.` : g && st.anim >= 1 ? `Диффузия: в сгустках <b>${g.A.inCluster} из ${NG}</b> (влево ${g.A.left}, вправо ${g.A.right}), в полосе чайника <b>${g.A.band}</b> · регрессия: в полосе <b>${g.R.band} из ${NG}</b>, среднее (${cmv(g.R.mx)}; ${cmv(g.R.my)}) см` : g ? 'Действия идут от шума к данным…' : `Демонстраций ${d.N}: «оба шага влево» ${Math.round(st.share * d.N)}, «оба вправо» ${d.N - Math.round(st.share * d.N)}. ${st.nets[st.share] ? 'Сеть обучена.' : 'Обучение запускает кнопка в карточке миссии.'}`);
+  }
+  function setShare(s) { if (st.training || st.busy) return; st.share = s; $$('#wrapActShare button').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.v === s))); st.gen = null; draw(); if (ctl) ctl.update(); }
+  function setSteps(s) { st.stepsIdx = Math.max(0, STEPS.indexOf(s) >= 0 ? STEPS.indexOf(s) : 5); const e = $('#acSteps'); e.value = st.stepsIdx; e.nextElementSibling.textContent = String(S()); setRangeFill(e); }
+  function setEta(v) { st.eta = v; $$('#wrapActEta button').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.v === v))); }
+  const api = {
+    reset() { st.gen = null; st.anim = 1; setSteps(100); setEta(1); setShare(0.5); },
+    state: () => ({ share: st.share, trained: !!st.nets[st.share], S: S(), eta: st.eta, gen: st.gen ? { A: st.gen.A, R: st.gen.R, S: st.gen.S, eta: st.gen.eta, share: st.gen.share } : null }),
+    run, setShare, setSteps, setEta, train: () => train(st.share),
+  };
+  const sumTxt = (r) => `${shareTxt(r.share)}, ${sName(r.eta)} на ${nWord(r.S, 'шаге', 'шагах', 'шагах')}: в сгустках ${r.A.inCluster} из ${NG} (влево ${r.A.left}, вправо ${r.A.right}), в полосе ${r.A.band} · регрессия в полосе ${r.R.band}`;
+  const missions = [
+    { short: 'Из шума', title: 'Сто действий из шума', text: `Обучи денойзер из лаборатории на ${A.n} действиях из демонстраций и сгенерируй ${NG} действий: DDPM, 100 шагов, как в лаборатории. Те же ${NG} стартовых шумов пройдут и через регрессию «шум → действие».`,
+      bet: { q: `куда лягут ${NG} сгенерированных действий?`, options: ['В оба сгустка, примерно поровну', 'В один сгусток: сеть выберет сторону', 'Между сгустками, как регрессия'], answer: (r) => (r.A.inCluster >= 90 ? (Math.min(r.A.left, r.A.right) >= 20 ? 0 : 1) : 2) },
+      action: { label: 'Обучить и сгенерировать', run: (X) => X.run() },
+      criteria: [{ label: `Все ${NG} действий в сгустках`, test: (r) => r.A.inCluster === NG }, { label: 'Ни одного действия в полосе чайника', test: (r) => r.A.band === 0 }],
+      summary: sumTxt,
+      hint: 'Обучение занимает несколько секунд: по ходу на графике появляются пробные действия сети. Если действие легло вне сгустков, сгенерируй ещё раз.',
+      fail: (r) => `В сгустках ${r.A.inCluster} из ${NG}, в полосе чайника ${r.A.band}. Нажми кнопку ещё раз.`,
+      explain: (r) => `Диффузия: <b>${r.A.left}</b> действий «оба шага влево», <b>${r.A.right}</b> — «оба шага вправо», в полосе чайника <b>${r.A.band}</b>. Регрессия на тех же ${NG} стартовых шумах: <b>${r.R.band} из ${NG}</b> в полосе, её среднее — ${cmv(r.R.mx)} см на шаге 1 и ${cmv(r.R.my)} см на шаге 2, то есть прямо в чайник. Сеть та же, что на спиралях, и ведёт себя так же: при сильном шуме денойзер тянет действие к общему среднему, потом стартовый шум выбирает сторону, и денойзинг доводит действие до сгустка. Регрессия выбирать не умеет: минимум среднеквадратичной ошибки — среднее двух объездов, как в уроке 1.3.` },
+    { short: '70 на 30', title: 'Перекос в демонстрациях', text: 'Теперь 70% демонстраций объезжают чайник слева (переключатель доли — под сценой). В уроке 1.3 регрессия при таком перекосе всё ещё задевала чайник. Обучи сеть заново и сгенерируй 100 действий.',
+      controls: ['share'], onEnter: (X) => X.setShare(0.7),
+      bet: { q: 'какая доля действий диффузии уйдёт влево?', options: ['Около 70%, как в демонстрациях', 'Почти все: сторона большинства', 'Около половины'], answer: (r) => (r.A.shareLeft >= 0.85 ? 1 : r.A.shareLeft >= 0.58 ? 0 : 2) },
+      action: { label: 'Обучить и сгенерировать', run: (X) => X.run() },
+      criteria: [{ label: 'В демонстрациях 70% объездов слева', test: (r) => r.share === 0.7 }, { label: 'Влево ушли от 60 до 80% действий', test: (r) => r.A.shareLeft >= 0.6 && r.A.shareLeft <= 0.8 }, { label: 'Ни одного действия в полосе чайника', test: (r) => r.A.band === 0 }],
+      summary: sumTxt,
+      hint: 'Доля 70% уже выбрана переключателем под сценой. Сеть на новых данных учится заново, это несколько секунд.',
+      fail: (r) => (r.share !== 0.7 ? `Сейчас демонстраций слева ${Math.round(r.share * 100)}%: переключи на 70% под сценой.` : `Влево ушли ${pc(r.A.shareLeft)} действий, в полосе чайника ${r.A.band}. Нажми кнопку ещё раз.`),
+      explain: (r) => `Влево ушли <b>${r.A.left}</b> действий из ${NG}, вправо <b>${r.A.right}</b>: диффузия воспроизвела долю из демонстраций, а не выбрала сторону большинства. Среднее регрессии сдвинулось к большинству, до ${cmv(r.R.mx)} см на шаге 1 и ${cmv(r.R.my)} см на шаге 2, но суммарный сдвиг ${fx(Math.abs(r.R.mx + r.R.my) * A.cm, 1)} см меньше 30 см: <b>${r.R.band} из ${NG}</b> её действий по-прежнему в полосе чайника. То же было в уроке 1.3: при 70 на 30 регрессия ещё задевала чайник и выходила из него только при перекосе около 80 на 20, и то со стороны большинства, без выбора.` },
+    { short: 'Свободно', title: 'Свободный режим', text: 'Меняй долю объездов слева, число шагов и сэмплер; каждая генерация — из нового шума. Проверь: при 90 на 10 среднее регрессии выходит из полосы, но со стороны большинства, выбора у неё по-прежнему нет. На 3 шагах часть действий остаётся между сгустками.',
+      final: true,
+      action: { label: 'Сгенерировать 100 действий', run: (X) => X.run({ seed: st.freeSeed++, S: S(), eta: st.eta }) },
+      summary: sumTxt },
+  ];
+  function init() {
+    SHARES.forEach((s) => { const b = h('button', { type: 'button', 'data-v': s, 'aria-pressed': String(s === 0.5) }, `слева ${Math.round(s * 100)}%`); b.addEventListener('click', () => setShare(s)); $('#wrapActShare').append(b); });
+    $('#acSteps').addEventListener('input', (e) => { st.stepsIdx = +e.target.value; const el = e.target; el.nextElementSibling.textContent = String(S()); setRangeFill(el); });
+    $$('#wrapActEta button').forEach((b) => b.addEventListener('click', () => setEta(+b.dataset.v)));
+    ctl = mountMissions('#acMis', missions, api, { controls: { share: '#wrapActShare', steps: '#wrapActSteps', eta: '#wrapActEta' }, scene: '#acCv', onStep: (i) => { st.mis = i; draw(); } });
+    setSteps(100); setEta(1); draw(); redrawOn(draw);
+    return ctl;
+  }
+  return { init, api, st, STEPS, SHARES };
+})();
+
 /* ---------- Квиз ---------- */
 /** Квиз с калибровкой: сначала уверенность (50, 70 или 90%), потом ответ. Штраф калибровки —
  *  квадрат разницы между уверенностью и исходом (правило Брайера): 0 — идеально, 0,25 — всегда «50%». */
@@ -875,9 +1098,9 @@ function initQuiz() {
   const start = () => {
     safe('theme', initTheme); safe('nav', initNav);
     safe('ab', () => { mis.ab = AB.init(); }); safe('score', () => { mis.score = Score.init(); });
-    safe('lab', () => { mis.lab = Lab.init(); }); safe('guide', () => { mis.guide = Guid.init(); }); safe('memo', () => { mis.memo = Memo.init(); });
+    safe('lab', () => { mis.lab = Lab.init(); }); safe('guide', () => { mis.guide = Guid.init(); }); safe('memo', () => { mis.memo = Memo.init(); }); safe('acts', () => { mis.acts = Acts.init(); });
     safe('quiz', initQuiz);
-    window.__l14 = { mis, SPEED, AB, Score, Lab, Guid, Memo, DATA, RM }; window.__lessonReady = true;
+    window.__l14 = { mis, SPEED, AB, Score, Lab, Guid, Memo, Acts, DATA, RM }; window.__lessonReady = true;
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();

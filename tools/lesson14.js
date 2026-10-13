@@ -1,6 +1,7 @@
 // Проверка урока 1.4: сначала цифры движка в Node (те же зёрна, что в браузере), потом все миссии
 // в браузере — рисование прогноза мышью, перемотка, обучение сети, генерации, перетаскивание стартов,
-// guidance, шторка, квиз с калибровкой; тёмная тема и телефон 390 px. Снимки — в shots/l14-*.png.
+// guidance, шторка, действия Ады (денойзер на действиях объезда чайника, регрессия рядом), квиз с калибровкой;
+// тёмная тема и телефон 390 px. Снимки — в shots/l14-*.png.
 // Запуск: node tools/lesson14.js        (только цифры: node tools/lesson14.js node)
 const { launch, sleep } = require('./cdp');
 const path = require('path');
@@ -146,6 +147,36 @@ function memoNumbers() {
   check(res[128].chance < 0.06, `свежие точки со спиралей случайно «копии» в ${p100(res[128].chance, 1)}% при N = 128 (в тексте «меньше 6%»)`);
   NUM.memo = { first: first * 1000, c8, end: Object.fromEntries(Object.entries(res).map(([N, x]) => [N, x.curve[8]])) };
 }
+/** Действия Ады: сеть и зёрна те же, что в браузере (обучение с зерном 9, генерация с зерном 2). */
+function actNumbers() {
+  console.log('Node: действия Ады (сеть та же, что в браузере)');
+  const A = D.ACT, cm = (v) => f(v * A.cm, 1), N = A.gen;
+  const trainOn = (share, seed) => { const Dn = D.actDenoiser(5); for (const e of D.actTrainGen(Dn, D.actions(share, 4), { seed })); return Dn; };
+  const regOn = (share) => { const R = D.regressor(8); for (const e of D.regTrainGen(R, D.actions(share, 4), { steps: A.regSteps })); return R; };
+  const gen = (Dn, seed, S, eta) => D.sample(D.netEps(Dn), Dn.sched, { n: N, steps: S || 100, eta: eta == null ? 1 : eta, seed });
+  const cpu0 = process.cpuUsage(); const D5 = trainOn(0.5, 9); const u = process.cpuUsage(cpu0), sec = (u.user + u.system) / 1e6;
+  const R5 = regOn(0.5), g = gen(D5, 2), sa = D.actStats(g.x, N), sr = D.actStats(D.regPredict(R5, g.x0, N), N);
+  check(sec < 20, `обучение на ${A.n} действиях, ${A.steps} шагов: ${f(sec, 1)} с процессорного времени`);
+  check(sa.inCluster === N && sa.band === 0 && sa.wobble === 0, `М1: в сгустках ${sa.inCluster} из ${N} (влево ${sa.left}, вправо ${sa.right}), в полосе чайника ${sa.band}, виляющих ${sa.wobble} → ставка «в оба сгустка»`);
+  check(sa.left === 50 && sa.right === 50, `М1: доли ${sa.left} и ${sa.right} (в тексте раздела «50 ушли влево и 50 вправо»)`);
+  check(sr.band === N && Math.abs(sr.mx * A.cm) < 1 && Math.abs(sr.my * A.cm) < 1, `М1: регрессия — в полосе ${sr.band} из ${N}, среднее (${cm(sr.mx)}; ${cm(sr.my)}) см (в тексте «в сантиметре от центра полосы»)`);
+  // устойчивость: другие зёрна обучения и генерации
+  const bad = [];
+  for (const gs of [3, 4, 5]) { const s = D.actStats(gen(D5, gs).x, N); if (s.inCluster !== N || s.band) bad.push(`генерация ${gs}: в сгустках ${s.inCluster}, в полосе ${s.band}`); }
+  for (const ts of [10, 11, 12]) { const Dn = trainOn(0.5, ts); for (const gs of [3, 4]) { const s = D.actStats(gen(Dn, gs).x, N); if (s.inCluster !== N || s.band) bad.push(`обучение ${ts}, генерация ${gs}: в сгустках ${s.inCluster}, в полосе ${s.band}`); } }
+  check(bad.length === 0, 'устойчивость М1: зёрна генерации 3–5 и зёрна обучения 10–12 — все 100 в сгустках, в полосе 0' + (bad.length ? '; нет у: ' + bad.join('; ') : ''));
+  // 70 на 30
+  const D7 = trainOn(0.7, 9), R7 = regOn(0.7), g7 = gen(D7, 2), s7 = D.actStats(g7.x, N), r7 = D.actStats(D.regPredict(R7, g7.x0, N), N);
+  check(s7.inCluster === N && s7.band === 0 && s7.shareLeft >= 0.6 && s7.shareLeft <= 0.8, `М2 (70 на 30): влево ${s7.left}, вправо ${s7.right}, в сгустках ${s7.inCluster}, в полосе ${s7.band} → ставка «около 70%»`);
+  check(r7.meanBand && r7.band >= 90, `М2: регрессия — среднее (${cm(r7.mx)}; ${cm(r7.my)}) см, суммарный сдвиг ${f(Math.abs(r7.mx + r7.my) * A.cm, 1)} см < ${A.band * A.cm}, в полосе ${r7.band} из ${N}`);
+  const bad7 = []; for (const gs of [3, 4]) { const s = D.actStats(gen(D7, gs).x, N); if (s.inCluster !== N || s.band || s.shareLeft < 0.6 || s.shareLeft > 0.8) bad7.push(`генерация ${gs}: влево ${s.left}, в полосе ${s.band}`); }
+  check(bad7.length === 0, 'устойчивость М2: зёрна генерации 3 и 4' + (bad7.length ? '; нет у: ' + bad7.join('; ') : ''));
+  // свободный режим: при 90 на 10 среднее регрессии выходит из полосы; на 3 шагах DDIM часть действий между сгустками
+  const R9 = regOn(0.9), r9 = D.actStats(D.regPredict(R9, g.x0, N), N), s3 = D.actStats(gen(D5, 2, 3, 0).x, N);
+  check(!r9.meanBand && r9.band === 0, `90 на 10: среднее регрессии (${cm(r9.mx)}; ${cm(r9.my)}) см вне полосы, в полосе ${r9.band} из ${N}`);
+  check(s3.stray > 0, `DDIM на 3 шагах: вне сгустков ${s3.stray} из ${N}, в полосе ${s3.band} (в тексте «часть действий остаётся между сгустками»)`);
+  NUM.acts = { left: sa.left, right: sa.right, rBand: sr.band, mx: sr.mx, my: sr.my, left7: s7.left, right7: s7.right, rBand7: r7.band };
+}
 
 /* ---------- 2. Браузер ---------- */
 const sel = (root, s) => JSON.stringify(root + ' ' + s);
@@ -178,6 +209,9 @@ async function desktop() {
   console.log('Десктоп 1440');
   check(await p.eval('document.querySelectorAll("[id]").length === new Set([...document.querySelectorAll("[id]")].map((e) => e.id)).size'), 'id без повторов');
   check(await p.eval('typeof Guide === "undefined" && typeof Cards !== "undefined" && !document.querySelector(".c-sort")'), 'нет пошаговой карточки guide.js и сортировки карточек');
+  // число миссий с целью в шапке = миссии без свободного режима во всех лабораториях
+  const missionsTotal = await p.eval(`[...document.querySelectorAll('.m-steps')].reduce((s, ol) => s + [...ol.children].filter((li) => !/Свободно/.test(li.textContent)).length, 0)`);
+  check(new RegExp(`^${missionsTotal} миссий`).test(await p.eval('document.querySelector("#heroMis").textContent')), `миссий с целью: ${missionsTotal}, в шапке — ` + (await p.eval('document.querySelector("#heroMis").textContent')));
   // отсылки вперёд: первое упоминание каждой модели из будущих уроков — с номером урока (разминку, глоссарий, формулы и таблицу шагов — справку с номерами уроков — пропускаем)
   const fwdText = () => p.eval('(() => { const m = document.querySelector("main").cloneNode(true); m.querySelectorAll("#finale .links, #finale .links + *, #recall, #glData, .katex, .steps-table").forEach((e) => e.remove()); return m.textContent; })()');
   const fwdBad = fwdRefs(await fwdText(), FWD);
@@ -327,6 +361,34 @@ async function desktop() {
   await p.shotEl(out('l14-memo.png'), '#memo .lab', 6);
   await next(p, '#mmMis');
 
+  // --- 6. действия Ады ---
+  await center(p, '#acMis');
+  check(await p.eval('["#wrapActShare","#wrapActSteps","#wrapActEta"].every((s) => document.querySelector(s).hidden)'), 'действия М1: ручки скрыты до свободного режима');
+  check(await p.eval('document.querySelector("#acMis .g-go").disabled'), 'действия М1: кнопка заблокирована до ставки');
+  await bet(p, '#acMis', 'В оба сгустка');
+  const tAct = Date.now(); await go(p, '#acMis', 'acts'); const secAct = (Date.now() - tAct) / 1000;
+  const pick = (i) => p.eval(`(() => { const r = window.__l14.mis.acts.ctx.results[${i}]; return { left: r.A.left, right: r.A.right, band: r.A.band, inC: r.A.inCluster, share: r.share, rBand: r.R.band, mx: r.R.mx, my: r.R.my }; })()`);
+  const a1 = await pick(0);
+  check(await done(p, 'acts') && a1.left === NUM.acts.left && a1.right === NUM.acts.right && a1.rBand === NUM.acts.rBand && Math.abs(a1.mx - NUM.acts.mx) < 1e-9, `действия М1 (${f(secAct, 1)} с): влево ${a1.left}, вправо ${a1.right}, в полосе ${a1.band}; регрессия в полосе ${a1.rBand}, среднее (${f(a1.mx * D.ACT.cm, 1)}; ${f(a1.my * D.ACT.cm, 1)}) см — как в Node`);
+  check(await p.eval('document.querySelector("#acMis .m-bet .bet-right") !== null && document.querySelector("#acMis .m-bet .bet-wrong") === null'), 'действия М1: ставка «в оба сгустка» сыграла');
+  const outA = await outText(p, '#acMis');
+  check(outA.includes(`${a1.left} действий «оба шага влево», ${a1.right} — «оба шага вправо»`) && outA.includes(`${a1.rBand} из 100 в полосе`), 'действия М1: числа в разборе совпадают с результатом: ' + outA.slice(0, 110));
+  check(await p.eval('/в сгустках 100 из 100/.test(document.querySelector("#acOut").textContent) && /50 ушли влево и 50 вправо/.test(document.querySelector("#actions .sec-end").textContent)'), 'действия: readout и итог раздела согласованы с движком');
+  await p.shotEl(out('l14-actions.png'), '#actions .lab', 6);
+  await next(p, '#acMis');
+  check(await p.eval('!document.querySelector("#wrapActShare").hidden && document.querySelector("#wrapActSteps").hidden && window.__l14.Acts.api.state().share === 0.7'), 'действия М2: виден переключатель доли, выбрано 70%');
+  await bet(p, '#acMis', 'Около 70%'); await go(p, '#acMis', 'acts');
+  const a2 = await pick(1);
+  check(await done(p, 'acts') && a2.share === 0.7 && a2.left === NUM.acts.left7 && a2.right === NUM.acts.right7 && a2.rBand === NUM.acts.rBand7, `действия М2: влево ${a2.left}, вправо ${a2.right}, в полосе ${a2.band}; регрессия в полосе ${a2.rBand}, среднее (${f(a2.mx * D.ACT.cm, 1)}; ${f(a2.my * D.ACT.cm, 1)}) см — как в Node`);
+  check(await p.eval('document.querySelector("#acMis .m-bet .bet-right") !== null && document.querySelector("#acMis .m-bet .bet-wrong") === null'), 'действия М2: ставка «около 70%» сыграла');
+  await p.shotEl(out('l14-actions-70.png'), '#actions .lab', 6);
+  await next(p, '#acMis');
+  check(await p.eval('["#wrapActShare","#wrapActSteps","#wrapActEta"].every((s) => !document.querySelector(s).hidden)'), 'действия, свободный режим: все ручки видны');
+  await p.click('#wrapActShare button[data-v="0.9"]'); await setRange(p, 'acSteps', 0); await p.click('#wrapActEta button[data-v="0"]'); await go(p, '#acMis', 'acts');
+  const a3 = await p.eval('(() => { const g = window.__l14.Acts.api.state().gen; return { share: g.share, S: g.S, eta: g.eta, stray: g.A.stray, band: g.A.band, meanBand: g.R.meanBand, rBand: g.R.band }; })()');
+  check(a3.share === 0.9 && a3.S === 3 && a3.eta === 0 && a3.stray > 0 && !a3.meanBand, `свободный режим, 90 на 10, DDIM на 3 шагах: вне сгустков ${a3.stray}, в полосе ${a3.band}; регрессия в полосе ${a3.rBand}, среднее вне полосы`);
+  console.log('  журнал действий:', await p.eval('[...document.querySelectorAll("#acMis .m-log li")].map((l) => l.textContent).join(" | ")'));
+
   // --- квиз с калибровкой ---
   await center(p, '#quizBox');
   check(await p.eval('document.querySelector("#quizBox .q-opt").disabled'), 'квиз: ответы закрыты, пока не выбрана уверенность');
@@ -346,6 +408,7 @@ async function desktop() {
   await p.shotEl(out('l14-lab-dark.png'), '#lab .lab', 6);
   await p.shotEl(out('l14-guide-dark.png'), '#guide .lab', 6);
   await p.shotEl(out('l14-memo-dark.png'), '#memo .lab', 6);
+  await p.shotEl(out('l14-actions-dark.png'), '#actions .lab', 6);
   check(p.logs.length === 0, 'консоль десктопа: ' + (p.logs.join(' | ') || 'чисто'));
   await B.close();
 }
@@ -374,6 +437,9 @@ async function phone() {
   await center(m, '#gdCv'); await m.eval('window.__l14.Guid.api.train()'); await m.waitFor('window.__l14.Guid.st.trained', 120000); await center(m, '#gdMis'); await bet(m, '#gdMis', 'Около'); await setRange(m, 'gdW', 4); await go(m, '#gdMis', 'guide');
   await m.shotEl(out('l14-m-guide.png'), '#guide .lab', 4);
   await m.shotEl(out('l14-m-memo.png'), '#memo .lab', 4);
+  await center(m, '#acMis'); await bet(m, '#acMis', 'В оба'); await go(m, '#acMis', 'acts');
+  check(await done(m, 'acts'), 'телефон: действия Ады — М1 пройдена: ' + (await outText(m, '#acMis')).slice(0, 60));
+  await m.shotEl(out('l14-m-actions.png'), '#actions .lab', 4);
   await m.shotEl(out('l14-m-steps.png'), '#steps .prose', 4);
   await m.shotEl(out('l14-m-quiz.png'), '#quiz .prose', 4);
   const wdt = await m.eval('document.documentElement.scrollWidth');
@@ -383,7 +449,7 @@ async function phone() {
 }
 
 (async () => {
-  nodeSchedules(); rewindNumbers(); labStates(); guideNumbers(); memoNumbers();
+  nodeSchedules(); rewindNumbers(); labStates(); guideNumbers(); memoNumbers(); actNumbers();
   if (process.argv[2] !== 'node') { await desktop(); await phone(); }
   console.log(fails ? `ИТОГ: ${fails} проверок не прошли` : 'ИТОГ: все проверки прошли');
   process.exit(fails ? 1 : 0);

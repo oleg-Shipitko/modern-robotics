@@ -191,12 +191,13 @@
     return out;
   }
   /** Шаг обучения на пакете: L_simple — средний квадрат ошибки предсказанного шума по координатам.
-   *  Номер шага t берётся чаще маленьким: t = 1 + ⌊T·u²⌋. При pUncond > 0 условие иногда выбрасывается. */
-  function trainStep(D, data, bs, r, lr, pUncond) {
+   *  Номер шага t берётся чаще маленьким: t = 1 + ⌊T·u²⌋; при tUniform — равномерно, как в DDPM.
+   *  При pUncond > 0 условие иногда выбрасывается. */
+  function trainStep(D, data, bs, r, lr, pUncond, tUniform) {
     const m = D.net; ensure(m, bs);
     const xs = new Float64Array(2 * bs), eps = new Float64Array(2 * bs), ts = new Int32Array(bs), cs = D.nc ? new Int32Array(bs) : null, ab = D.sched.abar;
     for (let k = 0; k < bs; k++) {
-      const i = Math.floor(r() * data.N), u = r(), t = Math.min(T, 1 + Math.floor(T * u * u)), a = Math.sqrt(ab[t]), s = Math.sqrt(1 - ab[t]);
+      const i = Math.floor(r() * data.N), u = r(), t = tUniform ? 1 + Math.floor(T * u) : Math.min(T, 1 + Math.floor(T * u * u)), a = Math.sqrt(ab[t]), s = Math.sqrt(1 - ab[t]);
       const e0 = randn(r), e1 = randn(r); eps[2 * k] = e0; eps[2 * k + 1] = e1; ts[k] = t;
       xs[2 * k] = a * data.X[2 * i] + s * e0; xs[2 * k + 1] = a * data.X[2 * i + 1] + s * e1;
       if (cs) cs[k] = r() < (pUncond || 0) ? -1 : data.lab[i];
@@ -229,7 +230,7 @@
     o = o || {}; const steps = o.steps || 1000, bs = o.bs || LAB.bs, every = o.every || 25, r = o.rng || rng(o.seed || 9);
     for (let s = 0; s < steps; s++) {
       const lr = o.lr == null ? labLr(D.steps) : typeof o.lr === 'function' ? o.lr(D.steps) : o.lr;
-      const l = trainStep(D, data, bs, r, lr, o.pUncond);
+      const l = trainStep(D, data, bs, r, lr, o.pUncond, o.tUniform);
       if ((s + 1) % every === 0 || s === steps - 1) { const ev = o.ev ? evalLoss(D, o.ev) : null; if (ev != null) D.hist.push([D.steps, ev]); yield { step: s + 1, total: steps, loss: l, ev }; }
     }
   }
@@ -352,6 +353,36 @@
   /** Доля копий: сэмпл ближе r к одной из обучающих точек. */
   function copies(nnT, xs, n, r) { let c = 0; for (let k = 0; k < n; k++) if (nnT.near(xs[2 * k], xs[2 * k + 1], r)) c++; return c / n; }
 
-  const API = { rng, randn, SP, spiralPt, spirals, subset, medianRadius, T, schedule, mlp, ensure, forward, backward, adam, EMB, NET, denoiser, fillIn, predEps, trainStep, LAB, labLr, evalSet, evalLoss, trainGen, regressor, regTrainGen, regPredict, taus, CLIP, sampleGen, sample, netEps, cfgEps, edmD, exactEps, nnIndex, DON, onSpiral, stats, precCov, copies };
+  /* ---------- действия Ады: сдвиг вбок на двух соседних шагах объезда чайника ----------
+     Единицы движка: 1 = ACT.cm см. Действие — два числа: сдвиг на шаге 1 (x) и на шаге 2 (y), вправо > 0.
+     Сгустки «оба шага влево» (−c, −c) и «оба вправо» (+c, +c), как в интерактиве бинов урока 1.3.
+     Ада задевает чайник, если суммарный сдвиг за два шага меньше ACT.band: полоса |x + y| < band. */
+  const ACT = { n: 400, c: 1.2, sd: 0.2, cm: 25, R: 0.8, band: 1.2, gen: 100, steps: 3000, bs: 125, regSteps: 400 };
+  /** Шаг обучения на действиях: 3·10⁻³ первую половину, потом 10⁻³, последнюю четверть — 3·10⁻⁴. */
+  const actLr = (step) => (step < ACT.steps * 0.5 ? 3e-3 : step < ACT.steps * 0.75 ? 1e-3 : 3e-4);
+  /** pLeft — доля демонстраций «оба шага влево». lab: 0 — влево-влево, 1 — вправо-вправо. */
+  function actions(pLeft, seed) {
+    const r = rng(seed == null ? 4 : seed), n = ACT.n, X = new Float64Array(2 * n), lab = new Uint8Array(n), p = pLeft == null ? 0.5 : pLeft;
+    for (let i = 0; i < n; i++) { const k = i < Math.round(p * n) ? 0 : 1, m = k ? ACT.c : -ACT.c; X[2 * i] = m + randn(r) * ACT.sd; X[2 * i + 1] = m + randn(r) * ACT.sd; lab[i] = k; }
+    return { X, lab, N: n, pLeft: p };
+  }
+  /** Сводка по n действиям: в сгустках (ближе R к центру сгустка), в полосе чайника, виляющих (шаги в разные стороны), среднее. */
+  function actStats(xs, n) {
+    let left = 0, right = 0, band = 0, wobble = 0, sx = 0, sy = 0; const who = new Int8Array(n);
+    for (let k = 0; k < n; k++) {
+      const x = xs[2 * k], y = xs[2 * k + 1]; sx += x; sy += y;
+      const dl = Math.hypot(x + ACT.c, y + ACT.c), dr = Math.hypot(x - ACT.c, y - ACT.c);
+      if (dl < ACT.R) { left++; who[k] = 0; } else if (dr < ACT.R) { right++; who[k] = 1; } else who[k] = -1;
+      if (Math.abs(x + y) < ACT.band) band++;
+      if (x * y < 0) wobble++;
+    }
+    const inC = left + right;
+    return { n, left, right, inCluster: inC, stray: n - inC, band, wobble, shareLeft: inC ? left / inC : 0, mx: sx / n, my: sy / n, meanBand: Math.abs(sx / n + sy / n) < ACT.band, who };
+  }
+  /** Денойзер для действий: та же сеть, t при обучении равномерный (у сгустков нет тонкой структуры, а сторону точка выбирает при сильном шуме). */
+  const actDenoiser = (seed) => denoiser({ seed: seed || 5 });
+  const actTrainGen = (D, data, o) => trainGen(D, data, Object.assign({ steps: ACT.steps, bs: ACT.bs, every: 25, seed: 9, lr: actLr, tUniform: true }, o || {}));
+
+  const API = { rng, randn, SP, spiralPt, spirals, subset, medianRadius, T, schedule, mlp, ensure, forward, backward, adam, EMB, NET, denoiser, fillIn, predEps, trainStep, LAB, labLr, evalSet, evalLoss, trainGen, regressor, regTrainGen, regPredict, taus, CLIP, sampleGen, sample, netEps, cfgEps, edmD, exactEps, nnIndex, DON, onSpiral, stats, precCov, copies, ACT, actLr, actions, actStats, actDenoiser, actTrainGen };
   if (typeof module !== 'undefined' && module.exports) module.exports = API; else root.Diff = API;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -77,3 +77,11 @@
 
 /* строка-пояснение под сценой или графиком: вид, значки, единицы */
 .cv-note { margin: 8px 0 0; font-size: 14px; line-height: 1.5; color: var(--ink-3); }
+
+/* действия Ады: схема сверху (300 × 420) рядом с графиком действий (420 × 420) */
+.ac-grid { display: grid; grid-template-columns: minmax(0, 300fr) minmax(0, 420fr); gap: 12px; align-items: start; }
+.ac-scheme { width: 100%; height: auto; aspect-ratio: 300 / 420; display: block; border-radius: 12px; border: 1px solid var(--line); }
+@media (max-width: 900px) {
+  .ac-grid { grid-template-columns: 1fr; }
+  .ac-scheme { max-width: 260px; margin: 0 auto; }
+}
