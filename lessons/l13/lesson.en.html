@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>1.3 Action Multimodality — Modern Robotics and Physical AI</title>
+<meta name="description" content="Lesson 1.3 of the Modern Robotics and Physical AI course: the teacher goes around the kettle sometimes on the left and sometimes on the right, yet after training Ada drives straight into it, and new demonstrations don't help. Train the policy yourself, find the cause, compare regression, a mixture of Gaussians and diffusion on one scene, pick the action chunk length and hold the chosen side at the chunk seams.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<script>
+  (function () { try { var t = localStorage.getItem('mr-theme'); if (t) document.documentElement.dataset.theme = t; else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme = 'dark'; } catch (e) {} })();
+</script>
+<style>
+/*@@CSS@@*/
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html#program" title="To the course program"><div>Modern Robotics and Physical AI<small>Lesson 1.3 · Action multimodality</small></div></a>
+    <nav class="toc" aria-label="Lesson sections">
+      <a href="#kettle">Experiment</a>
+      <a href="#mean">Cause</a>
+      <a href="#modes">Modes in data</a>
+      <a href="#models">Models</a>
+      <a href="#lab">Three Adas</a>
+      <a href="#seams">Chunks</a>
+      <a href="#quiz">Check</a>
+      <a href="#finale">Takeaways</a>
+    </nav>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Toggle theme">◐</button>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main>
+
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="kicker"><span class="num">1.3</span> Part 1 · Imitation learning</div>
+    <h1>Action <span class="amp">multimodality</span></h1>
+    <p class="lead">In lesson 1.1 Ada learned to drive around the apartment by repeating after the teacher, and she went astray where there were no examples. In lesson 1.2 DAgger added examples exactly in the places she drifts to. Both times data helped. In this lesson a kettle stands in Ada's way, and the teacher goes around it sometimes on the left, sometimes on the right. There are plenty of examples, all of them correct, yet after training Ada drives straight into the kettle, and new drives by the teacher don't help. Let's figure out why two correct examples give a wrong answer, which models can pick one of several correct actions, and how to avoid changing that choice halfway.</p>
+    <div class="hero-meta"><span>≈ 50 minutes</span><span>3 labs, 4 interactives and a quiz</span><span id="heroMis">15 missions with a goal</span></div>
+    <div class="hero-list">
+      <div><b>EXPERIMENT</b>Train Ada on 40 teacher drives past the kettle, bet on the outcome, and check whether 1000 drives help</div>
+      <div><b>CAUSE</b>Draw the detours yourself and see which path a network learns from them</div>
+      <div><b>DATA</b>Estimate which datasets really contain several strategies, and get a score for your confidence</div>
+      <div><b>THREE ADAS</b>Three policies drive to the same kettle at once: you'll see which of them picks a side and which one averages</div>
+      <div><b>CHUNKS</b>Pick how many steps ahead Ada should plan, and hold the chosen side where one plan gives way to the next</div>
+    </div>
+    <p style="margin-top:28px"><a class="btn primary" href="#kettle">Start the lesson ↓</a></p>
+  </div>
+</section>
+
+<section class="recall-sec" id="recall" aria-label="Warm-up on the previous lesson">
+  <div class="wrap"><div class="card recall" data-recall></div></div>
+  <script type="application/json" id="recallData">{"n": "1.2", "title": "DAgger", "href": "1-2-dagger.html", "q": [{"q": "Where does DAgger get new examples?", "o": ["The teacher records more tidy drives", "Ada drives on her own, and the expert labels the states she ends up in", "Noise and shifts are added to old frames"], "a": 1, "e": "Examples appear where the policy actually drifts, not where we happened to guess. That's how DAgger treats distribution shift.", "sec": "dagger", "secTitle": "DAgger: the policy drives, the expert labels"}, {"q": "Same amount of labeling: 5 demonstrations plus DAgger iterations versus behavior cloning on more tidy demonstrations. Who wins?", "o": ["DAgger", "Behavior cloning", "A tie: only the number of examples matters"], "a": 0, "e": "What matters is not how many examples there are but where they are: DAgger adds them in the places the policy drifts to.", "sec": "curve", "secTitle": "DAgger versus \"even more demonstrations\""}, {"q": "How does the robot in ThriftyDAgger decide when to call a human?", "o": ["On a schedule, every few steps", "When the human takes over control on their own", "When the ensemble networks disagree more than a threshold"], "a": 2, "e": "Ensemble spread is an estimate of uncertainty: where there is no data, the networks disagree. A human taking over control is HG-DAgger.", "sec": "budget", "secTitle": "The robot asks for help when it is unsure"}]}</script>
+</section>
+
+<section class="section alt" id="kettle">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">1</span> Experiment</div>
+      <h2>More demonstrations, fewer crashes?</h2>
+      <p>Ada drives from the living room to the kitchen, to the table, and a kettle stands on the straight path. The drives are recorded by the teacher, a program that knows the way. It goes around the kettle sometimes on the left, sometimes on the right, and a coin picks the side. As in lesson 1.1, the network learns to repeat after the teacher: given what fraction of the path Ada has already covered, it outputs how far to shift sideways on the next step.</p>
+      <p class="ada-note"><svg class="ada-ico" viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="10" width="48" height="42" rx="18" fill="#f4efe6" stroke="#3d3c38" stroke-width="3"/><rect x="15" y="19" width="34" height="22" rx="10" fill="#1f2430"/><ellipse cx="25" cy="30" rx="4" ry="5.5" fill="#eb6834"/><ellipse cx="39" cy="30" rx="4" ry="5.5" fill="#eb6834"/></svg><span>Ada is a home humanoid on a wheeled base; the course labs are built around her. More about her in <a href="0-1-dve-paradigmy.html#ada">lesson 0.1</a>.</span></p>
+      <p>Train the network and see how Ada drives. Then add data: in lesson 1.1 new drives filled the gaps, and the errors went away. Here there are no gaps: every one of the teacher's drives goes past the kettle. Place your bet before you run it.</p>
+    </div>
+    <div class="lab-badge"><i>🔬</i> Lab 1</div>
+    <div class="lab">
+      <div class="card scene-card">
+        <canvas id="mdCv" width="600" height="400" class="k-cv" role="img" aria-label="Ada's home from above: the teacher's drives past the kettle and the trained network's drives past it or into it"></canvas>
+        <p class="cv-note">A top view of Ada's home. Ada (the circle with eyes) starts at the bottom, in the living room, and drives up to the table in the kitchen; the dashed line is the straight route, the kettle stands on it, and the dashed circle by the table is the goal. Gray lines are the teacher's drives; after a run, green lines are Ada's drives without a touch, and red ones with a cross are drives that touch the kettle.</p>
+        <div class="cv-legend" id="mdLegend"></div>
+        <div class="readout" id="mdOut"></div>
+        <div class="prog" id="mdProg" hidden><i></i></div>
+        <div class="md-plotwrap" id="wrapMdPlot" hidden>
+          <div class="g-kicker">Prediction</div>
+          <canvas id="mdPlot" width="420" height="250" class="plot-cv md-plot" role="img" aria-label="Plot: prediction and experiment, kettle touches versus the number of teacher drives"></canvas>
+          <p class="cv-note">Horizontally, the number of teacher drives; vertically, in how many of Ada's 20 drives she clipped the kettle. The dashed line with “?” points is your prediction: drag the points up and down. Orange dots are the experiment.</p>
+          <div class="cv-legend" id="mdPlotLegend"></div>
+        </div>
+        <div class="seg md-view" role="group" aria-label="Which drives to show" id="wrapMdView" hidden><div class="seg" id="mdView"></div></div>
+      </div>
+      <div class="card guide-card"><div id="mdMis"></div></div>
+    </div>
+    <div class="prose" style="margin:26px 0 0;max-width:820px">
+      <p>There's more data, but no fewer touches: the number of examples isn't the issue. The network saw only detours, yet it chose a path that wasn't in any of the teacher's drives. Why?</p>
+    </div>
+    <details class="deep"><summary>Under the hood: how the experiment works</summary><div class="body">
+      <p><b>The scene.</b> Ada is a circle with a radius of 18 cm, the kettle 13 cm. A touch counts if the centers come closer than 31 cm. Ada drives up 6 cm per step of 0.1 s; without the kettle the route is a straight line from the start to the table, 52 steps.</p>
+      <p><b>The teacher.</b> It first drives straight, then turns and passes the kettle on average 56 cm from the route, with a spread from 52 to 62 cm, and returns to the route before the kitchen doorway. At every step the teacher's path jitters a little, by about 0.5 cm.</p>
+      <p><b>The network.</b> The observation is one number: what fraction of the path Ada has already covered. The output is the sideways offset from the route at the next step. A 1 → 32 → 32 → 1 network with tanh, the MSE loss function, 400 Adam steps with batches of 32 examples. A controller steers Ada toward the predicted offset at no more than 9 cm per step. In each of the 20 trials the teacher records new drives with a new seed, the network learns from scratch, and Ada drives once.</p>
+      <p><b>Why the network sees only the path fraction.</b> That way all demonstrations at one point of the route have the same observation but two actions, and the cause of the crash shows up in pure form. If you also give the network Ada's sideways position, the closed loop often picks a side on its own: the network amplifies a small deviation from the middle, because next to it all demonstrations go the same way. This happens in practice too: in the CARLA driving simulator, with 50/50 demonstrations, regression turned right in 98% of runs. Regression can pick a side, but nothing guarantees it.</p>
+      <p><b>Our own math.</b> The built-in Math.exp, Math.log and Math.tanh differ in the last bit across browsers, and training inflates that difference into different numbers. On this page they are replaced with our own versions built from additions and multiplications, so the numbers in the labs are the same in any browser.</p>
+    </div></details>
+  </div>
+</section>
+
+<section class="section" id="mean">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">2</span> Cause</div>
+      <h2>Regression outputs the mean</h2>
+      <p>The answer lies in what the loss function teaches. That's the name for the number the network reduces during training: how far its answers are from the examples. A network trained with mean squared error (MSE) looks for the action that is, on average, closest to all the examples with the same observation. This is the <strong>conditional mean</strong>. As long as there is one correct action, the mean coincides with it. If there are two correct actions, a detour on the left and a detour on the right, the mean ends up between them, that is, in the kettle. That's exactly what happened in the experiment: the more teacher drives, the closer the split between the sides gets to 50/50 and the more precisely the network hits the middle.</p>
+      <p>Christopher Bishop described this in 1994: “the average of several correct target values is not necessarily itself a correct value”. His example is the inverse kinematics of a two-link arm. It's the same error as in lesson 0.3: one gripper pose has two solutions, with the elbow one way or the other, and the network output their average, which missed the target.</p>
+      <p>The first thing that comes to mind is to change the loss function. With L1, the sum of absolute deviations, the network outputs the median instead of the mean. OpenVLA-OFT (an open policy, Stanford, 2025; lesson 3.5) is built on this: regression with L1 reaches 97.1% success on the LIBERO benchmark. But its authors point out that in their data each task has a single strategy.</p>
+      <p>Draw the detours yourself and see what MSE and L1 do. Draw a line from Ada to the table past the kettle: each line is one demonstration. The solid line is the answer of a network with MSE, the dashed one with L1.</p>
+    </div>
+    <div class="lab-badge"><i>🧩</i> Interactive</div>
+    <div class="lab">
+      <div class="card scene-card">
+        <canvas id="drawCv" width="600" height="400" class="k-cv draw-cv" role="img" aria-label="Ada's home from above: drawn detour demonstrations and the MSE and L1 answers"></canvas>
+        <p class="cv-note">Top view: Ada at the bottom, the table at the top, the kettle on the straight route; the dashed circle around the kettle is where Ada's center must not go. Gray lines are the demonstrations you drew; the dark solid line is the answer of the network with MSE (the mean of the lines), the dashed one is the answer with L1 (the median). The small circle by the kettle labeled MSE or L1 is where Ada draws level with the kettle: green means she gets past, red means she clips it.</p>
+        <div class="cv-legend" id="drawLegend"></div>
+        <div class="readout" id="drawOut"></div>
+        <div class="ctl-row">
+          <button class="btn sm" id="drawUndo" type="button">Undo last</button>
+          <button class="btn sm" id="drawClear" type="button">Clear all</button>
+        </div>
+      </div>
+      <div class="card guide-card"><div id="drawMis"></div></div>
+    </div>
+    <div class="prose" style="margin:26px 0 0;max-width:820px">
+      <p>So L1 picks the majority side, but with an even split its answer is undefined. MSE leads into the kettle at any split except a strong skew. We need a model that keeps both sides and picks one of them. But how often does real data have several correct actions for one observation?</p>
+    </div>
+    <details class="deep"><summary>Under the hood: mean and median</summary><div class="body">
+      <p>For MSE the optimum is the conditional mean, for L1 the conditional median:</p>
+      <div class="formula">\[\begin{aligned} \min_f \E\,\bigl\lVert a - f(s)\bigr\rVert^2 &\;\Rightarrow\; f(s) = \E[a \mid s],\\ \min_f \E\,\bigl\lvert a - f(s)\bigr\rvert &\;\Rightarrow\; f(s) = \operatorname{med}(a \mid s). \end{aligned}\]</div>
+      <p>The minimum of the sum of squares is the mean: shifting the answer in any direction only increases the sum. The minimum of the sum of absolute values is the median. Shifting the answer by a small \(\delta\) changes the sum by \((n_1 - n_2)\,\delta\), where \(n_1\) and \(n_2\) are the numbers of points on either side of the answer, so it pays to move toward the majority. With an even split the sum stays the same along the whole segment between the two middle points, and the solution isn't unique. Here the L1 dashed line is drawn in the middle of that segment, and the segment itself is shaded.</p>
+      <p>No network is trained here: we draw its optimum right away. For MSE it's the mean offset of all lines at each point of the path, for L1 the median. A trained network arrives at the same lines: in the experiment above it drove Ada exactly along the mean of the teacher's drives. Each line you draw is smoothed and, if you release it after the kettle, extended to the table.</p>
+    </div></details>
+  </div>
+</section>
+
+<section class="section alt" id="modes">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">3</span> Multimodality in data</div>
+      <h2>Where data contains several strategies</h2>
+      <p>Each separate correct way to act is called a <strong>mode of the action distribution</strong>, and a situation where one observation has several correct actions is called <strong>action multimodality</strong>. The kettle has two modes, a detour on the left and a detour on the right, because the teacher flips a coin. In real data several correct actions appear for reasons of their own. The diagram shows five of them, each as a mini-scene with a top view of a table.</p>
+    </div>
+    <figure class="card modes-fig">
+      <canvas data-anim="sources5" width="720" height="380" role="img" aria-label="Five mini-scenes: two operators go around a bowl on different sides; three subtasks in different orders; a pause in the middle of a motion; an object handed between arms at different spots; an obstacle outside the camera frame changes the action while the frame stays the same"></canvas>
+      <figcaption class="muted-s">Five sources of several strategies, top view of a table. The bracket with two jaws is the robot's gripper, controlled by an operator; the small circle with a handle is a cup, the target. <b>Different operators:</b> A goes around the bowl on the left, B on the right; in the robomimic dataset six operators recorded 50 demonstrations each, and on such data a mixture of Gaussians works noticeably better than a single action: with a deterministic output, results drop by up to 58% in relative terms. <b>Subtask order:</b> in Franka Kitchen the operator completes 4 of 7 subtasks in varying order. <b>Pauses:</b> the operator freezes, so at the same spot the data sometimes has motion and sometimes a stop; the Diffusion Policy authors (Chi et al., 2023; lesson 1.5) call pauses “common during teleoperation”. <b>Spread within one operator:</b> in ACT (a policy for the two-armed ALOHA robot, 2023; lesson 1.7) the spot where one arm hands an object to the other is different every time. <b>The operator sees beyond the frame:</b> outside the frame there's a hot pot, and the operator drives around it, while the frame looks the same as on the straight path; to the policy such decisions look random. Click the diagram to pause it.</figcaption>
+    </figure>
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <p>Hence a popular argument: generative policies, that is, policies that output a distribution of actions and pick one action from it, win because the data is multimodal. Mazza et al. tested it directly in 2026. They estimated the <strong>number of conditional modes \(\hat K\)</strong>: how many different continuations one observation has on average over a horizon of 10 steps. \(\hat K = 1\) means there is one strategy.</p>
+      <p>Before looking at the numbers, make your own estimate. For each dataset, set the probability that one observation in it has noticeably more than one strategy, that is, \(\hat K\) of at least 1.1. The more confident you are in a correct answer, the more points you get; the more confident in a wrong one, the fewer.</p>
+    </div>
+    <div class="lab-badge"><i>🧩</i> Interactive</div>
+    <div class="card pad calib" id="calib"></div>
+    <div class="prose" style="margin:26px 0 0;max-width:820px">
+      <p>Standard benchmarks have almost no modes, and regression does no worse there than generative models: Pan et al. compared them on 28 benchmarks with the same architecture and found no difference, except on high-precision tasks. Data from different operators does have modes: in ALOHA Unleashed (two-armed tasks from Google DeepMind, 2024; lesson 1.7), on 8658 demonstrations diffusion reaches 70% success versus 25% for L1 regression. When there are modes, how do you teach a network to output a distribution of actions instead of a single number?</p>
+    </div>
+    <details class="deep"><summary><span>Under the hood: \(\hat K\) estimates and the score</span></summary><div class="body">
+      <p>Over a horizon of 30 steps the estimates are: Push-T 1.01, LIBERO 1.03, MetaWorld 1.07, Kitchen 1.23, a real bimodal grasp 2.27. The real grasp is a surgical robot taking tissue to the left or to the right of a danger zone: 90 demonstrations, 45/45. Deterministic regression gets 0% success on it.</p>
+      <p>The score is the Brier rule: for each dataset the penalty is \((p - y)^2\), where \(p\) is your probability, \(y = 1\) if \(\hat K \ge 1.1\), and \(y = 0\) otherwise. Points: \(100 - 20 \sum (p - y)^2\). Answering “50%” everywhere gives 75 points, full confidence in the correct answers gives 100, full confidence in the wrong ones gives 0.</p>
+      <p>We haven't found estimates of what fraction of states is multimodal in large datasets such as DROID and Open X-Embodiment (lesson 3.4).</p>
+    </div></details>
+  </div>
+</section>
+
+<section class="section" id="models">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">4</span> Models</div>
+      <h2>How to output a distribution of actions</h2>
+      <p>To avoid averaging, a policy has to output a distribution of actions and draw a sample from it, that is, pick one action at random according to the probabilities. There are several ways to do this, and each has its cost. This lesson covers five: regression, a mixture of Gaussians, bins, autoregression and diffusion. Autoregression extends bins: the action dimensions are picked one at a time, and each next one depends on those already picked; it isn't on the diagram, it's shown in the interactive below. The diagram shows what each of the others outputs on the same data, and the table shows their ideas and costs.</p>
+    </div>
+    <figure class="card modes-fig">
+      <canvas data-anim="modes4" width="720" height="230" role="img" aria-label="Four ways to output an action on the same data: regression outputs the mean and hits the kettle, while a mixture of Gaussians, bins and diffusion pick a detour on the left or on the right"></canvas>
+      <figcaption class="muted-s">The axis is the sideways shift when going around the kettle. Gray is the distribution of actions in the demonstrations: a detour sometimes on the left, sometimes on the right, two peaks. Orange is what the policy outputs; a dot on the axis is one chosen action. Regression outputs the mean of the two detours and hits the kettle. The other three methods pick one of the sides, anew each time. Click the diagram to pause it.</figcaption>
+    </figure>
+    <div class="tbl-wrap">
+      <table class="trade methods">
+        <thead><tr><th>Method</th><th>Idea</th><th>Strength</th><th>Cost</th></tr></thead>
+        <tbody>
+          <tr><td>Regression: MSE or L1</td><td>one action: the mean or the median</td><td>fast and stable</td><td>averages the modes or picks one at random</td></tr>
+          <tr><td>Mixture of Gaussians</td><td>several weighted Gaussian bells, each describing one mode: Bishop 1994, robomimic 2021</td><td>explicit modes, cheap sampling</td><td>the number of components \(K\) is set in advance</td></tr>
+          <tr><td>Per-dimension bins</td><td>each action dimension is split into intervals, and a classifier is trained; RT-1 (Google, 2022; lesson 3.1) uses 256 bins for each of its 11 dimensions</td><td>any distribution shape along one axis</td><td>loses the links between dimensions</td></tr>
+          <tr><td>Tokens and autoregression</td><td>the action is written as text and output token by token: RT-2 (Google DeepMind, 2023; lesson 3.3), OpenVLA (an open model, 2024; lesson 3.5), FAST (a Physical Intelligence tokenizer, 2025; lesson 3.6)</td><td>a vocabulary shared with the language model</td><td>slow inference</td></tr>
+            <tr><td>Diffusion</td><td>random noise is turned step by step into a whole drive that resembles one of the demonstrations: Diffusion Policy (lessons 1.4 and 1.5)</td><td>stable training, modes of any shape</td><td>dozens of network passes per decision</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>The choice of method shows in practice. In RT-1, replacing the 256 bins with a single Gaussian drops success from 97 to 68% on familiar tasks and from 76 to 43% on new ones. Three more methods and their comparisons are in the block below.</p>
+    </div>
+    <details class="deep"><summary>Under the hood: three more methods and their cost</summary><div class="body">
+      <figure class="modes-fig in-deep">
+        <canvas data-anim="modes4b" width="720" height="250" role="img" aria-label="Four more ways to output an action on the same data: tokens one by one, clusters and offset, energy, latent style"></canvas>
+        <figcaption class="muted-s">The same data as on the diagram above: gray shows the two detour peaks, orange what the policy outputs. <b>Tokens one by one:</b> an action or an action chunk is written as a sequence of tokens, which are output one after another, and each next token sees the previous ones, so all three steps land on the same side. <b>Clusters and offset:</b> the centers of action clusters (triangles) are found in advance; the policy picks a center and adds a small continuous offset. <b>Energy:</b> instead of an action, the policy outputs the energy of every action (the orange curve, lower is better); candidates roll into the nearest well, and the lowest one is executed. <b>Latent style:</b> in training the variable z encodes the style of a demonstration and moves the answer between the modes; at test time z = 0, and the answer is the same every time. Click the diagram to pause it.</figcaption>
+      </figure>
+      <div class="tbl-wrap">
+        <table class="trade methods">
+          <thead><tr><th>Method</th><th>Idea</th><th>Strength</th><th>Cost</th></tr></thead>
+          <tbody>
+            <tr><td>Clusters and offset</td><td>BeT 2022: k-means over actions plus a continuous correction</td><td>picks a mode in one pass</td><td>the number of clusters k is set in advance</td></tr>
+            <tr><td>Energy</td><td>IBC 2021: the action is the minimum of the energy E(s, a)</td><td>keeps discontinuities sharp</td><td>unstable training, expensive inference</td></tr>
+            <tr><td>Latent style</td><td>CVAE in ACT (lesson 1.7): the latent z encodes the operator's style, and the policy outputs an action chunk</td><td>fast, needs little data</td><td>at test time z = 0, that is, one mode</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>A method related to diffusion is flow matching: noise is also turned into an action plan, only along a straighter path; π0 (a Physical Intelligence policy, 2024; lesson 3.6) is built on it. We'll cover it in lesson 1.8.</p>
+      <p>In IBC on a real xArm6 arm, the energy model versus MSE: 85.0 versus 35.0% on two blocks, 88.3 versus 55.0% on the “any targets, any order” variant, 83.3 versus 6.7% on insertion with a 1 mm tolerance. ACT without the CVAE drops from 35.3 to 2% on human demonstrations, while on scripted ones there's no difference.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>The simplest method is bins. Each action dimension is split into intervals, called bins, and a classifier is trained to give the probability of each interval. Such a table describes any distribution shape along one axis, even one with two peaks. But an action usually has several dimensions, and if each one is picked from its own table independently, the model doesn't know how they are related. Check this on an action made of two numbers: Ada's sideways shift on two consecutive steps of the detour. The second mode of the interactive is <strong>autoregression</strong>: the dimensions are picked one at a time, and each next one depends on those already picked, the way a language model picks words one after another.</p>
+    </div>
+    <div class="lab-badge"><i>🧩</i> Interactive</div>
+    <div class="lab">
+      <div class="card scene-card">
+        <canvas id="binsCv" width="440" height="440" class="bins-cv" role="img" aria-label="An action of two numbers, the shift at step 1 and at step 2: two data clusters, bin tables along the axes and the model's actions"></canvas>
+        <p class="cv-note">This is not a top view but a plot of actions. Horizontally, Ada's sideways shift at step 1 (further left means left); vertically, at step 2 (higher means right). Gray dots are actions from the demonstrations: two clusters, “both steps left” and “both steps right”. Blue bars along the bottom and the left are the bin tables: 16 intervals per step and their frequencies. Red hatched corners are combinations that never occurred in the demonstrations: step 1 one way, step 2 the other. Green and red dots are 100 actions from the model.</p>
+        <div class="cv-legend" id="binsLegend"></div>
+        <div class="readout" id="binsOut"></div>
+        <div class="ctl-row">
+          <div class="seg" role="group" aria-label="How to pick the steps" id="wrapBinsMode">
+            <button type="button" data-mode="ind" aria-pressed="true">independent bins</button>
+            <button type="button" data-mode="ar" aria-pressed="false">one at a time (autoregression)</button>
+          </div>
+        </div>
+      </div>
+      <div class="card guide-card"><div id="binsMis"></div></div>
+    </div>
+    <div class="prose" style="margin:26px 0 0;max-width:820px">
+      <p>Bins over separate dimensions lose the links between them; picking one at a time restores the links at the cost of slow inference. A mixture of Gaussians describes each mode as a whole at once, with all its dimensions. Will Ada get past the kettle with it, and how is it different from diffusion?</p>
+    </div>
+    <details class="deep"><summary>Under the hood: mixture, energy and bins</summary><div class="body">
+      <ul>
+        <li><b>Mixture of Gaussians.</b> \(p(a \mid s) = \sum_k \pi_k(s)\, \mathcal{N}\bigl(a;\, \mu_k(s), \sigma_k(s)\bigr)\); training minimizes \(-\log p\).</li>
+        <li><b>Energy.</b> \(\hat a = \argmin_a E(s, a)\); the energy \(E\) is trained with InfoNCE on negative examples.</li>
+        <li><b>Bins.</b> \(p(a \mid s) = \prod_i p(a_i \mid s)\): each dimension separately.</li>
+        <li><b>Autoregression.</b> \(p(a \mid s) = \prod_i p(a_i \mid s, a_1, \ldots, a_{i-1})\): each next dimension sees the previous ones.</li>
+      </ul>
+      <p>In RT-1 each of the 11 dimensions has 256 uniform bins, without autoregression. RT-2 and OpenVLA decode the dimensions one at a time, like words in a text. FAST compresses an action chunk with DCT and BPE and catches up with the diffusion-based π0 while training up to 5 times faster, but inference takes about 750 ms per chunk versus 100 ms.</p>
+      <p>In IBC the implicit model keeps a discontinuity sharp, while the explicit one, in the authors' words, “interpolates across each discontinuity”. The cost is unstable training: the Diffusion Policy authors call IBC “prone to training instability”.</p>
+      <p>In the interactive each step has 16 bins on the segment from −1.6 to 1.6 (in shift units). The data is 400 actions around “both steps left” and “both steps right” with a spread of 0.15.</p>
+    </div></details>
+  </div>
+</section>
+
+<section class="section alt" id="lab">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 2</div>
+    <h2>Three Adas and a kettle</h2>
+    <p class="lead lab-intro">Let's check it on the scene. Regression, a mixture of two Gaussians and diffusion learn from the same demonstrations and drive to the same kettle at the same time. Regression and the mixture are real small networks that train right now in your browser. The mixture outputs two components, a plan for a detour on the left and a plan for a detour on the right, 24 steps ahead, and at the start of the drive it picks one of them. Diffusion is a model that starts from random noise and step by step turns it into a whole drive that resembles one of the demonstrations. Here it works without training: at every step the drive is corrected by an exact formula computed directly from the demonstrations. How diffusion works and how it is trained is covered in lessons 1.4 and 1.5.</p>
+    <div class="lab">
+      <div class="card scene-card">
+        <canvas id="labCv" width="600" height="400" class="k-cv" role="img" aria-label="Ada's home from above: detour demonstrations and three Adas with different policies"></canvas>
+        <p class="cv-note">Top view: Ada drives from the bottom up to the table, and the kettle stands on the straight route. Gray lines are demonstrations. Three Adas start side by side, each with its own policy and its own rim color: dashed is regression, dotted is the mixture, solid is diffusion. The thick line is the first run, the faint ones are the other nine, and a red cross is a kettle touch.</p>
+        <div class="cv-legend" id="labLegend"></div>
+        <div class="lab-stats" id="labStats"></div>
+        <canvas id="labLoss" width="520" height="96" class="plot-cv" role="img" aria-label="Training loss of regression and the mixture"></canvas>
+        <div class="cv-legend" id="labLossLegend"></div>
+        <p class="cv-note">Training loss over the steps: MSE for regression, −log p for the mixture, that is, minus the logarithm of the probability the mixture gives to the actions from the demonstrations. Both curves should go down.</p>
+        <div class="ctl-row">
+          <label class="hd-range" id="wrapShare"><span>Left detour share</span><input id="labShare" type="range" min="0" max="100" step="5" value="50"><output>50%</output></label>
+          <div class="seg" role="group" aria-label="When the mixture picks a side" id="wrapMode">
+            <button type="button" data-mode="step" aria-pressed="false">every step</button>
+            <button type="button" data-mode="chunk" aria-pressed="true">every few steps</button>
+          </div>
+          <label class="hd-range" id="wrapH"><span>Steps between picks</span><input id="labH" type="range" min="2" max="32" step="2" value="32"><output>32</output></label>
+          <label class="hd-range" id="wrapN"><span>Demonstrations</span><input id="labN" type="range" min="0" max="4" step="1" value="2"><output>40</output></label>
+          <label class="hd-range" id="wrapK"><span>Mixture components</span><input id="labK" type="range" min="1" max="4" step="1" value="2"><output>2</output></label>
+          <div class="show-row" id="wrapShow">
+            <label class="opt"><input type="checkbox" data-show="reg" checked> regression</label>
+            <label class="opt"><input type="checkbox" data-show="gmm" checked> mixture</label>
+            <label class="opt"><input type="checkbox" data-show="dif" checked> diffusion</label>
+            <label class="opt"><input type="checkbox" data-show="heat"> heat map</label>
+          </div>
+          <span class="muted-s drag-note" id="wrapDrag">You can drag the kettle with the mouse or a finger.</span>
+        </div>
+      </div>
+      <div class="card guide-card"><div id="labMis"></div></div>
+    </div>
+    <div class="prose" style="margin:26px 0 0;max-width:820px">
+      <p>A mixture that picks a side at every step jumps between the sides. A mixture that picks once per drive holds the side, but then it won't notice anything that happens on the way until the drive is over. We need something in between: pick the side neither at every step nor once per drive, but several steps ahead. How is such a plan built, and what happens where one plan gives way to the next?</p>
+    </div>
+    <details class="deep"><summary>Under the hood: three policies</summary><div class="body">
+      <p><b>Common to all three.</b> All three policies see one number, the fraction of the path covered, and output the sideways offset from the route. A controller steers Ada toward it at no more than 9 cm per step. A touch means the centers come closer than 31 cm. A side switch counts when Ada crosses from one side of the kettle to the other, moving more than 6 cm away from its center. We count from one meter before the kettle until the kettle is behind.</p>
+      <p><b>Regression.</b> A 1 → 32 → 32 → 1 network, tanh, MSE, 1200 Adam steps with batches of 32 examples.</p>
+      <p><b>Mixture of Gaussians.</b> A 1 → 32 → 32 → 98 network outputs, at every step, \(K\) offset plans 24 steps ahead, their probabilities \(\pi_k\) and widths \(\sigma_k\). Training uses the negative log-likelihood, 1600 Adam steps. In the “every few steps” mode Ada picks a plan with probability \(\pi_k\) and follows it for \(H\) steps, then picks again; with \(H = 32\) the second pick falls on the stretch past the kettle. In the “every step” mode a plan is picked anew at every step, and only its first action is executed. The width \(\sigma_k\) isn't used at execution: Ada follows the center of the chosen component.</p>
+      <p><b>Diffusion.</b> It generates the whole drive at once: 27 points of sideways offset, one every 2 steps. DDIM with 30 steps and a cosine noise schedule. Its denoiser is exact: for a noisy drive it returns a weighted mean of the demonstrations, with weights given by the noise likelihood. No network is trained here, so this diffusion can only repeat the demonstrations. We'll train a real denoiser in lesson 1.5.</p>
+      <p><b>Runs.</b> Each launch is 10 runs: Ada's start is shifted slightly, and at every step about 0.5 cm of controller noise is added. Pressing again gives the next 10 runs with other seeds. The demonstrations don't change as long as the settings stay the same.</p>
+    </div></details>
+  </div>
+</section>
+
+<section class="section" id="seams">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">5</span> Action chunks</div>
+      <h2>Action chunks and their seams</h2>
+      <p>An <strong>action chunk</strong> is a set of actions several steps ahead that a policy outputs in one call: not one offset for the next step but a plan for \(H\) steps. The robot executes the chunk's actions one after another without asking the network, and only when the chunk runs out does it call the policy again. The step where one chunk ends and the next one begins is called a <strong>seam</strong>, or chunk boundary. In the diagram one policy call gives 8 actions, Ada drives through them, and at the seam there's a new call.</p>
+    </div>
+    <figure class="card modes-fig">
+      <canvas data-anim="chunk" width="720" height="200" role="img" aria-label="Diagram: in one call the policy outputs a chunk of 8 actions, Ada executes them one by one, and at the seam the policy is called again"></canvas>
+      <figcaption class="muted-s">On the left is the policy, on the right the time axis in drive steps and the sideways shift. Each policy call (the frame lights up) produces 8 orange dots on the axis: an action chunk 8 steps ahead. Ada (the circle with eyes) executes them one at a time; the dashed line is a seam, where one chunk ends and the policy is called for the next one. Click the diagram to pause it.</figcaption>
+    </figure>
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <p>The mixture of Gaussians in the lab above was already outputting chunks: a plan 24 steps long, with the side picked once every 32 steps, so there wasn't a single seam before the kettle, which is at step 18. Let's shorten the chunk. Inside a chunk the side doesn't change, but at every seam the mixture picks again and may choose the other side. On the scene Ada's path is colored by the chosen side, and the dots on it are seams.</p>
+    </div>
+    <div class="lab-badge"><i>🔬</i> Lab 3</div>
+    <div class="lab" id="chunkLab">
+      <div class="card scene-card">
+        <canvas id="chCv" width="600" height="400" class="k-cv" role="img" aria-label="Ada's home from above: Ada with a mixture of Gaussians drives past the kettle in action chunks; the path is colored by the chosen side, and the dots are chunk seams"></canvas>
+        <p class="cv-note">Top view: Ada drives from the bottom up to the table, the kettle is on the straight route, gray lines are demonstrations. The path of the first run is colored by the mixture component the chunk picked: turquoise is a detour on the left, purple on the right; white dots with an outline on the path are chunk seams. Faint lines are the other nine runs, and a red cross is a kettle touch.</p>
+        <div class="cv-legend" id="chLegend"></div>
+        <div class="lab-stats" id="chStats"></div>
+        <div class="ctl-row">
+          <label class="hd-range" id="wrapChH"><span>Chunk, steps</span><input id="chH" type="range" min="2" max="32" step="2" value="4"><output>4</output></label>
+        </div>
+      </div>
+      <div class="card guide-card"><div id="chMis"></div></div>
+    </div>
+    <div class="prose" style="margin:26px 0 22px;max-width:820px">
+      <p>A long chunk holds the side but responds more slowly to what's going on: Ada notices anything that happens inside the chunk only at the next seam. We want a short chunk, and at the seam we want the new chunk to continue the old one. Chunks by themselves don't promise that: each one is an independent sample, and nothing makes it continue the previous one. The Real-Time Chunking paper (RTC; a Physical Intelligence method, 2025; lesson 1.5) says as much: neighboring chunks “may jump between different modes”. There are two ways to tie neighboring chunks together, and they work differently.</p>
+      <p><strong>Smoothing.</strong> Chunks are output with overlap: a new one comes out before the old one has run out. At every step the robot executes not the latest chunk but a weighted mean of all the chunks that predicted this step; older ones weigh more, so the new one can't turn sharply. This is how ACT smooths seams; in lesson 1.7 you'll meet this trick under the name temporal ensembling. <strong>Consistency.</strong> At the seam several new chunks are sampled instead of one, and the robot executes the one closest to continuing the previous chunk (this is how the Bidirectional Decoding paper, 2024, does it). The diagram shows both methods at the same seam: the old chunk goes around on the left.</p>
+    </div>
+    <figure class="card modes-fig">
+      <canvas data-anim="seams2" width="720" height="250" role="img" aria-label="Two time-versus-offset plots: with smoothing, the mean of the old chunk on the left and the new one on the right leads Ada into the kettle; with consistency, out of four samples the one that continues the old chunk is chosen, and Ada stays on the left"></canvas>
+      <figcaption class="muted-s">Two identical “time × offset” plots: horizontally the drive steps, vertically the offset from the straight route in centimeters (up is right, down is left); the hatched rectangle is the kettle. Turquoise chunk 1 goes around on the left; at the seam, step 8, chunk 2 appears, and the black line is what Ada executes. <b>Smoothing:</b> chunk 2 has picked the right side (purple), the mean of the two chunks is executed, and it runs between them, through the kettle. <b>Consistency:</b> four samples at the seam (dashed), the one closest to continuing chunk 1 is executed, and Ada stays on the left. Click the diagram to pause it.</figcaption>
+    </figure>
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <p>Compare both methods on the same plot, but with real runs: a 16-step chunk, a new one every 4 steps, and the mixture picks the side of each one 50/50.</p>
+    </div>
+    <div class="lab-badge"><i>🧩</i> Interactive</div>
+    <div class="lab" id="seamLab">
+      <div class="card scene-card">
+        <canvas id="seamCv" width="560" height="320" class="seam-cv" role="img" aria-label="Time-versus-offset plot: action chunks, the executed path and the kettle"></canvas>
+        <p class="cv-note">This is not a top view but a plot, like the diagram above: horizontally, the steps of the drive to the table; vertically, the sideways offset from the straight route in centimeters (up is right). Vertical dashed lines are seams: a new chunk comes out every 4 steps. The hatched rectangle is the kettle: the steps at which Ada is level with it and the offsets at which she clips it.</p>
+        <div class="cv-legend" id="seamLegend"></div>
+        <div class="readout" id="seamOut"></div>
+        <div class="ctl-row">
+          <div class="seg" role="group" aria-label="How to execute the chunks" id="wrapSeamMode">
+            <button type="button" data-mode="naive" aria-pressed="true">latest chunk</button>
+            <button type="button" data-mode="te" aria-pressed="false">smoothing</button>
+            <button type="button" data-mode="bid" aria-pressed="false">consistency</button>
+          </div>
+        </div>
+      </div>
+      <div class="card guide-card"><div id="seamMis"></div></div>
+    </div>
+    <div class="prose" style="margin:26px 0 0;max-width:820px">
+      <p>Consistency holds the side but pays for every decision with several samples. Smoothing is cheaper but averages the modes just like MSE. We've learned to pick a side and hold it. But a mixture of Gaussians needs to know the number of modes in advance, and diffusion in the lab relied on an exact denoiser computed directly from the demonstrations. Which model can do without these limitations?</p>
+    </div>
+    <details class="deep"><summary>Under the hood: the seam scheme</summary><div class="body">
+      <p>Smoothing averages the overlapping chunks with weights, where \(i = 0\) is the oldest chunk:</p>
+      <div class="formula">\[a_t = \frac{\sum_i w_i\, a_t^{(i)}}{\sum_i w_i}, \qquad w_i = e^{-m i}.\]</div>
+      <p>Consistency with \(N\) samples takes the one closest to the remainder of the previous chunk.</p>
+      <p>A chunk is 16 steps long and a new one comes every 4 steps, so up to four chunks overlap at every step. The side of each new chunk is picked by a mixture of two Gaussians, 50/50. Ada moves sideways at no more than 9 cm per step. For smoothing \(m = 0.5\): however hard the new chunk tries to turn, the old ones weigh more. For consistency there are 8 samples, so the network is called 8 times as often.</p>
+      <p>The RTC authors solve the problem a third way: they freeze the steps that are already being executed and fill in the rest so that the new chunk continues the old one. We'll cover it in lesson 1.5, and the full picture of latencies and seams in lesson 1.7.</p>
+    </div></details>
+  </div>
+</section>
+
+<section class="section alt" id="quiz">
+  <div class="prose">
+    <div class="kicker"><span class="num">6</span> Check yourself</div>
+    <h2>Eight common misconceptions</h2>
+    <div class="quiz" id="quizBox"></div>
+    <p class="score" id="quizScore" style="margin-top:14px"></p>
+  </div>
+</section>
+
+<section class="section" id="finale">
+  <div class="prose">
+    <div class="kicker"><span class="num">7</span> Takeaways</div>
+    <h2>Lesson takeaways</h2>
+    <ol class="takeaways">
+      <li><span>The MSE minimum is the <strong>conditional mean</strong>. The mean of two correct actions can be wrong, and more data doesn't fix that: the network just hits the middle more precisely.</span></li>
+      <li><span>L1 gives the median: when one side outweighs the other, it picks that side; with an even split the solution is <strong>not unique</strong>.</span></li>
+      <li><span>Multimodality comes from the <strong>data</strong>: different operators, subtask order, pauses, spread within one operator, things the cameras don't see. Standard benchmarks have almost no conditional modes.</span></li>
+      <li><span>A distribution of actions is modeled with a mixture of Gaussians, bins and tokens, energy, a latent style, diffusion. Bins over separate dimensions lose the <strong>links between dimensions</strong>; picking one at a time brings them back.</span></li>
+      <li><span>Sampling at every step <strong>jumps between modes</strong>. An action chunk, a plan several steps ahead from one policy call, holds the side within itself; Ada can switch sides only at a chunk seam.</span></li>
+      <li><span>Chunk seams are <strong>made consistent, not averaged</strong>: the mean of chunks from different modes leads into the kettle again, while picking the sample closest to the previous chunk holds the side at the cost of several samples.</span></li>
+    </ol>
+    <div class="callout note" style="margin-top:30px"><span class="ico">❓</span><div><p>One problem remains: a mixture of Gaussians needs to know the number of modes in advance, bins lose the links between dimensions, and diffusion in the lab worked with an exact denoiser that only repeats the demonstrations. We need a model that learns from data to sample from a distribution of any shape, so that every sample is plausible.</p></div></div>
+    <h3 style="margin-top:40px">Open questions</h3>
+    <details class="card pad open-q"><summary>Six operators record the same task in different ways. How do you check whether the model needs multimodality before choosing between regression with chunks and diffusion?</summary><p>You can estimate the number of conditional modes, as Mazza et al. did: for similar observations, compare the continuations of the demonstrations and count how many of them are consistently different. A simpler and cruder way is to train both policies on part of the data and compare them on the same starts. If regression with chunks is no worse, the data is most likely unimodal. If it fails where the operators diverge, you need a generative head.</p></details>
+    <details class="card pad open-q"><summary>Why can a task be multimodal for the policy but not for the operator who demonstrated it?</summary><p>The operator sees more than the robot: a different viewpoint, sounds, an agreement with a colleague, their own fatigue. Their choice is determined by what they know, but that information isn't available to the policy, and for the policy identical observations lead to different actions.</p></details>
+    <h3 style="margin-top:34px">Paper guide</h3>
+    <p><a href="https://arxiv.org/abs/2109.00137" target="_blank" rel="noopener">P. Florence et al., “Implicit Behavioral Cloning”, CoRL 2021</a>.</p>
+    <ul class="links">
+      <li><strong>Read closely</strong><span>The experiment fitting a discontinuous function: the explicit model “interpolates across each discontinuity”, while the implicit one keeps the discontinuity. And the tables with the real xArm6 arm: where energy beats MSE by the widest margin.</span></li>
+      <li><strong>Safe to skip</strong><span>The proofs that implicit models can approximate multivalued and discontinuous functions.</span></li>
+      <li><strong>Question to keep in mind</strong><span>To get an action, IBC searches for the energy minimum by trying candidates. Why is that more expensive than a single regression pass, and what happens to inference when the action has 7 dimensions?</span></li>
+    </ul>
+    <h3 style="margin-top:34px">Resources</h3>
+    <ul class="links">
+      <li><a href="https://implicitbc.github.io/" target="_blank" rel="noopener">Implicit Behavioral Cloning</a><span>The IBC website: insertion videos with MSE and with energy</span></li>
+      <li><a href="https://arxiv.org/abs/2206.11251" target="_blank" rel="noopener">Behavior Transformers</a><span>N. M. Shafiullah et al., 2022: a point goes around an obstacle on the left or on the right, clusters and offset, and CARLA with 98% right turns</span></li>
+      <li><a href="https://arxiv.org/abs/2108.03298" target="_blank" rel="noopener">robomimic</a><span>A. Mandlekar et al., 2021: six operators with 50 demonstrations each, and a mixture of Gaussians versus a single action</span></li>
+      <li><a href="https://arxiv.org/abs/2408.17355" target="_blank" rel="noopener">Bidirectional Decoding</a><span>Y. Liu et al., 2024: making the new chunk consistent with the previous one</span></li>
+      <li><a href="https://arxiv.org/abs/2506.07339" target="_blank" rel="noopener">Real-Time Chunking</a><span>K. Black et al., 2025: chunk seams and why they aren't averaged; more in lesson 1.5</span></li>
+      <li><a href="https://arxiv.org/abs/2605.22493" target="_blank" rel="noopener">Understanding Multimodality in Generative BC</a><span>Mazza et al., 2026: estimating the number of conditional modes \(\hat K\)</span></li>
+    </ul>
+    <div class="callout insight" style="margin-top:34px"><span class="ico">➡️</span><div><p><strong>Next: diffusion models.</strong> How do you sample from a complex distribution so that every sample is plausible? A diffusion model learns to remove noise from data and generates the other way round: it starts from pure noise and step by step moves toward the data. That's the subject of <a href="1-4-diffuzionnye-modeli.html">lesson 1.4, “Diffusion models”</a>.</p></div></div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Lesson 1.3 of the Modern Robotics and Physical AI course. All simulations and neural networks run locally in your browser.
+</footer>
+<div class="tooltip" id="tooltip" role="tooltip"></div>
+<script>
+/*@@JS@@*/
+</script>
+</body>
+</html>
