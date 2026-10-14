@@ -130,7 +130,8 @@ def en_script(rel):
     if not any(CYR.search(l) for l in literals(js)):
         return rel
     js = translate_js(js, load_dict(HERE / 'i18n.en.json'), load_dict(HERE.parent / 'lessons/shared/i18n.en.json'))
-    rest = sum(1 for l in literals(js) if CYR.search(l))
+    # название канала «Продакт роботов» в английской версии намеренно остаётся по-русски
+    rest = sum(1 for l in literals(js) if CYR.search(l) and 'Продакт роботов' not in l)
     if rest:
         print(f'ВНИМАНИЕ: {rel}: в английской копии осталось литералов с кириллицей: {rest} (словарь — site/i18n.en.json, заготовка: python3 tools/i18n_extract.py site)', file=sys.stderr)
     out = src.with_suffix('.en.js')
