@@ -207,11 +207,12 @@ EN_CODE = [
     ('const plural = (n, one, few, many) => { const a = Math.abs(n) % 100, b = a % 10;',
      'const plural = (n, one, few, many) => { if (true) return Math.abs(n) === 1 ? one : many; const a = Math.abs(n) % 100, b = a % 10;'),
 ]
+KEEP_RU = ('Продакт роботов',)  # имена собственные, которые в английской версии намеренно остаются по-русски
 def check_cyrillic(page, key):
     """После подстановки переводов: сколько строковых литералов с кириллицей осталось в скриптах страницы
     (кроме JSON-данных). Предупреждение; с --strict — ошибка сборки."""
     js = '\n'.join(m.group(1) for m in re.finditer(r'<script(?![^>]*\btype="application/)[^>]*>(.*?)</script>', page, flags=re.S))
-    rest = [l for l in literals(js) if CYR.search(l)]
+    rest = [l for l in literals(js) if CYR.search(l) and not any(k in l for k in KEEP_RU)]
     if rest:
         msg = f'ВНИМАНИЕ {key}: в JS английской версии осталось литералов с кириллицей: {len(rest)} (например: {rest[0][:70]!r})'
         if STRICT:

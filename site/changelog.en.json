@@ -33,6 +33,16 @@
       ]
     },
     {
+      "v": "2.10",
+      "date": "2026-10-14",
+      "title": "The course in English",
+      "items": [
+        "Every published page is now in English: lessons 0.1–2.3, the Part 0–2 checks, the glossary, the home page, What's new and the privacy policy. English pages live under /en/.",
+        "The RU/EN switch in the header of the home page and of every lesson opens the same page in the other language.",
+        "Search engines see both versions: each page points to its counterpart in the other language, and the sitemap lists both."
+      ]
+    },
+    {
       "v": "2.9",
       "date": "2026-10-14",
       "title": "Lessons 1.4 and 1.5 made clearer: diagrams, lab instructions, quizzes",

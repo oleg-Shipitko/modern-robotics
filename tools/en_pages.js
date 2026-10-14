@@ -23,14 +23,16 @@ if (!pages.length) { console.log('в site/en/ нет собранных стра
     await p.waitFor('document.readyState === "complete"', 30000);
     await sleep(1500);
     // уроки с лабораториями объявляют готовность (window.__lessonReady) после обучения сетей — ждём, если объявили
-    try { await p.waitFor('window.__lessonReady === true', 90000); } catch (e) { /* страница без этого флага */ }
-    const info = JSON.parse(await p.eval(`JSON.stringify({
+    const hasFlag = await p.eval(`document.documentElement.innerHTML.includes('__lessonReady')`);
+    if (hasFlag) { try { await p.waitFor('window.__lessonReady === true', 90000); } catch (e) { /* не дождались — проверяем как есть */ } }
+    // название канала «Продакт роботов» в английской версии намеренно остаётся по-русски — его не считаем
+    const info = JSON.parse(await p.eval(`const TXT = document.body.innerText.split('Продакт роботов').join(''); JSON.stringify({
       lang: document.documentElement.lang,
       sw: (document.querySelector('.topbar-lang, .lang-btn, .lang-link') || {}).textContent || '',
       swHref: (document.querySelector('.topbar-lang, .lang-btn, .lang-link') || {}).getAttribute ? document.querySelector('.topbar-lang, .lang-btn, .lang-link').getAttribute('href') : '',
       hl: ['ru', 'en', 'x-default'].map((h) => !!document.querySelector('link[rel="alternate"][hreflang="' + h + '"]')),
-      cyr: (document.body.innerText.match(/[А-Яа-яЁё]/g) || []).length,
-      sample: ((document.body.innerText.match(/[^\\n]{0,30}[А-Яа-яЁё][^\\n]{0,30}/g) || []).slice(0, 3)),
+      cyr: (TXT.match(/[А-Яа-яЁё]/g) || []).length,
+      sample: ((TXT.match(/[^\\n]{0,30}[А-Яа-яЁё][^\\n]{0,30}/g) || []).slice(0, 3)),
       sw2: document.documentElement.scrollWidth,
     })`));
     const is404 = name === '404.html'; // у 404 hreflang не ставится: страница показывается по любому адресу
@@ -39,7 +41,9 @@ if (!pages.length) { console.log('в site/en/ нет собранных стра
     if (info.sw.trim() !== 'RU') problems.push(`переключатель: «${info.sw.trim() || 'нет'}»`);
     if (!is404 && !info.hl.every(Boolean)) problems.push('hreflang: ' + info.hl.map((v, i) => (v ? '' : ['ru', 'en', 'x-default'][i])).filter(Boolean).join(', ') + ' нет');
     if (info.cyr > MAX_CYR) problems.push(`кириллица в тексте: ${info.cyr} символов (${info.sample.map((s) => `«${s.trim()}»`).join(', ')})`);
-    if (p.logs.length) problems.push('консоль: ' + p.logs.join(' | '));
+    // 404 подключает стили и скрипты от корня сайта (/assets/…): по file:// они не находятся, на сайте — да
+    const logs = is404 ? p.logs.filter((l) => !l.includes('ERR_FILE_NOT_FOUND')) : p.logs;
+    if (logs.length) problems.push('консоль: ' + logs.join(' | '));
     if (info.sw2 > 1440) problems.push('горизонтальная прокрутка ' + info.sw2);
     if (problems.length) bad++;
     console.log(`${problems.length ? '✗' : '✓'} ${name}: кириллица ${info.cyr}, переключатель → ${info.swHref}${problems.length ? '\n    ' + problems.join('\n    ') : ''}`);
