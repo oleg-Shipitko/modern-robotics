@@ -103,7 +103,13 @@ def main():
         print(json.dumps({k: '' for k in keys}, ensure_ascii=False, indent=1)); return
     d = json.loads(dict_path.read_text(encoding='utf-8')) if dict_path.exists() else {}
     missing = [k for k in keys if not d.get(k)]
-    extra = [k for k in d if k not in keys]
+    # лишний ключ — тот, которого нет среди литералов вовсе; ключи без кириллицы (например, '2,0' → '2.0'
+    # в подписях оси) допустимы, если такой литерал есть в коде
+    every = set()
+    for f in files:
+        fp = (base / f) if key == 'site' else (ROOT / f)
+        if fp.exists(): every.update(literals(fp.read_text(encoding='utf-8')))
+    extra = [k for k in d if k not in keys and k not in every]
     print(f'{key}: литералов с кириллицей {len(keys)}, переведено {len(keys) - len(missing)}, не переведено {len(missing)}, лишних ключей {len(extra)}')
     for k in missing[:40]: print('  НЕТ:', k[:120])
     for k in extra[:10]: print('  ЛИШНИЙ:', k[:120])

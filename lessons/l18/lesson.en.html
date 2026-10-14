@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>1.8 Flow matching — Modern Robotics and Physical AI</title>
+<meta name="description" content="Lesson 1.8 of the course “Modern Robotics and Physical AI”: flow matching and rectified flow. Train a velocity field in your browser, compare diffusion and flow side by side, straighten the paths down to one step, and pick the number of steps for an action chunk in the style of π0.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<script>
+  (function () { try { var t = localStorage.getItem('mr-theme'); if (t) document.documentElement.dataset.theme = t; else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme = 'dark'; } catch (e) {} })();
+</script>
+<style>
+/*@@CSS@@*/
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html#program" title="To the course program"><div>Modern Robotics and Physical AI<small>Lesson 1.8 · Flow matching</small></div></a>
+    <nav class="toc" aria-label="Lesson sections">
+      <a href="#idea">Straight paths</a>
+      <a href="#train">Training</a>
+      <a href="#steps">Diffusion vs flow</a>
+      <a href="#reflow">Reflow</a>
+      <a href="#robot">Action chunk</a>
+      <a href="#who">Who takes how many</a>
+      <a href="#quiz">Quiz</a>
+      <a href="#finale">Takeaways</a>
+    </nav>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Toggle theme">◐</button>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main>
+
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="kicker"><span class="num">1.8</span> Part 1 · Imitation learning · deep dive</div>
+    <h1>Flow matching <span class="amp">and straight paths</span></h1>
+    <p class="lead">The diffusion policy from lesson 1.5 turns noise into an action chunk in dozens of steps, and every step is a network pass. While the chunk is being computed, the robot stands still or follows the old plan, so every millisecond counts. Flow matching trains the network on straight paths from noise to data, and along a straight line you can take big steps: that's how π0 from lesson 1.6, GR00T N1 (NVIDIA, 2025; lesson 3.7) and SmolVLA (Hugging Face, 2025; lesson 3.5) build a chunk in 4–10 steps. We'll work out why the generation paths still come out curved and one step isn't enough, how retraining on the model's own paths (reflow) straightens them almost down to one step, and how many steps fit into a robot's budget.</p>
+    <div class="hero-meta"><span>≈ 45 minutes</span><span>5 labs, a task and a quiz</span><span id="heroMis">missions with a goal</span></div>
+    <div class="hero-list">
+      <div><b>PATHS</b>Steer noise into the right blob and see where one step lands instead of two hundred</div>
+      <div><b>FIELD</b>Train a network that shows the direction of motion at every point, and find the moment the arrows flip from the center toward the blobs</div>
+      <div><b>STEPS</b>Compare diffusion and flow on the same data and find how many steps each one needs</div>
+      <div><b>REFLOW</b>Straighten the paths so that one step is enough, and find what you pay for it</div>
+      <div><b>ROBOT</b>Pick the number of steps for a chunk of 50 actions so Ada clears the kettle and stays within budget</div>
+    </div>
+    <p style="margin-top:28px"><a class="btn primary" href="#idea">Start the lesson ↓</a></p>
+  </div>
+</section>
+
+<section class="recall-sec" id="recall" aria-label="Warm-up on the previous lesson">
+  <div class="wrap"><div class="card recall" data-recall></div></div>
+  <script type="application/json" id="recallData">{"n": "1.7", "title": "ACT: action chunking", "href": "1-7-act.html", "q": [{"q": "Why does ACT predict a chunk of actions rather than one action per frame?", "o": ["So the network trains faster on 50 demonstrations", "There are fewer decisions, and the chunk gets through the pauses where a per-step policy gets stuck", "To do without wrist cameras"], "a": 1, "e": "A chunk carries the continuation of the motion: it contains both the pause and what the operator did after it. The price is a late reaction to the unexpected.", "sec": "chunks", "secTitle": "Smoothness versus reactivity"}, {"q": "What does the CVAE encoder in ACT do at inference?", "o": ["It's discarded and z = 0 is fed in: ACT is deterministic", "It picks a manner of motion, like the operator", "It compresses the camera images into 32 numbers"], "a": 0, "e": "The encoder is needed only in training. At inference there are no demonstration actions, and ACT behaves like L1 regression.", "sec": "cvae", "secTitle": "The latent “style” variable"}, {"q": "The model thinks for 200 ms, the robot runs at 50 Hz. Which way of stitching chunks survived that latency in the lab?", "o": ["Synchronous: execute, stop and wait", "Temporal ensembling: average all the chunks", "Real-Time Chunking: freeze what will have been executed and inpaint the rest"], "a": 2, "e": "The synchronous mode stands still, the naive one jumps at the seams, and temporal ensembling averages different strategies and leads into the obstacle.", "sec": "delay", "secTitle": "While the model thinks, the robot moves"}]}</script>
+</section>
+
+<section class="section alt" id="idea">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">1</span> Straight paths</div>
+      <h2>Velocity along the line from noise to data</h2>
+      <p>A diffusion model needs dozens of steps to turn noise into data. In lesson 1.5 every step became a network pass over the whole action chunk, and one chunk takes dozens of passes. All that time the robot stands still or follows the old plan.</p>
+      <p>The path from noise to data is curved. In lesson 1.4 the denoiser pointed toward the mean of the data under heavy noise and toward the nearest spiral under light noise, so a point first heads to the center and only then turns. The network knows the direction only at the current point, and a big step along it cuts the corner.</p>
+      <p>In lesson 1.4 the steps were cut down with the DDIM sampler: the same network steps without fresh noise and keeps the shape where DDPM is already pulling points to the center. But at a really small number of steps DDIM loses the shape too, so diffusion policies take dozens of steps per chunk.</p>
+      <p>The way out is to train the network on straight paths from noise to data: a straight line can be covered in one step, because the direction at the start points right at the end. That's how <strong>flow matching</strong> (Lipman et al., 2022) and the closely related <strong>rectified flow</strong> (Liu et al., 2022) work.</p>
+      <p>Take a random noise point \(x_0\) and a random data point \(x_1\) and connect them with a straight line. At time \(t\) the point on the line is \(x_t = (1 - t)\,x_0 + t\,x_1\); the velocity along it is constant and equals \(x_1 - x_0\). The network \(v(x, t)\) learns to predict that velocity from \(x_t\) and \(t\). It's ordinary regression: nothing has to be modeled step by step. Generation is taking noise and following the velocity field from \(t = 0\) to \(t = 1\) in a few Euler steps.</p>
+      <p>But lines from different pairs cross: through one point \(x_t\) run lines to different data points, and there are several right answers there. Will the generation paths be straight then, and will one step be enough? Let's check on two blobs of data. The velocity field here is computed by an exact formula, without a network, so everything we see follows from the method itself.</p>
+    </div>
+    <div class="lab-badge"><i>🔬</i> Lab 1</div>
+    <div class="lab">
+      <div class="card scene-card">
+        <canvas id="aCv" width="520" height="400" role="img" aria-label="The noise cloud, two data blobs, the path of a noise point through the velocity field, and the training lines"></canvas>
+        <div class="cv-legend" id="aLegend"></div>
+        <div class="readout" id="aOut"></div>
+        <div class="ctl-row">
+          <label class="opt" id="wrapAPairs"><input type="checkbox" id="aPairs"> training pairs</label>
+        </div>
+      </div>
+      <div class="card guide-card"><div id="aMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: paths, the training objective and the exact field</summary><div class="body">
+      <p>Lipman et al. define the path conditionally: for each data point \(x_1\), a Gaussian that coincides with the noise \(\mathcal N(0, I)\) at \(t = 0\) and shrinks around \(x_1\) by \(t = 1\). In the variant the authors call the optimal transport path, the center and the width change linearly:</p>
+      <div class="formula">\[\begin{aligned} \mu_t &= t\,x_1, \qquad \sigma_t = 1 - (1 - \sigma_{\min})\,t,\\ x_t &= \bigl(1 - (1 - \sigma_{\min})\,t\bigr)\,x_0 + t\,x_1,\\ \mathcal L_{\text{CFM}} &= \mathbb E\,\bigl\|\,v_\theta(x_t, t)\\ &\qquad - \bigl(x_1 - (1 - \sigma_{\min})\,x_0\bigr)\bigr\|^2. \end{aligned}\]</div>
+      <p>As \(\sigma_{\min} \to 0\) this is exactly the straight line from the text and the target \(x_1 - x_0\); Liu et al. use the same training target. The paper's main theorem: the gradients of this “conditional” objective coincide with the gradients of the objective where the true generation field stands in place of \(x_1 - x_0\). So it's enough to train the network on random pairs rather than know the field in advance.</p>
+      <p>What field an ideal network learns: the average of all velocities passing through a point, \(v^*(x, t) = \mathbb E[x_1 - x_0 \mid x_t = x]\). At \(t = 0\) the point \(x_t\) is the noise itself, and it says nothing about where to go. So \(v^*(x, 0) = \mathbb E[x_1] - x\): the arrow points at the mean of the data.</p>
+      <p>In the lab the data is a mixture of two Gaussians, and the average is computed exactly. For a component with center \(m\) and spread \(s\):</p>
+      <div class="formula">\[\begin{gathered} x_t \sim \mathcal N\bigl(t\,m,\ (t^2 s^2 + (1 - t)^2)\,I\bigr),\\ \mathbb E[x_1 \mid x_t, m] = m + \frac{t\,s^2}{t^2 s^2 + (1 - t)^2}\,(x_t - t\,m). \end{gathered}\]</div>
+      <p>The component weights are their likelihoods at the point \(x_t\). The blobs are centered at (±1.2; 1.0), \(s = 0.22\). The probe path is 200 Euler steps.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>The generation paths are curved, even though every training pair is a straight line. Through the points in the middle run lines to both blobs, and the field equals their average. So the point, just as in diffusion, first heads to the mean of the data and only then turns, and one step brings all the noise to the mean — into the void between the blobs. That's how regression in lesson 1.3 drove Ada into the kettle between the left and right detours. Here the field is computed by formula. What will a real network learn when it sees only random pairs?</p>
+      <p class="ada-note"><svg class="ada-ico" viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="10" width="48" height="42" rx="18" fill="#f4efe6" stroke="#3d3c38" stroke-width="3"/><rect x="15" y="19" width="34" height="22" rx="10" fill="#1f2430"/><ellipse cx="25" cy="30" rx="4" ry="5.5" fill="#eb6834"/><ellipse cx="39" cy="30" rx="4" ry="5.5" fill="#eb6834"/></svg><span>Ada is the home humanoid robot the course's labs are built around. More about her in <a href="0-1-dve-paradigmy.html#ada">lesson 0.1</a>.</span></p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="train">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 2</div>
+    <h2>Training the velocity field</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>What will a network learn when it sees only random pairs? For real data there's no formula for the field, and at every point the network runs into lines to different data points, that is, different right answers.</p>
+      <p>Let's train a small network right on the page and check two things: how low the loss drops, and where the field's arrows point at different moments t.</p>
+      <p>The data is harder than in lab 1: eight blobs on a ring, 4000 points. The network takes a point and a time and outputs a velocity. Every training step is 128 random “noise — data” pairs and random moments t. The arrows on the scene are what the network thinks the velocity is at each point at the selected moment.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <canvas id="bCv" width="440" height="440" class="sq-cv" role="img" aria-label="The network's velocity field: arrows on a grid, data points and the noise cloud at the selected moment"></canvas>
+        <div class="cv-legend" id="bLegend"></div>
+        <canvas id="bLoss" width="520" height="120" class="plot-cv" role="img" aria-label="Training loss over steps and its lower bound"></canvas>
+        <div class="cv-legend" id="bLossLegend"></div>
+        <p class="muted-s plot-cap">Horizontal axis: training steps; vertical: mean squared velocity error.</p>
+        <div class="readout" id="bOut"></div>
+        <div class="ctl-row">
+          <label class="hd-range" id="wrapBT"><span>Time t</span><input id="bT" type="range" min="0" max="19" step="1" value="0"><output>0</output></label>
+          <label class="opt" id="wrapBParts"><input type="checkbox" id="bParts" checked> noise cloud at time t</label>
+        </div>
+      </div>
+      <div class="card guide-card"><div id="bMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: the training loop and why the loss doesn't drop to zero</summary><div class="body">
+      <div class="algo">
+        <div><b>repeat</b> 1500 times:</div>
+        <div class="i1">\(x_1 \leftarrow\) 128 random data points, \(x_0 \leftarrow\) 128 noise points \(\mathcal N(0, I)\)</div>
+        <div class="i1">\(t \leftarrow\) 128 numbers from \(U[0, 1]\)</div>
+        <div class="i1">\(x_t = (1 - t)\,x_0 + t\,x_1\)</div>
+        <div class="i1">loss = mean of \(\bigl\|v_\theta(x_t, t) - (x_1 - x_0)\bigr\|^2\)</div>
+        <div class="i1">Adam step</div>
+      </div>
+      <ul>
+        <li><b>Network.</b> Input: the point \((x, y)\), 32 Fourier features of the point (cosines and sines of projections onto 16 random directions) and 5 time features: \(t,\ \sin \pi t,\ \cos \pi t,\ \sin 2\pi t,\ \cos 2\pi t\). Two hidden layers of 48 neurons with SiLU, output: the velocity \((v_x, v_y)\). Adam, learning rate 0.005, decaying toward the end of training. Without Fourier features such a small network draws a blurry ring instead of eight blobs.</li>
+        <li><b>Why the loss doesn't go to zero.</b> Through one point \(x_t\) run lines to different blobs, and the target \(x_1 - x_0\) is random for it. The best the network can do is predict the mean, and the spread around the mean remains as loss. For this data the field can be computed exactly, as in lab 1: even with it the mean loss is <span data-num="floor">1.87</span>. The dashed line on the plot is that bound.</li>
+        <li><b>What the scene shows.</b> The arrows are the network's field on a 15 × 15 grid. Gray ones pull toward the center, orange ones push away from it. The cloud is 300 noise points the network carried along its field up to time \(t\), 100 Euler steps for the full path.</li>
+      </ul>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>The network learned a field close to the ideal one: at every point, the average velocity of all the lines through it. The loss stopped just above the bound below which no network can go. Almost all of it is the irreducible spread of the targets, so the training curve is a poor guide to how well the model draws. Until about halfway along the path the field pulls the noise toward the center of the ring and only then flips it toward the blobs, so the point's path is curved again. How many Euler steps does it take to follow such a path, and is it fewer than diffusion needs?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="steps">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 3 · central</div>
+    <h2>Diffusion and flow on the same data</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>How many steps does a flow model need, and is it fewer than diffusion? Its paths are curved, so the win isn't obvious.</p>
+      <p>Let's put the diffusion from lesson 1.4 alongside and compare on equal terms. For each model we'll find the smallest number of steps at which it holds the shape of the ring.</p>
+      <p>Same data, same network, same training budget — 1500 steps. The difference is in two things: the diffusion network predicts noise and generates with the DDIM sampler on the DDPM schedule; the flow network predicts velocity and generates with Euler's method along the straight line. Both start from the same 600 noise points.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="pane-duo">
+          <div class="pane">
+            <div class="pane-head"><b class="dd">Diffusion · DDIM</b><span>the network predicts noise</span></div>
+            <canvas id="cCvD" width="320" height="320" role="img" aria-label="Points drawn by the diffusion model in the selected number of steps"></canvas>
+            <div class="pane-stat" id="cStatD"></div>
+          </div>
+          <div class="pane">
+            <div class="pane-head"><b class="fm">Flow matching · Euler</b><span>the network predicts velocity</span></div>
+            <canvas id="cCvF" width="320" height="320" role="img" aria-label="Points drawn by the flow model in the selected number of steps"></canvas>
+            <div class="pane-stat" id="cStatF"></div>
+          </div>
+        </div>
+        <div class="ctl-row">
+          <label class="hd-range wide" id="wrapCN"><span>Steps</span><input id="cN" type="range" min="0" max="11" step="1" value="11"><output>100</output></label>
+          <label class="opt" id="wrapCTraj"><input type="checkbox" id="cTraj"> point paths</label>
+        </div>
+        <canvas id="cChart" width="520" height="150" class="plot-cv" role="img" aria-label="Share of points in blobs versus the number of steps for the two models"></canvas>
+        <div class="cv-legend" id="cLegend"></div>
+        <p class="muted-s plot-cap">Horizontal axis: number of generation steps (log scale); vertical: share of points in blobs. A dot appears for every number of steps you try. The green dashed line is the threshold: the shape holds if at least 72% of the points are in blobs and all eight blobs are present; for the real data about 96% of the points are in blobs.</p>
+      </div>
+      <div class="card guide-card"><div id="cMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: a DDIM step is an Euler step too</summary><div class="body">
+      <p>A DDIM step (\(\eta = 0\)) first estimates the clean point from the predicted noise, then mixes it with the same noise in the proportion of the next moment:</p>
+      <div class="formula">\[\begin{gathered} \hat x_0 = \frac{x_t - \sqrt{1 - \bar\alpha_t}\,\hat\varepsilon}{\sqrt{\bar\alpha_t}},\\ x_s = \sqrt{\bar\alpha_s}\,\hat x_0 + \sqrt{1 - \bar\alpha_s}\,\hat\varepsilon. \end{gathered}\]</div>
+      <p>An Euler step along the straight path works the same way. From the velocity \(v\) come a data estimate \(\hat x_1 = x_t + (1 - t)\,v\) and a noise estimate \(\hat\varepsilon = x_t - t\,v\), and</p>
+      <div class="formula">\[ x_s = (1 - s)\,\hat\varepsilon + s\,\hat x_1 = x_t + (s - t)\,v. \]</div>
+      <p>So DDIM and Euler are the same sampler if the schedule is the same. Gao et al. in the survey “Diffusion Meets Flow Matching” put it this way: with Gaussian noise, flow matching and diffusion are equivalent, and the DDIM sampler coincides with the Euler sampler.</p>
+      <p>Where the difference in the lab comes from, then. First, the schedule: in DDPM almost the whole first half of the path is heavy noise, and a uniform grid wastes steps there. Second, the training target: at the first step DDIM gets its data estimate by dividing by \(\sqrt{\bar\alpha_{1000}} \approx 0.0064\), and the network's error in the predicted noise grows about 160-fold. That's why at one step the diffusion points scatter. A network that predicts velocity has no such division.</p>
+      <p>Lipman et al. compared optimal transport paths with diffusion paths in one setting: the former give faster training and generation, and on ImageNet 32 × 32 they need about 60% of the field evaluations to reach the same error. That doesn't mean flow is always better: Gao et al. show that for wide distributions a different schedule can give straighter paths. The result depends on the schedule, the target and the sampler, not on the name of the method.</p>
+      <p>How quality is measured. A point is “in a blob” if it's within 0.2 of the center of one of the eight blobs (2.5 spreads). A blob is “present” if at least a quarter of its share of points landed in it. Both networks: 48 × 48 neurons, 1500 steps of 128 examples, the same seed. For the real data about 96% of the points are in blobs.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>Flow holds the shape from 8 steps, diffusion from 16. And yet flow and diffusion are one family: a DDIM step is the same Euler step, and the difference comes from the noise schedule and what the network predicts. One step still doesn't work: the flow model gathers all the noise into one blob at the center of the ring, because the first step leads to the mean of the data. Can the generation paths themselves be straightened so that one step is enough?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="reflow">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 4</div>
+    <h2>Straightening: reflow</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>Can the generation paths be straightened so that one step is enough? Right now one step gathers all the noise at the center of the ring.</p>
+      <p>The paths are curved because the training lines cross: through one point run lines to different blobs, and the network learns their average.</p>
+      <p>So far the turn was taken in small steps: the flow model in lab 3 needed 8, and each one is a network pass.</p>
+      <p>So the network has to be trained on pairs whose lines don't cross. Liu et al. suggested where to get them.</p>
+      <p>Run the already trained model from noise \(z_0\) and record where it brought it — \(z_1\). The model's paths are solutions of a differential equation: at every point at every moment the field gives one direction, so two paths cannot cross. Hence the straight lines between \(z_0\) and \(z_1\) rarely cross either. Train the same network again, on the pairs \((z_0, z_1)\) instead of random ones. That is <strong>reflow</strong>.</p>
+      <p>Let's check how many crossings remain, whether one step is enough after that, and what it costs.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="ctl-row top-row">
+          <div class="seg" role="group" aria-label="What to show" id="dMode"><button type="button" data-mode="pairs" aria-pressed="true">Pairs</button><button type="button" data-mode="gen" aria-pressed="false">Result</button></div>
+        </div>
+        <div class="pane-duo">
+          <div class="pane">
+            <div class="pane-head"><b class="fm" id="dHeadL">Random pairs</b><span id="dSubL">how ordinary flow matching trains</span></div>
+            <canvas id="dCvL" width="320" height="320" role="img" aria-label="Left panel: pairs or the result of the original model"></canvas>
+            <div class="pane-stat" id="dStatL"></div>
+          </div>
+          <div class="pane">
+            <div class="pane-head"><b class="rf" id="dHeadR">Reflow pairs</b><span id="dSubR">noise and where the model took it</span></div>
+            <canvas id="dCvR" width="320" height="320" role="img" aria-label="Right panel: reflow pairs or the result of the straightened model"></canvas>
+            <div class="pane-stat" id="dStatR"></div>
+          </div>
+        </div>
+        <div class="ctl-row">
+          <div class="seg-row" id="wrapDPS"><span>Steps for pairs</span><div class="seg" role="group" aria-label="How many Euler steps to spend on generating the pairs" id="dPS"></div></div>
+          <label class="hd-range wide" id="wrapDN"><span>Steps, original</span><input id="dN" type="range" min="0" max="11" step="1" value="0"><output>1</output></label>
+        </div>
+      </div>
+      <div class="card guide-card"><div id="dMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: reflow, distillation and one-step models</summary><div class="body">
+      <div class="algo">
+        <div>1. Train a flow on random pairs \((x_0, x_1)\) → model 1.</div>
+        <div>2. \(z_0 \sim \mathcal N(0, I)\), \(z_1\) — the end of model 1's path from \(z_0\) over many steps → pairs.</div>
+        <div>3. Train the same objective on the pairs \((z_0, z_1)\) → model 2.</div>
+        <div>4. Optionally repeat, or distill into one step.</div>
+      </div>
+      <ul>
+        <li><b>What the authors proved.</b> The output distribution of reflow is the same as the original model's, and the transport cost doesn't grow. The more repetitions, the straighter the paths can get, but the authors advise against many repetitions: error accumulates. They fine-tune the new model from the previous one's weights, as we do.</li>
+        <li><b>The cost.</b> The pairs have to be generated by model 1 over many steps, and the network trained once more. Model 1's errors pass into the pairs, so at a large number of steps the straightened model draws worse than the original. On CIFAR-10, for Liu et al., one Euler step gave FID 378 for the original model and 12.21 after reflow, while an exact solver gave 2.58 and 3.36.</li>
+        <li><b>In the lab.</b> 2000 pairs, a separate noise sample. Model 2 is a copy of model 1, fine-tuned for 1000 steps of 128 pairs at learning rate 0.002. Crossings are counted for 100 pairs, that is, among 4950 pairs of segments.</li>
+        <li><b>Other routes to one step.</b> Distillation trains the network to output the end of the path directly: that's how InstaFlow got a one-step Stable Diffusion, at a cost of 199 A100 GPU-days. Consistency models map any point of the path to its end: FID 3.55 in one step on CIFAR-10. MeanFlow (NeurIPS 2025) learns the average velocity over an interval and gives FID 3.43 in one step on ImageNet 256 × 256.</li>
+      </ul>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>Reflow pairs barely cross, and the straightened model in one step puts about two thirds of the points into blobs and finds all eight. The price is one more training run, pairs that the original model builds over many steps, and quality at a large number of steps: the original model's errors pass into the pairs. All of this we checked on points. How many steps does a robot's action chunk need, and how many milliseconds do they cost?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="robot">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">2</span> An action chunk for the robot</div>
+      <h2>How π0 builds an action chunk</h2>
+      <p>How many steps does an action chunk need, and what do they cost? The robot has two requirements at once: the chunk must go around the obstacle and be computed quickly, because while it's being computed the robot stands still or follows the old plan.</p>
+      <p>Let's look at how it's done in π0 — the large policy from lesson 1.6, which we'll take apart fully in lesson 3.6. Next to a 3B-parameter VLM (a model that reads images and text) runs a separate <strong>action expert</strong> with 300M. It generates a chunk of 50 actions: it starts from noise of shape 50 × action dimension and in 10 Euler steps turns it into motion. Every step is a pass of the expert over the 50 action tokens. The VLM processes the images and text once per chunk and caches the keys and values, and the expert reads them at every step — that's the block mask of π0 from lesson 1.6.</p>
+      <p>On an RTX 4090 with three cameras, inference takes 73 ms: 14 ms for the image encoders, 32 ms for the pass over the observation and 27 ms for all 10 flow steps. If the model runs off the robot, 13 ms of network time is added. In GR00T N1 the action head is a DiT transformer, and 4 steps are enough for it: a chunk of 16 actions in 63.9 ms on an L40. π0.7 (a late version of π0, 2026; lesson 3.8) generates a chunk of 50 actions in 5 steps.</p>
+      <p>Let's check on Ada how many steps the chunk needs to clear the kettle, and how many steps fit into the time budget.</p>
+    </div>
+    <div class="lab-badge"><i>🔬</i> Lab 5</div>
+    <div class="lab">
+      <div class="card scene-card">
+        <canvas id="eCv" width="560" height="280" role="img" aria-label="Top view of the table: the gripper's start, the kettle and 20 chunks of 50 actions"></canvas>
+        <div class="cv-legend" id="eLegend"></div>
+        <p class="cv-note">Top view of the table: Ada's gripper (the dot on the left) moves left to right, 60 cm in 1 s — a chunk of 50 actions ends at the “in 1 s” label. In the middle is the kettle; the dashed circle is a 2 cm clearance around it. Gray lines are 40 demonstrations: half go around the kettle above, half below. Orange ones are 20 chunks from different noise; the small dots are the 50 actions of one chunk, one per 20 ms tick.</p>
+        <div class="lat" id="eLat"></div>
+        <p class="cv-note">The bar is what the inference time of one chunk is made of, ms. Ada executes 25 actions (0.5 s) and stands still while the next chunk is computed — hence the share of time the robot is idle.</p>
+        <div class="readout" id="eOut"></div>
+        <div class="ctl-row">
+          <label class="hd-range wide" id="wrapEN"><span>Euler steps</span><input id="eN" type="range" min="1" max="20" step="1" value="10"><output>10</output></label>
+          <label class="opt" id="wrapESrv"><input type="checkbox" id="eSrv"> model on a server (+13 ms)</label>
+        </div>
+      </div>
+      <div class="card guide-card"><div id="eMis"></div></div>
+    </div>
+    <div class="callout note conv"><span class="ico">⏱</span><div>
+      <p><strong>Time convention in this course: \(t = 0\) is noise, \(t = 1\) is data, velocity = data − noise.</strong> That's how Lipman and Liu write it, and that's how the time \(\tau\) is introduced in the π0 and GR00T N1 papers. In openpi, the open-source code of π0, it's the other way round: \(x_t = t\cdot\text{noise} + (1 - t)\cdot\text{actions}\), the target is noise − actions, and generation runs from \(t = 1\) to 0 with step \(-0.1\). The authors say outright in a comment that this is the opposite of the paper. The π0 and SmolVLA implementations in Hugging Face's LeRobot library work the same way. When reading code, check where the noise is.</p>
+    </div></div>
+    <details class="deep"><summary>Under the hood: the π0 formulas and what's behind the 73 ms</summary><div class="body">
+      <div class="formula">\[\begin{gathered} A^\tau = \tau A + (1 - \tau)\,\varepsilon, \quad \varepsilon \sim \mathcal N(0, I),\\ \text{target: } A - \varepsilon,\\ \text{training: } \tfrac{s - \tau}{s} \sim \mathrm{Beta}(1.5;\ 1), \quad s = 0.999,\\ \text{inference: } A^{\tau + \delta} = A^\tau + \delta\, v_\theta(A^\tau, o),\\ \delta = 0.1. \end{gathered}\]</div>
+      <ul>
+        <li><b>A sign error.</b> In the 2024 versions of the paper the target is written as \(\varepsilon - A\). With this path and a step of \(+\delta\,v\) that would lead from data to noise. In the January 2026 version the sign is corrected to \(A - \varepsilon\). In the code the sign is right in its own convention.</li>
+        <li><b>Choosing τ.</b> The Beta distribution gives more training examples with heavy noise, that is, small \(\tau\). Moments \(\tau > 0.999\) aren't needed as long as the integration step is larger than 0.001.</li>
+        <li><b>Why 10 steps are cheaper than the images.</b> The expert is 10 times smaller than the VLM and works only with the 50 action tokens, while the observation is computed once and sits in the cache. That's why 10 steps cost 27 ms, and one pass over the cameras and text costs 46 ms.</li>
+        <li><b>In the lab.</b> The chunk is 50 lateral offsets of the gripper across the table, one per 20 ms tick; the gripper moves left to right, 60 cm in 1 s. Instead of a trained head, here we use the exact field for 40 demonstrations: 20 go around the kettle above, 20 below. That shows what the Euler steps themselves do, without training errors; a trained network would add its own errors on top. The latency in the calculator is the π0 breakdown: 14 + 32 + 2.7 ms per step (27 ms / 10) + 13 ms for the network. That every step costs the same is our simplification. Idle is the share of time the robot stands still: 25 actions executed (0.5 s), waiting for inference.</li>
+        <li><b>One-step heads.</b> FlowPolicy and MP1 generate actions in one step: 19.9 and 6.8 ms. In a single-author tech report (2026), a one-step head for GR00T sped up inference from 45 to 5 ms, but success dropped noticeably: on the long tasks of the LIBERO benchmark, from 74.5 to 26%.</li>
+      </ul>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>In one step every chunk drives into the kettle: the first step from noise leads to the mean of the demonstrations. On the exact field Ada needs 4 steps, and on a server both the detour and the budget hold from 4 to 10 steps. The steps themselves are cheap: most of the latency comes from the pass over the observation. How many steps do real policies take?</p>
+    </div>
+    <div class="prose sort-intro" id="who">
+      <div class="lab-badge"><i>🧩</i> Task</div>
+      <h3>Who takes how many steps</h3>
+      <p>Sort the models by the number of generation steps at inference. Most of the models on the cards are covered in later lessons; you don't need to know them in advance: everything you need is stated here. π0, π0.7 and GR00T N1 were described above. π0.5 (lesson 3.8) and SmolVLA build a chunk the same way as π0. RDT-1B is a bimanual diffusion model from 2025 whose DPM-Solver++ solver cuts 100 steps to 5. UMI (lesson 4.2) runs on the Diffusion Policy from lesson 1.5. Octo (an open policy, 2024; lesson 3.5) and ALOHA Unleashed (lesson 1.7) are also diffusion heads, on DDPM and DDIM, without distillation. FlowPolicy and MP1 are trained with consistency and MeanFlow objectives: the network outputs the end of the path directly. Drag a card, or click it and then a bin.</p>
+    </div>
+    <div class="card pad" id="stepSort"></div>
+  </div>
+</section>
+
+<section class="section" id="quiz">
+  <div class="prose">
+    <div class="kicker"><span class="num">3</span> Check yourself</div>
+    <h2>Eight common misconceptions</h2>
+    <div class="quiz" id="quizBox"></div>
+    <p class="score" id="quizScore" style="margin-top:14px"></p>
+  </div>
+</section>
+
+<section class="section alt" id="finale">
+  <div class="prose">
+    <div class="kicker"><span class="num">4</span> Takeaways</div>
+    <h2>Lesson takeaways</h2>
+    <ol class="takeaways">
+      <li><span>Diffusion needs dozens of steps per chunk, and the robot waits for every network pass. Flow matching learns a <strong>velocity field</strong> by regression on straight lines between random noise and a random data point. Generation is a few Euler steps from noise to data.</span></li>
+      <li><span>The training lines cross, the network learns their average, so the <strong>generation paths are curved</strong>. One step from noise lands at the mean of the data.</span></li>
+      <li><span>With Gaussian noise, flow matching and diffusion are <strong>one family</strong>: DDIM is an Euler step with a different schedule. The difference in the number of steps comes from the schedule and what the network predicts.</span></li>
+      <li><span><strong>Reflow</strong> trains the model on its own “noise → result” pairs. The paths straighten, and one or two steps are almost enough. The price is one more training run and a little quality.</span></li>
+      <li><span>Robot heads on flow matching take <strong>4–10 steps</strong>: π0, π0.5 and SmolVLA — 10, GR00T N1 — 4, π0.7 — 5. The expert's steps are cheap; most of the latency comes from the pass over the observation.</span></li>
+      <li><span>Time conventions differ: in this course <strong>\(t = 0\) is noise</strong>; in the openpi code it's the other way round.</span></li>
+    </ol>
+    <h3 style="margin-top:40px">Open questions</h3>
+    <details class="card pad open-q"><summary>Why doesn't π0 generate a chunk in one step, if reflow and distillation allow it?</summary><p>One step gives the mean if the paths are curved, and straightening or distillation costs extra training and usually a little quality. Meanwhile the expert's 10 steps cost 27 ms out of 73: the main part of the latency is the pass over the cameras and text, and one step instead of ten would save about a third of the time. For dexterous tasks the loss of precision costs more than those milliseconds. One-step heads are being tested, but in the GR00T tech report such a head lost noticeably in success.</p></details>
+    <details class="card pad open-q"><summary>The demonstrations go around the kettle sometimes left, sometimes right. What does each Euler step do to the chunk, and why is the first step the most dangerous?</summary><p>At the start the noise says nothing yet about the detour side, and the field pulls the chunk toward the mean of the demonstrations — straight into the kettle. If there's one step, the chunk stays there. If there are several, after the first the chunk is still noisy, and the next steps already “see” which side it's closer to and carry it there. That's why quality rises fast from one step to three or four, and then barely changes.</p></details>
+    <h3 style="margin-top:34px">Paper guide</h3>
+    <p><a href="https://arxiv.org/abs/2210.02747" target="_blank" rel="noopener">Y. Lipman, R. Chen, H. Ben-Hamu, M. Nickel, M. Le, “Flow Matching for Generative Modeling”, ICLR 2023</a>.</p>
+    <ul class="links">
+      <li><strong>Read closely</strong><span>Sections 3–4: conditional paths, the training objective and the theorem on matching gradients. The example with optimal transport paths and the figure where they are straight.</span></li>
+      <li><strong>Safe to skip</strong><span>The proofs in the appendices and the likelihood experiments.</span></li>
+      <li><strong>Question to keep in mind</strong><span>Why is the conditional path straight, but the field the network learns is not? Where in the paper is this stated?</span></li>
+    </ul>
+    <p style="margin-top:18px"><a href="https://arxiv.org/abs/2209.03003" target="_blank" rel="noopener">X. Liu, C. Gong, Q. Liu, “Flow Straight and Fast: Learning to Generate and Transfer Data with Rectified Flow”, ICLR 2023</a> — reflow, the theorems on non-crossing paths and one-step generation.</p>
+    <h3 style="margin-top:34px">Resources</h3>
+    <ul class="links">
+      <li><a href="https://diffusion.csail.mit.edu/" target="_blank" rel="noopener">MIT 6.S184: Introduction to Flow Matching and Diffusion Models</a><span>P. Holderrieth, E. Erives — lectures, videos and exercises; lecture notes at arXiv 2506.02070</span></li>
+      <li><a href="https://diffusionflow.github.io/" target="_blank" rel="noopener">Diffusion Meets Flow Matching: Two Sides of the Same Coin</a><span>Gao et al., Google DeepMind, 2024 — why DDIM and Euler coincide and what is actually straight</span></li>
+      <li><a href="https://arxiv.org/abs/2412.06264" target="_blank" rel="noopener">Flow Matching Guide and Code</a><span>Lipman et al., 2024 — a detailed guide and the flow_matching library</span></li>
+      <li><a href="https://mlg.eng.cam.ac.uk/blog/2024/01/20/flow-matching.html" target="_blank" rel="noopener">An introduction to Flow Matching</a><span>Cambridge MLG blog, 2024 — the derivation with formulas and figures</span></li>
+      <li><a href="https://rectifiedflow.github.io/" target="_blank" rel="noopener">Let us Flow Together</a><span>Q. Liu's series of posts on rectified flow and reflow</span></li>
+      <li><a href="https://www.youtube.com/watch?v=DDq_pIfHqLs" target="_blank" rel="noopener">How I Understand Flow Matching</a><span>Video by Jia-Bin Huang</span></li>
+      <li><a href="https://github.com/Physical-Intelligence/openpi" target="_blank" rel="noopener">openpi</a><span>π0 and π0.5 code: the flow matching head is in src/openpi/models/pi0.py</span></li>
+    </ul>
+    <!--if:proverka-chasti-1.html--><div class="callout" style="margin-top:34px"><span class="ico">✅</span><div><p><strong>Check yourself on all of Part 1.</strong> 15 questions from lessons 1.1–1.8, shuffled, plus an exercise on a live scene: that shows what has stuck. At the end, a score per lesson and the sections worth revisiting.</p><p><a href="proverka-chasti-1.html">Part 1 check →</a></p></div></div><!--/if-->
+    <div class="callout insight" style="margin-top:34px"><span class="ico">➡️</span><div><p><strong>Next: Part 2.</strong> A flow matching head builds a chunk in 4–10 steps and fits into the robot's budget. But the policy itself hasn't changed: it knows one task, needs fifty-odd demonstrations per skill, and can't follow an instruction given in words. How can a robot work out what to do and where? That's <a href="../index.html#program">Part 2</a>: scene geometry and language in Transporter and CLIPort, PerAct and planners on large language models. The flow matching action head returns in Part 3: in the π0 lesson it sits next to the VLM, and in the GR00T lesson behind the slow System 2.</p><!--if:2-1-transporter-i-cliport.html--><p><a href="2-1-transporter-i-cliport.html">Lesson 2.1 “Transporter and CLIPort” →</a></p><!--/if--></div></div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Lesson 1.8 of the course “Modern Robotics and Physical AI”. All networks train and run locally in your browser.
+</footer>
+<div class="tooltip" id="tooltip" role="tooltip"></div>
+<script>
+/*@@JS@@*/
+</script>
+</body>
+</html>
