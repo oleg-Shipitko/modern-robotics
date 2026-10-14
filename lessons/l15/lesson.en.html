@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>1.5 Diffusion Policy — Modern Robotics and Physical AI</title>
+<meta name="description" content="Lesson 1.5 of the Modern Robotics and Physical AI course: Diffusion Policy builds an action chunk from noise, conditioned on observations. Put the block into the Push-T goal, scrub through the denoising of a chunk, assemble the policy step by step and train it in your browser: ten runs, regression side by side, denoising steps and the execution horizon; positions versus velocities under latency, and a Real-Time Chunking diagram.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<script>
+  (function () { try { var t = localStorage.getItem('mr-theme'); if (t) document.documentElement.dataset.theme = t; else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme = 'dark'; } catch (e) {} })();
+</script>
+<style>
+/*@@CSS@@*/
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html#program" title="To the course program"><div>Modern Robotics and Physical AI<small>Lesson 1.5 · Diffusion Policy</small></div></a>
+    <nav class="toc" aria-label="Lesson sections">
+      <a href="#pusht">Push-T</a>
+      <a href="#chunk">Chunk</a>
+      <a href="#scheme">Loop</a>
+      <a href="#lab">Lab</a>
+      <a href="#posvel">Positions</a>
+      <a href="#speed">Speed</a>
+      <a href="#seams">Seams</a>
+      <a href="#why">Why it works</a>
+      <a href="#quiz">Check</a>
+      <a href="#finale">Takeaways</a>
+    </nav>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Toggle theme">◐</button>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main>
+
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="kicker"><span class="num">1.5</span> Part 1 · Imitation learning</div>
+    <h1>Diffusion <span class="amp">Policy</span></h1>
+    <p class="lead">In lesson 1.3 we found that a policy needs a model of the action distribution; otherwise it averages the detour on the left and the detour on the right and drives straight into the kettle. In lesson 1.4 diffusion learned to draw samples from a distribution of any shape. Diffusion Policy combines the two ideas: diffusion builds not a single point but a chunk of future actions, and the latest observations serve as its condition. The initial noise picks a strategy, and the chunk holds it. In this lesson we'll train such a policy for Ada, find out how many steps of a chunk to execute, how many denoising steps are really needed and why the chunk consists of positions rather than velocities, and look at why the method works.</p>
+    <p class="ada-note"><svg class="ada-ico" viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="10" width="48" height="42" rx="18" fill="#f4efe6" stroke="#3d3c38" stroke-width="3"/><rect x="15" y="19" width="34" height="22" rx="10" fill="#1f2430"/><ellipse cx="25" cy="30" rx="4" ry="5.5" fill="#eb6834"/><ellipse cx="39" cy="30" rx="4" ry="5.5" fill="#eb6834"/></svg><span>Ada is the home humanoid robot the course labs are built around. More about her in <a href="0-1-dve-paradigmy.html#ada">lesson 0.1</a>.</span></p>
+    <div class="hero-meta"><span>≈ 50 minutes</span><span>a lab and 4 interactives</span><span>11 missions with a goal</span></div>
+    <div class="hero-list">
+      <div><b>PUSH-T</b>Put the T-block into the goal and see how the benchmark computes the reward</div>
+      <div><b>DENOISING</b>Scrub through the denoising of a chunk and find the step at which the detour side is chosen</div>
+      <div><b>LOOP</b>Assemble the policy step by step, from the camera to the motor, and discard the extra blocks</div>
+      <div><b>LAB</b>Train the policy in your browser and test chunks, denoising steps and the execution horizon</div>
+    </div>
+    <p style="margin-top:28px"><a class="btn primary" href="#pusht">Start the lesson ↓</a></p>
+  </div>
+</section>
+
+<section class="recall-sec" id="recall" aria-label="Warm-up on the previous lesson">
+  <div class="wrap"><div class="card recall" data-recall></div></div>
+  <script type="application/json" id="recallData">{"n": "1.4", "title": "Diffusion models", "href": "1-4-diffuzionnye-modeli.html", "q": [{"q": "What does the network in a diffusion model learn to predict?", "o": ["The clean data point directly", "The noise that was added to the point", "The number of the step at which the point was noised"], "a": 1, "e": "The network predicts the added noise. The loss plateaus above zero: part of the noise can't be guessed in principle.", "sec": "lab", "secTitle": "Diffusion on two spirals"}, {"q": "Why does a sample end up on one of the spirals and not in their average?", "o": ["When little noise is left, the denoiser leads to the nearest spiral", "The network stores both spirals and picks one at random", "The initial noise already lies next to one of the spirals"], "a": 0, "e": "At high noise the denoiser points to the overall mean, at low noise to the nearest mode. So a sample picks its mode along the way.", "sec": "score", "secTitle": "Where to move a point on the reverse path"}, {"q": "Why do robots get by with 4–16 inference steps instead of 1000?", "o": ["Robots don't need high precision", "Networks for robots are smaller and compute faster", "DDIM steps without fresh noise, and large steps don't break the shape"], "a": 2, "e": "DDIM is the same network with deterministic steps. DDPM with few steps loses the shape because of the fresh noise added at every step.", "sec": "steps", "secTitle": "How many steps robots take"}]}</script>
+</section>
+
+<section class="section alt" id="pusht">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">1</span> Task</div>
+      <h2>Push-T: the task from the paper</h2>
+      <p>Picking one strategy isn't enough for a policy: it has to execute it smoothly, on a real robot and in real time. In 2023 Chi et al. proposed Diffusion Policy for this and tested it on 12 tasks from four benchmarks: Robomimic, Push-T, Block Pushing and Franka Kitchen. The paper's main example is Push-T.</p>
+      <p>In Push-T a round agent, a pusher controlled by the policy or by a person with a mouse, pushes a T-shaped block into a green outline on the table. The task is multimodal: you can approach the block from the left or from the right and push it by the crossbar or by the stem, and operators do it differently. On a UR5 industrial arm Diffusion Policy solved the task in 95% of trials. Earlier methods did worse: IBC (an implicit policy based on an energy model) never succeeded, and LSTM-GMM (a recurrent network with a mixture of Gaussians at the output) succeeded in 20%.</p>
+      <p>Before comparing policies, let's sort out the metric: what exactly counts as a solution. The reward is the fraction of the goal covered, with a margin: once the block covers 95% of the goal, the reward is already 1. There's no agent in the interactive; you move the block yourself.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <canvas id="ptCv" width="520" height="330" class="pt-cv" role="img" aria-label="Top view: the green goal outline and a T-block you can drag and rotate"></canvas>
+        <div class="pt-bar" id="ptBar" aria-hidden="true"></div>
+        <div class="pt-scale"><span>0%</span><span>goal coverage · line at 95%</span><span>100%</span></div>
+        <p class="cv-note">Top view of the table: you move the gray T-block, and the green dashed outline is the goal. The bar under the scene shows what fraction of the goal is covered.</p>
+        <div class="readout" id="ptOut"></div>
+        <div class="ctl-row">
+          <label class="hd-range"><span>Rotation</span><input id="ptRot" type="range" min="-180" max="180" step="1" value="-20"><output>−20°</output></label>
+          <div class="nudge" id="ptNudge" role="group" aria-label="Move the block">
+            <button type="button" class="btn sm u" data-dx="0" data-dy="-2" aria-label="Up">↑</button>
+            <button type="button" class="btn sm l" data-dx="-2" data-dy="0" aria-label="Left">←</button>
+            <button type="button" class="btn sm d" data-dx="0" data-dy="2" aria-label="Down">↓</button>
+            <button type="button" class="btn sm r" data-dx="2" data-dy="0" aria-label="Right">→</button>
+          </div>
+        </div>
+      </div>
+      <div class="card guide-card"><div id="ptMis"></div></div>
+    </div>
+    <div class="prose" style="margin:26px 0 0;max-width:820px">
+      <p>The metric says where to end up, but not how to get there. How does a policy pick one way out of several and not abandon it halfway?</p>
+    </div>
+    <details class="deep"><summary>Under the hood: the Push-T reward</summary><div class="body">
+      <p>The reward is the fraction of the goal covered, with a 5% margin:</p>
+      <div class="formula">\[r = \min\Bigl(1,\ \frac{S_{\text{covered}}}{0.95\, S_{\text{goal}}}\Bigr).\]</div>
+      <p>The benchmark metric is the best reward per episode, averaged over 50 starts. On the real robot the authors measured the overlap of the block with the goal at the last step (IoU): 0.80 for Diffusion Policy, 0.84 for a human operator.</p>
+      <p>In the interactive the block and the goal consist of a 140 × 35 crossbar and a 35 × 100 stem, and the goal is rotated by 45°. The intersection area is computed exactly: the block and the goal are two rectangles each, and the intersection of convex polygons is found by Sutherland–Hodgman clipping.</p>
+    </div></details>
+  </div>
+</section>
+
+<section class="section" id="chunk">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">2</span> Chunk</div>
+      <h2>Diffusion builds an action chunk</h2>
+      <p>In lesson 1.4 diffusion generated a point on a plane. A policy needs not a point but a motion. So Diffusion Policy generates an <strong>action chunk</strong>: the robot's positions 16 steps ahead. The whole chunk starts as Gaussian noise and turns into a coherent motion in a few denoising steps.</p>
+      <p>The observations are not noised. Camera frames and the robot's position are only the <strong>condition</strong>: the network receives them at every denoising step and uses them to decide where to move the chunk. The generation procedure is the same in any situation; only the condition changes.</p>
+      <p>Why does a chunk hold a strategy? The detour side is chosen once for the whole chunk, and all 16 steps follow that choice. Scrub through the denoising of a chunk next to the kettle and find the step at which the side is chosen. We count denoising steps from one: step 1 is the first estimate of the clean chunk, which the network makes from pure noise, and step 16 is the finished chunk. The side counts as chosen from the step at which the clean-chunk estimate at the kettle's level has left the corridor extending 6 cm on either side of the route and stays on one side until the end of denoising: a smaller deviation is still noise, not a choice.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <canvas id="scrubCv" width="560" height="230" class="scrub-cv" role="img" aria-label="The kettle on Ada's path and a chunk of 16 points at the current denoising step"></canvas>
+        <div class="cv-legend" id="scrubLegend"></div>
+        <p class="cv-note">Top view: Ada at the bottom drives upward and has to go around the kettle. The orange dots are the chunk: Ada's 16 future positions, which denoising gradually cleans of noise. The dashed line is the estimate of the clean chunk at this step, and the ring on it is the estimate's point at the kettle's level: the side is judged by that point. The gray band along the route is the ±6 cm corridor: while the ring is inside it, no side is chosen.</p>
+        <div class="scrub-strip" id="scrubStrip" aria-label="Side of the clean-chunk estimate at each denoising step"></div>
+        <div class="strip-legend"><span class="sl-h">Cells 1–16 are denoising steps (step 1 is the first estimate from pure noise); the color is the side of the clean-chunk estimate at that step:</span><span><i style="background:var(--side-l)"></i>detour on the left</span><span><i style="background:var(--side-r)"></i>detour on the right</span><span><i style="background:var(--surface-2);border:1px solid var(--line)"></i>no side chosen</span></div>
+        <div class="readout" id="scrubOut"></div>
+        <div class="ctl-row">
+          <label class="hd-range"><span>Denoising step</span><input id="scrubS" type="range" min="0" max="16" step="1" value="0"><output>0</output></label>
+          <button class="btn sm" id="scrubMark" type="button">Side chosen here</button>
+          <button class="btn sm" id="scrubNew" type="button">New noise</button>
+        </div>
+      </div>
+      <div class="card guide-card"><div id="scrubMis"></div></div>
+    </div>
+    <div class="prose" style="margin:26px 0 0;max-width:820px">
+      <p>So the strategy is picked by the initial noise, and denoising carries the chunk through to one of the strategies present in the data. How do you turn this into a policy that works on a robot, from the camera to the motor?</p>
+    </div>
+    <details class="deep"><summary>Under the hood: denoising a chunk with a condition</summary><div class="body">
+      <p>Let's denote the chunk at denoising step \(k\) by \(a^k\) and the observations by \(o\). The network \(\varepsilon_\theta\) is trained to guess the added noise, as in lesson 1.4, only with the observations as an input:</p>
+      <div class="formula">\[\begin{gathered} L = \E\,\bigl\lVert \varepsilon - \varepsilon_\theta(a^k, k, o)\bigr\rVert^2,\\ a^k = \sqrt{\bar\alpha_k}\,a^0 + \sqrt{1 - \bar\alpha_k}\,\varepsilon. \end{gathered}\]</div>
+      <p>A DDIM step from \(k\) to an earlier \(k'\) first estimates the clean chunk, then adds the predicted noise back to it at a lower level:</p>
+      <div class="formula">\[\begin{aligned} \hat a^0 &= \frac{a^k - \sqrt{1 - \bar\alpha_k}\,\varepsilon_\theta(a^k, k, o)}{\sqrt{\bar\alpha_k}},\\ a^{k'} &= \sqrt{\bar\alpha_{k'}}\,\hat a^0 + \sqrt{1 - \bar\alpha_{k'}}\,\varepsilon_\theta(a^k, k, o). \end{aligned}\]</div>
+      <p>In the interactive the denoiser is exact and has no condition, as in lesson 1.3: the chunk is 16 sideways offsets of Ada around the kettle, 9 steps before it and 6 after, built from 40 demonstrations. We judge the side by the clean-chunk estimate \(\hat a^0\) at the kettle's level: more than 6 cm to the right of the route means right, more than 6 cm to the left means left, otherwise no side is chosen. The choice step is the first step from which this side stays the same until the end. The lab below uses the same 6 cm dead zone to count plan switches. In the lab the denoiser is a trained network with a condition.</p>
+    </div></details>
+  </div>
+</section>
+
+<section class="section alt" id="scheme">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">3</span> Loop</div>
+      <h2>How the policy is built</h2>
+      <p>One chunk for the whole task isn't enough: the scene changes, and the robot has to react. So the policy runs in a loop. It looks at the two latest frames, the encoder computes their features, denoising builds a chunk of 16 actions, the robot executes the first 8, and the loop repeats with new frames. This is the <strong>receding horizon</strong> you already met in lesson 0.3: plan far ahead, execute the beginning, re-plan.</p>
+      <p>Assemble this loop yourself. Two of the blocks are extra.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="pipe-wrap">
+          <div><p class="pipe-h">Policy loop</p><ol class="pipe-line" id="pipeLine"></ol></div>
+          <div><p class="pipe-h">Blocks</p><div class="pipe-bank" id="pipeBank"></div></div>
+        </div>
+        <div class="readout" id="pipeOut" style="margin-top:12px"></div>
+      </div>
+      <div class="card guide-card"><div id="pipeMis"></div></div>
+    </div>
+    <div class="prose" style="margin:26px 0 0;max-width:820px">
+      <p>The authors chose the numbers 2, 16 and 8 empirically. A short observation history overfits less, a long chunk holds the strategy, and executing half of the chunk leaves time to react. Let's check how this works on Ada.</p>
+    </div>
+    <details class="deep"><summary>Under the hood: the policy from the Diffusion Policy paper (Chi et al., 2023)</summary><div class="body">
+      <p>This is how the policy from the Diffusion Policy paper (Chi et al., 2023) is built in its UNet variant, which the authors recommend as the starting point; the numbers are from the paper.</p>
+      <ul>
+        <li><b>Input.</b> The two latest observation steps: frames from two cameras and the gripper position.</li>
+        <li><b>Encoder.</b> A ResNet-18 per camera without pretraining, spatial softmax instead of global average pooling, GroupNorm instead of BatchNorm. The features are computed once per chunk inference.</li>
+        <li><b>Denoiser.</b> A 1D UNet along the time axis of the chunk; the observations and the step number enter through FiLM. There is also a transformer variant with cross-attention to the observations, but the authors recommend starting with the UNet.</li>
+        <li><b>Training.</b> A random step out of 100, the squared error between the noise and its prediction, actions normalized to the interval [−1, 1], an exponential moving average of the weights (EMA).</li>
+        <li><b>Control.</b> The chunk holds target positions, not velocities. For the authors position control was consistently better than velocity control; for the baselines it was the other way round.</li>
+        <li><b>Size and rate.</b> The noise network has 256M parameters in simulation and 67M on the robot, the encoder 22M for two cameras. The policy outputs a chunk 10 times per second, and the controller interpolates it to 125 Hz.</li>
+      </ul>
+    </div></details>
+  </div>
+</section>
+
+<section class="section" id="lab">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab</div>
+    <h2>Ada and the diffusion policy</h2>
+    <p class="lead lab-intro">Let's check it on the scene from lesson 1.3. The policy sees Ada's two latest positions and outputs a chunk 16 steps ahead. The denoiser is a real small network that trains right in your browser in a few seconds. Next to it you can turn on regression with chunks: it outputs the whole chunk in one network pass.</p>
+    <div class="lab">
+      <div class="card scene-card">
+        <canvas id="labCv" width="600" height="400" class="k-cv" role="img" aria-label="Ada's home from above: detour demonstrations, Ada with the diffusion policy and her action chunk"></canvas>
+        <div class="cv-legend" id="labLegend"></div>
+        <div class="lab-stats" id="labStats"></div>
+        <div id="wrapFlips" hidden>
+          <canvas id="labFlips" width="520" height="146" class="flips-cv" role="img" aria-label="Ten runs: the chain of chunks near the kettle in each run and the detour side of each chunk"></canvas>
+          <div class="strip-legend"><span class="sl-h">A cell is a chunk built near the kettle; its color is the side on which it goes around the kettle:</span><span><i style="background:var(--side-l)"></i>left</span><span><i style="background:var(--side-r)"></i>right</span><span><i style="background:var(--surface);border:1px solid var(--line)"></i>no side chosen</span><span><i style="background:transparent;border:1.5px solid var(--ink)"></i>framed row: the side flipped two or more times</span></div>
+          <p class="cv-note">Each row is one run of the diffusion policy, runs 1–10 from top to bottom (run 1 is the one animated on the scene). Cells from left to right are the chunks in order, as long as the kettle is no farther than 60 cm from the chunk's points. On the right is how many times the side flipped during the run; on the scene the paths of runs with two or more flips are drawn brighter. Click a row and the scene keeps only that run's path, dimming the others; click it again or click the scene to clear the selection.</p>
+          <div class="readout" id="flipsOut"></div>
+        </div>
+        <canvas id="labLoss" width="520" height="96" class="plot-cv" role="img" aria-label="Training loss of the denoiser and of regression"></canvas>
+        <div class="cv-legend" id="labLossLegend"></div>
+        <div id="wrapCurve">
+          <canvas id="labCurve" width="520" height="170" class="curve-cv" role="img" aria-label="How many of 20 runs passed with no touch and no plan switches for different execution horizons"></canvas>
+          <p class="muted-s" style="margin:4px 0 0">Horizontal axis: how many of the chunk's 16 steps to execute. Vertical axis: how many of 20 runs passed with no touch and no plan switches when the kettle shifts.</p>
+        </div>
+        <div class="ctl-row">
+          <div class="show-row">
+            <label class="opt" id="wrapPlan"><input type="checkbox" id="labPlan" checked> show the chunk</label>
+            <label class="opt" id="wrapReg"><input type="checkbox" id="labReg"> add regression</label>
+            <label class="opt" id="wrapShift"><input type="checkbox" id="labShift"> shift the kettle</label>
+          </div>
+          <label class="hd-range" id="wrapShare"><span>Share of left detours</span><input id="labShare" type="range" min="0" max="100" step="5" value="50"><output>50%</output></label>
+          <div class="seg" role="group" aria-label="How many chunk steps to execute" id="wrapTa">
+            <button type="button" data-ta="1" aria-pressed="false">1</button>
+            <button type="button" data-ta="2" aria-pressed="false">2</button>
+            <button type="button" data-ta="4" aria-pressed="false">4</button>
+            <button type="button" data-ta="8" aria-pressed="true">8</button>
+            <button type="button" data-ta="16" aria-pressed="false">16 of 16</button>
+          </div>
+          <label class="hd-range" id="wrapSteps"><span>Denoising steps</span><input id="labSteps" type="range" min="1" max="16" step="1" value="16"><output>16</output></label>
+        </div>
+      </div>
+      <div class="card guide-card"><div id="labMis"></div></div>
+    </div>
+    <div class="prose" style="margin:26px 0 0;max-width:820px">
+      <p>The chunk holds the chosen side, executing half of the chunk is a compromise between commitment and reaction, and far fewer denoising steps are needed than in training. In the lab the chunk consisted of Ada's positions, not velocities. It's the same trajectory written differently, and yet the authors chose positions. Why?</p>
+    </div>
+    <details class="deep"><summary>Under the hood: the policies in the lab</summary><div class="body">
+      <p><b>Observation.</b> Ada's positions at the previous and the current step relative to the kettle: four numbers. Ada estimates her sideways position with an error of about 8 cm, as if from an imprecise sensor.</p>
+      <p><b>Chunk.</b> Ada's positions 16 steps ahead relative to the current one, in \(x\) and \(y\): 32 numbers. We execute \(T_a\) steps out of 16, then build a new chunk.</p>
+      <p><b>Denoiser.</b> A fully connected network: the input is the noisy chunk, the observation and the noise step number (43 numbers), then two layers of 64 neurons with tanh, and the output is the estimate of the clean chunk. A cosine schedule, 100 noise steps in training, 3000 Adam steps with batches of 32: about two seconds in the browser. At inference, DDIM with the chosen number of steps.</p>
+      <p><b>Regression with chunks.</b> A 4 → 64 → 64 → 32 network, mean squared error, 2500 Adam steps. The whole chunk in one pass.</p>
+      <p><b>Runs.</b> Each launch is 10 runs: the start is slightly shifted, and controller noise of about 0.5 cm is added to the motion. In the mission with the kettle shift, each launch is the same 20 runs for any execution horizon: the kettle shifts 12 cm toward Ada's detour side at a step between the 8th and the 19th. That way execution horizons are compared on equal terms.</p>
+      <p><b>Metrics.</b> A touch: the centers of Ada and the kettle come closer than 31 cm. A chunk's side is the mean sideways offset of its points from the kettle while the kettle is no farther than 60 cm from them: more than 6 cm to the right means right, more than 6 cm to the left means left, otherwise no side is chosen. A plan switch: a new chunk with a side goes around the kettle on a different side than the previous chunk with a side; chunks without a side don't count.</p>
+    </div></details>
+  </div>
+</section>
+
+<section class="section alt" id="posvel">
+  <div class="wrap">
+    <div class="lab-badge"><i>🧩</i> Interactive</div>
+    <h2>Position or velocity: what the policy outputs</h2>
+    <p class="lead lab-intro">A chunk of 16 positions says where to be at each step. The same chunk can be written as 16 velocities: how far to move at each step. The trajectory is the same, but the robot's controller executes the two encodings differently, and Chi et al. chose positions for a reason.</p>
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <p>The controller is a program on the robot that turns the policy's command into motor currents and runs much more often than the policy: in the paper the policy outputs a chunk 10 times per second, and the controller executes it at 125 Hz. A velocity command says “move by this much”, and the controller counts the shift from where the arm actually ended up: if the previous step missed by a centimeter, that centimeter stays, and the misses add up. A position command says “go to this point”: the controller brings the arm there on its own, and the previous miss is erased by the very next step.</p>
+      <p>Latency adds a second difference. The chunk is computed from frames taken several steps ago, and by the time it arrives, the robot is no longer where it was when the chunk was computed. A velocity command is executed from the new place and leads off course, while the correction to the route, which sits in the chunk's first commands, arrives when their steps have already passed. A position is an absolute target: a late or skipped command only means that the controller heads for the same point a little later. Hence the link to chunks: a chunk of positions sets a trajectory the controller returns to on its own, while a chunk of velocities only sets the shape of the motion from wherever the robot ends up. In the paper position control is consistently better than velocity control for Diffusion Policy, while for earlier methods it was the other way round. The authors attribute this to the multimodality of the demonstrations being more pronounced in positions: it hampers methods without a model of the distribution, but not diffusion.</p>
+      <p>Check this on Ada. The policy isn't trained here: the chunk of 16 positions is built by the teacher that recorded the demonstrations in lesson 1.3, and it steers Ada back onto the detour route. The same chunk is executed by two controllers under latency and slight execution noise. The lab engine doesn't support this mode, so the execution model here is separate and simplified; it's described in “Under the hood” below.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <canvas id="pvCv" width="600" height="400" class="k-cv" role="img" aria-label="Ada's home from above: two Adas execute the same chunk, the orange one as positions, the blue one as velocities"></canvas>
+        <div class="cv-legend" id="pvLegend"></div>
+        <p class="cv-note">Top view of Ada's home, as in the lab: the start at the bottom, the table at the top, the kettle in the way. Two Adas start together and get the same chunks with the same execution misses: the orange one executes the chunk as positions, the blue one as velocities. The dashed line is the intended path, that is, the chunks' points step by step; the dots ahead of Ada are her current chunk: filled ones are executed, outlined ones are ahead, gray ones were skipped because of the latency. Thin lines are the other nine runs.</p>
+        <div class="lab-stats" id="pvStats"></div>
+        <div class="ctl-row">
+          <label class="hd-range" id="wrapPvDelay"><span>Chunk latency</span><input id="pvDelay" type="range" min="0" max="6" step="1" value="3"><output>3 steps</output></label>
+          <label class="hd-range" id="wrapPvNoise"><span>Execution noise</span><input id="pvNoise" type="range" min="0" max="3" step="0.5" value="1"><output>1 cm</output></label>
+        </div>
+      </div>
+      <div class="card guide-card"><div id="pvMis"></div></div>
+    </div>
+    <div class="prose" style="margin:26px 0 0;max-width:820px">
+      <p>A chunk of positions sets a trajectory the controller returns to on its own, so latency and execution misses barely hurt it. But the latency itself hasn't gone away: while the network computes, the robot executes the old chunk. Where does the latency come from, and how many denoising steps do real robots take?</p>
+    </div>
+    <details class="deep"><summary>Under the hood: the execution model in the interactive</summary><div class="body">
+      <p><b>Chunk.</b> From Ada's observed position, the teacher from lesson 1.3 builds 16 positions ahead: at each step the shift is \(0.65\,(x_{\text{route}} - x)\) plus the route's own shift, at most 9 cm per step. The observation is exact. 8 steps out of 16 are executed, and then a new chunk is needed.</p>
+      <p><b>Latency.</b> A new chunk is requested when execution of the current one starts and arrives \(d\) steps later; until it arrives, Ada continues the old chunk by step number. The new chunk's commands for steps that have already passed are skipped; on the scene these are the gray dots.</p>
+      <p><b>Controllers.</b> Position: \(x \leftarrow x + (p_j - x) + \varepsilon\). Velocity: \(x \leftarrow x + (p_j - p_{j-1}) + \varepsilon\), where \(p_j\) are the chunk's points and \(\varepsilon\) is a Gaussian miss with the given spread in centimeters. The sequence of misses is the same for both controllers and for any settings: ten runs with seeds 1–10. Ada moves forward 6 cm per step without noise.</p>
+      <p><b>Deviation.</b> Where Ada ended up after a step minus the chunk point she was executing at that step. “At the kettle” is the step at which Ada is closest to the kettle along the way, “at the end of the path” is the last step; both are averaged over the ten runs. A touch is the same as in the lab: the centers come closer than 31 cm.</p>
+      <p>The model is simplified: there's no inertia and no acceleration limit, the observation is noise-free, and the latency is the same for all chunks. The paper compared control of a real UR5 arm, where the actuator dynamics add to these effects.</p>
+    </div></details>
+  </div>
+</section>
+
+<section class="section" id="speed">
+  <div class="wrap">
+    <div class="prose" style="max-width:820px">
+      <div class="kicker"><span class="num">4</span> Speed</div>
+      <h2>How many steps real robots take</h2>
+      <p>Each denoising step is a full pass of a large network. DDPM with 100 steps spends about a second on a T4 GPU, while a robot at 10 Hz waits for a new chunk every 0.6–0.8 seconds. In the lab Ada got by with three or four steps, and real systems go the same way: they cut the number of steps, change the generator and build the next chunk while the current one is executing.</p>
+    </div>
+    <div class="prose" style="max-width:900px">
+      <p>The table is a reference for later: most of the systems in it are covered in the next lessons, and the lesson number is given in parentheses.</p>
+      <div class="tbl-wrap"><table class="speed-tbl">
+        <thead><tr><th>System</th><th>Generator</th><th>Inference steps</th><th>Inference time</th></tr></thead>
+        <tbody>
+          <tr><td>Diffusion Policy, 2023 — the policy of this lesson</td><td>DDIM</td><td>16 (10 in section 3.4 of the paper)</td><td>0.1 s on an RTX 3080</td></tr>
+          <tr><td>Consistency Policy, 2024 — a distilled Diffusion Policy</td><td>distillation</td><td>1–3</td><td>21–22 ms vs ~195 ms for DDIM with 15 steps</td></tr>
+          <tr><td>RDT-1B, 2025 — a bimanual diffusion policy with 1.2B parameters</td><td>DPM-Solver++</td><td>5</td><td>—</td></tr>
+          <tr><td>π0, 2024 — Physical Intelligence model (lesson 3.6)</td><td>flow matching</td><td>10</td><td>73 ms on an RTX 4090</td></tr>
+          <tr><td>GR00T N1, 2025 — NVIDIA model for humanoids (lesson 3.7)</td><td>flow matching</td><td>4</td><td>63.9 ms on an L40</td></tr>
+          <tr><td>ALOHA Unleashed, 2024 — Google DeepMind diffusion policy on a bimanual robot (lesson 1.7)</td><td>DDIM</td><td>50</td><td>43 ms on an RTX 4090</td></tr>
+        </tbody>
+      </table></div>
+      <p class="muted-s tbl-hint">The table is wider than the screen: you can scroll it sideways.</p>
+      <p>Flow matching with Gaussian noise is equivalent to diffusion but learns straighter paths from noise to data, so it needs fewer steps: π0 (Physical Intelligence policy, 2024; lesson 3.6) takes 10 steps, GR00T N1 (NVIDIA model for humanoids, 2025; lesson 3.7) takes 4. We'll cover flow matching in lesson 1.8. Fast inference still doesn't remove the latency entirely: while the network computes, the robot has to execute something. What happens at the seam between chunks?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="seams">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">5</span> Seams</div>
+      <h2>Chunk seams and latency</h2>
+      <p>While the network builds the next chunk, the robot either waits or continues the old one. Synchronous inference stops the robot, and the motion comes out with pauses. Asynchronous inference continues the old chunk and switches to the new one when it's ready. But the new chunk was built from outdated frames and may pick a different strategy, so a jump appears at the seam.</p>
+      <p>You can't smooth the jump by averaging, for the same reason as in lesson 1.3: the average of two strategies can be an invalid action, and the π0 authors rejected averaging. Real-Time Chunking (RTC) from Physical Intelligence works differently. The next chunk is built while the current one is executing; the actions that are already going to the motors are frozen, and the rest are inpainted so that the new chunk continues the one being executed. The method works without retraining and withstands latencies above 300 ms. The diagram below shows both approaches side by side: RTC on the left, naive chunk replacement on the right.</p>
+    </div>
+    <figure class="card scheme-fig">
+      <canvas data-anim="rtc" width="720" height="340" role="img" aria-label="Diagram: two panels with a time axis in steps and a sideways offset; the actions of chunk 1 go to the motors one by one while the network spends several steps building chunk 2. On the left, Real-Time Chunking: the first actions of chunk 2 are frozen as copies of the ones being executed, the rest are inpainted onto the executed line, and the seam has no jump. On the right, naive replacement: chunk 2 is built from new noise and picks a different detour, and there is a jump at the seam"></canvas>
+      <div class="cv-legend" id="rtcLegend"></div>
+      <figcaption class="cv-note">Both panels show the same picture: horizontally, control steps, that is, time; vertically, Ada's sideways offset from the straight line as she goes around the kettle. The orange dots are chunk 1 of 16 actions, and they go to the motors one at a time: filled ones are already executed, the black line is the executed path, and the “motors” strip at the bottom shows which actions have already gone out. At step 4 the network starts building chunk 2 and is busy for 4 steps (the bar at the top), while the robot keeps executing chunk 1. On the left, Real-Time Chunking: the first 4 actions of chunk 2 are frozen (gray squares with a lock), copies of the actions executed while the network was computing; the rest, in purple, are inpainted so as to continue the executed line, and there's no jump at the seam. On the right, naive replacement: chunk 2 is built from new noise using the frames of step 4, picks a different detour, and at step 8 the path jumps (red cross). Click the diagram to pause it.</figcaption>
+    </figure>
+    <div class="prose" style="margin:0;max-width:820px">
+      <p>We'll cover latency and ways of stitching chunks in detail in lesson 1.7, using ACT (a policy for the bimanual ALOHA robot, 2023) as the example. What remains is to understand why a diffusion policy works better than others at all, and whether the authors' explanation holds.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="why">
+  <div class="prose">
+    <div class="kicker"><span class="num">6</span> Why it works</div>
+    <h2>Why the method works</h2>
+    <p>The authors give three explanations. The first is multimodality: the initial noise picks a strategy, denoising carries it through to the end, and there's no averaging. The second is the long output: diffusion describes a distribution over the whole chunk, so it can predict a consistent sequence of actions. The third is stable training: IBC has to estimate the normalization, a sum over all possible actions, from negative examples, while diffusion learns the score (the direction in which to move a point, from lesson 1.4) and doesn't need the normalization.</p>
+    <p>Results, however, have to be kept apart from explanations. The average gain of 46.9% is a comparison in simulation. On real robots the authors report individual tasks: 95% on Push-T, 90% on the mug task. The paper doesn't prove that the gain comes from multimodality specifically.</p>
+    <p>This explanation is disputed. According to Mazza et al., standard benchmarks have almost no conditional modes (lesson 1.3). A 2025 paper (arXiv 2512.01809) on 28 benchmarks attributes the advantage of generative policies to noise during training and iterative steps rather than to the model's expressiveness: a two-step regression policy was barely worse than a flow policy. And when demonstrations from different operators really do diverge, a generative head is needed: in ALOHA Unleashed (Google DeepMind bimanual tasks, 2024; lesson 1.7) diffusion reached 70% success versus 25% for regression with L1.</p>
+    <p>The practical takeaway is this. If the data has one strategy, regression with chunks is cheaper and no worse. If operators solve the task in different ways or the scene allows several solutions, you need a generative policy.</p>
+  </div>
+</section>
+
+<section class="section alt" id="quiz">
+  <div class="prose">
+    <div class="kicker"><span class="num">7</span> Check yourself</div>
+    <h2>Eight common misconceptions</h2>
+    <div class="quiz" id="quizBox"></div>
+    <p class="score" id="quizScore" style="margin-top:14px"></p>
+  </div>
+</section>
+
+<section class="section" id="finale">
+  <div class="prose">
+    <div class="kicker"><span class="num">8</span> Takeaways</div>
+    <h2>Lesson takeaways</h2>
+    <ol class="takeaways">
+      <li><span>Diffusion Policy generates an <strong>action chunk</strong> 16 steps ahead from noise, conditioned on the latest observations. The observations are not noised.</span></li>
+      <li><span>The strategy is picked by the <strong>initial noise</strong> in the first denoising steps, and the chunk holds it, so the robot doesn't weave.</span></li>
+      <li><span><strong>Receding horizon:</strong> predict 16, execute 8. Execute fewer, and the plan switches sides; execute more, and the robot notices scene changes late.</span></li>
+      <li><span>The chunk is <strong>positions, not velocities</strong>: the controller drives toward an absolute target, execution misses don't accumulate, and a late command does less harm. In the interactive, with a 3-step latency, velocities drifted from the chunk several times more than positions.</span></li>
+      <li><span>Few denoising steps are needed: 16 for Diffusion Policy, 10 for π0, 4 for GR00T N1, 1–3 after distillation. One step without distillation gives almost the mean.</span></li>
+      <li><span>Chunk seams are <strong>not averaged</strong>: the next chunk is built onto the one being executed, as in Real-Time Chunking.</span></li>
+      <li><span>Multimodality is the authors' explanation, not a proven cause of the success. If the data has one strategy, <strong>regression with chunks</strong> is cheaper and no worse.</span></li>
+    </ol>
+    <h3 style="margin-top:40px">Open questions</h3>
+    <details class="card pad open-q"><summary>Inference takes 100 ms, and the robot is controlled at 10 Hz. How do you organize execution so that there are neither pauses nor jerks?</summary><p>Build the next chunk asynchronously while the current one is executing, and start inference early, as many steps before the end of the chunk as inference takes. Freeze the actions that will be executed during inference and inpaint the rest of the chunk onto them, as in Real-Time Chunking, instead of averaging chunks. The latency can also be simulated during training. In Hugging Face's LeRobot library, asynchronous inference cut the time per task from 13.75 to 9.7 s.</p></details>
+    <details class="card pad open-q"><summary>The policy outputs positions, and the controller drives toward them on its own. What happens at contact, when Ada needs not to reach a point but to press on an object?</summary><p>Through a stiff controller, a target inside an object turns into a force the policy never specified: the controller keeps pushing until it reaches the point. In practice the position is executed by a compliant controller with a force limit, and for contact-rich tasks policies sometimes output not only a position but also a stiffness or a force. How such controllers live inside the loop of a trained policy is beyond the scope of this lesson.</p></details>
+    <h3 style="margin-top:34px">Paper guide</h3>
+    <p><a href="https://arxiv.org/abs/2303.04137" target="_blank" rel="noopener">C. Chi et al., “Diffusion Policy: Visuomotor Policy Learning via Action Diffusion”, RSS 2023</a>.</p>
+    <ul class="links">
+      <li><strong>Read closely</strong><span>The receding horizon and the choice of the observation, prediction and execution lengths; the comparison of position and velocity control; the experiments on the real Push-T.</span></li>
+      <li><strong>Safe to skip</strong><span>The details of the transformer variant and the tables for individual Robomimic tasks.</span></li>
+      <li><strong>Question to keep in mind</strong><span>Why do the authors recommend starting with the UNet variant rather than the transformer?</span></li>
+    </ul>
+    <h3 style="margin-top:34px">Resources</h3>
+    <ul class="links">
+      <li><a href="https://diffusion-policy.cs.columbia.edu" target="_blank" rel="noopener">Diffusion Policy</a><span>Project site: receding-horizon videos on Push-T and the mug task</span></li>
+      <li><a href="https://github.com/real-stanford/diffusion_policy" target="_blank" rel="noopener">Diffusion Policy code</a><span>The authors' implementation, MIT license</span></li>
+      <li><a href="https://colab.research.google.com/drive/1gxdkgRVfM55zihY9TFLja97cSVZOZq2B" target="_blank" rel="noopener">The authors' Colab</a><span>Training a policy on Push-T in your browser</span></li>
+      <li><a href="https://www.youtube.com/watch?v=M03sZFfW-qU" target="_blank" rel="noopener">Cheng Chi's talk</a><span>The first author on the method and the experiments</span></li>
+      <li><a href="https://arxiv.org/abs/2506.07339" target="_blank" rel="noopener">Real-Time Chunking</a><span>K. Black et al., 2025 — how to stitch chunks without pauses or jerks</span></li>
+      <li><a href="https://www.youtube.com/watch?v=HYwekersccY" target="_blank" rel="noopener">Atlas and Large Behavior Model</a><span>Boston Dynamics and TRI, 2025 — a diffusion policy on a humanoid</span></li>
+    </ul>
+    <div class="callout insight" style="margin-top:34px"><span class="ico">➡️</span><div><p><strong>Next: the Transformer.</strong> The UNet variant of Diffusion Policy works well with one or two cameras. Modern policies take many cameras, a text command and an observation history as input, and almost all of them are built on the transformer. How it works and why it suits policies — <a href="1-6-transformer.html">lesson 1.6, “The Transformer”</a>.</p></div></div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Lesson 1.5 of the Modern Robotics and Physical AI course. All neural networks train and run locally in your browser.
+</footer>
+<div class="tooltip" id="tooltip" role="tooltip"></div>
+<script>
+/*@@JS@@*/
+</script>
+</body>
+</html>
