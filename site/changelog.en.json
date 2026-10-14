@@ -1,0 +1,204 @@
+{
+  "_comment": "What's new on the site, English version: the same versions and dates as site/changelog.json, titles and items in English. The first number of a version is the last released part, the second grows with every update between releases. An entry with a future date appears on the page on that day (Moscow time). Newest first.",
+  "versions": [
+    {
+      "v": "5.0",
+      "date": "2026-10-31",
+      "title": "Part 5: reinforcement learning",
+      "items": [
+        "Lessons 5.1 “RL basics: reward, value, advantage”, 5.2 “Policy gradient and PPO”, 5.3 “Off-policy and SAC”, 5.4 “Sim-to-real transfer: randomization”, 5.5 “Learning with privileged information”, 5.6 “Offline RL”, 5.7 “RL on real robots and VLA fine-tuning”, and the Part 5 check with a live scene task.",
+        "Animated diagrams: the agent–environment loop and the Bellman update, a policy gradient step and the PPO cycle, the replay buffer and the SAC update, a command's path in the simulator and on the real arm, the automatic domain randomization loop, the two teacher–student stages and RMA, three ways to learn from experience, the HIL-SERL loop and RECAP.",
+        "Training in the Part 5 labs gives the same numbers in Chrome, Safari and on the iPhone: the lesson engines don't depend on the browser's built-in math.",
+        "36 new glossary terms."
+      ]
+    },
+    {
+      "v": "4.0",
+      "date": "2026-10-24",
+      "title": "Part 4: data for training robots",
+      "items": [
+        "Lessons 4.1 “The scale of data in robotics”, 4.2 “Teleoperation and collection devices”, 4.3 “Robot datasets”, 4.4 “Learning from human videos”, 4.5 “Simulation and synthetic data”, 4.6 “The data pyramid and the flywheel”, and the Part 4 check with a live scene task.",
+        "Animated diagrams: collection devices — the GELLO leader arm, a VR headset, DexCap gloves, exoskeletons and the UMI handheld gripper; how human videos become robot data; MimicGen demonstration generation; the GR00T N1 data pyramid and the data flywheel.",
+        "28 new glossary terms."
+      ]
+    },
+    {
+      "v": "3.0",
+      "date": "2026-10-17",
+      "title": "Part 3: foundation models for robots",
+      "items": [
+        "Lessons 3.1 “RT-1”, 3.2 “Vision-language models”, 3.3 “RT-2”, 3.4 “Open X-Embodiment”, 3.5 “Open VLAs: Octo, OpenVLA”, 3.6 “π0”, 3.7 “Two-level architectures: Helix, GR00T, Gemini Robotics”, 3.8 “Generalization and reasoning: from π0.5 to π0.7”, and the Part 3 check with a live scene task.",
+        "Every lesson has an animated diagram of how the model or dataset is built.",
+        "41 new glossary terms."
+      ]
+    },
+    {
+      "v": "2.9",
+      "date": "2026-10-14",
+      "title": "Lessons 1.4 and 1.5 made clearer: diagrams, lab instructions, quizzes",
+      "items": [
+        "Lesson 1.4: a diagram of the idea behind diffusion (from data to noise and back), a DDPM vs DDIM diagram from a single start, a guidance weight diagram; the lab now says that generation starts from 1,000 random noise points; the quiz asks about the approach as a whole, without the confidence mechanic.",
+        "Lesson 1.5: a Real-Time Chunking vs naive chunk replacement diagram; a new section “Position or velocity: what the policy outputs” with an interactive on latency and error accumulation; the side-choice corridor is shown in the scene; a strip of runs shows side switches, and clicking a run highlights its path; the systems table is readable; the quiz checks understanding."
+      ]
+    },
+    {
+      "v": "2.8",
+      "date": "2026-10-13",
+      "title": "Lesson 1.4: diffusion on robot actions",
+      "items": [
+        "A new section at the end of lesson 1.4, “The same points, but they are Ada's actions”: the lesson's denoiser is trained on kettle-detour actions from lesson 1.3 and generates 100 actions that land in both clusters, while the regression average lands on the kettle; a mission with a 70/30 skew and free mode.",
+        "The introduction of lesson 1.4 is rewritten without jargon: what the points on the plane are and why they stand in for robot actions."
+      ]
+    },
+    {
+      "v": "2.7",
+      "date": "2026-10-13",
+      "title": "The cloud is back, the banner is gone",
+      "items": [
+        "The “thanks” counter, end-of-lesson feedback and anonymous statistics work again: Yandex Cloud Functions are responding. Reader events from 11 to 13 October were not recorded."
+      ]
+    },
+    {
+      "v": "2.6",
+      "date": "2026-10-12",
+      "title": "The lesson header hides while scrolling",
+      "items": [
+        "The lesson header with sections hides when you scroll down and comes back when you scroll up, so on a phone it doesn't take up the screen.",
+        "Lesson 1.3: autoregression is named the fifth way to output an action distribution, with its own row in the main table; the chunk diagram caption says “generates” instead of “throws out”."
+      ]
+    },
+    {
+      "v": "2.5",
+      "date": "2026-10-12",
+      "title": "Models from later lessons are introduced at first mention",
+      "items": [
+        "Lessons 1.3–1.8 and 2.1–2.3: every model covered in a later lesson (RT-1, RT-2, OpenVLA, Octo, π0, GR00T N1, Helix, Gemini Robotics, ACT, SmolVLA and others) gets a short introduction at its first mention in a lesson: who made it, the year and the lesson where it is covered. Reference tables now say which lesson each model belongs to."
+      ]
+    },
+    {
+      "v": "2.4",
+      "date": "2026-10-12",
+      "title": "Banner about the Yandex Cloud outage",
+      "items": [
+        "A temporary banner under the header of every page: the “thanks” counter and end-of-lesson feedback don't work because of the Yandex Cloud outage after attacks on the data centers, with a link to the official message and to the “Продакт роботов” channel. It will go away when the cloud recovers."
+      ]
+    },
+    {
+      "v": "2.3",
+      "date": "2026-10-12",
+      "title": "Lesson 1.3 rebuilt, lab 0.1 shows your progress",
+      "items": [
+        "Lesson 1.3 “Action multimodality”: it now starts with an experiment where Ada hits the kettle even though the demonstrations only show detours, and only then explains why. New diagrams: five sources of multiple strategies in data and four more ways “under the hood”. The lab on bins and autoregression, the section on action chunks and their seams and the quiz questions are rewritten to be clearer; no names of models from later lessons.",
+        "Lesson 0.1, lab 1: after a run you can see which experiment you've completed and what comes next; the debrief of the first experiment says there are five of them.",
+        "In all labs, after “Next mission” the new mission's instructions scroll into view and are highlighted."
+      ]
+    },
+    {
+      "v": "2.2",
+      "date": "2026-10-11",
+      "title": "Lesson 0.1 based on reader comments",
+      "items": [
+        "The timeline is rewritten in plain words; VLA is introduced at the first mention of π0.",
+        "Lab 1: the description of the three versions of Ada explains how the hybrid works; the “safety monitor” is renamed the “safety rule”; the button at the end of the debrief is called “Experiment N of 5” and leads to the next experiment's instructions.",
+        "Lab 2: the debrief about data moved into the “Data path” card.",
+        "A new “Acknowledgements” section on the home page: readers whose comments made it into the lessons (@SergeyDutov, @ilyazakharau)."
+      ]
+    },
+    {
+      "v": "2.1",
+      "date": "2026-10-11",
+      "title": "Markup for search engines",
+      "items": [
+        "The home page and every lesson now carry a description for search engines: the course, its lessons, the author, publication dates. Readers don't see it; search engines use it to show the course and lessons in more detail.",
+        "In the sitemap every page has its own last-modified date instead of a shared build date."
+      ]
+    },
+    {
+      "v": "2.0",
+      "date": "2026-10-10",
+      "title": "Part 2: spatial representations, language and planning",
+      "items": [
+        "Lessons 2.1 “Transporter and CLIPort”, 2.2 “PerAct: 3D representations and language”, 2.3 “LLM planners and VoxPoser”, and the Part 2 check.",
+        "14 new glossary terms; their tooltips also appeared in earlier lessons, for example for “large language models” in 0.1.",
+        "Lesson 2.2 has an animated diagram of the PerAct data path: four cameras, a voxel grid, patches, latents, voxel scoring."
+      ]
+    },
+    {
+      "v": "1.6",
+      "date": "2026-10-09",
+      "title": "Lab 1 step by step and a diagram of ways to output an action",
+      "items": [
+        "Lesson 0.1, the lab “Three versions of Ada, one task”: the prediction, scenes, run and debrief now go in order from top to bottom. In the five experiments the conditions are set automatically; settings and dragging objects open in free mode after all the experiments.",
+        "Lesson 0.1, the “Success vs number of demonstrations” chart: explains why each network first has a single point and how to get the curves.",
+        "Lesson 1.3: an animated diagram “Four ways to output an action” — regression, a mixture of Gaussians, bins and diffusion on the same kettle-detour data."
+      ]
+    },
+    {
+      "v": "1.5",
+      "date": "2026-10-08",
+      "title": "Captions, legends and terms in words",
+      "items": [
+        "Lessons 0.1–1.8: scenes, diagrams and charts got captions and legends — what view it is, where Ada and her arm are, what the lines and markers mean, which units the numbers are in.",
+        "The words that sections rely on are explained in the text at first mention: policy, torque, action chunk, reinforcement learning, loss function. Lesson headers no longer use terms that are explained further down.",
+        "In all lessons the program that knows the route is called the teacher, and the operator is the person who records demonstrations.",
+        "Lesson 0.1: the demonstrations picture shows the robot's hand and a legend (based on reader feedback), and the lab 1 markers are collected in a collapsible legend under the scenes. Ada is a humanoid on a wheeled base: her drawing and the body diagram in lesson 0.2 are updated.",
+        "Eight new glossary entries: teacher, expert, reinforcement learning, epoch, loss function, torque, IMU, cross-attention."
+      ]
+    },
+    {
+      "v": "1.4",
+      "date": "2026-10-08",
+      "title": "Privacy policy",
+      "items": [
+        "A “Privacy policy” page: what the site counts, what is stored in the browser and where the data lives; the site does not process personal data. The link is in the footer of every page.",
+        "End-of-lesson feedback: email addresses and phone numbers are removed from the text before it is sent, and again on the server.",
+        "The statistics server and the “thanks” counter no longer read IP addresses, not even for rate limiting."
+      ]
+    },
+    {
+      "v": "1.3",
+      "date": "2026-10-08",
+      "title": "Sensor diagrams, ALOHA and the ALVINN network",
+      "items": [
+        "Lesson 0.2: six animated sensor diagrams — encoder, inertial unit, force/torque sensor, depth camera, lidar, GelSight tactile sensor. Backdrivability and transparency of an actuator are now told apart.",
+        "Lesson 1.7: an animated diagram of ALOHA teleoperation — leader and follower arms.",
+        "Lesson 1.1: a diagram of the mini-ALVINN network with hidden-neuron weights; the εT² chart has a linear-axes switch and a reference parabola.",
+        "Lesson 0.1: the approaches have the same names in all exercises — “Rules”, “End-to-end”, “Hybrid”; the text explicitly connects the classical stack, the modular stack and rules. In the “Who to trust with what” task the approaches go in the same order as in the rest of the lesson (based on reader feedback).",
+        "This page — “What's new” — appeared on the home page."
+      ]
+    },
+    {
+      "v": "1.2",
+      "date": "2026-10-07",
+      "title": "Part 1 check and fixes to lessons 0.1 and 0.2",
+      "items": [
+        "Part 1 check: 16 tasks on lessons 1.1–1.8, mixed, and a scene task with the kettle.",
+        "Lesson 0.2: animated diagrams of six actuators, real robot photos in one style, a clearer section on actuators.",
+        "Lesson 0.1: wording fixed based on reader comments, camera noise in the lab, a confirmation that feedback was sent.",
+        "Fixed a jumping slider in task 16 of the Part 1 check."
+      ]
+    },
+    {
+      "v": "1.1",
+      "date": "2026-10-06",
+      "title": "Lessons 1.3–1.8, glossary and Part 0 check",
+      "items": [
+        "Lessons 1.3 “Action multimodality”, 1.4 “Diffusion models”, 1.5 “Diffusion Policy”, 1.6 “Transformer”, 1.7 “ACT” and 1.8 “Flow matching”.",
+        "The course glossary and term tooltips at first mention in a lesson.",
+        "Part 0 check: tasks on lessons 0.1–0.4, mixed.",
+        "A warm-up at the start of each lesson: three questions on the previous lesson. Progress marks on the home page and a “Continue” button.",
+        "The “Was the lesson clear?” question and end-of-lesson feedback; anonymous page statistics without cookies.",
+        "Formulas are typeset with KaTeX, mission texts brought to one style."
+      ]
+    },
+    {
+      "v": "1.0",
+      "date": "2026-10-05",
+      "title": "Course launch",
+      "items": [
+        "The course site, a program of 9 parts and the first lessons: 0.1–0.4 and 1.1–1.2.",
+        "All labs run in the browser; neural networks train right on the page."
+      ]
+    }
+  ]
+}
