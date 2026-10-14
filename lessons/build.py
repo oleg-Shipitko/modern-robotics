@@ -3,8 +3,13 @@
 Запуск: python3 lessons/build.py l01   (или l11, или all)
 Результат — в site/lessons/. MR_ASOF=ГГГГ-ММ-ДД — собрать уроки такими, какими они станут
 в день выпуска (ссылки на страницы, которые выходят в этот день; см. site/published.py).
+Английская версия (sources/i18n-spec.md): MR_LANG=en python3 lessons/build.py l01 — читает lXX/lesson.en.html,
+к JS применяет словари i18n.en.json (папки каждого подключённого файла, shared и самого урока), глоссарий —
+из shared/glossary.en.json, результат — в site/en/lessons/. Урок без lesson.en.html по-английски не собирается.
+  python3 lessons/build.py l01 --both     обе версии (all --both — все уроки на обоих языках)
+  MR_LANG=en python3 lessons/build.py l01 --strict   упасть, если в JS остались литералы с кириллицей
 """
-import pathlib, subprocess, sys
+import os, pathlib, subprocess, sys
 root = pathlib.Path(__file__).resolve().parent
 LESSONS = {
     # урок: (файл, css-файлы, {маркер: js-файлы})
@@ -165,7 +170,54 @@ CFG = json.loads((root.parent / 'site' / 'config.json').read_text(encoding='utf-
 sys.path.insert(0, str(root.parent / 'site'))
 from published import published, asof  # noqa: E402
 import seo  # noqa: E402
+sys.path.insert(0, str(root.parent / 'tools'))
+from i18n_extract import literals, load_dict, translate_js, CYR  # noqa: E402
 PUB = {pathlib.Path(p['file']).name for p in published(CFG)}  # опубликованное на момент сборки (MR_ASOF)
+# ---------- Язык сборки: ru (как есть) или en (MR_LANG=en, см. sources/i18n-spec.md) ----------
+LANG = os.environ.get('MR_LANG', 'ru')
+assert LANG in ('ru', 'en'), f'MR_LANG={LANG}: язык сборки — ru или en'
+EN = LANG == 'en'
+STRICT = '--strict' in sys.argv
+LESSON_SRC = 'lesson.en.html' if EN else 'lesson.html'
+OUT_DIR = root.parent / 'site' / ('en/lessons' if EN else 'lessons')
+def has_en(key):
+    """Есть ли у урока английский исходник (тогда есть и английская страница — на неё ведут переключатель и hreflang)."""
+    return (root / key / 'lesson.en.html').exists()
+_dicts = {}
+def i18n_dict(folder):
+    """Словарь переводов папки lessons/<folder>/i18n.en.json (пустой, если файла нет)."""
+    if folder not in _dicts:
+        _dicts[folder] = load_dict(root / folder / 'i18n.en.json')
+    return _dicts[folder]
+def js_source(f, key):
+    """Файл JS для сборки. В английской версии к нему применяются словари его папки (l21/engine.js переводит
+    l21/i18n.en.json, у кого бы он ни был подключён), общий shared/i18n.en.json и словарь самого урока."""
+    js = (root / f).read_text(encoding='utf-8')
+    if EN:
+        js = translate_js(js, i18n_dict(f.split('/')[0]), i18n_dict('shared'), i18n_dict(key))
+        for ru, en in EN_CODE:  # правила языка в коде (склонение по числу): русские три формы → английские две
+            js = js.replace(ru, en)
+    return js
+# В английской сборке функции склонения по числу работают по английскому правилу: 1 — единственное число, иначе
+# множественное (форма few совпадает с many в словарях перевода). Замена точная: если код функции изменится,
+# сборка просто оставит русское правило, а тест английских страниц заметит странные формы.
+EN_CODE = [
+    ('function plural(n, one, few, many) {\n  const a = Math.abs(n) % 100, b = a % 10;',
+     'function plural(n, one, few, many) {\n  if (true) return Math.abs(n) === 1 ? one : many;\n  const a = Math.abs(n) % 100, b = a % 10;'),
+    ('const plural = (n, one, few, many) => { const a = Math.abs(n) % 100, b = a % 10;',
+     'const plural = (n, one, few, many) => { if (true) return Math.abs(n) === 1 ? one : many; const a = Math.abs(n) % 100, b = a % 10;'),
+]
+def check_cyrillic(page, key):
+    """После подстановки переводов: сколько строковых литералов с кириллицей осталось в скриптах страницы
+    (кроме JSON-данных). Предупреждение; с --strict — ошибка сборки."""
+    js = '\n'.join(m.group(1) for m in re.finditer(r'<script(?![^>]*\btype="application/)[^>]*>(.*?)</script>', page, flags=re.S))
+    rest = [l for l in literals(js) if CYR.search(l)]
+    if rest:
+        msg = f'ВНИМАНИЕ {key}: в JS английской версии осталось литералов с кириллицей: {len(rest)} (например: {rest[0][:70]!r})'
+        if STRICT:
+            sys.exit(msg)
+        print(msg)
+    return len(rest)
 def only_published(page):
     """Блок <!--if:proverka-chasti-1.html-->…<!--/if--> остаётся, только если страница уже опубликована:
     так ссылка на страницу из субботнего выпуска появляется в уроке вместе с ней."""
@@ -173,8 +225,9 @@ def only_published(page):
     assert '<!--if:' not in out and '<!--/if-->' not in out, 'незакрытый блок <!--if:…-->'
     return out
 SITE_URL = CFG.get('SITE_URL', '').rstrip('/')
-def add_og(page, name):
-    """Превью ссылок для мессенджеров и соцсетей: заголовок и описание берём из самого урока."""
+def add_og(page, name, key):
+    """Превью ссылок для мессенджеров и соцсетей: заголовок и описание берём из самого урока. Там же — canonical,
+    hreflang на обе языковые версии, og:locale и разметка JSON-LD на языке сборки."""
     if 'og:title' in page or not SITE_URL:
         return page
     t = re.search(r'<title>(.*?)</title>', page, flags=re.S)
@@ -182,20 +235,24 @@ def add_og(page, name):
     if not t or not d:
         return page
     title = t.group(1).strip()
-    url = f'{SITE_URL}/lessons/{name}'
-    tags = (f'<meta property="og:type" content="article">\n<meta property="og:site_name" content="Modern Robotics и Physical AI">\n'
+    file = f'lessons/{name}'
+    url = seo.page_url(SITE_URL, file, LANG)
+    locale, alt_locale = ('en_US', 'ru_RU') if EN else ('ru_RU', 'en_US')
+    tags = (f'<meta property="og:type" content="article">\n<meta property="og:site_name" content="{seo.COURSE_NAMES[LANG]}">\n'
             f'<meta property="og:title" content="{title}">\n<meta property="og:description" content="{d.group(1)}">\n'
             f'<meta property="og:url" content="{url}">\n<meta property="og:image" content="{SITE_URL}/assets/og.png">\n'
             f'<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">\n'
-            f'<meta property="og:locale" content="ru_RU">\n<meta name="twitter:card" content="summary_large_image">\n'
-            f'<link rel="canonical" href="{url}">\n')
+            f'<meta property="og:locale" content="{locale}">\n')
+    if EN or has_en(key):  # другая языковая версия есть
+        tags += f'<meta property="og:locale:alternate" content="{alt_locale}">\n'
+    tags += (f'<meta name="twitter:card" content="summary_large_image">\n<link rel="canonical" href="{url}">\n'
+             + seo.hreflang_links(SITE_URL, file, EN or has_en(key)))
     # разметка для поисковиков: урок как часть курса и «хлебные крошки» курс → часть → урок
     today = asof().date().isoformat()
-    file = f'lessons/{name}'
-    kick = re.search(r'<div class="kicker"><span class="num">[\d.]+</span>\s*(Часть \d+)\s*·\s*([^<]+)</div>', page)
+    kick = re.search(r'<div class="kicker"><span class="num">[\d.]+</span>\s*((?:Часть|Part) \d+)\s*·\s*([^<]+)</div>', page)
     part = f'{kick.group(1)}. {kick.group(2).strip()}' if kick else None
     modified = seo.page_date(file, CFG, today)
-    tags += seo.lesson_ld(SITE_URL, file, title, d.group(1), min(seo.page_first_date(file, CFG, today), today), min(modified, today), part)
+    tags += seo.lesson_ld(SITE_URL, file, title, d.group(1), min(seo.page_first_date(file, CFG, today), today), min(modified, today), part, LANG)
     return page.replace(d.group(0), d.group(0) + '\n' + tags, 1)
 FEEDBACK = ('  <div class="fb" data-fb>\n'
             '    <div class="fb-q">Урок был понятен?</div>\n'
@@ -212,30 +269,59 @@ THANKS = ('<section class="thanks-end" aria-label="Отзыв и спасибо"
           '{feedback}'
           '  <div class="thanks" data-thanks data-channel="{channel}"><span class="thanks-text">Урок пригодился? Скажи спасибо — так автор узнает, что курс читают.</span></div>\n'
           '</section>\n')
+# то же для английской версии: разметка и атрибуты те же, тексты — по-английски
+FEEDBACK_EN = ('  <div class="fb" data-fb>\n'
+               '    <div class="fb-q">Was the lesson clear?</div>\n'
+               '    <div class="fb-opts" role="group" aria-label="How clear was the lesson"><button type="button" data-r="good" aria-pressed="false">All clear</button>'
+               '<button type="button" data-r="mid" aria-pressed="false">Hard in places</button><button type="button" data-r="bad" aria-pressed="false">Mostly unclear</button></div>\n'
+               '    <div class="fb-saved" hidden aria-live="polite">✓ Rating saved. If you like, tell me what was unclear — this is optional.</div>\n'
+               '    <div class="fb-more" hidden><label for="fbText">What was unclear, or what could be improved?</label>'
+               '<textarea id="fbText" maxlength="1000" rows="3"></textarea>'
+               '<div class="fb-row"><button type="button" class="fb-send">Send</button><span class="fb-note">Feedback is stored without a name or contacts: email addresses and phone numbers are removed before sending, so it cannot be answered.</span></div></div>\n'
+               '    <div class="fb-done" hidden aria-live="polite">Thanks, your feedback is saved.</div>\n'
+               '    <div class="fb-bug">Found a mistake or inaccuracy? <a href="{issue}" target="_blank" rel="noopener">Report it on GitHub</a></div>\n'
+               '  </div>\n')
+THANKS_EN = ('<section class="thanks-end" aria-label="Feedback and thanks">\n'
+             '{feedback}'
+             '  <div class="thanks" data-thanks data-channel="{channel}"><span class="thanks-text">Found this lesson useful? Say thanks — that is how the author knows the course is being read.</span></div>\n'
+             '</section>\n')
 def issue_url(page, name):
-    """Ссылка «Сообщить на GitHub»: новая задача с названием урока и шаблоном текста."""
+    """Ссылка «Сообщить на GitHub»: новая задача с названием урока и шаблоном текста (на языке версии)."""
     t = re.search(r'<title>(.*?)</title>', page, flags=re.S)
     title = t.group(1).split(' — ')[0].strip() if t else name
-    body = f'Урок: {title} — {SITE_URL}/lessons/{name}\nРаздел: \nЧто не так: \nКак правильно, если знаешь: \n'
+    url = seo.page_url(SITE_URL, f'lessons/{name}', LANG)
+    body = (f'Lesson: {title} — {url}\nSection: \nWhat is wrong: \nHow it should be, if you know: \n' if EN
+            else f'Урок: {title} — {url}\nРаздел: \nЧто не так: \nКак правильно, если знаешь: \n')
     return f"{CFG.get('REPO', '').rstrip('/')}/issues/new?title={urllib.parse.quote(title + ': ')}&body={urllib.parse.quote(body)}"
-def add_thanks(page, name):
+def add_thanks(page, name, key):
     """Конец урока: отзыв (shared/feedback.*) и кнопка «Сказать спасибо» с общим счётчиком (shared/thanks.*, адрес — THANKS_API в config.json)."""
-    js = (root / 'shared/thanks.js').read_text(encoding='utf-8')
+    js = js_source('shared/thanks.js', key)
     assert '</script' not in js
-    fb = FEEDBACK.format(issue=_html.escape(issue_url(page, name), quote=True))
-    page = page.replace('</main>', THANKS.format(feedback=fb, channel=_html.escape(CFG.get('CHANNEL', ''), quote=True)) + '</main>', 1)
+    fb = (FEEDBACK_EN if EN else FEEDBACK).format(issue=_html.escape(issue_url(page, name), quote=True))
+    page = page.replace('</main>', (THANKS_EN if EN else THANKS).format(feedback=fb, channel=_html.escape(CFG.get('CHANNEL', ''), quote=True)) + '</main>', 1)
     return page.replace('</body>', f'<script>\nwindow.MR_THANKS_API = {json.dumps(CFG.get("THANKS_API", ""))};\n{js}</script>\n</body>', 1)
-def add_stats(page):
+def add_stats(page, key):
     """Анонимная статистика (shared/stats.js, адрес — STATS_API в config.json), отзыв (feedback.js) и прогресс в браузере (progress.js)."""
-    js = '\n'.join((root / 'shared' / f).read_text(encoding='utf-8') for f in ('stats.js', 'feedback.js', 'progress.js', 'recall.js', 'glossary.js'))
+    js = '\n'.join(js_source('shared/' + f, key) for f in ('stats.js', 'feedback.js', 'progress.js', 'recall.js', 'glossary.js'))
     assert '</script' not in js
     return page.replace('</body>', f'<script>\nwindow.MR_STATS_API = {json.dumps(CFG.get("STATS_API", ""))};\n{js}</script>\n</body>', 1)
 # ---------- Глоссарий: подсказки к терминам при первом упоминании (shared/glossary.*) ----------
 GLOSSARY_ALL = json.loads((root / 'shared/glossary.json').read_text(encoding='utf-8'))
+# английская версия: термин (t), определение (d) и формы для поиска (a) — из shared/glossary.en.json по id,
+# остальное (урок, раздел, only, before) — из русского файла; термин без перевода в английской версии не показывается
+GLOSSARY_EN = {g['id']: g for g in json.loads((root / 'shared/glossary.en.json').read_text(encoding='utf-8'))} if EN and (root / 'shared/glossary.en.json').exists() else {}
+if EN and not GLOSSARY_EN:
+    print('ВНИМАНИЕ: нет lessons/shared/glossary.en.json — в английской версии подсказок к терминам и глоссария не будет')
+def gl_lang(g):
+    """Запись глоссария на языке сборки (после подстановки 'before', чтобы определение было переведённым)."""
+    if not EN:
+        return g
+    e = GLOSSARY_EN.get(g['id'])
+    return {**g, 't': e['t'], 'd': e['d'], 'a': e['a']} if e else None
 # термины уроков, которые ещё не вышли на момент сборки, не показываем: ни в подсказках, ни на странице глоссария
 # термин, который переезжает в более поздний урок, до его выхода берёт поля из 'before' (урок, раздел, определение)
-GLOSSARY = [g if LESSONS[g['l']][0] in PUB else {**g, **g['before']} for g in GLOSSARY_ALL
-            if LESSONS[g['l']][0] in PUB or (g.get('before') and LESSONS[g['before']['l']][0] in PUB)]
+GLOSSARY = [x for x in (gl_lang(g if LESSONS[g['l']][0] in PUB else {**g, **g['before']}) for g in GLOSSARY_ALL
+            if LESSONS[g['l']][0] in PUB or (g.get('before') and LESSONS[g['before']['l']][0] in PUB)) if x]
 SKIP_TAGS = {'a', 'h1', 'h2', 'h3', 'h4', 'button', 'label', 'code', 'pre', 'script', 'style', 'summary', 'svg', 'canvas', 'select', 'textarea', 'figcaption'}
 _gl_info = None
 def gl_info():
@@ -245,8 +331,8 @@ def gl_info():
         _gl_info, titles = {}, {}
         for g in GLOSSARY:
             name = LESSONS[g['l']][0]
-            if g['l'] not in titles:
-                src = (root / g['l'] / 'lesson.html').read_text(encoding='utf-8')
+            if g['l'] not in titles:  # названия разделов — из исходника на языке сборки (если английского нет — из русского)
+                src = (root / g['l'] / (LESSON_SRC if (root / g['l'] / LESSON_SRC).exists() else 'lesson.html')).read_text(encoding='utf-8')
                 titles[g['l']] = {m.group(1): re.sub(r'<[^>]+>', '', h.group(1)).strip()
                                   for m in re.finditer(r'<section[^>]*\bid="([a-z][a-zA-Z0-9-]*)"[^>]*>(.*?)</section>', src, flags=re.S)
                                   for h in [re.search(r'<h2[^>]*>(.*?)</h2>', m.group(2), flags=re.S)] if h}
@@ -299,9 +385,20 @@ def glossarize(page, key):
     data = {gid: {**info[gid], 'here': info[gid]['k'] == key} for gid in used}
     tag = '<script type="application/json" id="glData">' + json.dumps(data, ensure_ascii=False).replace('</', '<\\/') + '</script>\n'
     return page[:a] + ''.join(out) + tag + page[b:]
+def lang_switch(key, name):
+    """Переключатель языка в шапке урока: «EN» на русской странице (на английскую версию урока, а без неё — на
+    английскую главную), «RU» на английской — на русскую версию того же урока."""
+    if EN:
+        return f'<a class="topbar-lang" href="../../lessons/{name}" hreflang="ru" lang="ru" title="Русская версия">RU</a>'
+    if has_en(key):
+        return f'<a class="topbar-lang" href="../en/lessons/{name}" hreflang="en" lang="en" title="English version">EN</a>'
+    return '<a class="topbar-lang" href="../en/" hreflang="en" lang="en" title="This lesson is not translated yet">EN</a>'
 def build(key):
     name, css_files, js_map = LESSONS[key]
-    html = only_published((root / key / 'lesson.html').read_text(encoding='utf-8'))
+    html = only_published((root / key / LESSON_SRC).read_text(encoding='utf-8'))
+    if EN:  # язык документа — английский (переводчик мог оставить lang="ru")
+        html = re.sub(r'<html\s+lang="ru(?:-RU)?"', '<html lang="en"', html, count=1)
+        assert re.search(r'<html[^>]*\blang="en(?:-[A-Za-z]+)?"', html), f'{key}/lesson.en.html: нужен <html lang="en">'
     if '\\(' in html or '\\[' in html:  # формулы KaTeX рендерим сразу в HTML, в браузер — только стили и шрифты
         r = subprocess.run(['node', str(root.parent / 'tools/katex_render.js'), key], input=html, capture_output=True, text=True, encoding='utf-8')
         if r.returncode:
@@ -318,27 +415,37 @@ def build(key):
     assert '/*@@CSS@@*/' in html
     html = html.replace('/*@@CSS@@*/', css)
     for marker, files in js_map.items():
-        js = '\n'.join((root / f).read_text(encoding='utf-8') for f in files)
+        js = '\n'.join(js_source(f, key) for f in files)
         assert '</script' not in js, 'в JS не должно быть закрывающего тега script'
         assert marker in html, marker
         html = html.replace(marker, js)
-    html = add_og(html, name)
+    html = add_og(html, name, key)
+    assert '<button class="theme-btn"' in html and '</footer>' in html, key
     if key != 'gl':  # путь в глоссарий: ссылка в верхней панели (на широких экранах) и в подвале
-        assert '<button class="theme-btn"' in html and '</footer>' in html, key
-        html = html.replace('<button class="theme-btn"', '<a class="topbar-gl" href="glossariy.html">Глоссарий</a>\n    <button class="theme-btn"', 1)
-        html = html.replace('</footer>', '  <p class="foot-gl"><a href="glossariy.html">Глоссарий курса</a> — термины с определениями и ссылками на уроки.</p>\n</footer>', 1)
-    # политика конфиденциальности — в подвале каждой страницы курса
-    html = html.replace('</footer>', '  <p class="foot-pp"><a href="../privacy.html">Политика конфиденциальности</a></p>\n</footer>', 1)
-    if CFG.get('NOTICE'):  # временная плашка под шапкой, как на сайте (site/config.json → NOTICE)
-        html = re.sub(r'(<main[^>]*>)', lambda m: m.group(1) + '\n<div class="site-notice" role="status">' + CFG['NOTICE'] + '</div>', html, count=1)
+        html = html.replace('<button class="theme-btn"', ('<a class="topbar-gl" href="glossariy.html">Glossary</a>' if EN else
+                            '<a class="topbar-gl" href="glossariy.html">Глоссарий</a>') + '\n    <button class="theme-btn"', 1)
+        html = html.replace('</footer>', ('  <p class="foot-gl"><a href="glossariy.html">Course glossary</a> — terms with definitions and links to the lessons.</p>\n' if EN else
+                            '  <p class="foot-gl"><a href="glossariy.html">Глоссарий курса</a> — термины с определениями и ссылками на уроки.</p>\n') + '</footer>', 1)
+    # переключатель языка — рядом с кнопкой темы
+    html = html.replace('<button class="theme-btn"', lang_switch(key, name) + '\n    <button class="theme-btn"', 1)
+    # политика конфиденциальности — в подвале каждой страницы курса (внутри /en/ ссылка ведёт на английскую)
+    html = html.replace('</footer>', ('  <p class="foot-pp"><a href="../privacy.html">Privacy policy</a></p>\n' if EN else
+                        '  <p class="foot-pp"><a href="../privacy.html">Политика конфиденциальности</a></p>\n') + '</footer>', 1)
+    notice = CFG.get('NOTICE_EN' if EN else 'NOTICE')
+    if notice:  # временная плашка под шапкой, как на сайте (site/config.json → NOTICE / NOTICE_EN)
+        html = re.sub(r'(<main[^>]*>)', lambda m: m.group(1) + '\n<div class="site-notice" role="status">' + notice + '</div>', html, count=1)
     if key.startswith('l'):
-        html = add_thanks(html, name)
-    html = add_stats(html)
-    out = root.parent / 'site' / 'lessons' / name
+        html = add_thanks(html, name, key)
+    html = add_stats(html, key)
+    if EN:  # страница лежит на уровень глубже (/en/lessons/), общие ассеты — те же
+        html = html.replace('../assets/', '../../assets/')
+        check_cyrillic(html, key)
+    out = OUT_DIR / name
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(html, encoding='utf-8')
     print(f'OK {out.relative_to(root.parent)} ({out.stat().st_size/1024:.0f} КБ)')
-keys = list(LESSONS) if (len(sys.argv) > 1 and sys.argv[1] == 'all') else [sys.argv[1] if len(sys.argv) > 1 else 'l01']
+args = [a for a in sys.argv[1:] if not a.startswith('--')]
+keys = list(LESSONS) if (args and args[0] == 'all') else [args[0] if args else 'l01']
 def assets_of(k):
     name, css, js = LESSONS[k]
     return [root / k / 'lesson.html'] + [root / f for f in css] + [root / f for group in js.values() for f in group]
@@ -346,4 +453,10 @@ for k in keys:
     missing = [str(f.relative_to(root)) for f in assets_of(k) if not f.exists()]
     if missing:
         print(f'— {k}: не хватает файлов ({", ".join(missing[:3])}), пропускаю'); continue
+    if EN and not has_en(k):
+        if len(keys) == 1:
+            print(f'— {k}: нет {k}/lesson.en.html, английская версия не собирается')
+        continue
     build(k)
+if '--both' in sys.argv and not EN:  # вторая версия — отдельным запуском, у неё свои словари и глоссарий
+    subprocess.run([sys.executable, __file__] + [a for a in sys.argv[1:] if a != '--both'], check=True, env={**os.environ, 'MR_LANG': 'en'})

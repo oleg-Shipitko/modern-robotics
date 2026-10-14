@@ -1,0 +1,458 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>0.2 Inside a Robot: Actuators and Sensors — Modern Robotics and Physical AI</title>
+<meta name="description" content="Lesson 0.2 of the course Modern Robotics and Physical AI: degrees of freedom, actuators and sensors. Why the gear ratio decides the outcome of an impact, and how a small network learns an actuator model from data.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<script>
+  (function () { try { var t = localStorage.getItem('mr-theme'); if (t) document.documentElement.dataset.theme = t; else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme = 'dark'; } catch (e) {} })();
+</script>
+<style>
+/*@@CSS@@*/
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html#program" title="To the course program"><div>Modern Robotics and Physical AI<small>Lesson 0.2 · Inside a robot</small></div></a>
+    <nav class="toc" aria-label="Lesson sections">
+      <a href="#io">Input and output</a>
+      <a href="#dof">Degrees of freedom</a>
+      <a href="#gear">Gearbox</a>
+      <a href="#types">Actuators</a>
+      <a href="#sensors">Sensors</a>
+      <a href="#ladder">Rates</a>
+      <a href="#model">Actuator model</a>
+      <a href="#quiz">Check</a>
+      <a href="#finale">Takeaways</a>
+    </nav>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Toggle theme">◐</button>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main>
+
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="kicker"><span class="num">0.2</span> Part 0 · Introduction</div>
+    <h1>Inside a <span class="amp">robot</span></h1>
+    <p class="lead">In Lesson 0.1 the network produced a command, and Ada’s gripper instantly moved exactly where it was told. In a real robot, commands are executed by motors with gearboxes, and the robot learns about itself and the world through noisy sensors. A policy is a neural network that picks the robot’s next action from what the robot sees. If you train it on a simplified model of the body, it will get a different response on the real robot. We’ll take the robot’s body apart piece by piece, from what the policy sees down to the motors, and at the end close the gap between a simulated actuator and a real one with a small neural network.</p>
+    <p class="ada-note"><svg class="ada-ico" viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="10" width="48" height="42" rx="18" fill="#f4efe6" stroke="#3d3c38" stroke-width="3"/><rect x="15" y="19" width="34" height="22" rx="10" fill="#1f2430"/><ellipse cx="25" cy="30" rx="4" ry="5.5" fill="#eb6834"/><ellipse cx="39" cy="30" rx="4" ry="5.5" fill="#eb6834"/></svg><span>Ada is a home humanoid on a wheeled base; the course labs are built around her. More about her in <a href="0-1-dve-paradigmy.html#ada">Lesson 0.1</a>.</span></p>
+    <div class="hero-meta"><span>≈ 40 minutes</span><span>2 labs and 5 interactives</span></div>
+    <div class="hero-list">
+      <div><b>BODY</b>What the policy receives and what it outputs: a humanoid diagram and four robots side by side</div>
+      <div><b>JOINTS</b>Reach the cup behind the box and find out why an arm needs a third joint</div>
+      <div><b>IMPACT</b>Pick a gearbox for a jumping robot’s knee: the motor needs torque, and the joint needs a soft landing</div>
+      <div><b>ACTUATORS</b>See how six actuators work and sort robot parts by actuator type</div>
+      <div><b>IMU</b>Tune a filter for the body tilt and rotation sensor (IMU) so that its tilt error stays under 1.6°</div>
+      <div><b>MODEL</b>Find where the simulator diverges from the actuator and close the gap with a network</div>
+    </div>
+    <p style="margin-top:28px"><a class="btn primary" href="#io">Start the lesson ↓</a></p>
+  </div>
+</section>
+
+<section class="recall-sec" id="recall" aria-label="Warm-up on the previous lesson">
+  <div class="wrap"><div class="card recall" data-recall></div></div>
+  <script type="application/json" id="recallData">{"n": "0.1", "title": "Two paradigms: rules and data", "href": "0-1-dve-paradigmy.html", "q": [{"q": "What is the main weakness of the rules-based approach?", "o": ["It runs too slowly for real-time control", "It can’t handle the open world: you can’t write rules for every situation", "It gives no safety guarantees or predictable behavior"], "a": 1, "e": "Rules give guarantees, speed and transparency, but the long tail of situations can’t be listed in advance.", "sec": "tradeoffs", "secTitle": "The price of each approach"}, {"q": "What is a silent failure of a neural network?", "o": ["The network confidently does the wrong thing and doesn’t report an error", "The network stops and calls a human for help", "The network answers late, and the robot freezes"], "a": 0, "e": "With the teal cup, the classic version said \"I can’t see it\" and stopped, while the network confidently drove to the bowl. A loud failure is safer than a silent one.", "sec": "lab1", "secTitle": "Three versions of Ada, one task"}, {"q": "How are most robot control systems built in 2026?", "o": ["Rules only: products don’t trust neural networks", "One neural network from camera to motors, no rules", "Neural networks handle perception and decisions, rules act as a safety net"], "a": 2, "e": "They are two-level neural systems with a safety net of rules, and the learned part grows with every generation.", "sec": "spectrum", "secTitle": "How the approaches combine in 2026"}]}</script>
+</section>
+
+<section class="section alt" id="io">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">1</span> Input and output</div>
+      <h2>What the policy sees and what it controls</h2>
+      <p>What does a policy take as input, and what does it output? A language model answers in text and can think about its reply for as long as it likes: the user will wait. A robot can’t do that. While the network is computing, Ada keeps driving, falling or squeezing the cup, and the motors need new commands thousands of times per second. A big network can’t keep up with that.</p>
+      <p>That’s why control is split into levels. A fast lower level drives the motors; a slow upper level decides what to do. The neural network usually sits in the middle: a few dozen times per second it outputs targets, such as joint angles. From there, controllers take over: simple programs that compare the target with sensor readings and compute how hard to drive the motor.</p>
+      <p>Click the robot’s parts: what’s inside, how fast it runs, and what the policy gets out of it. Below, the same questions for four well-known robots.</p>
+    </div>
+    <div class="card lab-card body-card">
+      <div class="body-grid">
+        <div class="body-fig">
+          <svg id="bodySvg" viewBox="0 0 300 470" role="group" aria-label="Diagram of Ada, a humanoid on a wheeled base: head, torso, joints, hand and wheeled base. Click a body part"></svg>
+          <p class="muted-s body-count" id="bodyCount"></p>
+        </div>
+        <div class="body-side">
+          <div class="body-flow" id="bodyFlow" aria-label="Control loop: from sensors to motors"></div>
+          <div class="body-detail" id="bodyDetail" aria-live="polite"></div>
+        </div>
+      </div>
+    </div>
+    <h3 class="cmp-title">Four robots side by side</h3>
+    <div class="card cmp-card">
+      <div class="cmp" id="bodyCmp"></div>
+    </div>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>So all four policies receive joint angles, add cameras or an IMU, and output target angles that the controllers execute. The policy controls joints. How many does it take to reach a target?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="dof">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">2</span> Degrees of freedom</div>
+      <h2>A joint is one degree of freedom</h2>
+      <p>How many joints does an arm need? Each joint adds one degree of freedom: an angle you can change. A gripper on a plane has two coordinates, so it seems two joints should be enough. But a two-link arm reaches each point in only two poses: elbow up and elbow down. If both hit an obstacle, the target is out of reach.</p>
+      <p>The way out is to add a third joint. It doesn’t make the arm longer, but it lets you choose the pose without moving the gripper. Below are two tasks: drag the gripper and the elbow with your mouse or finger.</p>
+    </div>
+    <div class="lab lab-narrow">
+      <div class="card scene-card">
+        <canvas id="armCv" width="520" height="420" role="img" aria-label="A planar arm of links reaching for a cup behind a box"></canvas>
+        <div class="cv-legend" id="armLegend"></div>
+        <p class="readout" id="armRead"></p>
+        <div class="ctl-row">
+          <div class="seg" id="armJointsWrap" role="group" aria-label="Number of joints"><button type="button" data-n="2" aria-pressed="true">2 joints</button><button type="button" data-n="3" aria-pressed="false">3 joints</button></div>
+          <label class="toggle" id="armZoneWrap"><input type="checkbox" id="armZone"><span class="box"></span>Collision-free workspace</label>
+          <label class="toggle" id="armLampWrap"><input type="checkbox" id="armLamp"><span class="box"></span>Lamp</label>
+        </div>
+      </div>
+      <div class="card guide-card"><div id="armGuide"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: how the arm chooses a pose</summary><div class="body">
+      <p>When you drag the gripper, the arm solves inverse kinematics: which joint angles put the gripper at the desired point. For two links of length \(a\) and \(b\), the answer comes from the law of cosines, and there are always two solutions, with the elbow on either side of the shoulder → gripper line:</p>
+      <div class="formula">\[\begin{gathered} \cos q_2 = \frac{x^2 + y^2 - a^2 - b^2}{2ab},\\ q_2 = \pm\arccos(\ldots). \end{gathered}\]</div>
+      <p>With three links there are infinitely many solutions, so you need a selection rule. In the first task the scene keeps the hand vertical; in the others it keeps the hand angle from the start of the drag. If the target can’t be reached that way, it takes the closest feasible angle. When you drag the elbow, the gripper is pinned: the elbow moves along a circle around the shoulder, and the two remaining links solve the two-link problem to the gripper anew each time. That is motion in the null space.</p>
+      <p>Collisions are checked along the link axes: a link is treated as 4.4 cm thick, and the box, the lamp and the table as rectangles. The workspace is a grid of 2.5 cm cells where the gripper can be placed in at least one collision-free pose.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>An extra joint gives you a choice of pose: the gripper stays put while the elbow moves away from the obstacle. But in this scene the joints snapped to the right angle on their own. In a real joint, a motor turns the link, and the main thing it provides is <strong>torque</strong>: the rotational force it turns the joint with. Torque is measured in newton-meters, N·m: 1 N·m is a force of 1 newton, the weight of about 100 g, on a 1 m lever. Does the motor have enough torque?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="gear">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 1</div>
+    <h2>Gearbox and impact</h2>
+    <div class="prose lab-intro" style="margin:0 0 22px;max-width:820px">
+      <p>A motor on its own doesn’t have the strength. It is fast but weak: in the lab it delivers 1.6 N·m, while the knee of a jumping robot needs at least 18.</p>
+      <p>The usual fix is to put a gearbox between the motor and the link. With gear ratio \(N\) it multiplies torque by \(N\) and divides speed by the same factor. It seems the bigger \(N\), the better.</p>
+      <p>Let’s check what a large gear ratio costs. On the scene are two identical joints with different gearboxes: 6:1, like Mini Cheetah, and 100:1, like a harmonic drive. The push and the impact hit both at once, so the difference shows on a single scene. Below the scene is a comparison table. Reflected rotor inertia shows how hard it is to spin up or stop the rotor (the rotating part of the motor) when pushing from the link side. Gearbox friction is the torque spent just on turning the gearbox itself.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <canvas id="gearCv" width="560" height="440" role="img" aria-label="Two joints side by side: motor, gearbox, link, wall and an impact torque chart for each"></canvas>
+        <div class="gear-cmp" id="gearCmp"></div>
+        <div class="ctl-row">
+          <label class="hd-range" id="gearNAWrap"><span id="gearNALbl">Link A</span><input id="gearNA" type="range" min="0" max="14" step="1" value="4"><output>6 : 1</output></label>
+          <label class="hd-range" id="gearNBWrap"><span>Link B</span><input id="gearNB" type="range" min="0" max="14" step="1" value="12"><output>100 : 1</output></label>
+          <span class="ctl-btns" id="gearBtnsWrap"><button class="btn sm" id="gearPush" type="button">Push both</button><button class="btn sm" id="gearHit" type="button">Hit both</button></span>
+        </div>
+      </div>
+      <div class="card guide-card"><div id="gearGuide"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: what a gearbox does</summary><div class="body">
+      <p>A gearbox with ratio \(N\) multiplies the motor’s torque and divides its speed. Rotor inertia "reflected" to the output grows as the square of \(N\):</p>
+      <div class="formula">\[\begin{aligned} \tau_{\text{out}} &= N\,\tau_{\text{motor}}, \\ \omega_{\text{out}} &= \omega_{\text{motor}} / N, \\ J_{\text{reflected}} &= N^2 J_{\text{rotor}}, \\ J_{\text{eff}} &= J_{\text{link}} + N^2 J_{\text{rotor}}. \end{aligned}\]</div>
+      <p>On impact with a rigid wall of stiffness \(k\) at speed \(v\), the peak torque grows roughly as \(v\sqrt{k\,J_{\text{eff}}}\): the larger the effective inertia, the harder the hit. In MIT Cheetah 2, a rotor inertia of 3.03·10⁻⁴ kg·m² at a gear ratio of 5.8 gives about 0.01 kg·m² at the output. A direct drive with the same torque would need a motor 76 cm in diameter.</p>
+      <p>In the lab: rotor inertia 1.2·10⁻⁴ kg·m², peak motor torque 1.6 N·m, link inertia 0.09 kg·m². Gearbox friction grows with \(N\): Coulomb friction \(0.02\,N\) N·m plus viscous. The wall is a spring with a damper; the link accelerates to 3 rad/s. When you drag the link, your hand acts as a spring between your finger and the end of the link, and the motor is off.</p>
+      <p>A small gear ratio has one more advantage: torque can be estimated from motor current: \(\tau \approx N K_t\, i\). That’s how MIT Cheetah gets by without force sensors in its legs. The price is estimation error: in Cheetah 3, gearbox friction adds about ±10%.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>A large gear ratio gives torque, but reflected rotor inertia grows as its square. The actuator loses backdrivability: an external push barely turns the motor, and on impact the actuator hits harder. An actuator with a small gear ratio is backdrivable and hits softer, but gives little torque. A backdrivable actuator has one more property, transparency: force from the output reaches the motor almost undistorted, and the current tells you how hard the leg is pushing on the ground. How else do engineers look for a compromise?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="types">
+  <div class="prose">
+    <div class="kicker"><span class="num">3</span> Types of actuators</div>
+    <h2>Six ways to move a joint</h2>
+    <p>In the lab only the gear ratio changed. A large one gives torque, but the actuator barely yields to a push and hits harder on impact. With a small one the actuator is backdrivable, but the motor lacks torque. Engineers look for a compromise in other ways too: adding a spring, moving the motor out of the joint, turning rotation into linear motion, or using oil under pressure.</p>
+    <p>Below are six actuators found in well-known robots. The diagrams are simplified: they show the principle, not real dimensions. Orange marks what the motor turns, blue marks the link it moves. Click a diagram to pause it.</p>
+  </div>
+  <div class="wrap">
+    <div class="act-grid">
+      <article class="card act-card">
+        <h3>Quasi-direct drive</h3>
+        <canvas data-act="qdd" width="360" height="220" role="img" aria-label="A large-diameter motor with a 6 to 1 gearbox moves a leg; a push on the leg turns the motor backwards, and the motor current rises"></canvas>
+        <dl>
+          <dt>How it works</dt><dd>A large-diameter motor and a single gear stage, about 6&nbsp;:&nbsp;1. The motor itself produces high torque, so it doesn’t need much multiplication.</dd>
+          <dt>What it gives</dt><dd>The actuator is backdrivable: an outside push turns the motor, and the leg takes the impact softly. And transparent: force at the foot is estimated from motor current, with no separate sensor.</dd>
+          <dt>What it costs</dt><dd>For its torque the motor is large and heavy. If it holds a load for a long time, it heats up.</dd>
+          <dt>Where it’s used</dt><dd>The legs of MIT Mini Cheetah and Unitree robots.</dd>
+        </dl>
+      </article>
+      <article class="card act-card">
+        <h3>Harmonic drive</h3>
+        <canvas data-act="hd" width="360" height="220" role="img" aria-label="An oval cam rotates inside a flexible toothed wheel; the wheel slowly turns and lifts a weight"></canvas>
+        <dl>
+          <dt>How it works</dt><dd>An oval cam rotates inside a flexible toothed wheel and presses it against a rigid ring at two points. The wheel has two teeth fewer than the ring, so for each cam revolution it turns by just two teeth. The diagram shows a 30&nbsp;:&nbsp;1 ratio; real drives go from 30 to 160 in a single stage.</dd>
+          <dt>What it gives</dt><dd>A large gear ratio in a small, light package. Almost no backlash: the teeth stay pressed together all the time.</dd>
+          <dt>What it costs</dt><dd>The same as in the lab with a large gear ratio: the actuator barely yields to a push and hits harder on impact.</dd>
+          <dt>Where it’s used</dt><dd>The joints of many robot manipulators, the rotary joints of Tesla Optimus.</dd>
+        </dl>
+      </article>
+      <article class="card act-card">
+        <h3>Series elastic actuator</h3>
+        <canvas data-act="sea" width="360" height="220" role="img" aria-label="A motor pushes a link through a spring; at an obstacle the spring compresses, and the compression shows the force; on the chart, force with the spring rises smoothly, while without it there is an impact spike"></canvas>
+        <dl>
+          <dt>How it works</dt><dd>A spring of known stiffness sits between the gearbox and the link. A sensor measures how much it has compressed and derives the force: F&nbsp;=&nbsp;k&nbsp;·&nbsp;Δx. The controller controls the spring compression, that is, the force.</dd>
+          <dt>What it gives</dt><dd>Precise and stable force control. On impact the spring gives first and protects the gearbox.</dd>
+          <dt>What it costs</dt><dd>Force changes more slowly: the spring has to compress first. By the calculation of Wensing et al., the spring in a StarlETH leg joint lowers its natural frequency from about 80 to 13.5 Hz.</dd>
+          <dt>Where it’s used</dt><dd>Twelve actuators in ANYmal’s legs, the joints of the collaborative robot Baxter. The idea was proposed by Gill Pratt and Matthew Williamson at MIT in 1995.</dd>
+        </dl>
+      </article>
+      <article class="card act-card">
+        <h3>Planetary roller screw</h3>
+        <canvas data-act="screw" width="360" height="220" role="img" aria-label="A motor turns a screw, a nut with rollers travels along the screw and turns a joint with a weight through a rod"></canvas>
+        <dl>
+          <dt>How it works</dt><dd>The motor turns a screw. Threaded rollers roll between the screw and the nut, and the nut travels along the screw. Through a rod, the nut turns the joint, like a muscle pulling on a bone.</dd>
+          <dt>What it gives</dt><dd>High linear force in a small package: the load is shared by many roller contact points. The Optimus linear actuator lifted a piano weighing about half a ton.</dd>
+          <dt>What it costs</dt><dd>The actuator is complex and expensive to make. The joint turns through a rod, so its angle is limited by the nut’s travel.</dd>
+          <dt>Where it’s used</dt><dd>Three types of linear actuators in Tesla Optimus.</dd>
+        </dl>
+      </article>
+      <article class="card act-card">
+        <h3>Tendons</h3>
+        <canvas data-act="tendon" width="360" height="220" role="img" aria-label="A motor sits in the body and flexes and extends a finger through two cables; there are no motors in the hand itself"></canvas>
+        <dl>
+          <dt>How it works</dt><dd>The motor sits in the body or the forearm, and the force reaches the joint through cables. That’s how forearm muscles move the fingers through tendons. A cable can only pull, so each joint gets a pair of cables or a cable with a spring.</dd>
+          <dt>What it gives</dt><dd>The limb is light and fast: there are no heavy motors in it. Many joints fit in a small volume, as in a hand.</dd>
+          <dt>What it costs</dt><dd>Cables stretch, rub against their guides and wear out; their tension has to be maintained.</dd>
+          <dt>Where it’s used</dt><dd>The low-inertia actuators of 1X NEO with 2% torque accuracy, many robotic hands.</dd>
+        </dl>
+      </article>
+      <article class="card act-card">
+        <h3>Hydraulics</h3>
+        <canvas data-act="hyd" width="360" height="220" role="img" aria-label="A pump supplies oil under pressure, a valve directs it into a cylinder, the piston extends and lifts the link"></canvas>
+        <dl>
+          <dt>How it works</dt><dd>A pump pressurizes oil, a fast valve directs it into one chamber of the cylinder or the other, and the piston pushes the link. The pump sits in the body; only hoses run to the joints.</dd>
+          <dt>What it gives</dt><dd>Enormous force and power from a small actuator at the joint.</dd>
+          <dt>What it costs</dt><dd>The pump is noisy, oil can leak, and the system is heavy and hard to maintain.</dd>
+          <dt>Where it’s used</dt><dd>Excavators and other construction machinery. The old Atlas had 28 hydraulic joints; in 2024 Boston Dynamics switched to the electric Atlas.</dd>
+        </dl>
+      </article>
+    </div>
+  </div>
+  <div class="prose">
+    <p class="muted-s" style="margin-top:16px">There are other transmissions too. Cycloidal gearboxes sit in the joints of industrial robots: Nabtesco holds about 60% of that market. Digit 5 has its own cycloidal actuators in its legs.</p>
+    <h3 style="margin-top:28px">Which actuator goes where</h3>
+    <p>An actuator is chosen for the joint’s job. Sort eight parts of real robots by actuator type. For each one, think about what matters most to it: surviving impacts, high torque in a small package, pushing in a straight line, being light, or metering force precisely. You can drag a card, or click it and then click a bin.</p>
+  </div>
+  <div class="wrap"><div class="card lab-card sort-card" id="typesSort"></div></div>
+  <div class="prose" style="margin-top:22px">
+    <p>No actuator beats the rest at everything: each wins at something and pays for it with something else. But any actuator only executes a command. To choose the next one, the policy needs to know how the last one turned out. Where does it learn that?</p>
+  </div>
+</section>
+
+<section class="section alt" id="sensors">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">4</span> Sensors</div>
+      <h2>What the robot knows about itself and the world</h2>
+      <p>Did the joint turn to the right angle, where is the arm now, is the robot falling: the policy learns all of this only from sensors. And none of them can be trusted completely. Each has its weak spots: noise, drift, latency, rate.</p>
+      <p><strong>Proprioception</strong> is sensing of the robot’s own body: joint encoders, motor current as a torque estimate, an inertial measurement unit (IMU) with a gyroscope and an accelerometer. <strong>Exteroception</strong> is sensing of the world: cameras, depth sensors, lidars, tactile sensors.</p>
+      <p>Below are the six sensors found most often in robots. The diagrams show the principle, not the actual construction. Orange marks what emits or presses, blue what the sensor measures, purple the elastic parts. Click a diagram to pause it.</p>
+    </div>
+    <div class="act-grid sens-grid">
+      <article class="card act-card">
+        <h3>Encoder</h3>
+        <canvas data-anim="enc" width="360" height="220" role="img" aria-label="A slotted disk rotates with the shaft; two light sensors produce pulses A and B offset by a quarter step; angle and direction are computed from them"></canvas>
+        <dl>
+          <dt>What it measures</dt><dd>Joint angle. Speed is computed from the difference of angles.</dd>
+          <dt>How it works</dt><dd>A slotted disk sits on the shaft. Light passes through a slot, and a sensor counts the pulses. A second sensor is offset by a quarter of a slot: whichever fires first tells the direction. Magnetic encoders use a magnet and a field sensor instead of light.</dd>
+          <dt>Weak spot</dt><dd>Speed from angle differences is noisy. The last bits of a cheap encoder are noise: the AS5047P in Mini Cheetah has 14 bits, about 2 of them noise.</dd>
+          <dt>Where it’s used</dt><dd>In every joint. Unitree G1 has two encoders per joint: on the motor rotor and at the gearbox output.</dd>
+        </dl>
+      </article>
+      <article class="card act-card">
+        <h3>Inertial measurement unit (IMU)</h3>
+        <canvas data-anim="imu" width="360" height="220" role="img" aria-label="The body tilts: in the accelerometer a mass on springs shifts downward, in the gyroscope an oscillating mass is pushed sideways; on a jolt only the accelerometer mass shifts"></canvas>
+        <dl>
+          <dt>What it measures</dt><dd>Acceleration and angular rate of the body about three axes.</dd>
+          <dt>How it works</dt><dd>In the accelerometer a tiny mass on springs shifts with tilt and acceleration; the shift is measured by capacitance. In the gyroscope a mass oscillates, and when the body rotates, the Coriolis force pushes it sideways. The g arrow in the diagram is the direction of gravity.</dd>
+          <dt>Weak spot</dt><dd>The gyroscope drifts if you integrate its readings over time. The accelerometer is noisy and confuses a jolt with a tilt. So the two are combined: that’s the lab below.</dd>
+          <dt>Where it’s used</dt><dd>In the body of every legged robot. Bosch BMI088 delivers gyroscope data up to 2,000 times per second.</dd>
+        </dl>
+      </article>
+      <article class="card act-card">
+        <h3>Force-torque sensor</h3>
+        <canvas data-anim="ft" width="360" height="220" role="img" aria-label="The gripper lowers onto a table and slides along it; the sensor’s elastic beams bend, the strain gauges change their readings, six force and torque numbers rise"></canvas>
+        <dl>
+          <dt>What it measures</dt><dd>Three forces and three torques: six numbers describing how an object pushes on the arm. In the diagram, Fx, Fy, Fz are forces along three axes, Mx, My, Mz are torques about them.</dd>
+          <dt>How it works</dt><dd>An elastic element sits between the wrist and the gripper. Under load it bends slightly, and strain gauges on it change resistance. The bending in the diagram is greatly exaggerated.</dd>
+          <dt>Weak spot</dt><dd>Expensive and fragile, drifts with temperature. Sees only the forces that pass through the wrist.</dd>
+          <dt>Where it’s used</dt><dd>In the UR5e flange. ATI Axia80 samples 8,000 times per second with under 1 ms latency. Franka FR3 has torque sensors in all seven joints.</dd>
+        </dl>
+      </article>
+      <article class="card act-card">
+        <h3>Depth camera</h3>
+        <canvas data-anim="depth" width="360" height="220" role="img" aria-label="Top view: a projector paints dots on an object, two cameras see the same dot with an offset; the closer the object, the larger the offset"></canvas>
+        <dl>
+          <dt>What it measures</dt><dd>Distance to every point in the frame: a depth map.</dd>
+          <dt>How it works</dt><dd>Two cameras look from different positions. The closer an object, the more it shifts between their frames, and distance is computed from the shift. A projector paints dots on the scene so there is something to lock onto on smooth surfaces. The diagram is a top view.</dd>
+          <dt>Weak spot</dt><dd>Shiny and transparent objects, bright sunlight. The error grows with the square of distance: far away, the shift drops below a pixel.</dd>
+          <dt>Where it’s used</dt><dd>On humanoid heads and manipulator wrists. Intel RealSense D435i gives depth up to 1280×720 at 90 frames per second.</dd>
+        </dl>
+      </article>
+      <article class="card act-card">
+        <h3>Lidar</h3>
+        <canvas data-anim="lidar" width="360" height="220" role="img" aria-label="Top view of a room: the lidar beam rotates, a pulse flies to the wall and back, reflection points build up into a cloud"></canvas>
+        <dl>
+          <dt>What it measures</dt><dd>Distances around the robot: a point cloud.</dd>
+          <dt>How it works</dt><dd>A laser sends a short pulse and catches the reflection. Light covers a meter there and back in about 6.7 ns, and distance is computed from the time of flight. The beam sweeps the scene in a circle. The diagram is a top view of a room.</dd>
+          <dt>Weak spot</dt><dd>Few points: Livox MID-360 gives 200 thousand points per second, and the cloud updates 10 times per second. Glass and black surfaces barely reflect.</dd>
+          <dt>Where it’s used</dt><dd>On the heads of humanoids and quadrupeds, on warehouse robots and self-driving cars.</dd>
+        </dl>
+      </article>
+      <article class="card act-card">
+        <h3>GelSight tactile sensor</h3>
+        <canvas data-anim="gel" width="360" height="220" role="img" aria-label="A ball presses into a gel and shifts; a camera below sees the imprint in side lighting and the displacement of the markers"></canvas>
+        <dl>
+          <dt>What it measures</dt><dd>The shape and force of contact: the object’s imprint and the direction it is being pulled in.</dd>
+          <dt>How it works</dt><dd>A camera below films a transparent gel coated with a reflective film. The object presses the film in, side lighting casts shadows, and the relief is reconstructed from them. Markers in the gel shift under tangential force.</dd>
+          <dt>Weak spot</dt><dd>The gel wears out and tears, and the sensor is thicker than skin. There is still little ready-made data from such sensors.</dd>
+          <dt>Where it’s used</dt><dd>In the fingers of research hands. DIGIT (2020) weighs 20 g and captures 640×480 at 60 frames per second. Digit 360 (Meta, 2024) senses forces from 1 mN.</dd>
+        </dl>
+      </article>
+    </div>
+    <div class="prose" style="margin:30px 0 22px;max-width:820px">
+      <p>One sensor’s weak spots are covered by another. A simple example is body tilt, which the IMU measures. The gyroscope measures angular rate precisely, but if you integrate it, the error accumulates. The accelerometer sees the direction of gravity and is right on average, but very noisy. The scene shows three tilt estimates at once: gyroscope only, accelerometer only, and their blend. Next to the 10-second charts are the robot’s body and lines showing where each estimate thinks it is.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card"><canvas id="imuCv" width="640" height="270" role="img" aria-label="Robot body and a tilt angle chart: the true angle and three estimates"></canvas>
+        <div class="cv-legend" id="imuLegend"></div>
+        <p class="readout" id="imuRead"></p>
+        <div class="ctl-row">
+          <label class="hd-range wide" id="imuAlphaWrap"><span>Gyro weight α</span><input id="imuAlpha" type="range" min="0" max="16" step="1" value="3"><output>0.5</output></label>
+          <span class="ctl-btns" id="imuShakeWrap"><button class="btn sm" id="imuShake" type="button">Shake the robot</button><button class="btn sm ghost" id="imuCalm" type="button">Remove jolts</button></span>
+          <label class="hd-range" id="imuBiasWrap"><span>Gyro zero offset</span><input id="imuBias" type="range" min="0" max="12" step="1" value="6"><output>1.5 °/s</output></label>
+        </div>
+      </div>
+      <div class="card guide-card"><div id="imuGuide"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: the complementary filter</summary><div class="body">
+      <p>At each step we advance the estimate by the gyroscope and nudge it slightly toward the accelerometer angle:</p>
+      <div class="formula">\[\hat\theta_t = \alpha\,\bigl(\hat\theta_{t-1} + \omega_{\text{gyro}}\,\Delta t\bigr) + (1 - \alpha)\,\theta_{\text{accel}}\]</div>
+      <p>In frequency terms, it is a high-pass filter for the gyroscope and a low-pass filter for the accelerometer: fast changes come from the former, the slow "which way is down" from the latter. At \(\alpha = 0.98\) and a 10 ms step, the time constant is about half a second. In the lab, the gyroscope has a zero offset of 1.5 °/s plus noise, and the accelerometer has noise with a 4° standard deviation plus spikes from body accelerations. The "Shake the robot" button adds four short jolts: the accelerometer takes them for tilt, while the gyroscope doesn’t see them, because it measures rotation. A Kalman filter does the same thing optimally when the noise models are known; that is Lesson 0.4.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>On their own, the gyroscope drifts, and the accelerometer is noisy and confuses a jolt with a tilt. Together, in a complementary filter, they err by less than 2° even under shaking. But the robot’s parts run at very different rates: the IMU delivers data at up to 2 kHz, the camera at about 30 frames per second, the policy a few dozen times per second. How do they coexist in one system?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="ladder">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">5</span> Rates</div>
+      <h2>The rate ladder</h2>
+      <p>A robot’s parts line up on a ladder of rates. These are the same levels from the start of the lesson: the lower the level, the faster it has to react. At the top, a slow model understands speech and decides what to do; at the bottom, the current loop drives the motor; and sensors sit at different levels. Sort ten components into frequency bands. After the check, the real ladder opens with examples from published systems.</p>
+    </div>
+    <div class="card lab-card ladder-card">
+      <div id="ladderSort"></div>
+      <p class="ladder-skip"><button class="btn sm ghost" id="ladderSkip" type="button">Show the ladder without checking</button></p>
+      <div class="ladder-reveal" id="ladderReveal" hidden>
+        <h3>The rate ladder</h3>
+        <div class="ladder" id="ladderBox"></div>
+        <p class="muted-s" style="margin:10px 0 0">The scale is logarithmic. Data from systems published in 2018–2026.</p>
+      </div>
+    </div>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>The policy runs at levels from 10 to 200 Hz and sees only how the lower levels carried out its targets. It is often trained in a simulator. How accurately does the simulator reproduce what sits under the policy: the actuator with its controller?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="model">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 2</div>
+    <h2>An actuator model from data</h2>
+    <div class="prose lab-intro" style="margin:0 0 22px;max-width:820px">
+      <p>The simulator reproduces the actuator imperfectly. A policy for a legged robot is trained in a simulator, where the actuator is ideal. A real one has latency, friction and torque saturation: the motor won’t give more than its limit, however hard you ask. And over time backlash appears: a gap in the gearbox where the motor is already turning while the link hasn’t moved yet. A policy tuned on an ideal actuator will get a different response on a real one.</p>
+      <p>You could try to derive an exact formula for the actuator. For a direct drive that works; for complex ones, such as ANYmal’s series elastic actuators, it doesn’t.</p>
+      <p>What remains is to learn the actuator model from data: record how the real actuator responds to commands and train a small network to reproduce it. We’ll find where the simulator and the actuator diverge, close the gap with a network, and check how much data that takes and what happens when the actuator wears out.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <canvas id="actCv" width="560" height="280" role="img" aria-label="Joint angle chart: command, real actuator, simulator model and learned model"></canvas>
+        <div class="cv-legend" id="actLegend"></div>
+        <p class="cv-note">The top chart is the joint angle over 5 seconds. The dashed line is the command, that is, the angle the actuator’s controller should hold; the solid lines are the angles the real actuator and the models actually produced. The bottom chart shows by how many degrees each model diverges from the real actuator. The buttons under the chart change the command shape: a slow wave, a sum of two waves, a fast wave or sharp steps.</p>
+        <div class="ctl-row">
+          <div class="seg" id="actCmdWrap" role="group" aria-label="Command"></div>
+          <div class="seg" id="actDataWrap" role="group" aria-label="How many seconds of data to collect"></div>
+          <label class="hd-range" id="actDelayWrap"><span>Latency</span><input id="actDelay" type="range" min="0" max="16" step="1" value="6"><output>15 ms</output></label>
+          <label class="hd-range" id="actBlWrap"><span>Backlash</span><input id="actBl" type="range" min="0" max="8" step="1" value="0"><output>0°</output></label>
+          <span class="ctl-btns" id="actRetrainWrap"><button class="btn sm" id="actRetrain" type="button">Retrain the network on this actuator</button></span>
+        </div>
+        <div class="act-side">
+          <div class="act-mini" id="actLossWrap"><h4>Training the network</h4><canvas id="actLoss" width="300" height="120" role="img" aria-label="Network error during training"></canvas><div class="prog"><i id="actProg"></i></div><p class="muted-s act-note" id="actLossNote"></p></div>
+          <div class="act-mini" id="actCurveWrap"><h4>Model error vs. amount of data</h4><canvas id="actCurve" width="300" height="150" role="img" aria-label="Actuator model error as a function of seconds of data"></canvas><p class="muted-s act-note" id="actCurveNote"></p></div>
+        </div>
+      </div>
+      <div class="card guide-card"><div id="actGuide"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: what’s inside</summary><div class="body">
+      <ul>
+        <li><b>Real actuator.</b> An internal PD position controller, 15 ms command latency, torque saturation, Coulomb and viscous friction. The link is a pendulum. Backlash is zero by default; the slider in the "Actuator wear" mission adds it. The encoder sits on the motor and doesn’t see the backlash: while the motor takes up the gap, no torque reaches the link.</li>
+        <li><b>Simulator model.</b> The same PD, but instantaneous and without nonlinearities.</li>
+        <li><b>Data.</b> 20 seconds of random commands at a 2.5 ms step: about 8 thousand samples. Input: position and velocity errors over the last 4 steps; output: the torque the actuator actually produced.</li>
+        <li><b>Network.</b> 8 → 32 → 32 → 1 with tanh, Adam, 1,500 iterations of 64 samples regardless of data volume. After training, the network replaces the actuator model in the simulator. The network sees only the last 10 ms of history, so it learns latency longer than that poorly.</li>
+      </ul>
+      <p>That is what Hwangbo et al. did in 2019: an exact analytical model can be built for a direct drive, but not for ANYmal’s series elastic actuators. They learned the actuator model from data, trained the policy in a simulator with that model, and the robot ran with no fine-tuning on hardware.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>A network trained on 20 seconds of data reproduces the actuator 6 times more accurately than the ideal model, and 5 seconds is enough for an error under 1°. But the model knows only the actuator it was trained on: when the actuator wears out, it has to be retrained, and it learns long latency worse.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="quiz">
+  <div class="prose">
+    <div class="kicker"><span class="num">6</span> Check yourself</div>
+    <h2>Eight common misconceptions</h2>
+    <div class="quiz" id="quizBox"></div>
+    <p class="score" id="quizScore" style="margin-top:14px"></p>
+  </div>
+</section>
+
+<section class="section alt" id="finale">
+  <div class="prose">
+    <div class="kicker"><span class="num">7</span> Takeaways</div>
+    <h2>Lesson takeaways</h2>
+    <ol class="takeaways">
+      <li><span>A robot’s policy is an "observation → action" interface at a certain rate. It usually outputs <strong>targets for controllers</strong>, and a fast lower loop drives the motors.</span></li>
+      <li><span>Degrees of freedom are joints. Extra degrees of freedom give <strong>freedom of pose</strong> for the same gripper position.</span></li>
+      <li><span>The gear ratio trades speed for torque, but inertia grows as <strong>\(N^2\)</strong>: at large \(N\) the actuator loses backdrivability and becomes more dangerous on impact.</span></li>
+      <li><span>An actuator is chosen for the joint’s job: for impacts and contact, a small gear ratio or a spring; for high torque in a small package, a <strong>harmonic drive</strong>; for linear force, a roller screw; for a light limb, tendons.</span></li>
+      <li><span>Sensors are noisy, they drift and they lag. They are <strong>fused</strong>: from the complementary filter to the Kalman filter.</span></li>
+      <li><span>The gap between simulator and robot often starts at the actuator. It is narrowed with an <strong>actuator model learned from data</strong>.</span></li>
+    </ol>
+    <h3 style="margin-top:40px">Open questions</h3>
+    <details class="card pad open-q"><summary>Why do a robot vacuum and a quadruped robot have such different actuators?</summary><p>The vacuum only needs wheel speed, and there are almost no impact contacts, so cheap motors with a large gearbox will do. A quadruped hits the ground on every step and has to feel the contact force, so it needs transparent actuators with a small gear ratio.</p></details>
+    <details class="card pad open-q"><summary>You are training a policy for a hand with 20 degrees of freedom. Which sensors would you add to the cameras, and why?</summary><p>Encoders on every joint for precise finger positions, torque estimates from current or torque sensors to feel the grip force, and tactile sensors on the fingertips: the camera can’t see contact when the fingers cover the object.</p></details>
+    <h3 style="margin-top:34px">Paper guide</h3>
+    <p><a href="https://doi.org/10.1109/TRO.2016.2640183" target="_blank" rel="noopener">Wensing et al., "Proprioceptive Actuator Design in the MIT Cheetah", IEEE T-RO, 2017</a>.</p>
+    <ul class="links">
+      <li><strong>Read closely</strong><span>Why a proprioceptive actuator is needed, how an actuator with a large motor gap radius is built, and how force is estimated from current.</span></li>
+      <li><strong>Can skip</strong><span>The details of the motor’s electromagnetic design.</span></li>
+      <li><strong>Question to keep in mind</strong><span>Why does a series spring lower the leg’s natural frequency, and what does that mean for control?</span></li>
+    </ul>
+    <h3 style="margin-top:34px">Resources</h3>
+    <ul class="links">
+      <li><a href="https://arxiv.org/abs/1901.08652" target="_blank" rel="noopener">Learning agile and dynamic motor skills for legged robots</a><span>J. Hwangbo et al., Science Robotics 2019 — an actuator model from data</span></li>
+      <li><a href="https://www.youtube.com/watch?v=xNeZWP5Mx9s" target="_blank" rel="noopener">Mini Cheetah: backflip</a><span>MIT video — quasi-direct drives in action</span></li>
+      <li><a href="https://www.youtube.com/watch?v=-9EM5_VFlt8" target="_blank" rel="noopener">Farewell to HD Atlas</a><span>Boston Dynamics says goodbye to the hydraulic Atlas</span></li>
+    </ul>
+    <div class="callout insight" style="margin-top:34px"><span class="ico">➡️</span><div><p><strong>What’s next: kinematics and control.</strong> We have covered what the policy controls. The remaining question is how its target becomes motion. In the arm lab, the joint angles were found on their own as soon as you dragged the gripper, and the joint controllers simply held the target. Who converts a gripper pose into joint angles, how does a controller turn a target into torque, and why can a neural network that has learned kinematics miss by more than 40 cm? <a href="0-3-kinematika-i-upravlenie.html">Lesson 0.3</a>.</p></div></div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Lesson 0.2 of the course "Modern Robotics and Physical AI". All simulations and neural networks run locally in your browser.
+</footer>
+<div class="tooltip" id="tooltip" role="tooltip"></div>
+<script>
+/*@@JS@@*/
+</script>
+</body>
+</html>

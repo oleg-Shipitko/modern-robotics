@@ -26,7 +26,7 @@ case "$CMD" in
     check_day; SRC="$(cd "$(dirname "$0")/.." && pwd)"
     mkdir -p "$HOME_DIR" "$(dirname "$LOG")" "$(dirname "$PLIST")"
     rsync -a --delete --exclude .git --exclude dist --exclude dist-release --exclude shots --exclude sources \
-      --exclude node_modules --exclude __pycache__ --exclude site/lessons "$SRC/" "$SNAP/"
+      --exclude node_modules --exclude __pycache__ --exclude site/lessons --exclude site/en "$SRC/" "$SNAP/"
     rm -f "$HOME_DIR/$DAY.done"
     cat > "$PLIST" <<PL
 <?xml version="1.0" encoding="UTF-8"?>

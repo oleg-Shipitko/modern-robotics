@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Glossary — Modern Robotics and Physical AI</title>
+<meta name="description" content="Glossary of the “Modern Robotics and Physical AI” course: robotics and Physical AI terms with short definitions and links to the lessons — from the PD controller and the Kalman filter to behavior cloning, diffusion and the transformer.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<script>
+  (function () { try { var t = localStorage.getItem('mr-theme'); if (t) document.documentElement.dataset.theme = t; else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme = 'dark'; } catch (e) {} })();
+</script>
+<style>
+/*@@CSS@@*/
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html#program" title="To the course program"><div>Modern Robotics and Physical AI<small>Glossary</small></div></a>
+    <button class="theme-btn" style="margin-left:auto" id="themeBtn" type="button" aria-label="Toggle theme">◐</button>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main>
+<section class="hero hero-slim" id="top">
+  <div class="wrap">
+    <div class="kicker">Course reference</div>
+    <h1><span class="amp">Glossary</span></h1>
+    <p class="lead">Terms that come up in the lessons, each with a short definition and a link to the section where it is explained in detail. In the lessons themselves these words are underlined with a dotted line: hover over them or tap to see the definition.</p>
+    <div class="gl-search"><input type="search" id="glQ" placeholder="Find a term: for example, Jacobian or DAgger" aria-label="Search the glossary" autocomplete="off"><span class="gl-count" id="glCount"></span></div>
+    <nav class="gl-abc" id="glAbc" aria-label="Letters"></nav>
+  </div>
+</section>
+
+<section class="section" id="terms">
+  <div class="wrap"><div class="gl-list" id="glList"></div><p class="gl-none" id="glNone" hidden>Nothing found. Try another word or a different spelling.</p></div>
+</section>
+</main>
+
+<footer>
+  Glossary of the “Modern Robotics and Physical AI” course. Spotted a mistake? <a href="https://github.com/oleg-Shipitko/modern-robotics/issues/new?title=%D0%93%D0%BB%D0%BE%D1%81%D1%81%D0%B0%D1%80%D0%B8%D0%B9%3A%20" target="_blank" rel="noopener">Report it on GitHub</a>
+</footer>
+<script type="application/json" id="glAll">@@GLOSSARY_JSON@@</script>
+<script>
+/*@@JS@@*/
+</script>
+</body>
+</html>

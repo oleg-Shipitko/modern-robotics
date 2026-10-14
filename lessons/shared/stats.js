@@ -11,11 +11,14 @@
    только со страниц modernrobotics.ru и не при включённом Do Not Track;
    window.MR_STATS_FORCE = true снимает проверку адреса для тестов.
    Миссии и задачи сообщают о себе через window.MRStats.ev(имя).
+   Ключ страницы — имя файла без .html («index», «1-1-behavior-cloning»);
+   английская версия (/en/…) считается отдельно, с префиксом «en/».
    ===================================================================== */
 (function () {
   'use strict';
   const API = window.MR_STATS_API || '';
-  const page = (location.pathname.split('/').pop() || 'index').replace(/\.html$/, '') || 'index';
+  const file = (location.pathname.split('/').pop() || 'index').replace(/\.html$/, '') || 'index';
+  const page = (/(^|\/)en\/(lessons\/)?[^/]*$/.test(location.pathname) ? 'en/' : '') + file;
   const on = !!API && navigator.doNotTrack !== '1' && (window.MR_STATS_FORCE === true || /(^|\.)modernrobotics\.ru$/.test(location.hostname));
   const seen = new Set(), queue = [];
 
@@ -58,10 +61,10 @@
     document.querySelectorAll('section[id]').forEach((s) => { if (/^[a-z][a-zA-Z0-9-]{0,30}$/.test(s.id)) io.observe(s); });
   }
 
-  // Квиз: итог «Итог: 6 из 8»
+  // Квиз: итог «Итог: 6 из 8» (в английской версии — «Score: 6 of 8»)
   const score = document.getElementById('quizScore');
   if (score) {
-    const check = () => { const m = /Итог: (\d+) из (\d+)/.exec(score.textContent); if (m) ev(`quiz:${m[1]}/${m[2]}`); };
+    const check = () => { const m = /(\d+)\s*(?:из|of|\/)\s*(\d+)/.exec(score.textContent); if (m) ev(`quiz:${m[1]}/${m[2]}`); };
     new MutationObserver(check).observe(score, { childList: true, characterData: true, subtree: true });
   }
 

@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>1.7 ACT: action chunking — Modern Robotics and Physical AI</title>
+<meta name="description" content="Lesson 1.7 of the course “Modern Robotics and Physical AI”: ALOHA and ACT, action chunks, CVAE, temporal ensembling, inference latency and Real-Time Chunking. Missions on live scenes: chunks of 1, 10 and 100 actions side by side, an architecture sandbox, chunk seams under 200 ms of latency.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<script>
+  (function () { try { var t = localStorage.getItem('mr-theme'); if (t) document.documentElement.dataset.theme = t; else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme = 'dark'; } catch (e) {} })();
+</script>
+<style>
+/*@@CSS@@*/
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html#program" title="To the course program"><div>Modern Robotics and Physical AI<small>Lesson 1.7 · ACT: action chunking</small></div></a>
+    <nav class="toc" aria-label="Lesson sections">
+      <a href="#aloha">ALOHA</a>
+      <a href="#errors">Error</a>
+      <a href="#chunks">Chunks</a>
+      <a href="#arch">Architecture</a>
+      <a href="#cvae">CVAE</a>
+      <a href="#te">Blending</a>
+      <a href="#delay">Latency</a>
+      <a href="#systems">Systems</a>
+      <a href="#quiz">Quiz</a>
+      <a href="#finale">Takeaways</a>
+    </nav>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Toggle theme">◐</button>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main>
+
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="kicker"><span class="num">1.7</span> Part 1 · Imitation learning</div>
+    <h1>ACT: <span class="amp">action chunking</span></h1>
+    <p class="lead">A policy that decides afresh at every step makes 50 decisions a second at 50 Hz. It jitters, compounds errors and gets stuck wherever the person recording the demonstration paused to think. ACT, the policy of the bimanual robot ALOHA, answers with chunks: from a single frame it predicts a hundred actions at once and executes them in a row. We'll work out why a chunk helps, how many actions to put in it, what it costs — late reactions and jerks at the seams — and how large models smooth those seams. This lesson closes the main line of Part 1.</p>
+    <div class="hero-meta"><span>≈ 40 minutes</span><span>a lab and 5 interactives</span><span>17 missions with goals</span></div>
+    <div class="hero-list">
+      <div><b>ERROR</b>Run 200 episodes and find when a chunk hurts</div>
+      <div><b>CHUNKS</b>Compare chunks of 1, 10 and 100 actions on one scene and pick the length</div>
+      <div><b>ARCHITECTURE</b>Assemble ACT from blocks so that the dimensions line up</div>
+      <div><b>CVAE AND BLENDING</b>Settle the argument about “style” and scrub through chunk blending step by step</div>
+      <div><b>SEAMS</b>Sketch the velocity curve and find the mode that survives 200 ms of latency</div>
+    </div>
+    <p style="margin-top:28px"><a class="btn primary" href="#aloha">Start the lesson ↓</a></p>
+  </div>
+</section>
+
+<section class="recall-sec" id="recall" aria-label="Warm-up on the previous lesson">
+  <div class="wrap"><div class="card recall" data-recall></div></div>
+  <script type="application/json" id="recallData">{"n": "1.6", "title": "The Transformer", "href": "1-6-transformer.html", "q": [{"q": "Why can't attention without positional encodings tell “take the cup, then the bowl” from “take the bowl, then the cup”?", "o": ["Permuting the tokens changes neither the attention weights nor its output", "The transformer reads only the first word of the command", "The words “cup” and “bowl” turn into identical tokens"], "a": 0, "e": "Each token carries its weight with it, and the weighted sum of values doesn't depend on order. Positional encodings give every position its own vector.", "sec": "order", "secTitle": "Attention doesn't know order"}, {"q": "The input now has twice as many tokens. By what factor does the number of pairs attention compares grow?", "o": ["Twice", "Four times", "It doesn't change: attention is linear"], "a": 1, "e": "Attention compares every token with every other, so the number of pairs is the square of the number of tokens. The projections and the feed-forward block grow linearly.", "sec": "cost", "secTitle": "What tokens cost"}, {"q": "π0 inference takes 73 ms. How does the robot get a new action every 20 ms?", "o": ["Inference is sped up to 20 ms per action", "The robot repeats the last action while the model computes", "The model outputs a chunk of 50 actions and reruns once every 0.5 s"], "a": 2, "e": "The chunk covers the inference time with margin, and the KV cache avoids recomputing the observation at every flow step.", "sec": "kv", "secTitle": "Why 73 ms gives 50 Hz"}]}</script>
+</section>
+
+<section class="section alt" id="aloha">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">1</span> ALOHA</div>
+      <h2>Cheap arms and 50 demonstrations</h2>
+      <p>To teach a robot from demonstrations you need arms on which a person can comfortably show bimanual work, and enough data to train on. Precise bimanual systems are expensive, and fine work is hard to do on cheap ones.</p>
+      <p>In 2023 Tony Zhao, Vikash Kumar, Sergey Levine and Chelsea Finn built a teleoperation rig from inexpensive arms. The operator moves two small leader arms, WidowX, and two large follower arms, ViperX, mirror their angles joint for joint, so no inverse kinematics is needed. A non-expert assembles the rig in under 2 hours. The figure in the paper lists the price as “&lt;$20k”: the base kit costs $18k, with options such as cameras $20k; a ViperX follower arm is about $5,600, a WidowX leader about $3,300. Four Logitech C922x cameras look from the top, the front and the two wrists, shooting 480×640 at 30 frames per second, while teleoperation and recording run at 50 Hz. The rate matters: at 5 Hz operators spend 62% more time on a task.</p>
+      <figure class="card aloha-anim">
+        <canvas data-anim="aloha" width="640" height="280" role="img" aria-label="The operator guides a small leader arm, the large follower repeats its angles joint for joint and moves a cup; joint angles are sent 50 times a second"></canvas>
+        <figcaption class="muted-s">The follower arm repeats the leader's angles, so the arms share one kinematics but differ in size. A trigger on the leader's handle closes the follower's gripper. Click the diagram to pause it.</figcaption>
+      </figure>
+      <p>The hardware is imprecise: ViperX is off by 5–8 mm, and its payload is 750 g. If you simply replay the recorded angles, that error is enough to miss a small part.</p>
+      <p>The authors make up the missing precision with learning: the ACT policy (Action Chunking with Transformers) watches the four cameras and corrects the motion frame by frame. It was trained separately for each task on 50 demonstrations, 10–20 minutes of data, and each task was tested 25 times.</p>
+    </div>
+    <div class="aloha-grid">
+      <div class="card pad">
+        <h3 class="duo-h">ACT success on real tasks</h3>
+        <div class="res-bars" id="alohaBars"></div>
+        <p class="muted-s" style="margin:10px 0 0">For Thread Velcro, 100 demonstrations were recorded. The best baseline, BeT, scored 0%.</p>
+      </div>
+      <div class="card pad">
+        <h3 class="duo-h">Videos by the authors</h3>
+        <div class="vids">
+          <button class="vid" type="button" data-src="https://tonyzhaozh.github.io/aloha/resources/slot_battery.mp4"><span class="vid-play" aria-hidden="true">▶</span><span class="vid-cap"><b>Autonomous ACT rollout</b>Slot Battery, 50 demonstrations</span></button>
+          <button class="vid" type="button" data-src="https://tonyzhaozh.github.io/aloha/resources/teleop_all.mp4"><span class="vid-play" aria-hidden="true">▶</span><span class="vid-cap"><b>Teleoperation on ALOHA</b>this is how demonstrations are recorded</span></button>
+        </div>
+        <p class="muted-s" style="margin:10px 0 0">The video loads from the authors' site when you click the cover. Clips of ACT reacting to perturbations are on the <a href="https://tonyzhaozh.github.io/aloha/" target="_blank" rel="noopener">project page</a>.</p>
+      </div>
+    </div>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>On cheap arms ACT handled fine tasks in 64–96% of attempts, except Thread Velcro, where success was 20%. The authors name the action chunk as the key ingredient. What's wrong with an ordinary policy that outputs one action per frame?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="errors">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">2</span> Compounding error</div>
+      <h2>Fifty decisions a second</h2>
+      <p>What's wrong with an ordinary policy? It outputs one action for every frame. At 50 Hz that's 50 decisions a second and 500 in ten seconds, and every decision is slightly off.</p>
+      <p>The error pushes the arm to where there are fewer demonstrations, and there the next decision errs more. Errors add up: in lesson 1.1 their growth was estimated as \(\varepsilon T^2\), that is, with the square of the episode length.</p>
+      <p>DAgger from lesson 1.2 added examples wherever the policy drifts. That needs an expert who labels every new state, and ALOHA only has 50 recorded demonstrations.</p>
+      <p>The other way out is to decide less often: from one frame predict a <strong>chunk</strong> of \(k\) actions and execute it whole. There will be \(k\) times fewer decisions, but between decisions the arm drives blind. Let's check on 200 episodes of a simple model when this is a win. Ada's gripper carries a mug across the table, and we watch how far the mug has strayed from the planned path. Every step this deviation is multiplied by \(\lambda\) — the stability of the system without control. At \(\lambda &lt; 1\) the arm returns to the target by itself, like a position controller. At \(\lambda &gt; 1\) the deviation grows on its own, like a robot that is balancing.</p>
+    </div>
+    <div class="lab-badge"><i>📊</i> 200 runs</div>
+    <div class="lab">
+      <div class="card scene-card">
+        <canvas id="errCv" width="640" height="300" class="plot-cv err-cv" role="img" aria-label="Two histograms of final deviations: per-step policy and chunk"></canvas>
+        <div class="cv-legend" id="errLegend"></div>
+        <p class="muted-s plot-cap">Horizontal axis: the mug's deviation from the path at the end of the episode, cm. Bar height: how many of the 200 runs ended with that deviation. Arrows at the edges: runs that went beyond the plot.</p>
+        <div class="readout" id="errOut"></div>
+        <div class="ctl-row">
+          <label class="hd-range" id="wrapEk"><span>Chunk k</span><input id="errK" type="range" min="0" max="14" step="1" value="7"><output>10</output></label>
+          <label class="hd-range" id="wrapElam"><span>Stability λ</span><input id="errLam" type="range" min="90" max="105" step="1" value="97"><output>0.97</output></label>
+        </div>
+      </div>
+      <div class="card guide-card"><div id="errMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: the model and what theory says</summary><div class="body">
+      <div class="formula">\[\begin{aligned} &\text{within a chunk:} && x \leftarrow \lambda\,x,\\ &\text{at a decision:} && x \leftarrow (\lambda - c + \delta)\,x + \varepsilon\,\xi. \end{aligned}\]</div>
+      <p>Here \(x\) is the mug's deviation from the path in centimeters and \(\xi\) is standard noise. An episode is 200 steps of 20 ms, that is 4 s; there are 200 runs, each with its own fixed seed, so the picture repeats exactly. \(\varepsilon = 0.3\) cm is the error at each decision. \(\delta = 0.01\) is the error that grows with the deviation: far from the data the policy errs more. \(c = \max(0, \lambda - 1)\) is the correction the policy learned from the expert: on an unstable system the expert keeps damping the growth of the deviation, and that is in the data. The last decision of any policy falls on the last step, so the comparison is fair. The spread \(\sigma\) is the standard deviation of the final \(x\).</p>
+      <p>Theory. Simchowitz, Pfrommer and Jadbabaie (COLT 2025) showed that a smooth deterministic Markov policy errs exponentially more in the horizon at execution time than on the data, even with stable dynamics. Non-Markov, non-smooth and stochastic policies get around this, and the authors explicitly name action chunks and diffusion. Zhang et al. (ICLR 2026) proved that with a long enough chunk the compounding of error is bounded if the system is stable without feedback. The mechanism is stability in the control-theory sense. For unstable systems you need noise during demonstration collection so that the data contains corrections.</p>
+      <p>The argument isn't over. In a preprint by Lazzati et al. (August 2026) shortening the horizon doesn't explain the success: what works is non-Markov expressiveness and “implicit ensembling”. Zeng et al. from Tedrake's group (August 2026) consider the non-Markov nature of demonstrations the main factor, and with long context closed-loop policies work best for them.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>A chunk narrows the spread if the system damps deviations by itself, and hurts if it amplifies them. But the per-step policy has a second problem that this model lacks: it gets stuck where the operator paused to think. Will a chunk handle that, and how many actions should go into it?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="chunks">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab</div>
+    <h2>Smoothness versus reactivity</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>Will a chunk handle pauses? The operator moves the arm unevenly: halfway along the path they stop to think, and the per-step policy gets stuck right there.</p>
+      <p>At the pause point every demonstration contributes many “stay” frames and one “go” frame. The policy sees only the current frame and doesn't know how long it has been standing, so again and again it chooses “stay”.</p>
+      <p>More demonstrations won't help: the operator pauses in each one, and the number of “stay” frames grows just as much.</p>
+      <p>A chunk carries the continuation of the motion: it contains both the pause and what the operator did after it. Ada's gripper carries a mug across the table to a shelf, top view. The policy is trained on ten demonstrations and in a similar position takes the median of what the operator did — that's how a network trained with L1 behaves. Let's compare chunks of 1, 10 and 100 actions on one scene, push the mug mid-chunk and pick the length.</p>
+      <p class="ada-note"><svg class="ada-ico" viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="10" width="48" height="42" rx="18" fill="#f4efe6" stroke="#3d3c38" stroke-width="3"/><rect x="15" y="19" width="34" height="22" rx="10" fill="#1f2430"/><ellipse cx="25" cy="30" rx="4" ry="5.5" fill="#eb6834"/><ellipse cx="39" cy="30" rx="4" ry="5.5" fill="#eb6834"/></svg><span>Ada is the home humanoid robot the course's labs are built around. More about her in <a href="0-1-dve-paradigmy.html#ada">lesson 0.1</a>.</span></p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <canvas id="chunkCv" width="760" height="400" class="lane-cv" role="img" aria-label="Lanes: grippers with different chunk lengths carry mugs to the shelf"></canvas>
+        <canvas id="chunkTl" width="760" height="90" class="plot-cv tl-cv" role="img" aria-label="Chunk tape: moments when the policy composes a new chunk, and the moment of the push"></canvas>
+        <div class="cv-legend" id="chunkLegend"></div>
+        <div class="readout lane-out" id="chunkOut"></div>
+        <div class="ctl-row">
+          <label class="opt" id="wrapShow"><input type="checkbox" id="chunkShow" checked> show the chunk</label>
+          <label class="hd-range" id="wrapPushT"><span>Push moment</span><input id="chunkPushT" type="range" min="0" max="36" step="1" value="6"><output>1.0 s</output></label>
+          <span id="wrapPushBtn"><button class="btn sm" id="chunkPushBtn" type="button" disabled>Push now</button></span>
+          <label class="hd-range" id="wrapK"><span>Chunk k</span><input id="chunkK" type="range" min="1" max="200" step="1" value="10"><output>10</output></label>
+          <label class="hd-range" id="wrapEx"><span>Execute</span><input id="chunkEx" type="range" min="1" max="100" step="1" value="100"><output>100</output></label>
+          <label class="opt" id="wrapTe"><input type="checkbox" id="chunkTe"> temporal ensembling</label>
+          <label class="hd-range" id="wrapM"><span>m</span><input id="chunkM" type="range" min="-10" max="10" step="1" value="1"><output>0.01</output></label>
+          <span class="seg" role="group" aria-label="Pauses in demonstrations" id="wrapPauses"><button type="button" data-p="none">no pauses</button><button type="button" data-p="short">0.3 s pauses</button><button type="button" data-p="long">0.6 s pauses</button></span>
+          <label class="opt" id="wrapCmp"><input type="checkbox" id="chunkCmp" checked> chunks of 1, 10 and 100 side by side</label>
+        </div>
+      </div>
+      <div class="card guide-card"><div id="chunkMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: how the lab is built</summary><div class="body">
+      <ul>
+        <li><b>Demonstrations.</b> 10 runs over 0.8 m at about 0.25 m/s, recorded at 50 Hz. The operator stops at the 34 cm mark. Short pauses are 12 to 19 steps, 0.31 s on average; long ones 22 to 35 steps, 0.58 s on average.</li>
+        <li><b>Policy.</b> Given the mug's position, we take nearby demonstration frames with Gaussian weights (\(\sigma = 8\) mm). For each step \(j\) of the chunk — the weighted median of the positions those frames reached j steps later. These are absolute target positions, as in ACT. A shift of about 3 mm in a random direction is added to the chunk; away from the data it grows: 3 cm away it doubles. The gripper chases the target with a lag, covering 80% of the distance per step.</li>
+        <li><b>Why \(k = 1\) gets stuck.</b> At the pause point the data has ten runs of 12–19 “stay” frames and one “go” frame each. The median next position is “stay”, and the gripper stays no matter how much time has passed. A chunk gets through the pause if more than half of the frames are already moving by its end: then the median moves too.</li>
+        <li><b>The push</b> shifts the mug in the gripper 6 cm sideways. The gripper follows the old plan, and the mug travels with the offset until a new chunk accounts for it. In missions 3 and 4 the push comes after the pause, right after a new chunk starts, that is, at the worst moment. Reaction time runs from the push to the first chunk that sees it. With temporal ensembling we count when the mug is at least halfway back on the path.</li>
+        <li><b>Outcomes.</b> The mug is on the shelf if it was placed no farther than 3 cm from the mark. The trip is allowed 8 s. A jerk is a step where the gripper's acceleration exceeds 4 m/s².</li>
+      </ul>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>A chunk gets through the pause, but while it's executing the arm doesn't see the push. The working window in the toy is 14 to 25 actions, and large systems also execute only part of the chunk. ACT's chunk is 100 actions. How does one network output a hundred actions at once?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="arch">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">3</span> Architecture</div>
+      <h2>A hundred actions in one pass</h2>
+      <p>How does one network output a hundred actions at once? It has to turn four frames and the joint positions into 100 actions of 14 numbers, and do it fast: ACT is queried at every step, 50 times a second.</p>
+      <p>The network from lesson 1.1 is built for one action: a frame in, an action out.</p>
+      <p>You could emit actions one at a time, the way a language model emits words. But then a chunk takes a hundred network passes in a row, and there's no time for that at every step.</p>
+      <p>ACT takes the transformer from lesson 1.6. The frame from each camera goes through a ResNet18 convolutional network and becomes a 15×20×512 feature map. The map is unrolled into 300 tokens, and 2D sinusoidal positions are added so the network knows which part of the frame each token comes from. Four cameras give 1200 tokens, to which a joint token and a “style” token \(z\) are added — 1202 in all. Here \(z\) is 32 numbers about the operator's manner: during training they are computed by the CVAE encoder, and when the robot runs, \(z = 0\) is fed in. Why that's needed is in the next section.</p>
+      <p>The encoder mixes the tokens, and the decoder outputs all \(k\) actions at once. It works like the attention lab in lesson 1.6. The decoder has \(k\) learned queries, 100 in ACT, and each asks “what is the action at step \(i\)?”. A query compares itself with the keys of the camera, joint and \(z\) tokens and assembles its action from their values, and all queries are computed simultaneously, in one pass. Attention where queries come from one token sequence and keys and values from another is called cross-attention. Each action is 14 absolute target positions of the leader arms, 6 joints and a gripper for each; with deltas the result was worse. Assemble this scheme from blocks: the dimension is shown at every junction.</p>
+    </div>
+    <div class="lab-badge"><i>🧱</i> Sandbox</div>
+    <div class="lab">
+      <div class="card scene-card arch-card">
+        <p class="muted-s" style="margin:0 0 10px">Click a block, then a slot in the scheme, or drag the block. A block in the scheme can be returned with a click. Some blocks are decoys.</p>
+        <div class="arch-box">
+          <div class="arch-pal" id="archPal" aria-label="Blocks"></div>
+          <div class="arch-flow" id="archFlow"></div>
+        </div>
+      </div>
+      <div class="card guide-card"><div id="archMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: ACT by the numbers</summary><div class="body">
+      <p>The encoder has 4 layers, d = 512, 8 heads. The paper says 7 decoder layers, but in the original code only the first one feeds the output (issue #25 in the ACT repository; LeRobot uses 1). ResNet18 starts from ImageNet weights. About 80M parameters in total, training takes about 5 hours on an RTX 2080 Ti, AdamW, learning rate 1e-5, batch 8, a separate model per task. Inference takes about 10 ms.</p>
+      <p>The target positions are tracked by the PID controller in the Dynamixel motors. The leader arms' positions are predicted, not the followers': the gap between them, through the PID, implicitly sets the force. Why deltas are worse the paper doesn't explain. A possible explanation comes from lesson 0.3: position targets together with a controller give a system that is stable without feedback, and that is the condition under which chunks help.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>1202 tokens in, 100×14 out, about 80M parameters and about 10 ms of inference. The scheme has a block that does nothing at inference — the CVAE encoder. What is it for during training?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="cvae">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">4</span> CVAE</div>
+      <h2>The latent “style” variable</h2>
+      <p>Why does ACT need a CVAE encoder? People show the same task differently: one goes around the vase on the left, another on the right.</p>
+      <p>Regression with mean squared error averages the manners: the mean of two detours leads straight into the vase. That was the conclusion of lesson 1.3.</p>
+      <p>ACT is trained with L1 instead of MSE. L1 doesn't average, it takes the median — the side with more demonstrations. The policy doesn't drive into the vase, but the second manner is lost.</p>
+      <p>To keep the manners, ACT is trained as a conditional variational autoencoder, a <strong>CVAE</strong>. During training a separate encoder looks at the joints and at k actions from the demonstration, without images, and compresses the manner into a vector \(z\) of 32 numbers. The policy gets \(z\) together with the images and reconstructs the actions. The loss is \(L_1 + \beta\,\mathrm{KL}\) with \(\beta = 10\): the \(\mathrm{KL}\) term pulls \(z\) toward the standard normal distribution. At inference there are no demonstration actions, so the encoder is discarded and \(z = 0\) is fed in. What this gives is explained in two ways. Pick one explanation and test it by experiment: the operator went around the vase 26 times on the left and 24 on the right; in the diagrams the robot drives bottom to top.</p>
+    </div>
+    <div class="lab-badge"><i>⚖️</i> A dispute between two explanations</div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="dispute" id="cvDispute">
+          <div class="disp" data-x="a"><b>Explanation A</b><p>z is style. At inference the policy picks a manner and goes around the vase now left, now right, like the operator.</p><span class="verdict"></span></div>
+          <div class="disp" data-x="b"><b>Explanation B</b><p>z is needed only in training. At inference z = 0, and the policy does the same thing every time, like L1 regression.</p><span class="verdict"></span></div>
+        </div>
+        <div class="cv-trio">
+          <div class="cv-pane"><div class="np-head"><b class="c-l1">L1 regression</b><span>no latent variable</span></div><canvas id="cvL1" width="300" height="170" role="img" aria-label="Ten runs of L1 regression around the vase"></canvas><div class="np-stat" id="cvL1Out"></div></div>
+          <div class="cv-pane"><div class="np-head"><b class="c-act">ACT, z = 0</b><span>as at inference</span></div><canvas id="cvAct" width="300" height="170" role="img" aria-label="Ten runs of ACT with z = 0 around the vase"></canvas><div class="np-stat" id="cvActOut"></div></div>
+          <div class="cv-pane"><div class="np-head"><b class="c-rnd">Random z</b><span>same decoder, z ~ N(0, I)</span></div><canvas id="cvRnd" width="300" height="170" role="img" aria-label="Ten runs of the same decoder with random z"></canvas><div class="np-stat" id="cvRndOut"></div></div>
+        </div>
+        <div class="cv-legend" id="cvLegend"></div>
+        <div class="ctl-row">
+          <span class="seg" role="group" aria-label="KL weight" id="wrapBeta"><button type="button" data-b="1">β = 1</button><button type="button" data-b="10">β = 10</button></span>
+          <label class="hd-range" id="wrapLeft"><span>Left out of 50</span><input id="cvLeft" type="range" min="20" max="30" step="1" value="26"><output>26</output></label>
+        </div>
+      </div>
+      <div class="card guide-card"><div id="cvMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: the toy CVAE</summary><div class="body">
+      <p>The detour side is the only thing that can be encoded. The encoder maps “left” to \(z \sim \mathcal N(+\mu, \sigma^2)\) and “right” to \(z \sim \mathcal N(-\mu, \sigma^2)\). The decoder with \(L_1\) outputs the median, that is, the side that is more likely given \(z\). \(\mu\) and \(\sigma\) are found by brute force to minimize the sum of two terms: the share of wrong sides (an error costs 1, in the same units as \(L_1\)) and \(\beta\,\mathrm{KL}\bigl(\mathcal N(\pm\mu, \sigma^2)\,\|\,\mathcal N(0, 1)\bigr)\).</p>
+      <div class="formula">\[\begin{aligned} \beta = 10:&\quad \mu = 0,\ \text{side error } 48\,\%,\\ \beta = 1:&\quad \mu = 0.39,\ \sigma = 0.92,\ \text{error } 34\,\%. \end{aligned}\]</div>
+      <p>At \(\beta = 10\) the encoder encodes nothing: \(z\) knows nothing about the side. At \(\beta = 1\) it tells the sides apart. At \(\beta = 10\) the encoder is better off encoding nothing: every bit about the side costs more than it saves in L1. \(L_1\) regression without \(z\) outputs the median of all demonstrations — the side with more of them. If there are equally many demonstrations on the left and on the right, the median is undefined: L1 is equally happy with any trajectory between the sides, including one straight into the vase. Random z are ten numbers from a generator with seed 21.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>At inference ACT is deterministic and behaves like L1 regression. For the authors, success on human data dropped from 35.3% to 2% without the CVAE, but an independent rerun — a 2026 preprint with the telling title “The Latent That Never Was” — didn't reproduce that drop. And once there was a lot of data, the ALOHA authors themselves switched to diffusion: in ALOHA Unleashed, on the ShirtMessy task, a diffusion loss gave 70% and an ACT variant with L1 gave 25%. The problem from the lab remains: a chunk of 100 actions sees the world once every 2 seconds. How does ACT react faster without shortening the chunk?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="te">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">5</span> Temporal ensembling</div>
+      <h2>Blending overlapping chunks</h2>
+      <p>How to react faster without shortening the chunk? A chunk of 100 actions executes for 2 seconds, and all that time the arm sees no new frames.</p>
+      <p>A new frame is taken into account only in the next chunk.</p>
+      <p>In the lab we executed only part of the chunk and composed a new one more often. The reaction got faster, but each new chunk starts slightly differently from how the old one was going, and jerks appear at the seams.</p>
+      <p>ACT queries the model at every step, and for the current step it averages all the predictions that have accumulated for it — at k = 100, up to a hundred of them. This is <strong>temporal ensembling</strong> (TE), averaging over time. The weights are \(w_i = e^{-m i}\), where \(i = 0\) is the oldest prediction: at \(m &gt; 0\) each next, fresher prediction weighs slightly less. In the ACT code \(m = 0.01\). Let's look inside and scrub through the process step by step. At the top is a tape: steps run horizontally, the gripper's lateral offset vertically; thin lines are the chunks that predicted the selected step, the thick one is what the gripper executed. Below is the weight of each prediction, from the oldest on the left to the freshest on the right.</p>
+    </div>
+    <div class="lab-badge"><i>🧠</i> The model's thinking, step by step</div>
+    <div class="lab">
+      <div class="card scene-card">
+        <canvas id="teCv" width="760" height="300" class="plot-cv te-cv" role="img" aria-label="Tape of overlapping chunks, the executed path and the obstacle"></canvas>
+        <canvas id="teW" width="760" height="150" class="plot-cv tew-cv" role="img" aria-label="Prediction weights for the selected step, from oldest to freshest"></canvas>
+        <div class="cv-legend" id="teLegend"></div>
+        <p class="cv-note">Time runs left to right: 20 ms steps horizontally, the gripper's lateral offset in centimeters vertically. The hatched rectangle is the obstacle; the gripper goes around it. The bars below are the weight of each prediction in the action at the selected step.</p>
+        <div class="readout" id="teOut"></div>
+        <div class="ctl-row">
+          <label class="hd-range" id="wrapTeT"><span>Step</span><input id="teT" type="range" min="0" max="259" step="1" value="150"><output>150</output></label>
+          <label class="hd-range" id="wrapTeM"><span>m</span><input id="teM" type="range" min="-10" max="10" step="1" value="2"><output>0.010</output></label>
+          <label class="opt" id="wrapTwo"><input type="checkbox" id="teTwo"> two detour strategies</label>
+        </div>
+      </div>
+      <div class="card guide-card"><div id="teMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: the formula and the tape</summary><div class="body">
+      <div class="formula">\[ a(t) = \frac{\sum_i w_i\,\hat a_i(t)}{\sum_i w_i}, \qquad w_i = e^{-m i}, \]</div>
+      <p>where \(i = 0\) is the oldest chunk. In the ACT code the predictions for the current step are stored in the order the chunks appeared, and the weights \(e^{-0.01\,i}\) run from the oldest. At \(k = 100\) the weights sum to ≈ 63.5, so the oldest prediction contributes ≈ 1.6% of the action and the freshest ≈ 0.6%. The smaller \(m\), the faster new observations are taken into account.</p>
+      <p>In the tape a new chunk starts at every step from where the gripper is now and converges to the chosen detour in 12 steps. In two-strategy mode, chunks before step 100 choose the detour above, and from step 100 on, below. The obstacle occupies steps 132–168 and ±4 cm in height.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>Blending smooths the motion but trusts old predictions more, and the average of two different strategies can lead into the obstacle. In practice, temporal ensembling added 3.3 percentage points to ACT's success, in π0 (the large policy from lesson 1.6) it made things worse, and in ALOHA Unleashed, the next policy for the same platform, it wasn't needed: a chunk of 50 actions is executed whole there, and the authors call replanning once a second a limitation. Querying the model at every step is possible because ACT is fast: inference takes about 10 ms. What if the model thinks tens of times longer?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="delay">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">6</span> Latency and seams</div>
+      <h2>While the model thinks, the robot moves</h2>
+      <p>What if the model thinks for a long time? π0 from lesson 1.6 produces a chunk in 73 ms on an RTX 4090; for Gemini Robotics (Google DeepMind, 2025; lesson 3.7) the path from observation to chunk is about 250 ms. All that time the robot has to do something.</p>
+      <p>The new chunk arrives late and was computed from a frame that is already stale: the robot has moved on in the meantime.</p>
+      <p>Wait for the new chunk standing still — the robot freezes. Switch to it as soon as it arrives — a jump at the seam. Blend chunks, as temporal ensembling does — different strategies get averaged.</p>
+      <p><strong>Real-Time Chunking</strong> (RTC; Black, Galliker, Levine, NeurIPS 2025) generates the next chunk while the current one is executing. The actions that will have been executed by the time inference finishes are frozen, and the rest are inpainted so as to continue the old chunk; no retraining is needed. Let's test it on a robot that goes around an obstacle above or below. The policy is generative, like π0: a chunk of 50 actions, and it picks the detour side at random until the robot has moved off the axis. First sketch the velocity curve for synchronous execution, then compare four modes at 200 ms of latency.</p>
+    </div>
+    <div class="lab-badge"><i>✏️</i> Sketch the curve and set the conditions</div>
+    <div class="lab">
+      <div class="card scene-card">
+        <canvas id="dlCv" width="760" height="300" class="lane-cv dl-cv" role="img" aria-label="The robot goes around an obstacle: path, chunk seams, the current chunk"></canvas>
+        <canvas id="dlPlot" width="760" height="240" class="plot-cv dlp-cv" role="img" aria-label="Plots of the robot's position, velocity and acceleration over time"></canvas>
+        <div class="cv-legend" id="dlLegend"></div>
+        <p class="cv-note">Top view: the robot (orange circle) drives left to right from start to goal and goes around the obstacle — the hatched circle — above or below. Below are three plots over time: lateral position, velocity, and the velocity jump per 20 ms step. The red dashed line is the 0.15 m/s threshold: a jump above it is a jerk. Modes: “sync” — stand still while the chunk is computed; “naive” — switch to the new chunk as soon as it arrives; TE — blending from section 5; RTC — freeze and inpaint.</p>
+        <div class="readout" id="dlOut"></div>
+        <div class="ctl-row">
+          <span class="seg" role="group" aria-label="Execution mode" id="wrapMode"><button type="button" data-m="sync">sync</button><button type="button" data-m="naive">naive</button><button type="button" data-m="te">TE</button><button type="button" data-m="rtc">RTC</button></span>
+          <label class="hd-range" id="wrapDelay"><span>Latency</span><input id="dlDelay" type="range" min="0" max="15" step="1" value="10"><output>200 ms</output></label>
+          <label class="opt" id="wrapObst"><input type="checkbox" id="dlObst" checked> obstacle</label>
+          <span id="wrapErase"><button class="btn sm" id="dlErase" type="button">Erase sketch</button></span>
+        </div>
+      </div>
+      <div class="card guide-card"><div id="dlMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: the modes and other solutions</summary><div class="body">
+      <ul>
+        <li><b>Sync.</b> Execute 25 actions, stop, wait for inference, start the new chunk from where we stand.</li>
+        <li><b>Naive async.</b> Inference of the new chunk starts one latency before the end of the 25 actions, from the frame at that moment. When the chunk arrives, the robot switches to it immediately at the right step, without smoothing the seam.</li>
+        <li><b>TE.</b> A new chunk arrives at every step, computed from the frame \(d\) steps ago. The action is the average of all chunks with weights \(e^{-0.01\,i}\), as in ACT.</li>
+        <li><b>RTC (simplified).</b> The first \(d\) actions of the new chunk are the same as the old one's. After that the new chunk is blended with the old one with the old one's weight \(e^{-j/6}\); the last 25 actions are new only. The new chunk continues the same detour side: in real RTC that is done by guidance during generation.</li>
+        <li><b>Criteria.</b> A pause is any step where the robot moves slower than 5 cm/s; the trip must be made with less than 0.1 s of pauses in total. The velocity jump is the largest change in velocity between adjacent 20 ms steps, threshold 0.15 m/s. The obstacle is a circle of radius 7 cm, the robot 2 cm.</li>
+      </ul>
+      <p>There are other solutions. BID (ICLR 2025) samples several chunks at every step and picks one by consistency with the previous decision; the relative gain is 32%, with EMA 46%, at roughly twice the compute. Asynchronous inference in SmolVLA (a small open policy from Hugging Face, 2025; lesson 3.5) cut the time per task from 13.75 to 9.7 s.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>In the toy only RTC survives 200 ms of latency. In the RTC paper, on π0.5 (the next version of π0, 2025; lesson 3.8), with artificial latency of +100 and +200 ms RTC doesn't degrade, the synchronous mode degrades linearly, and temporal ensembling rocks the robot until a protective stop. RTC performs the same motion 20% faster than the synchronous mode and lights a match at latency above 300 ms. In the trained version of RTC (December 2025) the latency is simulated right during training, so there's no extra compute at inference; on π0.6 (lesson 3.8) the result is on par with the original RTC. What chunks do large systems take in the end, and how much of them do they execute?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="systems">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">7</span> Chunks in large systems</div>
+      <h2>How many actions per chunk in 2023–2025</h2>
+      <p>What chunks do large systems take? Almost all modern policies output chunks and most often don't execute them whole: a long chunk gives a coherent continuation, frequent inference gives reaction. Most of the systems in the table are covered in later lessons; the lesson number is in parentheses.</p>
+    </div>
+    <div class="table-wrap">
+      <table class="trade sys-table">
+        <thead><tr><th>System</th><th>Chunk</th><th>Executed before the next inference</th><th>Rate</th></tr></thead>
+        <tbody>
+          <tr><td>ACT, 2023</td><td>100 (90 on the website)</td><td>with TE — queried at every step; without TE — all k</td><td>50 Hz, chunk — 2 s</td></tr>
+          <tr><td>Diffusion Policy, 2023</td><td>16</td><td>8</td><td>10 Hz</td></tr>
+          <tr><td>Mobile ALOHA (ACT), 2024</td><td>45</td><td>n/a</td><td>50 Hz</td></tr>
+          <tr><td>ALOHA Unleashed, 2024</td><td>50 (1 s)</td><td>50, no TE</td><td>50 Hz</td></tr>
+          <tr><td>π0, 2024 — Physical Intelligence (lesson 3.6)</td><td>50</td><td>25 (0.5 s) on 50 Hz robots; 16 (0.8 s) on UR5e and Franka</td><td>50 / 20 Hz</td></tr>
+          <tr><td>π0.5 + RTC, 2025 — the next version of π0 (lesson 3.8)</td><td>50</td><td>sync 25; with RTC — asynchronous</td><td>50 Hz</td></tr>
+          <tr><td>GR00T N1, 2025 — NVIDIA, a model for humanoids (lesson 3.7)</td><td>16 (63.9 ms per chunk)</td><td>n/a</td><td>actions 120 Hz, vision-language model 10 Hz</td></tr>
+          <tr><td>TRI LBM, 2025 — Toyota Research Institute's large behavior model</td><td>16 (1.6 s)</td><td>8 (0.8 s)</td><td>10 Hz</td></tr>
+          <tr><td>Atlas LBM, 2025 — Boston Dynamics and TRI, see below</td><td>48 (1.6 s)</td><td>24 (0.8 s)</td><td>30 Hz</td></tr>
+          <tr><td>SmolVLA, 2025 — a small open policy from Hugging Face (lesson 3.5)</td><td>50</td><td>asynchronous, by queue threshold</td><td>n/a</td></tr>
+          <tr><td>Gemini Robotics, 2025 — Google DeepMind (lesson 3.7)</td><td>n/a</td><td>n/a</td><td>“effectively 50 Hz”</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <h3>What grew out of ALOHA</h3>
+      <ul>
+        <li><b>Mobile ALOHA</b> (2024) — ALOHA on a mobile base for $32k, 3 cameras, ACT chunk of 45. Co-training with static ALOHA demonstrations (825 of them) raises success “up to 90%” according to the abstract. In the table for ACT: Call Elevator from 0 to 95%, Rinse Pan from 0 to 80%, Wipe Wine from 50 to 95%.</li>
+        <li><b>ALOHA 2</b> (2024) — the leader grippers need about 10 times less force, passive gravity compensation, 4 RealSense D405 cameras, a MuJoCo model.</li>
+        <li><b>ALOHA Unleashed</b> (2024) — over 26,000 demonstrations for 5 tasks, a transformer with a diffusion loss and 217M parameters, inference in 0.043 s on an RTX 4090.</li>
+        <li><b>Atlas LBM</b> (Boston Dynamics and TRI, 2025) — 450M parameters. Execution can be sped up 1.5–2× with no noticeable loss of quality.</li>
+      </ul>
+      <p>Chunks, seams and latency are covered. Which of these ideas are easiest to get wrong? Let's check.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="quiz">
+  <div class="prose">
+    <div class="kicker"><span class="num">8</span> Check yourself</div>
+    <h2>Eight common misconceptions</h2>
+    <div class="quiz" id="quizBox"></div>
+    <p class="score" id="quizScore" style="margin-top:14px"></p>
+  </div>
+</section>
+
+<section class="section" id="finale">
+  <div class="prose">
+    <div class="kicker"><span class="num">9</span> Takeaways</div>
+    <h2>Lesson takeaways</h2>
+    <ol class="takeaways">
+      <li><span><strong>Action chunking</strong>: from one frame predict \(k\) actions. There are \(k\) times fewer decisions, and the chunk gets through the pauses where a per-step policy gets stuck.</span></li>
+      <li><span>Chunk length has a <strong>window</strong>: short chunks get stuck, long ones react late to the unexpected. Large systems execute part of the chunk: π0 — 25 of 50.</span></li>
+      <li><span><strong>ACT</strong>: ResNet18 → 1200 tokens, plus joints and z, encoder-decoder, 100 queries → 100×14 absolute positions in one pass.</span></li>
+      <li><span>The <strong>CVAE</strong> is needed only in training. At inference \(z = 0\), and ACT is deterministic.</span></li>
+      <li><span><strong>Temporal ensembling</strong> trusts old predictions more (\(w_0\) is the oldest). It smooths, but averages different strategies and copes poorly with latency.</span></li>
+      <li><span><strong>RTC</strong> stitches chunks under inference latency: it freezes what will have been executed and inpaints the rest.</span></li>
+      <li><span>A chunk helps on a system that is <strong>stable without feedback</strong>, and can hurt on an unstable one.</span></li>
+    </ol>
+    <p style="margin-top:28px">ACT is trained separately for each task: 50 demonstrations per skill, one policy — one task. The policy repeats the operator's motions, but knows neither the geometry of the scene nor words, so it can't figure out what exactly to do in a new situation. Part 2 starts from that problem.</p>
+    <h3 style="margin-top:40px">Open questions</h3>
+    <details class="card pad open-q"><summary>Inference latency is 150 ms, the robot runs at 50 Hz. What chunk length and execution scheme would you choose, and why?</summary><p>150 ms is 7–8 steps. The chunk should cover the latency with margin, and the executed part should fit within the time in which you need to be able to react. For example, a chunk of 50 actions (1 s), executing about 25 (0.5 s), as in π0. The synchronous mode would give a 150 ms pause for every half-second of motion, naive switching — jumps at the seams. Better asynchronously with RTC: freeze the 8 actions that will execute during inference and inpaint the rest. Temporal ensembling is risky if the policy is generative and neighboring chunks may pick different strategies.</p></details>
+    <details class="card pad open-q"><summary>Why does an action chunk help on a stable system but can hurt on an unstable one, for instance when balancing?</summary><p>A chunk is executed without feedback. If the system is stable on its own — say, a position controller holds the target — deviations between decisions die out, and there are fewer decisions and fewer errors. If the system is unstable, over the chunk the deviation grows by a factor of \(\lambda^k\), and there's no one to correct it until the next decision. According to ICLR 2026, such systems need noise during demonstration collection so the policy learns corrections; the chunks then have to be short.</p></details>
+    <h3 style="margin-top:34px">Paper guide</h3>
+    <p><a href="https://arxiv.org/abs/2304.13705" target="_blank" rel="noopener">Zhao, Kumar, Levine, Finn, “Learning Fine-Grained Bimanual Manipulation with Low-Cost Hardware”, RSS 2023</a>.</p>
+    <ul class="links">
+      <li><strong>Read closely</strong><span>The description of ACT: action chunks, temporal ensembling, the CVAE and the architecture diagram. The ablations: chunk length, temporal ensembling, the CVAE and teleoperation rate.</span></li>
+      <li><strong>Safe to skip</strong><span>The ALOHA construction details, unless you plan to build one.</span></li>
+      <li><strong>Question to keep in mind</strong><span>Why does ACT predict the leader arms' positions rather than the followers'? The hint is in the architecture section.</span></li>
+    </ul>
+    <h3 style="margin-top:34px">Resources</h3>
+    <ul class="links">
+      <li><a href="https://tonyzhaozh.github.io/aloha/" target="_blank" rel="noopener">ALOHA and ACT</a><span>Project site: autonomous rollouts and reactions to perturbations</span></li>
+      <li><a href="https://github.com/tonyzhaozh/act" target="_blank" rel="noopener">ACT code</a><span>Temporal ensembling is in imitate_episodes.py</span></li>
+      <li><a href="https://huggingface.co/docs/lerobot/act" target="_blank" rel="noopener">LeRobot: ACT</a><span>How to train ACT yourself</span></li>
+      <li><a href="https://huggingface.co/docs/lerobot/async" target="_blank" rel="noopener">LeRobot: asynchronous inference</a><span>Chunks under latency in practice</span></li>
+      <li><a href="https://pi.website/research/real_time_chunking" target="_blank" rel="noopener">Real-Time Chunking</a><span>Physical Intelligence blog: the match and the comparison with temporal ensembling</span></li>
+      <li><a href="https://mobile-aloha.github.io" target="_blank" rel="noopener">Mobile ALOHA</a><span>Z. Fu, T. Zhao, C. Finn, CoRL 2024</span></li>
+      <li><a href="https://aloha-unleashed.github.io" target="_blank" rel="noopener">ALOHA Unleashed</a><span>Shoelaces and a shirt: diffusion on 26,000 demonstrations</span></li>
+      <li><a href="https://bid-robot.github.io" target="_blank" rel="noopener">Bidirectional Decoding</a><span>Picking a chunk by consistency with the previous one, ICLR 2025</span></li>
+    </ul>
+    <div class="callout insight" style="margin-top:34px"><span class="ico">➡️</span><div><p><strong>Next: Part 2.</strong> How can a robot work out what to do and where, if all it can do is repeat motions? In <a href="../index.html#program">Part 2</a> it gets scene geometry and language: Transporter and CLIPort, PerAct and planners on large language models. RTC was invented for flow policies like π0: flow matching is covered in the supplementary <a href="1-8-flow-matching.html">lesson 1.8</a>.</p></div></div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Lesson 1.7 of the course “Modern Robotics and Physical AI”. All simulations run locally in your browser.
+</footer>
+<div class="tooltip" id="tooltip" role="tooltip"></div>
+<script>
+/*@@JS@@*/
+</script>
+</body>
+</html>

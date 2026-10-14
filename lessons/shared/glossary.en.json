@@ -1,0 +1,1490 @@
+[
+ {
+  "id": "moravec",
+  "t": "Moravec’s paradox",
+  "d": "What people do effortlessly — seeing, grasping, walking — turns out to be the hardest for machines, while chess and arithmetic come easily to a computer.",
+  "a": "Moravec(?:['’]s)? paradox"
+ },
+ {
+  "id": "modular-stack",
+  "t": "Classical (modular) stack",
+  "d": "A control system built from modules with clear interfaces: perception, state estimation, planning, control. The modules run on rules and heuristics that an engineer writes and verifies. Lesson 0.1 calls this approach “Rules”.",
+  "a": "classical \\(modular\\) stack|(?:classical|modular) stacks?"
+ },
+ {
+  "id": "end-to-end",
+  "t": "End-to-end",
+  "d": "An approach where a single neural network maps sensor data straight to commands, with no hand-written modules in between.",
+  "a": "end-to-end"
+ },
+ {
+  "id": "silent-failure",
+  "t": "Silent failure",
+  "d": "A failure the system does not report: the network confidently returns a wrong answer. A loud failure, where the system says “I can’t see” and stops, is safer: a human can be called in.",
+  "a": "silent failures?"
+ },
+ {
+  "id": "long-tail",
+  "t": "Long tail",
+  "d": "A multitude of rare situations: each one is uncommon, but together they make up a sizeable share. You cannot enumerate them in rules ahead of time.",
+  "a": "long tails?"
+ },
+ {
+  "id": "vla",
+  "t": "VLA",
+  "d": "A model that takes images and a text command and outputs robot actions. Usually built on top of a vision-language model.",
+  "a": "VLAs?"
+ },
+ {
+  "id": "two-level",
+  "t": "Dual-system architecture",
+  "d": "A system made of a slow model that understands the command and decides what to do, and a fast policy that outputs the motions. Helix, GR00T N1 and Gemini Robotics are built this way.",
+  "a": "(?:dual|two)-(?:system|level) (?:architectures?|models?|systems?|networks?|designs?)"
+ },
+ {
+  "id": "policy",
+  "t": "Policy",
+  "d": "A function that maps an observation to a robot action at a fixed rate. It usually outputs targets for the controllers, not motor currents.",
+  "a": "polic(?:y|ies)"
+ },
+ {
+  "id": "dof",
+  "t": "Degree of freedom",
+  "d": "An independent coordinate you can control. For an arm, the degrees of freedom are its joints.",
+  "a": "degrees? of freedom|DoFs?"
+ },
+ {
+  "id": "gear-ratio",
+  "t": "Gear ratio",
+  "d": "How many times the gearbox reduces speed and multiplies torque. The rotor inertia seen at the output grows as the square of the gear ratio.",
+  "a": "gear ratios?"
+ },
+ {
+  "id": "backdrivability",
+  "t": "Backdrivability",
+  "d": "How easily the actuator can be turned from the output side. Gearbox friction and reflected rotor inertia grow with the gear ratio, so a heavily geared actuator is nearly non-backdrivable: an external push does not turn the motor, and it passes impacts on rigidly.",
+  "a": "backdrivab(?:ility|le)"
+ },
+ {
+  "id": "transparency",
+  "t": "Actuator transparency",
+  "d": "The property of a backdrivable actuator to transmit force in both directions almost without distortion: an external force reaches the motor and can be estimated from current without a force sensor. The term comes from haptics. Transparent low-ratio actuators drive the legs of MIT Cheetah and Unitree robots.",
+  "a": "transparency|transparent (?:actuators?|drives?)"
+ },
+ {
+  "id": "qdd",
+  "t": "Quasi-direct drive",
+  "d": "A powerful motor with a low gear ratio, around 6:1. The actuator is backdrivable and transparent: it absorbs impacts softly, and force can be estimated from current. The legs of MIT Mini Cheetah and Unitree robots are built this way.",
+  "a": "quasi-direct(?: |-)drives?|QDD"
+ },
+ {
+  "id": "harmonic",
+  "t": "Strain wave gear (harmonic drive)",
+  "d": "A gearbox in which an elliptical cam presses a flexible toothed ring against a rigid ring at two points. The flexible ring has two fewer teeth, so each cam revolution advances it by only two teeth: one compact stage gives a ratio of 30 to 160 with almost no backlash.",
+  "a": "strain(?: |-)wave gears?|harmonic drives?"
+ },
+ {
+  "id": "sea",
+  "t": "Series elastic actuator",
+  "d": "An actuator with a spring between the gearbox and the load: stable force control and protection from impacts, at the cost of bandwidth.",
+  "a": "series(?: |-)elastic actuators?|(?-i:SEAs?)"
+ },
+ {
+  "id": "proprioception",
+  "t": "Proprioception",
+  "d": "Sensors that measure the robot’s own state: joint angles and velocities, currents, body accelerations.",
+  "a": "propriocepti(?:on|ve)"
+ },
+ {
+  "id": "exteroception",
+  "t": "Exteroception",
+  "d": "Sensors that look at the world around the robot: cameras, lidars, touch sensors.",
+  "a": "exterocepti(?:on|ve)"
+ },
+ {
+  "id": "complementary",
+  "t": "Complementary filter",
+  "d": "The simplest sensor fusion: the gyroscope estimate with weight α plus the accelerometer estimate with weight 1 − α. The gyroscope is almost noise-free but drifts; the accelerometer does not drift but is noisy.",
+  "a": "complementary filters?"
+ },
+ {
+  "id": "drift",
+  "t": "Drift",
+  "d": "A slowly accumulating error in a sensor or an estimate, such as the angle from a gyroscope or the path from odometry.",
+  "a": "drifts?|drifting"
+ },
+ {
+  "id": "freq-ladder",
+  "t": "Control hierarchy",
+  "d": "The hierarchy of control loops: the lower the level, the faster it reacts — from a few hertz for the model that understands the command to tens of kilohertz for the current loop.",
+  "a": "control hierarch(?:y|ies)|frequency ladder|ladder of (?:control )?frequencies"
+ },
+ {
+  "id": "sim2real",
+  "t": "Sim-to-real gap",
+  "d": "The mismatch between how a robot behaves in the simulator and in real life. It often starts with the actuator: delays, friction, torque saturation.",
+  "a": "sim-to-real(?: gap)?|sim2real(?: gap)?"
+ },
+ {
+  "id": "actuator-net",
+  "t": "Actuator network",
+  "d": "A network trained on recordings of the real actuator to predict the torque it will deliver. It replaces the ideal model inside the simulator.",
+  "a": "actuator (?:networks?|nets?|models?)"
+ },
+ {
+  "id": "fk",
+  "t": "Forward kinematics",
+  "d": "Computing the gripper pose from the joint angles. Pure geometry; there is always exactly one solution.",
+  "a": "forward kinematics|(?-i:FK)"
+ },
+ {
+  "id": "ik",
+  "t": "Inverse kinematics",
+  "d": "Finding the joint angles that put the gripper in the desired pose. There may be several solutions, one, or none.",
+  "a": "inverse kinematics|(?-i:IK)"
+ },
+ {
+  "id": "jacobian",
+  "t": "Jacobian",
+  "d": "The matrix that relates joint velocities to gripper velocity; its transpose relates forces at the gripper to joint torques.",
+  "a": "Jacobians?"
+ },
+ {
+  "id": "singularity",
+  "t": "Singularity",
+  "d": "A pose in which the Jacobian degenerates: the gripper loses the ability to move in some direction, for example along a fully extended arm.",
+  "a": "singularit(?:y|ies)"
+ },
+ {
+  "id": "pd",
+  "t": "PD controller",
+  "d": "A controller that pulls the joint toward its target like a spring (Kp times the error) and damps velocity like a damper (Kd times the velocity).",
+  "a": "PD controllers?|PD control"
+ },
+ {
+  "id": "gravity-comp",
+  "t": "Gravity compensation",
+  "d": "A torque term that, using a model of the arm, takes the arm’s weight off the controller. It removes the sag that a PD controller with finite stiffness cannot eliminate.",
+  "a": "gravity compensation"
+ },
+ {
+  "id": "impedance",
+  "t": "Impedance control",
+  "d": "Control in which the arm behaves like a spring with a chosen stiffness: a position error turns into a moderate force rather than an impact.",
+  "a": "impedance(?: control)?"
+ },
+ {
+  "id": "mpc",
+  "t": "MPC",
+  "d": "Receding-horizon control: using a model, build a plan several seconds ahead, execute its beginning, then recompute the plan from the new state.",
+  "a": "MPC|model predictive control"
+ },
+ {
+  "id": "state-estimation",
+  "t": "State estimation",
+  "d": "Working out where the robot is and what is around it from noisy, incomplete measurements.",
+  "a": "state estimation|state estimators?"
+ },
+ {
+  "id": "belief",
+  "t": "Belief",
+  "d": "A probability distribution over the robot’s possible states: the robot keeps not a point but where it most likely is and how sure it is.",
+  "a": "beliefs?"
+ },
+ {
+  "id": "kalman",
+  "t": "Kalman filter",
+  "d": "State estimation with a Gaussian distribution in a “predict with the model → correct with the measurement” loop. The filter weighs the measurement using the noise levels Q and R.",
+  "a": "Kalman filters?"
+ },
+ {
+  "id": "qr",
+  "t": "Process and measurement noise (Q and R)",
+  "d": "Q is how much to distrust the motion model, R is how much to distrust the measurement. Their ratio sets how much the filter trusts each measurement. Q is chosen with some margin.",
+  "a": "(?:noises?|covariances?|matrices) Q and R|Q and R"
+ },
+ {
+  "id": "particle-filter",
+  "t": "Particle filter",
+  "d": "State estimation with a set of weighted hypotheses, the particles. It keeps several hypotheses at once and survives ambiguity.",
+  "a": "particle filters?"
+ },
+ {
+  "id": "kidnapped",
+  "t": "Kidnapped robot problem",
+  "d": "A test of whether the robot can find itself after being moved while its odometry noticed nothing.",
+  "a": "kidnapped(?: |-)robot(?: problem)?"
+ },
+ {
+  "id": "odometry",
+  "t": "Odometry",
+  "d": "Estimating displacement from wheel or joint rotation. Its error grows with distance travelled.",
+  "a": "odometry"
+ },
+ {
+  "id": "slam",
+  "t": "SLAM",
+  "d": "Building a map and estimating the pose against it at the same time. Without pose correction, walls on the map get duplicated.",
+  "a": "SLAM"
+ },
+ {
+  "id": "occupancy",
+  "t": "Occupancy grid",
+  "d": "A map made of cells, each holding the probability that the cell is occupied by an obstacle.",
+  "a": "occupancy grids?"
+ },
+ {
+  "id": "dijkstra",
+  "t": "Dijkstra’s algorithm",
+  "d": "Shortest-path search that expands cells in order of their distance from the start.",
+  "a": "Dijkstra(?:['’]s)?(?: algorithm)?"
+ },
+ {
+  "id": "astar",
+  "t": "A*",
+  "d": "Shortest-path search that expands cells by the sum of the path travelled so far and a heuristic estimate of what remains. With an admissible heuristic it finds the shortest path and usually expands fewer cells than Dijkstra.",
+  "a": "A\\*"
+ },
+ {
+  "id": "heuristic",
+  "t": "Heuristic",
+  "d": "An estimate of the remaining path to the goal. An admissible heuristic never overestimates the distance; it knows nothing about walls.",
+  "a": "heuristics?"
+ },
+ {
+  "id": "cspace",
+  "t": "Configuration space",
+  "d": "The space of all possible joint values of the robot. For an arm with n joints it is n-dimensional, and a grid over it does not fit in memory.",
+  "a": "configuration space|C-space"
+ },
+ {
+  "id": "rrt",
+  "t": "RRT and RRT*",
+  "d": "Random-tree planners: RRT quickly finds some path, RRT* straightens it toward the shortest one over time. Narrow passages are hard for them.",
+  "a": "RRT\\*?"
+ },
+ {
+  "id": "imitation",
+  "t": "Imitation learning",
+  "d": "Training a policy on examples of an expert’s actions rather than on a reward.",
+  "a": "imitation learning"
+ },
+ {
+  "id": "bc",
+  "t": "Behavior cloning",
+  "d": "Supervised learning on “observation → operator action” pairs. Simple and fast, and at the core of almost every robot model, but it suffers from distribution shift.",
+  "a": "behaviou?r cloning"
+ },
+ {
+  "id": "demonstration",
+  "t": "Demonstration",
+  "d": "A recording of an expert performing the task: a sequence of observations and the expert’s actions.",
+  "a": "demonstrations?"
+ },
+ {
+  "id": "distribution-shift",
+  "t": "Distribution shift",
+  "d": "The policy itself chooses which states it will see: a small error leads it to places where there were no demonstrations, and there it errs even more.",
+  "a": "distribution(?:al)? shift"
+ },
+ {
+  "id": "compounding",
+  "t": "Compounding error",
+  "d": "In the worst case, the error of behavior cloning over an episode of length T grows as εT², where ε is the per-step error rate. So validation accuracy guarantees nothing.",
+  "a": "compounding errors?|error compounding"
+ },
+ {
+  "id": "causal-confusion",
+  "t": "Causal confusion",
+  "d": "A feature that coincides with the correct action in the data but does not cause it. The policy learns to rely on it and fails when the coincidence disappears.",
+  "a": "causal confusion|spurious causes?"
+ },
+ {
+  "id": "dagger",
+  "t": "DAgger",
+  "d": "Iterative imitation learning: the policy drives on its own, the expert labels the states it reached, the new examples are added to all the old ones, and the policy is retrained.",
+  "a": "DAgger"
+ },
+ {
+  "id": "hg-dagger",
+  "t": "HG-DAgger",
+  "d": "A DAgger variant for humans: the expert does not label everything, but takes over control when they see danger.",
+  "a": "HG-DAgger"
+ },
+ {
+  "id": "intervention",
+  "t": "Intervention",
+  "d": "The moment a human takes control away from the robot. The data gets the segment where the human drove, plus the signal “this is bad”.",
+  "a": "interventions?"
+ },
+ {
+  "id": "ensemble",
+  "t": "Ensemble",
+  "d": "Several networks trained on the same data with different initializations. Where there is plenty of data they agree; the spread of their answers is an estimate of uncertainty.",
+  "a": "ensembles?"
+ },
+ {
+  "id": "multimodality",
+  "t": "Action multimodality",
+  "d": "Several different correct actions in the same situation, for example passing the kettle on the left and on the right.",
+  "a": "multi-?modality|multi-?modal actions?"
+ },
+ {
+  "id": "cond-mean",
+  "t": "Conditional mean",
+  "d": "What regression with MSE learns: the average of all correct actions for a given observation. The average of two correct actions can be wrong.",
+  "a": "conditional means?"
+ },
+ {
+  "id": "mse",
+  "t": "MSE",
+  "d": "Mean squared error. Its minimum is the mean of the examples.",
+  "a": "(?-i:MSE)"
+ },
+ {
+  "id": "l1",
+  "t": "L1",
+  "d": "The sum of absolute deviations. Its minimum is the median: when one side outweighs the other, L1 picks that side; with a tie the solution is not unique.",
+  "a": "(?-i:L1)"
+ },
+ {
+  "id": "mode",
+  "t": "Mode",
+  "d": "A peak of the action distribution — a distinct strategy, such as “pass on the left”.",
+  "a": "(?:distribution|action) modes?|modes? of (?:the |an? )?(?:distribution|actions?)"
+ },
+ {
+  "id": "gmm",
+  "t": "Gaussian mixture model",
+  "d": "A distribution made of several weighted Gaussians. The policy outputs the mixture parameters and samples one component.",
+  "a": "Gaussian mixtures?(?: models?)?|mixture of Gaussians|GMM"
+ },
+ {
+  "id": "chunk",
+  "t": "Action chunk",
+  "d": "A sequence of actions several steps ahead that the policy outputs in one go. The chunk holds on to the chosen strategy; the seams between chunks are reconciled, not averaged.",
+  "a": "action chunks?|action chunking|chunks? of actions"
+ },
+ {
+  "id": "diffusion",
+  "t": "Diffusion model",
+  "d": "A generative model that learns to remove noise: it starts from pure noise and over several steps turns it into a sample from the data distribution.",
+  "a": "diffusion models?"
+ },
+ {
+  "id": "sample",
+  "t": "Sample",
+  "d": "One example drawn from a distribution: one generated point or one action chunk.",
+  "a": "samples?"
+ },
+ {
+  "id": "schedule",
+  "t": "Noise schedule",
+  "d": "How fast the noise grows over the steps of the forward process. It sets the signal fraction ᾱ at every step.",
+  "a": "noise schedules?"
+ },
+ {
+  "id": "denoiser",
+  "t": "Denoiser",
+  "d": "A network that, given a noisy point and the step number, predicts the noise that was added. It shows where to move the point on the way back.",
+  "a": "denoisers?"
+ },
+ {
+  "id": "ddpm",
+  "t": "DDPM",
+  "d": "A diffusion sampler that adds fresh noise at every step. With few steps it loses the shape of the distribution.",
+  "a": "DDPM"
+ },
+ {
+  "id": "ddim",
+  "t": "DDIM",
+  "d": "A sampler with no fresh noise along the way: the same network, a deterministic path from noise to a point. Robots get by with 4–16 steps.",
+  "a": "DDIM"
+ },
+ {
+  "id": "cfg",
+  "t": "Classifier-free guidance",
+  "d": "Conditional generation with a single network: during training the condition is sometimes dropped, during generation the conditional and unconditional outputs are blended. Strong guidance trades diversity for accuracy.",
+  "a": "classifier-free guidance|(?-i:CFG)"
+ },
+ {
+  "id": "diffusion-policy",
+  "t": "Diffusion Policy",
+  "d": "A policy that uses diffusion to generate a chunk of 16 future actions conditioned on the latest observations.",
+  "a": "Diffusion Policy"
+ },
+ {
+  "id": "receding",
+  "t": "Receding horizon",
+  "d": "Predict a chunk several steps ahead, execute its beginning, and re-plan with new observations. Diffusion Policy predicts 16 and executes 8.",
+  "a": "receding horizon"
+ },
+ {
+  "id": "denoise-steps",
+  "t": "Denoising steps",
+  "d": "How many times the network refines the chunk from noise to finished actions. For robots, usually 1 to 16.",
+  "a": "denoising steps?"
+ },
+ {
+  "id": "token",
+  "t": "Token",
+  "d": "A unit of transformer input: a piece of an image, a word of the command, a state or an action, turned into a vector.",
+  "a": "tokens?"
+ },
+ {
+  "id": "attention",
+  "t": "Attention",
+  "d": "A mechanism in which each token mixes the values of other tokens with weights given by the similarity between its query and their keys.",
+  "a": "attention"
+ },
+ {
+  "id": "qkv",
+  "t": "Query, key and value",
+  "d": "The three projections of a token in attention: the query looks for what is needed, the key shows how well the token fits, the value is what the token contributes to the mix.",
+  "a": "quer(?:y|ies), keys?,? and values?|keys? and values?|keys?(?= (?:vectors?|projections?))"
+ },
+ {
+  "id": "head",
+  "t": "Attention head",
+  "d": "A separate set of query, key and value projections. Different heads look at different features.",
+  "a": "attention heads?|heads? of attention"
+ },
+ {
+  "id": "mask",
+  "t": "Attention mask",
+  "d": "A table that forbids tokens from looking at certain other tokens: a blocked cell gets weight 0.",
+  "a": "attention masks?|causal masks?"
+ },
+ {
+  "id": "pos-enc",
+  "t": "Positional encoding",
+  "d": "A vector added to a token so attention knows its place in the sequence. Without it, shuffling the tokens does not change the answer.",
+  "a": "positional (?:encodings?|embeddings?)"
+ },
+ {
+  "id": "kv-cache",
+  "t": "KV cache",
+  "d": "The stored keys and values of tokens already processed. It saves recomputation at inference.",
+  "a": "KV(?: |-)cache"
+ },
+ {
+  "id": "act",
+  "t": "ACT",
+  "d": "The policy of the bimanual ALOHA robot: a transformer that outputs a chunk of 100 actions in one pass from the frames of four cameras. Trained with L1 and a CVAE encoder.",
+  "a": "(?-i:ACT)"
+ },
+ {
+  "id": "teleoperation",
+  "t": "Teleoperation",
+  "d": "A human controlling the robot remotely. In ALOHA the operator moves the leader arms and the follower arms copy them joint by joint — that is how demonstrations are recorded.",
+  "a": "teleoperation|teleoperated|teleop"
+ },
+ {
+  "id": "cvae",
+  "t": "CVAE",
+  "d": "Conditional variational autoencoder. In ACT, during training the encoder compresses the style of the motion into a vector z; at inference the encoder is dropped and z = 0 is fed in.",
+  "a": "CVAE"
+ },
+ {
+  "id": "temporal-ensembling",
+  "t": "Temporal ensembling",
+  "d": "Smoothing in ACT: the model is queried at every step, and the action is a weighted average of all predictions for that step from overlapping chunks. It copes poorly with latency and averages different strategies.",
+  "a": "temporal ensembling|(?-i:TE)"
+ },
+ {
+  "id": "rtc",
+  "t": "Real-Time Chunking",
+  "d": "A way to stitch chunks together under inference latency: the next chunk is generated while the current one executes. Actions that will have executed by then are frozen; the rest are completed as a continuation of the old chunk.",
+  "a": "real-time chunking|(?-i:RTC)"
+ },
+ {
+  "id": "flow-matching",
+  "t": "Flow matching",
+  "d": "Training a generative model by regressing a velocity field: the network learns to predict the velocity along a straight line from random noise to a random data point. Generation is a few Euler steps from noise to data.",
+  "a": "flow matching"
+ },
+ {
+  "id": "velocity-field",
+  "t": "Velocity field",
+  "d": "A function that, at every point and every moment t, says where to move the point and how fast. The ideal field is the average of the velocities of all training lines through that point.",
+  "a": "velocity fields?"
+ },
+ {
+  "id": "euler-step",
+  "t": "Euler step",
+  "d": "The simplest integration step: move the point by its velocity times the step length. On a curved path a large step cuts the corner.",
+  "a": "Euler steps?"
+ },
+ {
+  "id": "reflow",
+  "t": "Reflow",
+  "d": "Straightening the paths: a trained model generates “noise — result” pairs, and the same network is trained on those pairs. Their lines hardly cross, so one or two steps are enough.",
+  "a": "reflow|rectified flow"
+ },
+ {
+  "id": "action-expert",
+  "t": "Action expert",
+  "d": "A separate network next to the VLM in π0, about 300 million parameters. It generates the action chunk by flow matching and reads the cached observation.",
+  "a": "action experts?"
+ },
+ {
+  "id": "clip",
+  "t": "CLIP",
+  "d": "A 2021 OpenAI model: two networks map an image and a caption into vectors in one space. Trained on 400 million image–caption pairs to guess which caption goes with which image, so an object can be found by a description in words.",
+  "a": "(?-i:CLIP)"
+ },
+ {
+  "id": "contrastive",
+  "t": "Contrastive learning",
+  "d": "Training on pairs: vectors of matching pairs are pulled together, non-matching ones pushed apart. That is how CLIP gets images and captions into one space.",
+  "a": "contrastive (?:learning|objectives?|loss(?:es)?|training)"
+ },
+ {
+  "id": "equivariance",
+  "t": "Equivariance",
+  "d": "A property of a model: if the input is shifted or rotated, the output shifts or rotates the same way. A fully convolutional network is shift-equivariant, which is why Transporter’s action map carries one demonstration to any spot on the table.",
+  "a": "equivarian(?:ce|t)"
+ },
+ {
+  "id": "transporter",
+  "t": "Transporter Networks",
+  "d": "A 2020 Google model for pick-and-place tasks: the action is a per-pixel map over the top-down view, and the placement is found by template matching over 36 rotations. It learns from a handful to a few dozen demonstrations.",
+  "a": "Transporter(?: Networks?)?"
+ },
+ {
+  "id": "cliport",
+  "t": "CLIPort",
+  "d": "A 2021 two-stream model: CLIP answers what to pick, Transporter answers where. It understands words that never appeared in the robot’s demonstrations.",
+  "a": "CLIPort"
+ },
+ {
+  "id": "six-dof",
+  "t": "6-DoF",
+  "d": "A pose in 3D: three coordinates and three rotation angles. A 6-DoF action sets where the gripper ends up and how it is oriented.",
+  "a": "6-DoF|six degrees of freedom"
+ },
+ {
+  "id": "peract",
+  "t": "PerAct",
+  "d": "A 2022 model: from a voxel grid and a command in words it picks the next key gripper pose in 3D. One model learned 18 tasks in simulation and 7 tasks on a real arm.",
+  "a": "PerAct"
+ },
+ {
+  "id": "keyframe",
+  "t": "Keyframe",
+  "d": "A demonstration frame where joint velocities are near zero and the gripper is not changing state. PerAct predicts only the next keyframe pose; the path to it is built by a motion planner.",
+  "a": "key(?: |-)?frames?|key(?: |-)?poses?"
+ },
+ {
+  "id": "voxel",
+  "t": "Voxel",
+  "d": "A cell of a 3D grid, the volumetric counterpart of a pixel. PerAct splits the cubic meter above the table into 100 × 100 × 100 voxels of 1 cm and picks the action as the highest-scoring voxel.",
+  "a": "voxels?"
+ },
+ {
+  "id": "perceiver",
+  "t": "Perceiver IO",
+  "d": "A transformer that reads a long input through a small set of learned latent vectors: cross-attention carries the input into the latents, and all-to-all attention runs only among them. Cost grows linearly with input length. PerAct uses 2048 latents for 8077 tokens.",
+  "a": "Perceiver(?: IO)?"
+ },
+ {
+  "id": "llm",
+  "t": "Large language model",
+  "d": "A neural network trained on a huge corpus of text to predict the next token. It knows procedures from recipes and manuals and can write code, but it cannot see the robot or its surroundings.",
+  "a": "LLMs?|large language models?"
+ },
+ {
+  "id": "value-function",
+  "t": "Value function",
+  "d": "An estimate of how good the current state is for the task: the expected sum of future rewards. If the reward is 1 for success and 0 for failure, the value equals the probability of success.",
+  "a": "value functions?"
+ },
+ {
+  "id": "affordance",
+  "t": "Affordance",
+  "d": "What the environment lets you do right now. In SayCan it is the probability that a skill will succeed from the current state, given by the skill’s value function. In VoxPoser the affordance map shows where to reach.",
+  "a": "affordances?"
+ },
+ {
+  "id": "saycan",
+  "t": "SayCan",
+  "d": "A 2022 Google planner: at every step it picks the robot skill with the highest product of usefulness from the language model and feasibility from the value function.",
+  "a": "SayCan"
+ },
+ {
+  "id": "success-detector",
+  "t": "Success detector",
+  "d": "A model that answers, after a step, whether the skill succeeded. In Inner Monologue its answer is appended to the language model’s prompt.",
+  "a": "success detectors?"
+ },
+ {
+  "id": "inner-monologue",
+  "t": "Inner Monologue",
+  "d": "A 2022 Google planner: the outcome of every step — success, visible objects, answers from the human — is written in words into the language model’s prompt, and it revises the plan without any fine-tuning.",
+  "a": "Inner Monologue"
+ },
+ {
+  "id": "code-as-policies",
+  "t": "Code as Policies",
+  "d": "A 2022 Google approach: the language model writes a Python program that calls the robot’s perception and control functions, computes coordinates and checks conditions. Missing functions the model writes itself.",
+  "a": "Code as Policies"
+ },
+ {
+  "id": "voxposer",
+  "t": "VoxPoser",
+  "d": "A 2023 Stanford system: the language model writes code that builds 3D attraction and avoidance maps, a planner builds the gripper path over them and re-plans on the fly. Nothing is trained for the task.",
+  "a": "VoxPoser"
+ },
+ {
+  "id": "value-map",
+  "t": "Value map",
+  "d": "A 3D grid with a score in every cell. On the affordance map, high values mark where to reach; on the avoidance map, what to stay away from. From a weighted sum of maps the planner gets the path cost.",
+  "a": "(?:value|affordance|avoidance) maps?"
+ },
+ {
+  "id": "film",
+  "t": "FiLM",
+  "d": "A conditioning layer: from the command vector it computes a scale and a shift for every channel of the image features, F̂ = (1 + γ)·F + β. In RT-1 the FiLM layers sit inside EfficientNet and are initialized to the identity so as not to damage the pretrained weights.",
+  "a": "(?-i:FiLM)(?: layers?)?"
+ },
+ {
+  "id": "tokenlearner",
+  "t": "TokenLearner",
+  "d": "A soft token selection module: a small network computes attention weights over the input tokens and assembles a few weighted sums from them. In RT-1 it compresses 81 image tokens to 8 and speeds up inference 2.4×.",
+  "a": "TokenLearner"
+ },
+ {
+  "id": "action-bins",
+  "t": "Action bins",
+  "d": "Discretizing a continuous action: the range of every dimension is split into equal intervals, the model predicts the interval index as a class, and the robot gets its center. In RT-1: 256 bins for each of 11 dimensions. Few bins — coarse action; many — more classes than examples.",
+  "a": "action bins?|bins? of actions|action discretization|actions? as tokens?|action tokens?"
+ },
+ {
+  "id": "ablation",
+  "t": "Ablation study",
+  "d": "An experiment that removes or replaces one part of the system to measure its contribution: no pretraining, no frame history, half the data. RT-1’s ablations showed that data diversity matters more than data volume.",
+  "a": "ablations?(?: stud(?:y|ies))?"
+ },
+ {
+  "id": "data-diversity",
+  "t": "Data diversity",
+  "d": "The number of distinct tasks, objects and environments in a dataset, as opposed to the number of episodes. By RT-1’s ablations, dropping 25% of the tasks cost as much generalization as dropping 49% of the episodes.",
+  "a": "data diversity|diversity of (?:the )?data"
+ },
+ {
+  "id": "vlm",
+  "t": "Vision-language model",
+  "d": "A model that takes an image and text and answers in text: an image encoder, a projector and a language model. LLaVA and PaliGemma are assembled from off-the-shelf parts; RT-2, π0 and the other models of Part 3 are built on VLMs.",
+  "a": "VLMs?|vision-language models?"
+ },
+ {
+  "id": "vit",
+  "t": "ViT",
+  "d": "A transformer for images (Google, 2021): the image is cut into 16 × 16 patches, a linear layer turns each patch into a token, a position vector is added, then ordinary attention blocks follow. The gains of large ViTs show only on hundreds of millions of images.",
+  "a": "ViT|Vision Transformer"
+ },
+ {
+  "id": "patch",
+  "t": "Patch",
+  "d": "A square piece of an image, for example 16 × 16 pixels, that is flattened into a vector and turned into a transformer token. A 224 × 224 image gives 196 patches; without position vectors, the set of patches is an unordered bag to attention.",
+  "a": "patch(?:es)?"
+ },
+ {
+  "id": "projector",
+  "t": "Projector",
+  "d": "A trainable layer between the image encoder and the language model: it maps the encoder’s tokens into the dimension of word embeddings. In LLaVA it is one matrix, in LLaVA-1.5 and OpenVLA a two-layer MLP, in PaliGemma a linear layer initialized to zero.",
+  "a": "projectors?|connector layers?"
+ },
+ {
+  "id": "prefix-attention",
+  "t": "Prefix-LM attention",
+  "d": "An attention mask in which the input tokens — image and prompt — see each other in full, while the answer tokens see only what comes before them. PaliGemma is built this way; a plain causal mask over the image and prompt works worse.",
+  "a": "prefix(?:-LM)? (?:attention|masks?)"
+ },
+ {
+  "id": "frozen",
+  "t": "Frozen weights",
+  "d": "The part of a model that is not updated during training. LLaVA keeps the CLIP encoder frozen always, and the language model frozen in the first stage, when only the projector learns; PaliGemma freezes nothing.",
+  "a": "frozen(?: weights)?"
+ },
+ {
+  "id": "positive-transfer",
+  "t": "Positive transfer",
+  "d": "A model trained on data from many robots or tasks works better on a specific robot than a model trained on that robot’s data alone. The opposite is negative transfer: other people’s data gets in the way.",
+  "a": "positive transfer"
+ },
+ {
+  "id": "rlds",
+  "t": "RLDS",
+  "d": "A storage format for robot episodes: observations, actions and metadata step by step in tfrecord files. It accommodates different action spaces and sensor sets, which is why Open X-Embodiment is assembled in it.",
+  "a": "RLDS"
+ },
+ {
+  "id": "denormalize",
+  "t": "Action de-normalization",
+  "d": "Translating the model’s output back from the shared normalized format into the units of a specific robot: bins, millimeters, velocities. The same token string is read by every robot in its own way.",
+  "a": "de-?normaliz(?:ation|ed?|es|ing)"
+ },
+ {
+  "id": "underfitting",
+  "t": "Underfitting",
+  "d": "The model lacks the capacity or the training steps to fit all the data: it performs poorly even on the training set. That is how the authors explain RT-1-X losing on large datasets.",
+  "a": "underfit(?:ting|s|ted)?"
+ },
+ {
+  "id": "mixture-weights",
+  "t": "Data mixture weights",
+  "d": "The shares of datasets when training on a mixture: the probability that an example for a batch is drawn from each set. Proportional to size, the big sets dominate; the weights are tuned by hand.",
+  "a": "(?:data )?mixture weights?"
+ },
+ {
+  "id": "operator",
+  "t": "Operator",
+  "d": "A person who controls the robot by hand — with a controller, a joystick or a copy of the arm — and thereby records the demonstrations the network later learns from. How such control works is covered in lesson 1.7.",
+  "a": "operators?|teleoperators?"
+ },
+ {
+  "id": "teacher",
+  "t": "Teacher",
+  "d": "The scripted planner in the course labs: it knows the map and the route and outputs the correct steering. It records the demonstrations the policy learns from, and in DAgger it labels the frames the policy drove into.",
+  "a": "teachers?"
+ },
+ {
+  "id": "expert",
+  "t": "Expert",
+  "d": "In the DAgger papers — whoever knows the correct action: a human or a program. In the course labs the expert is the teacher; in the “You are the expert” task of lesson 1.2 it is you.",
+  "a": "(?<!action\\s)experts?"
+ },
+ {
+  "id": "rl",
+  "t": "Reinforcement learning",
+  "d": "The robot tries acting on its own and learns from a numeric score of its attempts — the reward: it repeats more often whatever is followed by a higher reward.",
+  "a": "reinforcement learning|(?-i:RL)"
+ },
+ {
+  "id": "epoch",
+  "t": "Epoch",
+  "d": "One training pass over all the training examples.",
+  "a": "epochs?"
+ },
+ {
+  "id": "loss",
+  "t": "Loss function",
+  "d": "The number the network drives down during training: how far its answers are from the examples. For instance, the mean squared error (MSE).",
+  "a": "loss functions?|loss(?:es)?"
+ },
+ {
+  "id": "torque",
+  "t": "Torque",
+  "d": "The rotational force with which the motor turns the joint. Measured in newton-meters (N·m): 1 N·m is a force of 1 newton on a 1 m lever.",
+  "a": "torques?"
+ },
+ {
+  "id": "imu",
+  "t": "IMU, inertial measurement unit",
+  "d": "A sensor made of a gyroscope and an accelerometer: it measures the rotation and acceleration of the body, and the robot’s tilt is estimated from it.",
+  "a": "IMUs?|inertial measurement units?"
+ },
+ {
+  "id": "cross-attention",
+  "t": "Cross-attention",
+  "d": "Attention in which the queries come from one sequence of tokens and the keys and values from another. That is how the 100 decoder queries of ACT read the camera tokens, and the Perceiver latents in PerAct read a million voxels.",
+  "a": "cross-?attention"
+ },
+ {
+  "id": "rt-2",
+  "t": "RT-2",
+  "d": "A 2023 Google DeepMind VLA: the off-the-shelf vision-language models PaLI-X (up to 55 billion parameters) and PaLM-E (12 billion), fine-tuned to output the robot action as a string of eight integers — as vocabulary tokens. It generalizes to new objects, backgrounds and settings about twice as well as RT-1.",
+  "a": "RT-2"
+ },
+ {
+  "id": "co-fine-tuning",
+  "t": "Co-fine-tuning",
+  "d": "Fine-tuning a pretrained model on new data together with the original data: in RT-2, robot demonstrations in every batch alongside the VLM’s web data. It keeps the model from forgetting what it knew.",
+  "a": "co-fine-tun(?:ing|ed?)"
+ },
+ {
+  "id": "forgetting",
+  "t": "Catastrophic forgetting",
+  "d": "Losing old skills while training on a new task: the weights rearrange for the new data, and nobody checks the old skills any more. In lesson 3.3 a model fine-tuned on actions alone forgets how to name the color in an image.",
+  "a": "(?:catastrophic )?forgetting"
+ },
+ {
+  "id": "emergent-capabilities",
+  "t": "Emergent capabilities",
+  "d": "What the model does without a single demonstration of that kind, carrying knowledge over from pretraining: for RT-2, moving objects to digits and icons, to a cup of the same color, to the person wearing glasses, understanding commands in other languages.",
+  "a": "emergent (?:capabilit(?:y|ies)|abilit(?:y|ies)|skills?|behaviou?rs?)"
+ },
+ {
+  "id": "fine-tuning",
+  "t": "Fine-tuning",
+  "d": "Continuing to train a finished model on your own data, starting from its weights rather than from random ones: that is how a model trained on other robots is transferred to your setup.",
+  "a": "fine-?tun(?:ing|ed?|es)"
+ },
+ {
+  "id": "readout-tokens",
+  "t": "Readout tokens",
+  "d": "Learnable tokens in Octo that read the task and observation tokens but are read by nobody. Their output goes to the action head, so a new head can be added without touching the model’s backbone.",
+  "a": "readout tokens?"
+ },
+ {
+  "id": "action-head",
+  "t": "Action head",
+  "d": "A small network on top of the model’s backbone that turns its output into action numbers: by regression, tokens or diffusion. The head determines what the model does when there are several correct actions.",
+  "a": "action heads?"
+ },
+ {
+  "id": "lora",
+  "t": "LoRA",
+  "d": "A fine-tuning method: the weight matrix W is frozen, and a low-rank update B·A of rank r is learned alongside it. For a large matrix of side d, about 2r/d of the parameters are trained; after training the update is added to W, and the model runs at its original speed.",
+  "a": "LoRA"
+ },
+ {
+  "id": "quantization",
+  "t": "Quantization",
+  "d": "Storing model weights in fewer bits, for example 8 or 4 instead of 16: the model takes less memory at almost the same accuracy.",
+  "a": "quantiz(?:ation|ed|e|ing)"
+ },
+ {
+  "id": "pi0",
+  "t": "π0",
+  "d": "A 2024 Physical Intelligence model: the 3-billion-parameter vision-language model PaliGemma and a 300-million action expert in a single transformer. In 10 steps of flow matching it builds a chunk of 50 continuous actions, and the robots receive commands 50 times per second.",
+  "a": "π0(?![.\\d])|pi-zero|pi0(?![.\\d])"
+ },
+ {
+  "id": "pretraining",
+  "t": "Pre-training",
+  "d": "The first stage of training a large model — on a large, diverse dataset of many tasks. For robots, such data also contains mistakes and corrections, so the model learns to recover.",
+  "a": "pre-?train(?:ing|ed)"
+ },
+ {
+  "id": "posttraining",
+  "t": "Post-training",
+  "d": "Fine-tuning an already trained model on a smaller, curated set of clean recordings of a specific task. For π0: from 5 to 100-plus hours of recordings of one task.",
+  "a": "post-?train(?:ing|ed)"
+ },
+ {
+  "id": "dct",
+  "t": "Discrete cosine transform",
+  "d": "Decomposes a sequence of numbers into a sum of cosines of different frequencies. For a smooth signal almost everything is concentrated in a few low frequencies, which is why the transform is used for compression — in JPEG and in the FAST tokenizer.",
+  "a": "discrete cosine transform|(?-i:DCT)"
+ },
+ {
+  "id": "fast",
+  "t": "FAST",
+  "d": "A 2025 action tokenizer: the chunk is compressed with a cosine transform, rounding and BPE, and the token count drops several-fold — one second of folding a T-shirt takes 53 tokens instead of 700.",
+  "a": "(?-i:FAST)"
+ },
+ {
+  "id": "system2",
+  "t": "Slow system (System 2)",
+  "d": "The upper level of a dual-system controller: a large vision-language model that, several times per second, understands the scene and the request and decides what to do. In Helix a 7-billion-parameter model at 7–9 Hz; in GR00T N1, Eagle-2 at 10 Hz.",
+  "a": "slow system|System 2"
+ },
+ {
+  "id": "system1",
+  "t": "Fast system (System 1)",
+  "d": "The lower level of a dual system: a small policy that, hundreds of times per second, takes the latest frame and the slow system’s latest output and issues commands to the arms. In Helix 80 million parameters at 200 Hz; in GR00T N1, a DiT at 120 Hz.",
+  "a": "fast system|System 1"
+ },
+ {
+  "id": "system0",
+  "t": "S0",
+  "d": "The third, fastest level of Helix 02: a 10-million-parameter network that, 1000 times per second, turns the joint state into actuator commands and keeps the whole body balanced. Trained in simulation, it replaced 109,504 lines of C++ code.",
+  "a": "(?-i:S0)|System 0"
+ },
+ {
+  "id": "latent-vector",
+  "t": "Latent vector",
+  "d": "A set of numbers one part of a network uses to pass what it understood to another; the meaning of the numbers is not set in advance but emerges during training. In Helix the slow system passes one such vector to the fast one.",
+  "a": "latent vectors?"
+ },
+ {
+  "id": "orchestrator",
+  "t": "Orchestrator",
+  "d": "A model that does not move the robot itself: it plans the steps, calls tools and hands the steps to the executor. In Gemini Robotics 1.5 the orchestrator Gemini Robotics-ER passes steps to the VLA in plain words.",
+  "a": "orchestrators?"
+ },
+ {
+  "id": "embodied-reasoning",
+  "t": "Embodied reasoning",
+  "d": "Understanding the space and physics of the scene the way a robot needs it: where the objects are, where to grab them, where to guide the gripper. That is what Google DeepMind calls the skills of the Gemini Robotics-ER model.",
+  "a": "embodied reasoning|(?-i:ER)"
+ },
+ {
+  "id": "scaling-law",
+  "t": "Scaling law",
+  "d": "A formula linking model quality to scale: data volume, model size, compute. Usually a power law: the error falls as β·X^−α, which is a straight line on log-log axes.",
+  "a": "scaling laws?"
+ },
+ {
+  "id": "optimality-gap",
+  "t": "Optimality gap",
+  "d": "In Lin et al. — one minus the policy’s normalized score on new environments and objects, the share of points left on the table. It is this gap that falls as a power law in the number of environments, objects and environment–object pairs.",
+  "a": "optimality gap"
+ },
+ {
+  "id": "data-gap",
+  "t": "100,000-year data gap",
+  "d": "An estimate of how far robot data lags behind language model data: the corpus is converted into the time a human would need to read it — on the order of 100,000 years, versus about a year of recordings in the largest robot datasets. A thought experiment by Kevin Black, repeated by Ken Goldberg.",
+  "a": "100(?:,| |&nbsp;)?000(?:-year| years?)(?: data)? gap"
+ },
+ {
+  "id": "gofe",
+  "t": "GOFE",
+  "d": "“Good old-fashioned engineering” — Ken Goldberg’s name for model-based methods: Kalman filters, inverse kinematics, motion planning. He proposes combining them with learned models so that robots can work and collect data along the way.",
+  "a": "(?-i:GOFE)|good old-fashioned engineering"
+ },
+ {
+  "id": "episode",
+  "t": "Episode",
+  "d": "One attempt at the task from start to finish — the unit of counting in robot datasets. The recorded sequence of frames, states and actions of an episode is called a trajectory.",
+  "a": "episodes?"
+ },
+ {
+  "id": "leader-arm",
+  "t": "Leader arm",
+  "d": "A copy of the robot arm that the operator moves with their own hands; its joint angles are sent to the robot one-to-one, with no inverse kinematics. ALOHA and GELLO are built this way.",
+  "a": "leader arms?"
+ },
+ {
+  "id": "retargeting",
+  "t": "Retargeting",
+  "d": "Transferring human motion to a robot with a different body: for example, choosing the robot’s finger angles so that its fingertips, or the vectors between keypoints of the hand, match the human’s.",
+  "a": "retarget(?:ing|ed|s)?"
+ },
+ {
+  "id": "exoskeleton",
+  "t": "Exoskeleton",
+  "d": "A device worn on the body: its links run along the person’s arms, angle sensors sit at their joints, and the angles are sent to the robot. AirExo is for two manipulator arms, HOMIE is a cockpit for a humanoid.",
+  "a": "exoskeletons?"
+ },
+ {
+  "id": "handheld-gripper",
+  "t": "Hand-held gripper",
+  "d": "A gripper with a camera that a person holds in their hand and uses to do the task themselves, without the robot; the same gripper with the same camera is then mounted on the robot. UMI is the example.",
+  "a": "hand-?held grippers?"
+ },
+ {
+  "id": "collection-protocol",
+  "t": "Data collection protocol",
+  "d": "The shared rules for recording every episode of a dataset: how to set up the scene and calibrate the cameras, how to choose the task, when to change the setting, how to mark success. DROID uses one protocol across 13 institutions, so recordings from different collectors are compatible.",
+  "a": "(?:data )?collection protocols?"
+ },
+ {
+  "id": "viewpoint",
+  "t": "Camera viewpoint",
+  "d": "Where the camera stands and where it looks. Viewpoint diversity in the data teaches the policy not to depend on how the camera was placed; DROID has 1417 of them.",
+  "a": "(?:camera )?viewpoints?"
+ },
+ {
+  "id": "action-divergence",
+  "t": "Action divergence",
+  "d": "How much the learned policy’s actions differ from the expert’s in the same states. It grows when the operator acts differently in identical situations; one of the two data quality properties in Belkhale et al.",
+  "a": "action divergence"
+ },
+ {
+  "id": "transition-diversity",
+  "t": "Transition diversity",
+  "d": "How varied the next states are for the same state and action — the noise of the world itself. It enriches the data usefully, unlike the spread in the operator’s actions.",
+  "a": "transition diversity"
+ },
+ {
+  "id": "mutual-information",
+  "t": "Mutual information",
+  "d": "How much knowing one quantity tells you about another: I(S; A) = H(A) − H(A | S). For robot data it is high when actions are diverse yet easy to predict from the state; the DemInf demonstration selection builds on this.",
+  "a": "mutual information"
+ },
+ {
+  "id": "data-curation",
+  "t": "Data curation",
+  "d": "Checking the dataset and removing harmful episodes: failed, contradictory, with pauses and jerks. A small verified set is often better than a large unverified one: in AgiBot World, 528 verified trajectories scored 0.59 against 0.41.",
+  "a": "(?:data|demonstration|episode) curation|curation"
+ },
+ {
+  "id": "co-training",
+  "t": "Co-training",
+  "d": "Training one model on several kinds of data and tasks at once in a shared mixture. For π0.5, recordings of mobile robots in homes are only 2.4% of the first-stage examples; the rest is other robots, web data and step captions.",
+  "a": "co-train(?:ing|ed)"
+ },
+ {
+  "id": "subtask",
+  "t": "Subtask",
+  "d": "A short command in words that the robot completes in a few seconds, such as “pick up the cutting board”. π0.5 first names the subtask itself, then outputs actions that depend on it alone.",
+  "a": "sub-?tasks?"
+ },
+ {
+  "id": "knowledge-insulation",
+  "t": "Knowledge insulation",
+  "d": "A way to train a VLA without damaging the vision-language model’s knowledge: it learns actions as FAST tokens and keeps learning on web data, while the action expert’s gradient does not flow into it.",
+  "a": "knowledge insulation"
+ },
+ {
+  "id": "stop-gradient",
+  "t": "Stop-gradient",
+  "d": "An operation in which a quantity takes part in the forward pass as usual but is treated as a constant in the backward pass: no gradient flows through it.",
+  "a": "stop-?gradient"
+ },
+ {
+  "id": "chain-of-thought",
+  "t": "Chain-of-thought",
+  "d": "The model first writes out its reasoning, then the answer. In ECoT, before every action the VLA writes the plan, the subtask, the motion in words, the gripper position and the object bounding boxes.",
+  "a": "chain-of-thought|chain of thought"
+ },
+ {
+  "id": "advantage",
+  "t": "Advantage",
+  "d": "How much better an action is than what the agent usually does in that state: A(s, a) = Q(s, a) − V(s). For the action a deterministic policy would pick itself it is zero; switching to actions with positive advantage does not make the policy worse. π*0.6 writes “Advantage: positive” into the model’s input when the advantage is above a threshold.",
+  "a": "advantages?"
+ },
+ {
+  "id": "egocentric-video",
+  "t": "Egocentric video",
+  "d": "Video shot by a camera on a person’s head or glasses: the frame shows what they see and their own hands. Ego4D is the example: 3670 hours of everyday life of 931 people.",
+  "a": "egocentric videos?"
+ },
+ {
+  "id": "embodiment",
+  "t": "Embodiment",
+  "d": "The body a system acts in the world with: a five-fingered hand for a human, a two-link arm with a gripper for Ada. Data from different embodiments can be trained in one model if it is brought to a common description.",
+  "a": "embodiments?"
+ },
+ {
+  "id": "embodiment-gap",
+  "t": "Embodiment gap",
+  "d": "The difference between the body that showed the action and the body that has to repeat it: link lengths, fingers instead of a gripper, speed, how it looks in the frame. The main difficulty of training a robot on human video.",
+  "a": "embodiment gaps?"
+ },
+ {
+  "id": "inverse-dynamics",
+  "t": "Inverse dynamics model",
+  "d": "A model that guesses, from the frames before and after, which action happened in between. It is easier to train than a policy because it also sees what happened next; it is used to label action-free video (VPT, GR00T N1).",
+  "a": "inverse dynamics(?: models?)?|(?-i:IDM)"
+ },
+ {
+  "id": "latent-actions",
+  "t": "Latent actions",
+  "d": "A code from a vocabulary into which the model compresses the change between two video frames so that the second frame can be reconstructed from the first frame and the code. It serves as the action for unlabeled video; in GR00T N1 it is shared by humans and robots.",
+  "a": "latent actions?"
+ },
+ {
+  "id": "latent-plan",
+  "t": "Latent plan",
+  "d": "An internal vector of the policy’s upper level from which the hand’s path several seconds ahead is predicted. In MimicPlay it is learned from video of human play, and the lower level turns it into robot actions.",
+  "a": "latent plans?"
+ },
+ {
+  "id": "physics-simulator",
+  "t": "Physics simulator",
+  "d": "A program that computes step by step how the robot and objects move: joint forces, contacts, falls. The physics engine computes the mechanics, the renderer draws the camera image. Examples: MuJoCo, Isaac Lab, Genesis.",
+  "a": "physics (?:simulators?|engines?)"
+ },
+ {
+  "id": "system-identification",
+  "t": "System identification",
+  "d": "Fitting model parameters to measurements of the real robot — masses, friction, delays — so the simulator behaves like it. Not everything can be measured this way: backlash, wear and compliance remain.",
+  "a": "system identification|sys-?id"
+ },
+ {
+  "id": "domain-randomization",
+  "t": "Domain randomization",
+  "d": "Training in a simulator where every scene randomly varies the properties the simulator reproduces poorly: textures, lighting, camera, masses, friction. The goal is for the real world to look to the model like just another variant. You randomize what the model should be indifferent to.",
+  "a": "domain randomization"
+ },
+ {
+  "id": "data-generation-rate",
+  "t": "Data generation rate",
+  "d": "The ratio of successful demonstration generation attempts to their total number. In MimicGen every generated trajectory is executed in the simulator and kept only if the task is completed.",
+  "a": "data generation rate|generation (?:success )?rate"
+ },
+ {
+  "id": "digital-twin",
+  "t": "Digital twin",
+  "d": "A copy of the real workplace in the simulator, with objects placed where the robot’s camera measured them. In DexMimicGen trajectories were generated in the twin, and only the successful ones were executed on the real humanoid.",
+  "a": "digital twins?"
+ },
+ {
+  "id": "data-mixture",
+  "t": "Data mixture",
+  "d": "A training set for one model assembled from several sources — recordings of your own robot, other robots, simulation, human video, web data — where each source has a set share in the training batches.",
+  "a": "data mixtures?"
+ },
+ {
+  "id": "data-pyramid",
+  "t": "Data pyramid",
+  "d": "GR00T N1’s way of arranging data in layers: at the bottom web data and human video — the most of it, but farthest from the robot; in the middle simulation and generated video; at the top recordings of real robots — the least, but with their actions.",
+  "a": "data pyramid"
+ },
+ {
+  "id": "data-flywheel",
+  "t": "Data flywheel",
+  "d": "A loop in which working robots or cars record their attempts, failures are labeled and fed back into training, the next model works better and in more places, and there are more recordings. Tesla calls it the data engine; π*0.6 calls it RECAP.",
+  "a": "data flywheels?|data engines?"
+ },
+ {
+  "id": "shadow-mode",
+  "t": "Shadow mode",
+  "d": "A new model runs on the car or robot alongside the active one: it computes its own answers but does not control anything. Its disagreements reveal errors without putting hardware or people at risk.",
+  "a": "shadow mode"
+ },
+ {
+  "id": "reward",
+  "t": "Reward",
+  "d": "The number the agent receives from the environment after every step: how well it went. The reward says what to achieve, not how; the agent’s goal is the highest expected sum of rewards.",
+  "a": "rewards?"
+ },
+ {
+  "id": "return",
+  "t": "Return",
+  "d": "The sum of future rewards from step t, where the reward k steps ahead is multiplied by γ to the power k: G_t = r_{t+1} + γ r_{t+2} + γ² r_{t+3} + … The agent picks actions so that the expected return is highest.",
+  "a": "(?:discounted|expected|cumulative|total) returns?|returns?(?= (?:G_?t|G|is the sum|minus|of (?:the |an? )?(?:episode|trajectory|run)))|returns? \\("
+ },
+ {
+  "id": "discount-factor",
+  "t": "Discount factor",
+  "d": "A number γ between 0 and 1 in the return: a reward one step ahead weighs γ times less than the same reward now. It sets how far the agent looks: the weight of a reward halves in 1 step at γ = 0.5 and in about 69 steps at γ = 0.99.",
+  "a": "discount(?:ing)? factors?"
+ },
+ {
+  "id": "bellman-equation",
+  "t": "Bellman equation",
+  "d": "The link between the value of a state and the values of the next ones: the value equals the expected reward for the step plus the discounted value of the state the step leads to. For the optimal policy the best action is taken: V*(s) = max_a [r + γ V*(s′)].",
+  "a": "Bellman equations?"
+ },
+ {
+  "id": "value-iteration",
+  "t": "Value iteration",
+  "d": "A dynamic programming algorithm: start from any value estimates and recompute all states by the Bellman equation with a max over actions until the estimates stop changing. It needs a model of the environment — where actions lead and what rewards they give.",
+  "a": "value iteration"
+ },
+ {
+  "id": "epsilon-greedy",
+  "t": "ε-greedy",
+  "d": "A way to choose actions during training: with probability 1 − ε the best by current estimates, with probability ε a random one. The agent keeps exploring and may find an action better than the one that currently looks best.",
+  "a": "ε-greedy|epsilon-greedy"
+ },
+ {
+  "id": "action-value",
+  "t": "Action value, Q-function",
+  "d": "The expected return if you take action a in state s and then follow the policy: Q(s, a). The state value V(s) is the same but with the action the policy itself would pick. Choosing an action from Q is simple: take the one with the larger Q.",
+  "a": "action(?: |-)values?|Q-functions?|Q-values?"
+ },
+ {
+  "id": "stochastic-policy",
+  "t": "Stochastic policy",
+  "d": "A policy that outputs not a single action but a distribution: for continuous steering, the mean and spread of a normal distribution. The randomness is needed for exploration: the robot tries actions near the mean and learns which are better.",
+  "a": "stochastic(?: polic(?:y|ies))?"
+ },
+ {
+  "id": "policy-gradient",
+  "t": "Policy gradient",
+  "d": "The direction in the policy’s weight space in which the expected return grows fastest. It is estimated from runs: every action taken is nudged with a weight equal to the return or advantage that followed it (the REINFORCE method and its descendants).",
+  "a": "policy gradients?"
+ },
+ {
+  "id": "baseline",
+  "t": "Baseline",
+  "d": "A number b(s) subtracted from the return in the policy gradient. If it depends only on the state, the mean gradient direction is unchanged while the variance drops. Usually it is the value V(s) — and then the action’s weight becomes the advantage.",
+  "a": "baselines?(?! (?:model|method|polic|approach|system|version))"
+ },
+ {
+  "id": "gae",
+  "t": "GAE",
+  "d": "An advantage estimator (Schulman et al., 2015): the sum of one-step value errors δ with weights (γλ)^k. At λ = 0 it is one step and full trust in the critic, at λ = 1 the full return minus the value; intermediate λ trade off bias and variance.",
+  "a": "(?-i:GAE)|generalized advantage estimation"
+ },
+ {
+  "id": "trust-region",
+  "t": "Trust region",
+  "d": "A limit on how much the new policy may differ from the old one in a single update; in TRPO, the mean KL divergence is at most δ = 0.01. It is needed because the gradient estimate is only valid near the policy that collected the data.",
+  "a": "trust regions?"
+ },
+ {
+  "id": "ppo",
+  "t": "PPO",
+  "d": "A policy gradient method (Schulman et al., 2017): an objective with the ratio of new to old policy probabilities clipped to 1 ± ε keeps one update from taking the policy too far, so several epochs can be run over a batch. The standard for learning to walk in simulation.",
+  "a": "PPO|proximal policy optimization"
+ },
+ {
+  "id": "on-policy",
+  "t": "On-policy",
+  "d": "Learning only from experience collected by the current version of the policy: after an update that experience describes a different policy and is thrown away. REINFORCE, TRPO and PPO work this way; they need many interaction steps.",
+  "a": "on-policy"
+ },
+ {
+  "id": "off-policy",
+  "t": "Off-policy",
+  "d": "Learning from transitions collected by a different policy, including past versions of your own: Q-learning, DQN, DDPG, TD3 and SAC learn this way. It lets you keep experience in a replay buffer and reuse every step many times.",
+  "a": "off-policy"
+ },
+ {
+  "id": "replay-buffer",
+  "t": "Replay buffer",
+  "d": "A store of transitions (state, action, reward, next state) from which a random batch is drawn at every training step. Every transition teaches many times, and the random batch breaks the correlation between neighboring steps. It first appeared in DQN.",
+  "a": "replay buffers?|experience replay"
+ },
+ {
+  "id": "actor-critic",
+  "t": "Actor-critic",
+  "d": "A pair of networks: the actor outputs the action (or a distribution over actions), the critic estimates its value Q(s, a) and tells the actor which way to shift the action. DDPG, TD3 and SAC are built this way.",
+  "a": "actor-critic"
+ },
+ {
+  "id": "overestimation",
+  "t": "Overestimation bias",
+  "d": "Systematic inflation of values in Q-learning: the max over noisy estimates is on average larger than the truth, and the policy itself seeks out the actions where the critic erred upward. TD3 and SAC fight it by taking the smaller of two Q-functions.",
+  "a": "overestimation(?: bias)?"
+ },
+ {
+  "id": "max-entropy-rl",
+  "t": "Maximum entropy RL",
+  "d": "Reinforcement learning where the policy’s entropy, weighted by α — the temperature — is added to the reward: solve the task while acting as randomly as possible. The basis of SAC; in its second version α tunes itself, holding the entropy at the target −dim A.",
+  "a": "maximum(?: |-)entropy|max-?entropy"
+ },
+ {
+  "id": "nominal-model",
+  "t": "Nominal model",
+  "d": "The robot model the simulator knows: masses and dimensions from the drawings, friction from the datasheet, a motor that delivers exactly the requested torque with no delay. The real robot always differs from it a little.",
+  "a": "nominal models?"
+ },
+ {
+  "id": "control-latency",
+  "t": "Control latency",
+  "d": "The time from the policy’s decision until the actuator starts executing it (and the sensor reports the result). Simulators often have none; on Minitaur it is 15–19 ms. It breaks the feedback loop: the policy corrects an error that is no longer there.",
+  "a": "control latency|latency of control"
+ },
+ {
+  "id": "dynamics-randomization",
+  "t": "Dynamics randomization",
+  "d": "Training a policy in a simulator where every episode randomly varies the physical parameters — masses, friction, latency, motor strength — so that it works across the whole distribution of worlds, and therefore on the real robot. The price is caution and speed.",
+  "a": "dynamics randomization"
+ },
+ {
+  "id": "adr",
+  "t": "Automatic domain randomization (ADR)",
+  "d": "Randomization ranges start from the calibrated world and widen on their own: a boundary moves outward if the policy performs at least as well as the upper threshold there, and back if worse than the lower one. OpenAI, 2019, the Rubik’s cube.",
+  "a": "(?-i:ADR)|automatic domain randomization"
+ },
+ {
+  "id": "curriculum",
+  "t": "Curriculum learning",
+  "d": "Training from easy to hard: the task is first solved under easy conditions, and hard ones are added when the policy is ready for them. ADR and the terrain levels of Rudin et al. work this way.",
+  "a": "curriculum(?: learning)?|curricula"
+ },
+ {
+  "id": "meta-learning",
+  "t": "Meta-learning",
+  "d": "The ability of a policy with memory to work out, while running, which world it is in and adapt without updating its weights. At OpenAI it emerged on its own from training on a wide distribution of worlds.",
+  "a": "meta-?learning"
+ },
+ {
+  "id": "offline-rl",
+  "t": "Offline RL",
+  "d": "Reinforcement learning from pre-collected “state, action, reward, next state” transitions only — no new attempts during training; the policy is run once training is over. The goal is a policy better than the one that collected the data.",
+  "a": "offline RL|offline reinforcement learning|batch RL"
+ },
+ {
+  "id": "behavior-policy",
+  "t": "Behavior policy",
+  "d": "Those who collected the data for offline RL — operators and past versions of the policy, together: the logs record how they acted. Denoted π_β.",
+  "a": "behaviou?r polic(?:y|ies)|π_?β"
+ },
+ {
+  "id": "extrapolation-error",
+  "t": "Extrapolation error",
+  "d": "Unrealistic Q estimates for state–action pairs absent from the data (Fujimoto et al., 2018). Together with the max in the Q-learning target they produce persistent overestimation that, without new attempts, nothing can correct.",
+  "a": "extrapolation errors?"
+ },
+ {
+  "id": "cql",
+  "t": "CQL",
+  "d": "An offline RL method (Kumar et al., 2020): a penalty α·(log Σ exp Q(s, a′) − Q(s, a from the data)) is added to the Bellman error, pushing down high estimates for actions outside the data. With a large enough α the expected estimate of the policy is no higher than the truth.",
+  "a": "(?-i:CQL)|conservative Q-learning"
+ },
+ {
+  "id": "iql",
+  "t": "IQL",
+  "d": "An offline RL method (Kostrikov, Nair, Levine, 2021) that never evaluates actions outside the data: V(s) is an expectile of the Q estimates of recorded actions, the Q target is r + γV(s′), and the policy is imitation learning weighted by exp(β·(Q − V)).",
+  "a": "(?-i:IQL)|implicit Q-learning"
+ },
+ {
+  "id": "expectile",
+  "t": "Expectile",
+  "d": "A distribution statistic that minimizes the asymmetric squared error |τ − 1(u < 0)|·u². At τ = 0.5 it equals the mean; as τ approaches 1 it approaches the maximum — but only over the values seen in the data.",
+  "a": "expectiles?"
+ },
+ {
+  "id": "privileged-teacher",
+  "t": "Privileged teacher",
+  "d": "A policy that in the simulator receives as input what the real robot will not have: hidden world parameters, the exact map, contacts. With full information it learns fast, then serves as a teacher for a student that uses sensors only; on the robot only the student runs.",
+  "a": "privileged (?:teachers?|agents?|polic(?:y|ies))|privileged learning"
+ },
+ {
+  "id": "hidden-parameter",
+  "t": "Hidden parameter",
+  "d": "A property of the world the correct action depends on but the sensors do not show directly: floor friction, payload mass, motor strength. In the simulator it is known; on the robot it has to be inferred from the motion history.",
+  "a": "hidden parameters?|latent parameters?"
+ },
+ {
+  "id": "traction",
+  "t": "Traction",
+  "d": "How hard the floor can push the wheel along and sideways before it starts slipping. In the labs of lesson 5.5 it is the number μ: carpet 1, tile 0.7, wet floor 0.45; it limits braking and lateral acceleration in turns.",
+  "a": "traction|friction coefficients?"
+ },
+ {
+  "id": "adaptation-module",
+  "t": "Adaptation module",
+  "d": "A network that estimates the hidden world parameters from the history of the robot’s recent states and actions (in RMA a compressed vector of 8 numbers) and feeds the estimate to the base policy. It is trained by regression on its own runs in the simulator; on the robot it updates the estimate in a fraction of a second.",
+  "a": "adaptation modules?"
+ },
+ {
+  "id": "failure-detector",
+  "t": "Failure detector",
+  "d": "A program or model that checks at run time whether a step succeeded and raises an alarm on failure. It turns silent failures into loud ones, but errs in both directions itself: it misses failures and raises false alarms.",
+  "a": "failure detectors?|runtime monitors?"
+ },
+ {
+  "id": "false-alarm",
+  "t": "False alarm",
+  "d": "A detector alarm on a step or run that actually succeeded. The lower the alarm threshold, the fewer missed failures and the more false alarms; each one is an unnecessary call to a human.",
+  "a": "false alarms?|false positives?"
+ },
+ {
+  "id": "mtbi",
+  "t": "Mean time between interventions",
+  "d": "How long the robot works on average from one call to a human until the next: operating time divided by the number of interventions. It cannot exceed operating time divided by the number of real failures.",
+  "a": "(?-i:MTBI)|mean time between interventions"
+ },
+ {
+  "id": "conformal-prediction",
+  "t": "Conformal prediction",
+  "d": "A way to pick a threshold from labeled calibration examples so that the correct answer lands in the prediction set with probability at least 1 − ε — on average over scenarios from the same distribution, with any model. In KnowNo the robot uses it to decide whether to act or ask for help.",
+  "a": "conformal (?:prediction|calibration)"
+ },
+ {
+  "id": "prediction-set",
+  "t": "Prediction set",
+  "d": "All options whose score is at or above the threshold from conformal calibration. In KnowNo: one option — the robot acts; more than one — it asks the human which is right.",
+  "a": "prediction sets?"
+ },
+ {
+  "id": "rule-of-three",
+  "t": "Rule of three",
+  "d": "If n independent runs produced no failure, then with 95% confidence the failure rate is below roughly 3/n: 99% takes about 300 successful runs in a row, 99.9% about 3000.",
+  "a": "rule of three"
+ },
+ {
+  "id": "safety-filter",
+  "t": "Safety filter",
+  "d": "A module that watches the control system’s commands at run time and, if a command leads to a safety violation, changes it as little as possible (Hsu, Hu, Fisac, 2023). It is designed without knowledge of the task, so it sits on top of any policy, including a learned one.",
+  "a": "safety filters?"
+ },
+ {
+  "id": "cbf",
+  "t": "Control barrier function",
+  "d": "A function of the state h that is non-negative in the safe set and zero on its boundary, such that at every point there is a command for which ḣ ≥ −α(h) (Ames et al., 2019). If this condition holds, the system never leaves the safe set.",
+  "a": "control barrier functions?|barrier functions?|(?-i:CBFs?)"
+ },
+ {
+  "id": "safe-set",
+  "t": "Safe set",
+  "d": "The set of states in which the system is considered safe — for example, all robot positions farther than a given distance from an obstacle. Usually written as {x : h(x) ≥ 0}.",
+  "a": "safe sets?"
+ },
+ {
+  "id": "forward-invariance",
+  "t": "Forward invariance",
+  "d": "A property of a set: if the system is in it at some moment, it stays in it at all later moments. Ames et al. define safety as forward invariance of the safe set.",
+  "a": "forward(?: |-)invarian(?:ce|t)"
+ },
+ {
+  "id": "shield",
+  "t": "Shield",
+  "d": "A program synthesized in advance from a formal safety specification that at every step leaves the agent only the safe discrete actions (a shield before the agent) or replaces a chosen unsafe action with a safe one (a shield after the agent) (Alshiekh et al., 2017).",
+  "a": "shields?|shielding"
+ },
+ {
+  "id": "odd",
+  "t": "Operational design domain",
+  "d": "The conditions under which the system must operate safely and for which its guarantees hold: for a safety filter — model accuracy, perception error, completeness of the obstacle map. The term comes from the SAE J3016 standard.",
+  "a": "(?-i:ODD)|operational design domain"
+ },
+ {
+  "id": "residual-policy",
+  "t": "Residual policy",
+  "d": "A network whose output is added to the command of an existing controller: action = controller + correction. The last layer of the correction is zeroed at the start, so before training it changes nothing; the network learns only what the controller’s model does not know (Silver et al.; Johannink et al., 2018).",
+  "a": "residual polic(?:y|ies)|residual RL"
+ },
+ {
+  "id": "ok-robot",
+  "t": "OK-Robot",
+  "d": "A pick-and-drop system for unfamiliar homes (New York University and Meta, 2024), assembled with no fine-tuning: open neural networks find the object and choose the grasp, classical methods plan the base path (A*) and guide the arm. 58.5% of tasks in cluttered homes, 82.4% after tidying up.",
+  "a": "OK-Robot"
+ },
+ {
+  "id": "anygrasp",
+  "t": "AnyGrasp",
+  "d": "A neural network that, from a single depth camera’s point cloud, outputs a set of grasp poses for a two-finger gripper in 100 ms (Fang et al., 2023). A classical arm motion planner executes the pose.",
+  "a": "AnyGrasp"
+ },
+ {
+  "id": "grasp-pose",
+  "t": "Grasp pose",
+  "d": "The position and orientation at which the gripper should close on the object; for a two-finger gripper the opening width is added. A network or a rule picks it, and a planner and controller bring the arm to it.",
+  "a": "grasp poses?"
+ },
+ {
+  "id": "rt-trajectory",
+  "t": "RT-Trajectory",
+  "d": "A Google DeepMind policy (2023) whose goal is given as a sketch of the gripper path over the camera frame: time is encoded by one color, height by another, circles mark the grasp. The sketch is drawn by a person, built from video, or written by a language model.",
+  "a": "RT-Trajectory"
+ },
+ {
+  "id": "hil-serl",
+  "t": "HIL-SERL",
+  "d": "A reinforcement learning system on a real robot (Luo et al., 2024): RLPD with demonstration and experience buffers, an image-based reward classifier, and human takeover whose steps go into both buffers. 100% success in 1–2.5 hours on assembly and insertion tasks.",
+  "a": "HIL-SERL"
+ },
+ {
+  "id": "reward-classifier",
+  "t": "Reward classifier",
+  "d": "A network that answers from a camera frame whether the task is done; it gives a sparse reward of 1 at the end of a successful attempt and 0 otherwise. In HIL-SERL it is trained on ~200 success frames and ~1000 failure frames, about 5 minutes of recording.",
+  "a": "reward classifiers?"
+ },
+ {
+  "id": "rlpd",
+  "t": "RLPD",
+  "d": "A SAC variant (Ball, Smith, Kostrikov, Levine, 2023) for online learning with pre-collected data: symmetric sampling, layer normalization in the critic, and many updates per step with an ensemble of critics. The basis of SERL and HIL-SERL.",
+  "a": "RLPD"
+ },
+ {
+  "id": "symmetric-sampling",
+  "t": "Symmetric sampling",
+  "d": "Every training batch is drawn half from the buffer of pre-collected data (demonstrations and corrections), half from the robot’s experience buffer. Rare corrections are seen often, and overestimation does not run away.",
+  "a": "symmetric sampling"
+ },
+ {
+  "id": "recap",
+  "t": "RECAP",
+  "d": "A method for training a VLA with reinforcement learning (π*0.6, Physical Intelligence, 2025): a value function from the robot’s own attempts, the advantage of every step is compared with a threshold, and the label “Advantage: positive / negative” is written into the model’s input; operator corrections are always positive; at run time positive is written in.",
+  "a": "(?-i:RECAP)"
+ },
+ {
+  "id": "advantage-conditioning",
+  "t": "Advantage conditioning",
+  "d": "A way to extract an improved policy without weights or a policy gradient: the model is trained on all the data by ordinary supervised learning, and its input gets an indicator of whether the action is better than usual. At β = 1 the improved policy equals the conditional distribution π(a | I = 1, o).",
+  "a": "advantage(?: |-)condition(?:ing|ed)"
+ },
+ {
+  "id": "position-control",
+  "t": "Position control",
+  "d": "The policy outputs target positions, and the controller brings the joint there on its own; execution misses do not accumulate, and a late command does less harm.",
+  "a": "position control"
+ },
+ {
+  "id": "velocity-control",
+  "t": "Velocity control",
+  "d": "The policy outputs increments or velocities; the controller counts them from the actual position, so misses add up and latency drifts the robot off the route.",
+  "a": "velocity control"
+ }
+]

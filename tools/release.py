@@ -101,7 +101,7 @@ def read_post(day):
 def build(day, out):
     """Сайт на 09:00 дня выпуска; после сборки рабочая папка site/ возвращается к текущему моменту."""
     run([sys.executable, str(ROOT / 'tools/assemble.py'), str(out)], env={**ENV, 'MR_ASOF': day})
-    run([sys.executable, str(ROOT / 'lessons/build.py'), 'all'], stdout=subprocess.DEVNULL)
+    run([sys.executable, str(ROOT / 'lessons/build.py'), 'all', '--both'], stdout=subprocess.DEVNULL)
     run([sys.executable, str(ROOT / 'site/build.py')], stdout=subprocess.DEVNULL)
 
 

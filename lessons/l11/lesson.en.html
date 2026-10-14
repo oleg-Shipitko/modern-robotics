@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>1.1 Behavior Cloning — Modern Robotics and Physical AI</title>
+<meta name="description" content="Lesson 1.1 of the Modern Robotics and Physical AI course: imitation learning. A mini-ALVINN, Ada driven by your cursor, hunting for the failures of a trained policy and fixing them with data.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<script>
+  (function () { try { var t = localStorage.getItem('mr-theme'); if (t) document.documentElement.dataset.theme = t; else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme = 'dark'; } catch (e) {} })();
+</script>
+<style>
+/*@@CSS@@*/
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html#program" title="To the course program"><div>Modern Robotics and Physical AI<small>Lesson 1.1 · Behavior Cloning</small></div></a>
+    <nav class="toc" aria-label="Lesson sections">
+      <a href="#idea">Idea</a>
+      <a href="#alvinn">ALVINN</a>
+      <a href="#lab">Lab</a>
+      <a href="#why">Why it drifts</a>
+      <a href="#square">Squared</a>
+      <a href="#fixes">What helps</a>
+      <a href="#traps">Pitfalls</a>
+      <a href="#today">Today</a>
+      <a href="#quiz">Quiz</a>
+      <a href="#finale">Wrap-up</a>
+    </nav>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Toggle theme">◐</button>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main>
+
+<!-- ============================ HERO ============================ -->
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="kicker"><span class="num">1.1</span> Part 1 · Imitation learning</div>
+    <h1>Behavior <span class="amp">Cloning</span></h1>
+    <p class="lead">You can't write rules for every apartment, so instead Ada is shown the way: an operator drives her to the kitchen, and a neural network learns to reproduce his controls. That is behavior cloning, and nearly every modern robot model starts from it, from ALVINN in 1989 to large models that take a camera image and a command in plain words. The method's central difficulty: the trained network makes small mistakes, ends up where the operator never drove, and makes bigger mistakes there. In this lesson we'll see why that happens and find the data that keeps Ada from drifting off the route.</p>
+    <p class="ada-note"><svg class="ada-ico" viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="10" width="48" height="42" rx="18" fill="#f4efe6" stroke="#3d3c38" stroke-width="3"/><rect x="15" y="19" width="34" height="22" rx="10" fill="#1f2430"/><ellipse cx="25" cy="30" rx="4" ry="5.5" fill="#eb6834"/><ellipse cx="39" cy="30" rx="4" ry="5.5" fill="#eb6834"/></svg><span>Ada is the home humanoid robot that the course labs are built around. More about her in <a href="0-1-dve-paradigmy.html#ada">lesson 0.1</a>.</span></p>
+    <div class="hero-meta"><span>≈ 45 minutes</span><span>a lab and 4 interactives</span></div>
+    <div class="hero-list">
+      <div><b>1989</b>Train a mini-ALVINN and find a road where it steers wrong</div>
+      <div><b>LAB</b>Drive Ada to the kitchen, train a network on your drives, find where it fails, and fix that with data</div>
+      <div><b>FRAME BY FRAME</b>Scrub through a crash and find the frame where the error began</div>
+      <div><b>SQUARED</b>Learn why errors pile up as the square of the trip length, and find the accuracy at which behavior cloning gets through a trip without a mistake</div>
+      <div><b>EXERCISE</b>Sort the tricks: what will help Ada and what will hurt</div>
+    </div>
+    <p style="margin-top:28px"><a class="btn primary" href="#idea">Start the lesson ↓</a></p>
+  </div>
+</section>
+
+<section class="recall-sec" id="recall" aria-label="Warm-up on the previous lesson">
+  <div class="wrap"><div class="card recall" data-recall></div></div>
+  <script type="application/json" id="recallData">{"n": "0.4", "title": "State estimation and planning", "href": "0-4-otsenka-sostoyaniya-i-planirovanie.html", "q": [{"q": "What does a Kalman filter store about the robot's position?", "o": ["A single point: the last rangefinder reading", "A distribution: a position estimate and its uncertainty", "The whole history of raw measurements"], "a": 1, "e": "The filter updates a distribution in a loop of \"predict with the model → correct with the measurement\" and chooses the measurement's weight itself from the noise levels Q and R.", "sec": "kalman", "secTitle": "A noisy sensor and the Kalman filter"}, {"q": "What helps a particle filter find the robot after a kidnapping?", "o": ["Random particles sprinkled across the whole house", "More particles around the old location", "Nothing: after a kidnapping the filter never recovers"], "a": 0, "e": "There are no particles near the new location and nowhere for them to come from. Sprinkling scatters some particles across the house once the scan stops matching the expectation.", "sec": "particles", "secTitle": "Where is Ada: the particle filter"}, {"q": "Why don't we build a grid and run A* for an arm with six joints?", "o": ["A* can't search for paths in joint-angle space", "A grid gives paths that are too long and jagged", "The number of cells grows exponentially with the number of joints"], "a": 2, "e": "With 50 cells per axis, each new joint multiplies their number by 50. That is why random sampling, RRT and RRT*, is what works in high-dimensional spaces.", "sec": "dims", "secTitle": "Why a grid won't do for an arm"}]}</script>
+</section>
+
+<!-- ============================ IDEA ============================ -->
+<section class="section alt" id="idea">
+  <div class="prose">
+    <div class="kicker"><span class="num">1</span> Idea</div>
+    <h2>Learning from demonstrations</h2>
+    <p>Ada has to get from her charger to the kitchen. You could write rules: where to turn, how to pass through doorways, what to do near the sofa. But in another apartment you would have to write all of it again.</p>
+    <p>There is a simpler path: an operator drives Ada to the kitchen a few times, and a neural network learns to reproduce his actions. We record pairs of "what the robot sees → what the operator did" and train the network on them, the same way you train any classifier or regression: the observation is the input, the operator's action is the correct answer. This is <strong>behavior cloning</strong>. The trained network that picks an action from an observation is called a <strong>policy</strong>.</p>
+    <div class="callout note"><span class="ico">💡</span><div><p><strong>How this differs from ordinary supervised learning.</strong> A cat classifier has no effect on which photos it will see tomorrow. A policy does: turn the wheel a little harder than the operator did, and the next frame no longer looks like the data. This whole lesson is about the consequences of that difference.</p></div></div>
+    <details class="deep"><summary>Under the hood: behavior cloning as regression</summary><div class="body">
+      <p>We have a dataset of demonstrations: pairs of "the state the operator saw" and "the action he chose". The policy is a network \(\pi_\theta\) with parameters \(\theta\). Training is ordinary error minimization on these pairs. For continuous actions that is the mean squared error (MSE):</p>
+      <div class="formula">\[\theta^* = \argmin_\theta \frac{1}{N}\sum_i \bigl\lVert \pi_\theta(s_i) - a_i \bigr\rVert^2,\]</div>
+      <p>for discrete ones, like ALVINN's 45 outputs, the negative log-likelihood:</p>
+      <div class="formula">\[\theta^* = \argmin_\theta \Bigl(-\frac{1}{N}\sum_i \log \pi_\theta(a_i \mid s_i)\Bigr).\]</div>
+      <p>The trouble is in the distributions. The network learns on states from the operator's distribution \(d_{\pi^*}\) but acts on its own, \(d_{\pi_\theta}\). Learning theory promises a small error only on \(d_{\pi^*}\). As soon as the policy differs from the operator even slightly, the distribution of its states shifts, and the guarantees stop applying.</p>
+    </div></details>
+    <p>Can a network that has only seen examples drive a car on its own?</p>
+  </div>
+</section>
+
+<!-- ============================ ALVINN ============================ -->
+<section class="section" id="alvinn">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">2</span> History</div>
+      <h2>1989: ALVINN</h2>
+      <p>In 1989 Dean Pomerleau at Carnegie Mellon put this to the test: he taught a neural network to drive the NavLab van. The network took a 30×32-pixel image of the road plus rangefinder data, had 29 hidden neurons, and 45 outputs, each one standing for its own steering direction. The correct answer was encoded as a "hump" of activation around the right direction. It was trained on 1,200 synthetic road images, and the van drove at half a meter per second.</p>
+      <p>Below is the same idea in miniature. The network looks at a 16×15-pixel road and outputs 15 steering choices. The tasks are on the right: train the network, find a road where it gets things wrong, and see what it does at a fork.</p>
+    </div>
+    <div class="lab alv-lab">
+      <div class="card scene-card alvinn">
+        <div class="alv-grid">
+          <div>
+            <h4>What the camera sees</h4>
+            <canvas id="alvRoad" width="160" height="150" aria-label="Synthetic road, camera view"></canvas>
+          </div>
+          <div>
+            <h4>Network output: 15 steering notches</h4>
+            <canvas id="alvOut" width="420" height="170" aria-label="Output neuron activations, the peak of the hump and the correct answer"></canvas>
+          </div>
+        </div>
+        <h4 class="alv-net-h">The whole network: 240 pixels → 12 hidden neurons → 15 steering notches</h4>
+        <canvas id="alvNet" width="640" height="250" role="img" aria-label="Network diagram: a 16 by 15 pixel input retina, 12 hidden neurons and 15 outputs; the weights of the selected hidden neuron are shown as an image, brightness shows activations on the current road"></canvas>
+        <p class="muted-s alv-net-cap">The brightness of the circles and bars shows activations on the current road. Click a hidden neuron: its weights appear as an image at the bottom left. Blue pixels switch it on, orange ones suppress it. Before training the weights are random; after training they look like pieces of road. The lines from hidden neurons to outputs are weights too: blue ones strengthen an output, orange ones suppress it, and the thicker the line, the larger the weight.</p>
+        <div class="ctl-row">
+          <label class="hd-range" id="alvCurveWrap"><span>Road curve</span><input type="range" id="alvCurve" min="-1" max="1" step="0.05" value="0.3"><output>0.3</output></label>
+          <label class="hd-range" id="alvShiftWrap"><span>Car offset</span><input type="range" id="alvShift" min="-1" max="1" step="0.05" value="0"><output>0</output></label>
+          <label class="toggle" id="alvForkWrap"><input type="checkbox" id="alvFork"><span class="box"></span>Fork</label>
+        </div>
+        <div class="cv-legend"><span><i style="--c: var(--e2e)"></i>network output</span><span><i class="dash" style="--c: var(--classic)"></i>correct answer</span><span>▼ peak of the hump: the network's steering</span></div>
+        <p class="cv-note">The camera frame is 16&nbsp;×&nbsp;15 pixels: the light stripe is the road, dark is the shoulder. Curve and offset are in arbitrary units from −1 to 1: a curve of 1 is a sharp right turn, an offset of ±1 puts the car at the edge of the road.</p>
+        <div class="lab-msg" id="alvMsg" aria-live="polite">The network is not trained yet: its outputs are random.</div>
+      </div>
+      <div class="card guide-card"><div id="alvGuide"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: the ALVINN network and our mini version</summary><div class="body">
+      <p>ALVINN of 1989: 1,217 input neurons, a 30×32-pixel retina from the camera's blue channel, 8×32 values from a laser rangefinder, and one feedback neuron for road brightness. The hidden layer had 29 neurons; the output had 45 neurons for turn curvature plus one more for feedback, about 36 thousand weights in all. The correct answer was a Gaussian "hump" around the right turn rather than a single number, so the output slides smoothly as the road moves. It was trained by backpropagation on 1,200 synthetic road images for 40 epochs.</p>
+      <p>Our mini version: a 16×15 = 240-pixel input, a hidden layer of 12 sigmoid neurons, and 15 output neurons. The hump is a Gaussian 1.3 neurons wide around the correct steering. Training: 1,200 synthetic roads, 40 epochs of stochastic gradient descent with momentum 0.85 and step 0.35, MSE loss. In the training roads the curve ranges from −1 to 1 and the car offset from −0.3 to 0.3, like a driver who keeps to the middle. We read the steering from the peak of the hump and count the error in notches between the peak and the correct answer.</p>
+      <p>The correct steering in the synthetic data and the network output:</p>
+      <div class="formula">\[\begin{gathered} \text{steering} = 0.75\cdot\text{curve} - 0.85\cdot\text{offset},\\ \text{output}_i = \sigma\Bigl(\sum_j w_{ij}\,\sigma\Bigl(\sum_k v_{jk}\,\text{pixel}_k\Bigr)\Bigr). \end{gathered}\]</div>
+    </div></details>
+    <div class="prose" style="margin:26px 0 0;max-width:820px">
+      <p>What the mini-ALVINN shows: the network steers correctly on roads that look like the training ones and fails when the car sits farther from the middle than it did in the data. A good driver keeps to the middle, so such frames almost never appear in his drives. What will happen to Ada if we train her on an operator's tidy drives?</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ LAB ============================ -->
+<section class="section alt" id="lab">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab</div>
+    <h2>You are the operator</h2>
+    <p class="lead lab-intro">Let's test this on Ada. You will drive her from the charger to the kitchen, train a policy on your drives, and let Ada drive on her own. The policy sees what Ada sees, 9 rangefinder beams and the direction to the kitchen, and outputs a steering rate. You can add drives from a program that knows the route and always drives neatly down the middle; from here on we call it the teacher. Then you will hunt for the policy's failures and compare which data keeps it from drifting off the route. The tasks are on the right, one at a time.</p>
+    <div class="lab">
+      <div class="card scene-card">
+        <canvas id="scene" width="600" height="400" role="img" aria-label="Floor plan from above: hallway with the charger, living room, kitchen; Ada's drives"></canvas>
+        <p class="cv-note">Top-down view of the apartment. Ada is the circle with eyes, the blue square is the charger, the dashed circle in the kitchen is the goal. While Ada drives, the blue lines are her 9 rangefinder beams. Gray lines are the drives the policy learns from. At the end of a drive, a check mark means Ada made it, a red cross means a crash.</p>
+        <div class="ctl-row">
+          <div class="seg" id="ctlView" role="group" aria-label="What to show on the scene">
+            <button type="button" data-view="traj" aria-pressed="true">trajectories</button>
+            <button type="button" data-view="heat" aria-pressed="false">where the data was</button>
+            <button type="button" data-view="route" aria-pressed="false">teacher's route</button>
+          </div>
+          <button class="btn sm" id="ctlRobot" type="button">+10 teacher drives</button>
+          <div class="train-mini" id="ctlTrain"><span>training</span><div class="prog"><i id="trainProg"></i></div><canvas id="loss" width="260" height="70" aria-label="Training loss curve"></canvas></div>
+        </div>
+        <div class="heat-legend" id="heatLegend" hidden><i class="hl-data"></i>where the data was <i class="hl-gap"></i>where the policy drove with no data</div>
+        <div class="trip-grid" id="tripGrid" hidden></div>
+        <div class="lab-msg" id="labMsg" aria-live="polite"></div>
+        <div class="free-panel" id="freePanel" hidden>
+          <div class="row">
+            <button class="btn sm" id="btnRecord" type="button">Record your own drive</button>
+            <button class="btn sm" id="btnDemos" type="button">+10 teacher drives</button>
+            <label class="toggle"><input type="checkbox" id="optDart"><span class="box"></span>noisy operator</label>
+            <label class="toggle"><input type="checkbox" id="optAug"><span class="box"></span>side shifts</label>
+          </div>
+          <div class="row">
+            <button class="btn sm" id="btnTrain" type="button">Train the policy</button>
+            <button class="btn sm primary" id="btnRun" type="button">Launch 10 runs</button>
+            <button class="btn sm ghost" id="btnClear" type="button">Clear the data</button>
+          </div>
+          <div class="muted-s" id="demoCount"></div>
+          <ol id="history" reversed></ol>
+        </div>
+      </div>
+      <div class="card guide-card"><div id="guide"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: what's inside the lab</summary><div class="body">
+      <ul>
+        <li><b>World.</b> A 6 × 4 m floor plan, one unit is a centimeter. Ada is a circle of radius 18 cm driving at a constant 60 cm/s. The control is a steering rate of up to 2.2 rad/s, with a 50 ms step.</li>
+        <li><b>Observation.</b> 9 rangefinder beams in a ±120° sector up to 2.5 m, the cosine and sine of the angle to the kitchen in Ada's frame, and the distance to it. Everything is normalized.</li>
+        <li><b>Policy.</b> A fully connected 13 → 48 → 48 → 1 network with leaky ReLU and a tanh output multiplied by 2.2 rad/s. Training: MSE and Adam, step 0.004, 900 iterations of 96 examples each, with the step 3 times smaller over the last 30% of iterations.</li>
+        <li><b>Teacher.</b> A pure-pursuit program: it looks at a point on the route 42 cm ahead and turns toward it with gain 2.4. Each of its drives is offset slightly from the center, with a 3 cm spread.</li>
+        <li><b>Evaluation.</b> Each policy drives 10 times from the same set of starts: a spread of about 7 cm and 0.1 rad, with Gaussian noise of 0.2 rad/s added to the steering, like imperfect motors. A run's start and noise depend only on its number, so policies are compared on equal terms.</li>
+        <li><b>Failure hunt.</b> A drive from a chosen start runs without noise: from the same spot the outcome is always the same. "Near the data" means within 20 cm of the closest point of the drives the policy was trained on.</li>
+        <li><b>Noisy operator.</b> While recording, noise of 0.5 rad/s is added to the steering, but the data records the teacher's clean action.</li>
+        <li><b>Side shifts.</b> Every moment of a drive gets two extra copies shifted 15 cm left and right with a small rotation. The teacher computes the steering for them.</li>
+      </ul>
+    </div></details>
+    <div class="prose" style="margin:26px 0 0;max-width:820px">
+      <p>The lab's result: a policy trained on 10 tidy teacher drives makes it 6 times out of 10, and three times as many such drives don't help, 5 out of 10. Policies trained on a noisy operator's drives or on drives with side shifts make it 10 out of 10. Why does a policy trained on tidy drives crash so often?</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ WHY IT DRIFTS ============================ -->
+<section class="section" id="why">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">3</span> Distribution shift</div>
+      <h2>Why the policy drifts off</h2>
+      <p>The policy crashes because its small error changes the next frame. The network errs only slightly, and Ada ends up closer to the wall than the operator ever was. That frame isn't in the data, so the network errs more. The frame becomes even less familiar, and so on until the collision.</p>
+      <p>In machine learning this is called <strong>distribution shift</strong> (covariate shift): the model was trained on the operator's distribution of states but runs on its own. That is also why new tidy drives don't help: no matter how many you add, they contain no frames away from the route.</p>
+      <p>Below is one of the crashes of the policy trained on 10 tidy teacher drives. Scrub through it frame by frame and find where the steering first went wrong and where Ada was at that moment.</p>
+    </div>
+    <div class="lab dbg-lab">
+      <div class="card scene-card">
+        <canvas id="dbgScene" class="dbg-scene" width="600" height="400" role="img" aria-label="A policy crash frame by frame: the trajectory, the policy's steering and the teacher's steering"></canvas>
+        <p class="cv-note">Top-down view. The gray bundle is the 10 training drives of the teacher. The orange line is the policy's drive up to the current frame, the pale dashed line is its path beyond it, the red cross is the crash site. The blue beams are the 9 rangefinder beams, which is what Ada sees. The arcs at Ada show the steering: orange is the policy's, blue is the teacher's. The dashed line from Ada leads to the closest point of the training drives.</p>
+        <div class="ctl-row dbg-ctl">
+          <button class="btn sm" id="dbgPlay" type="button">▶ Play</button>
+          <label class="hd-range dbg-range"><span>Frame</span><input type="range" id="dbgT" min="0" max="100" step="1" value="0" aria-label="Drive frame"><output>0.0 s</output></label>
+        </div>
+        <canvas id="dbgChart" class="dbg-chart" width="600" height="190" aria-label="Steering error and distance to the data frame by frame"></canvas>
+        <div class="cv-legend"><span><i style="--c: var(--e2e)"></i>policy steering and its error</span><span><i style="--c: var(--classic)"></i>teacher steering</span><span><i style="--c: var(--ink-2)"></i>distance to the closest point of the training drives</span></div>
+        <div class="readout" id="dbgRead">Training the policy…</div>
+      </div>
+      <div class="card guide-card"><div id="dbgGuide" class="m-solo"></div></div>
+    </div>
+    <div class="prose" style="margin:26px 0 0;max-width:820px">
+      <div class="callout insight"><span class="ico">🎯</span><div><p><strong>This is why validation accuracy misleads.</strong> Validation examples come from the operator's drives, the very distribution the network was trained on. But the policy drives through its own states. A low validation error says nothing about whether Ada will make it.</p></div></div>
+      <p>Every error drags the next ones along. How fast do they pile up as the trip gets longer?</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ SQUARED ============================ -->
+<section class="section alt" id="square">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">4</span> Theory</div>
+      <h2>The error grows as the square of the trip length</h2>
+      <p>How fast errors pile up was worked out by Stéphane Ross and Drew Bagnell in 2010. Suppose the network errs with probability \(\varepsilon\) on the operator's states, and an episode lasts \(T\) steps. If the errors were independent, an episode would collect about \(\varepsilon T\) of them.</p>
+      <p>But in behavior cloning the first error leads to places the operator never visited, and from there the policy may err on every step. So in the worst case the number of errors is on the order of \(\varepsilon T^2\).</p>
+      <p>On the chart, the gray dashed line is independent errors; the solid orange curve is behavior cloning with no ability to recover. The orange dashed line is the parabola \(\varepsilon T^2/2\): while errors are few, the orange curve follows it. The solid gray curve is a policy that can get back onto the route within k steps. The horizontal dotted line is one error per episode, the vertical one is Ada's trip: about 200 steps of 50 ms. Both axes are logarithmic, so the square looks like a straight line, just twice as steep as the gray dashed one: when T doubles, independent errors double, while behavior cloning's quadruple. Switch the axes to linear, and the curve becomes a parabola. Tasks on the right: find the accuracy at which behavior cloning almost never errs, then see what the ability to recover buys you.</p>
+    </div>
+    <div class="lab sq-lab">
+      <div class="card scene-card">
+        <div class="ctl-row sq-ctrl">
+          <label class="hd-range" id="sqEpsWrap"><span>Error probability ε</span><input type="range" id="sqEps" min="-5" max="-1.3" step="0.05" value="-3"><output>0.1%</output></label>
+          <label class="hd-range" id="sqKWrap"><span>Recovers within k steps</span><input type="range" id="sqK" min="1" max="60" step="1" value="10"><output>10</output></label>
+          <div class="seg" id="sqAxes" role="group" aria-label="Chart axes"><button type="button" data-v="log" aria-pressed="true">Log axes</button><button type="button" data-v="lin" aria-pressed="false">Linear axes</button></div>
+        </div>
+        <canvas id="sqChart" width="760" height="300" aria-label="Chart of error count versus episode length: independent errors, behavior cloning, a policy with recovery"></canvas>
+        <div class="cv-legend"><span><i class="dash" style="--c: var(--ink-3)"></i>independent errors, \(\varepsilon T\)</span><span><i style="--c: var(--e2e)"></i>behavior cloning</span><span><i class="dash" style="--c: var(--e2e)"></i>parabola \(\varepsilon T^2/2\)</span><span><i style="--c: var(--ink-2)"></i>recovery within \(k\) steps</span></div>
+        <div class="sq-stats" id="sqStats"></div>
+      </div>
+      <div class="card guide-card"><div id="sqGuide"></div></div>
+    </div>
+    <details class="deep"><summary><span>Under the hood: where \(\varepsilon T^2\) comes from</span></summary><div class="body">
+      <p>Suppose that in a familiar state the policy errs with probability \(\varepsilon\), and after the first error it lands where the operator never was and, in the worst case, errs on every step from then on. The probability of erring for the first time on step \(t\) is at most \(\varepsilon\), and then \(T - t + 1\) error-filled steps remain until the end of the episode:</p>
+      <div class="formula">\[\begin{aligned} \E[\text{errors}] &\le \sum_{t=1}^{T} \varepsilon\,(T - t + 1) \\ &= \varepsilon\,\frac{T(T + 1)}{2} \approx \frac{\varepsilon T^2}{2}. \end{aligned}\]</div>
+      <p>Ross and Bagnell showed that the bound \(J(\hat\pi) \le J(\pi^*) + T^2\varepsilon\) is tight: there are problems where it is attained. If the policy can get back onto the route within \(k\) steps, each error costs at most \(k\) steps and the sum grows linearly, roughly as \(kT\varepsilon\). On the chart that is the solid gray curve.</p>
+      <p>The orange curve is computed exactly for this model: a step counts as an error if the first error has already happened.</p>
+      <div class="formula">\[\begin{aligned} \E[\text{errors}] &= \sum_{t=1}^{T} \bigl(1 - (1 - \varepsilon)^t\bigr) \\ &= T - \frac{(1 - \varepsilon)\bigl(1 - (1 - \varepsilon)^T\bigr)}{\varepsilon}. \end{aligned}\]</div>
+    </div></details>
+    <div class="prose" style="margin:26px 0 0;max-width:820px">
+      <p>The takeaway: the accuracy you would need is nearly impossible to reach on real frames. But if the policy can get back onto the route, each error costs it only a few steps. Where can the policy learn that skill, if the operator never leaves the route?</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ WHAT HELPS ============================ -->
+<section class="section" id="fixes">
+  <div class="prose">
+    <div class="kicker"><span class="num">5</span> The fix</div>
+    <h2>How to get recoveries into the data</h2>
+    <p>The policy learns to recover from the data: the data must contain <em>recoveries</em>, states away from the route together with the correct steering from them.</p>
+    <p>A tidy operator has no recoveries: he never leaves the route. That is why three times as many of his drives didn't help in the lab, 5 out of 10 versus 6 out of 10. Meanwhile the policies trained on a noisy operator's drives and on side shifts made it 10 out of 10.</p>
+    <p>Here are three well-known ways to add recoveries, and two of them are in the lab.</p>
+    <ul class="links">
+      <li><strong>Noisy operator (DART, 2017).</strong><span>While recording, noise is mixed into the steering. Ada gets pushed aside, the operator corrects, and his corrective action goes into the data. In the original paper this gave +62% over plain behavior cloning on grasping objects from a clutter pile.</span></li>
+      <li><strong>Side shifts (Pomerleau, 1991).</strong><span>Every frame from the driver was shifted and rotated 14 times, by up to 0.6 m and 6°, and for each copy the correct steering was computed with a simple geometric model. The "side shifts" option in the lab does the same. By 1994 ALVINN was driving up to 90 miles without intervention.</span></li>
+      <li><strong>Side cameras (PilotNet, NVIDIA, 2016).</strong><span>Two extra cameras look sideways, and their frames are labeled with the steering that brings the car back to the center within 2 seconds. The authors say it outright: the driver's data alone is not enough, otherwise the car slowly drifts off the road.</span></li>
+    </ul>
+    <details class="deep"><summary>Under the hood: DART formally</summary><div class="body">
+      <p>While recording, the robot executes the operator's action with noise, but the data records the clean action:</p>
+      <div class="formula">\[\begin{gathered} a = \pi^*(s) + \eta, \qquad \eta \sim \mathcal{N}(0, \Sigma),\\ \text{into the data: } \bigl(s,\ \pi^*(s)\bigr). \end{gathered}\]</div>
+      <p>The noise pushes the robot sideways, and the operator shows how to come back from there. The DART authors choose \(\Sigma\) so that the noisy states cover the future policy's errors: they train a policy, measure how far it diverges from the operator, and set noise of the same scale. Unlike DAgger, the operator stays in control the whole time and never labels someone else's drives.</p>
+    </div></details>
+    <div class="callout note"><span class="ico">🧭</span><div><p><strong>What these tricks lack.</strong> All three add recoveries ahead of time: we guess where the policy will drift and put examples there. If it drifts somewhere we didn't think of, there will again be no examples. How to collect examples exactly where the policy actually goes is the subject of lesson 1.2.</p></div></div>
+    <p>Recoveries decide which states get into the data. But a policy can be spoiled from the other side too: through what the network sees at its input. It seems that the more it sees, the better it drives. Is that so?</p>
+  </div>
+</section>
+
+<!-- ============================ PITFALLS ============================ -->
+<section class="section alt" id="traps">
+  <div class="prose">
+    <div class="kicker"><span class="num">6</span> Pitfalls</div>
+    <h2>When more information is worse</h2>
+    <p>Not always. The network looks for input features that coincide with the operator's action in the data, and it has no idea whether a feature causes that action. So an extra input sometimes makes the policy worse. There are two well-known pitfalls.</p>
+    <div class="two-col" style="margin-top:14px">
+      <div class="card pad"><h4>Spurious cause</h4><p>The network sees the dashboard, where the brake light comes on. In the data the light is on every time the driver brakes, and the network learns "brake when the light is on". But the light is a consequence of braking, not its cause. This is a thought experiment from the paper by de Haan, Jayaraman and Levine (2019) on causal confusion.</p></div>
+      <div class="card pad"><h4>Copying itself</h4><p>If you feed the network its action history, it starts repeating its own previous action: in the data the steering changes smoothly, and "same as last time" is almost always right. Such a policy is right everywhere except the moment it has to start acting: at a traffic light it will never pull away. This problem is called copycat.</p></div>
+    </div>
+    <p style="margin-top:18px">The Waymo team, training ChauffeurNet, wrote: "30 million examples are still not enough". They had to drop the motion history in half the examples so the network would look at the road rather than its own past.</p>
+    <h3 style="margin-top:34px">Exercise: what will help Ada</h3>
+    <p>Let's put together everything we learned about data and inputs. Sort the tricks into bins: will each one help the policy stay on the route? Drag a card, or click it and then click a bin.</p>
+    <div class="card pad sort-card" id="sortBox"></div>
+    <p style="margin-top:18px">Drift, spurious causes, copying itself: behavior cloning has plenty of weaknesses. Does anyone still use it?</p>
+  </div>
+</section>
+
+<!-- ============================ TODAY ============================ -->
+<section class="section" id="today">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 18px;max-width:820px">
+      <div class="kicker"><span class="num">7</span> What survived to 2026</div>
+      <h2>Behavior cloning in today's systems</h2>
+      <p>Yes, and widely. The architecture, the volume and the variety of data change, but at the core of nearly every robot model there is still learning from demonstrations.</p>
+    </div>
+    <ol class="tl-list">
+      <li><b>1989</b><span>ALVINN: pixels → steering on a real van, trained on synthetic roads.</span></li>
+      <li><b>1991–1994</b><span>Learning from a live driver with shifted frames, up to 55 miles per hour.</span></li>
+      <li><b>2005</b><span>DAVE: a convolutional network on a small truck, "stereo pair → steering".</span></li>
+      <li><b>2010–2011</b><span>The \(\varepsilon T^2\) bound and the DAgger algorithm (lesson 1.2).</span></li>
+      <li><b>2016</b><span>PilotNet from NVIDIA: 72 hours of driving, three cameras, about 98% of the time without intervention.</span></li>
+      <li><b>2023</b><span>ACT and Diffusion Policy: generative policies and action chunks. 50 demonstrations per task, 10–20 minutes of data (lessons 1.3–1.7).</span></li>
+      <li><b>2024–2026</b><span>π0, Large Behavior Models, Atlas: behavior cloning on thousands of hours of data. Reinforcement learning is added on top (π*0.6, part 5).</span></li>
+    </ol>
+  </div>
+</section>
+
+<!-- ============================ QUIZ ============================ -->
+<section class="section alt" id="quiz">
+  <div class="prose">
+    <div class="kicker"><span class="num">8</span> Check yourself</div>
+    <h2>Eight common misconceptions</h2>
+    <div class="quiz" id="quizBox"></div>
+    <p class="score" id="quizScore" style="margin-top:14px"></p>
+  </div>
+</section>
+
+<!-- ============================ WRAP-UP ============================ -->
+<section class="section" id="finale">
+  <div class="prose">
+    <div class="kicker"><span class="num">9</span> Wrap-up</div>
+    <h2>Lesson takeaways</h2>
+    <ol class="takeaways">
+      <li><span><strong>Behavior cloning</strong> is supervised learning on pairs of "observation → operator's action". It is simple, fast, and underlies nearly every robot model.</span></li>
+      <li><span>The policy chooses which states it will see. A small error leads to places with no data: that is <strong>distribution shift</strong>.</span></li>
+      <li><span>So the error per episode grows in the worst case as <strong>\(\varepsilon T^2\)</strong>, and validation accuracy guarantees nothing.</span></li>
+      <li><span>Drift is reduced by data with <strong>recoveries</strong>, states away from the route together with the correct action from them: a noisy operator, shifted frames, side cameras. The volume of tidy drives helps little.</span></li>
+      <li><span>More input information is not always better: <strong>spurious causes</strong> and <strong>copying itself</strong>.</span></li>
+    </ol>
+
+    <h3 style="margin-top:40px">Open questions</h3>
+    <details class="card pad open-q"><summary>You are collecting demonstrations for a robot that hands over a cup. How do you plan the collection so the policy can correct its misses?</summary><p>You need states to recover from: start some demonstrations from poor arm positions, mix a little noise into the recording, and record how the operator corrects a miss. It also helps to vary the starting poses and the placement of objects. The volume of identical tidy demonstrations helps little.</p></details>
+    <details class="card pad open-q"><summary>Why is "validation error" a poor predictor of a policy's success on the robot?</summary><p>Validation examples come from the operator's distribution, while a running policy ends up in its own states. Validation error measures accuracy where the policy almost never is at the moment of failure. Success has to be measured with closed-loop rollouts, on the robot or in a simulator.</p></details>
+
+    <h3 style="margin-top:34px">Paper guide</h3>
+    <p><a href="https://proceedings.neurips.cc/paper/1988/file/812b4ba287f5ee0bc9d43bbf5bbe87fb-Paper.pdf" target="_blank" rel="noopener">Pomerleau, "ALVINN: An Autonomous Land Vehicle in a Neural Network", NIPS 1989</a>. A short paper, half an hour's read.</p>
+    <ul class="links">
+      <li><strong>Read closely</strong><span>The network architecture and input, how the training examples were produced, and why the output is 45 neurons with a "hump" rather than a single number.</span></li>
+      <li><strong>Watch for</strong><span>What the author writes about testing "under limited conditions", about forks, and about the need to teach the network to recover from errors.</span></li>
+      <li><strong>Question along the way</strong><span>Why were random values fed to the feedback input during training? Hint: recall the section on copying itself.</span></li>
+    </ul>
+
+    <h3 style="margin-top:34px">Further reading</h3>
+    <ul class="links">
+      <li><a href="https://arxiv.org/abs/1604.07316" target="_blank" rel="noopener">End to End Learning for Self-Driving Cars</a><span>M. Bojarski et al., NVIDIA, 2016 — PilotNet and side cameras</span></li>
+      <li><a href="https://proceedings.mlr.press/v9/ross10a.html" target="_blank" rel="noopener">Efficient Reductions for Imitation Learning</a><span>S. Ross, J. A. Bagnell, 2010 — where \(\varepsilon T^2\) comes from</span></li>
+      <li><a href="https://arxiv.org/abs/1703.09327" target="_blank" rel="noopener">DART: Noise Injection for Robust Imitation Learning</a><span>M. Laskey et al., 2017 — the noisy operator</span></li>
+      <li><a href="https://arxiv.org/abs/1905.11979" target="_blank" rel="noopener">Causal Confusion in Imitation Learning</a><span>P. de Haan, D. Jayaraman, S. Levine, 2019</span></li>
+      <li><a href="https://www.youtube.com/watch?v=5-acCtyKf7E" target="_blank" rel="noopener">NavLab 1984–1994</a><span>Video from the CMU Robotics Institute</span></li>
+    </ul>
+
+    <div class="callout insight" style="margin-top:34px"><span class="ico">➡️</span><div><p><strong>Next: DAgger.</strong> The policy errs where the data has no examples. With a noisy operator and shifted frames we added such examples by guesswork, in the places where we assumed it would drift. If it drifts somewhere else, there will again be no examples. Can we collect them exactly where the policy goes? That is <a href="1-2-dagger.html">lesson 1.2</a>: Ada will drive on her own, and the teacher will supply the correct steering at every point she reaches.</p></div></div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Lesson 1.1 of the Modern Robotics and Physical AI course. All simulations and neural networks run locally in your browser.
+</footer>
+
+<div class="tooltip" id="tooltip" role="tooltip"></div>
+
+<script>
+/*@@JS@@*/
+</script>
+</body>
+</html>

@@ -44,6 +44,10 @@ img, svg, canvas { display: block; }
 .nav-links a:hover, .nav-links a[aria-current="page"] { background: var(--bg-2); color: var(--ink); }
 .icon-btn { width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--line-2); background: var(--surface); display: grid; place-items: center; cursor: pointer; color: var(--ink); text-decoration: none; }
 .icon-btn svg { width: 18px; height: 18px; }
+/* переключатель языка (EN/RU): в навигации — как кнопка, в шапке «Что нового»/политики и в подвале 404 — как ссылка; ставит сборка */
+.lang-btn { width: auto; padding: 0 10px; font-size: 12.5px; font-weight: 700; letter-spacing: .04em; color: var(--ink-2); }
+.lang-btn:hover { color: var(--ink); background: var(--bg-2); }
+.lang-link { font-weight: 700; letter-spacing: .04em; }
 
 /* ---------- Общие элементы ---------- */
 .wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
@@ -87,3 +91,6 @@ p { margin: 0 0 1em; color: var(--ink-2); }
 /* временная плашка (NOTICE в site/config.json) */
 .site-notice { margin: 0 auto 4px; max-width: 1180px; padding: 10px 16px; border: 1px solid rgba(235,104,52,.35); background: rgba(235,104,52,.08); border-radius: 12px; font-size: 14px; line-height: 1.45; color: var(--ink, #1a1a1a); }
 .site-notice a { font-weight: 600; }
+
+/* английская программа: урок пока только по-русски */
+.tag.ru-only { background: var(--bg-2); color: var(--ink-3); font-weight: 600; }

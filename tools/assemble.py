@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Собирает сайт в папку для выкладки: уроки, страницы сайта и только то, что опубликовано на момент
-сборки (site/config.json, PUBLISHED; даты выпусков — site/published.py).
+сборки (site/config.json, PUBLISHED; даты выпусков — site/published.py). Английская версия — в dist/en/:
+страницы site/en/*.html и те опубликованные уроки, у которых есть английская сборка (site/en/lessons/).
   python3 tools/assemble.py dist                       — сайт сейчас (так его выкладывает tools/deploy.sh);
   MR_ASOF=2026-10-10 python3 tools/assemble.py out     — каким он станет в 09:00 этого дня (tools/release.py).
 """
@@ -11,7 +12,7 @@ sys.path.insert(0, str(root / 'site'))
 from published import asof, published  # noqa: E402
 
 dist = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else 'dist').resolve()
-subprocess.run([sys.executable, str(root / 'lessons/build.py'), 'all'], check=True, stdout=subprocess.DEVNULL)
+subprocess.run([sys.executable, str(root / 'lessons/build.py'), 'all', '--both'], check=True, stdout=subprocess.DEVNULL)
 subprocess.run([sys.executable, str(root / 'site/build.py')], check=True, stdout=subprocess.DEVNULL)
 site = root / 'site'
 cfg = json.loads((site / 'config.json').read_text(encoding='utf-8'))
@@ -28,14 +29,24 @@ for p in pub:
     if not src.exists():
         raise SystemExit(f'Урок {p["n"]} не собран: {src}')
     shutil.copy2(src, dist / p['file'])
+# английская версия: страницы сайта и уроки, у которых есть английская сборка
+en = site / 'en'
+en_pages = sorted(en.glob('*.html')) if en.exists() else []
+en_lessons = [p for p in pub if (en / p['file']).exists()] if en.exists() else []
+if en_pages or en_lessons:
+    (dist / 'en' / 'lessons').mkdir(parents=True)
+    for f in en_pages:
+        shutil.copy2(f, dist / 'en' / f.name)
+    for p in en_lessons:
+        shutil.copy2(en / p['file'], dist / 'en' / p['file'])
 files = [x for x in dist.rglob('*') if x.is_file()]
 moment = asof().strftime('%d.%m.%Y %H:%M')
-print(f'{dist.name}/: {len(files)} файлов, {sum(x.stat().st_size for x in files) / 1e6:.1f} МБ, страниц уроков: {len(pub)} (на {moment} МСК)')
+print(f'{dist.name}/: {len(files)} файлов, {sum(x.stat().st_size for x in files) / 1e6:.1f} МБ, страниц уроков: {len(pub)}, по-английски: {len(en_lessons)} уроков и {len(en_pages)} страниц сайта (на {moment} МСК)')
 if not cfg.get('THANKS_API'):
     print('ВНИМАНИЕ: THANKS_API пуст — на сайте не будет числа у кнопки «Сказать спасибо». Сначала server/thanks/deploy.sh')
 # ссылки из опубликованных страниц на ещё не опубликованные
 names = {pathlib.Path(q['file']).name for q in pub}
-for q in pub:
-    for ref in sorted(set(re.findall(r'href="((?:[0-9]-[0-9]{1,2}-[a-z0-9-]+|proverka-chasti-\d+|glossariy)\.html)', (dist / q['file']).read_text(encoding='utf-8')))):
+for q, f in [(q, dist / q['file']) for q in pub] + [(q, dist / 'en' / q['file']) for q in en_lessons]:
+    for ref in sorted(set(re.findall(r'href="((?:[0-9]-[0-9]{1,2}-[a-z0-9-]+|proverka-chasti-\d+|glossariy)\.html)', f.read_text(encoding='utf-8')))):
         if ref not in names:
-            print(f'ВНИМАНИЕ: {q["n"]} ссылается на неопубликованную страницу {ref}')
+            print(f'ВНИМАНИЕ: {q["n"]}{" (en)" if f.parent.parent.name == "en" else ""} ссылается на неопубликованную страницу {ref}')

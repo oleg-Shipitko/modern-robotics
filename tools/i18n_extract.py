@@ -4,14 +4,18 @@
 Запуск: python3 tools/i18n_extract.py l13            — заготовка (JSON в stdout)
         python3 tools/i18n_extract.py l13 --check    — какие литералы не переведены / лишние ключи
         python3 tools/i18n_extract.py shared          — общие файлы lessons/shared/*.js и l01/ui-core.js
+        python3 tools/i18n_extract.py site            — скрипты сайта site/assets/hero/*.js → словарь site/i18n.en.json
 Литералы: '…', "…", `…` (шаблонные — целиком, с ${…} как есть). Комментарии пропускаются. Регулярные
-выражения с кириллицей (/…/) не трогаем — их переводят отдельно, если они влияют на текст."""
+выражения с кириллицей (/…/) не трогаем — их переводят отдельно, если они влияют на текст.
+Сборки (lessons/build.py, site/build.py) берут отсюда literals(), load_dict() и translate_js()."""
 import json, pathlib, re, sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent / 'lessons'
+SITE = ROOT.parent / 'site'
 SHARED = ['shared/missions.js', 'shared/cards.js', 'shared/check.js', 'shared/thanks.js', 'shared/feedback.js',
           'shared/glossary.js', 'shared/recall.js', 'shared/progress.js', 'shared/guide.js', 'shared/kit.js',
           'shared/anim.js', 'shared/drive-lab.js', 'shared/kettle-draw.js', 'shared/drive-core.js', 'shared/kettle-core.js',
           'shared/arm-core.js', 'shared/actuator-core.js', 'shared/mpc-core.js', 'l01/ui-core.js']
+SITE_JS = ['assets/hero/modes.js', 'assets/hero/cspace.js', 'assets/hero/walk.js']  # kit.js и thanks.js — копии из shared
 CYR = re.compile(r'[А-Яа-яЁё]')
 
 def literals(src):
@@ -45,10 +49,38 @@ def literals(src):
         i += 1
     return out
 
-def keys_for(files):
+def load_dict(path):
+    """Словарь переводов из JSON-файла: только заполненные значения; пустой словарь, если файла нет."""
+    path = pathlib.Path(path)
+    if not path.exists():
+        return {}
+    return {k: v for k, v in json.loads(path.read_text(encoding='utf-8')).items() if v}
+
+def translate_js(js, *dicts):
+    """Подстановка переводов в JS: точная замена литерала вместе с кавычками ('…', "…", `…`); шаблонные
+    литералы — целиком, ${…} в них переводчик сохраняет как есть. Если ключ есть в нескольких словарях,
+    побеждает первый. Длинные ключи заменяются раньше коротких: иначе короткий литерал внутри ${…}
+    шаблона (например 'Гибрид') переводился бы первым, шаблон менялся и его собственный ключ уже не находился.
+    Если в переводе встречается кавычка самого литерала без экранирования, она экранируется."""
+    merged = {}
+    for d in dicts:
+        for k, v in d.items():
+            merged.setdefault(k, v)
+    for k in sorted(merged, key=len, reverse=True):
+        v = merged[k]
+        for q in ('"', "'", '`'):
+            lit = q + k + q
+            if lit in js:
+                # кавычку литерала внутри перевода экранируем; в шаблонных литералах — нет: обратные кавычки
+                # там бывают только в коде внутри ${…} (вложенный шаблон), и его трогать нельзя
+                val = v if q == '`' else re.sub(r'(?<!\\)' + q, lambda m: '\\' + q, v)
+                js = js.replace(lit, q + val + q)
+    return js
+
+def keys_for(files, base=ROOT):
     keys = []
     for f in files:
-        p = ROOT / f
+        p = base / f
         if not p.exists(): continue
         for lit in literals(p.read_text(encoding='utf-8')):
             if (CYR.search(lit) or lit in ('ru-RU',)) and lit not in keys:
@@ -58,12 +90,15 @@ def keys_for(files):
 def main():
     key = sys.argv[1] if len(sys.argv) > 1 else 'l01'
     check = '--check' in sys.argv
+    base = ROOT
     if key == 'shared':
         files, dict_path = SHARED, ROOT / 'shared/i18n.en.json'
+    elif key == 'site':
+        files, dict_path, base = SITE_JS, SITE / 'i18n.en.json', SITE
     else:
         files = sorted(str(p.relative_to(ROOT)) for p in (ROOT / key).glob('*.js'))
         dict_path = ROOT / key / 'i18n.en.json'
-    keys = keys_for(files)
+    keys = keys_for(files, base)
     if not check:
         print(json.dumps({k: '' for k in keys}, ensure_ascii=False, indent=1)); return
     d = json.loads(dict_path.read_text(encoding='utf-8')) if dict_path.exists() else {}

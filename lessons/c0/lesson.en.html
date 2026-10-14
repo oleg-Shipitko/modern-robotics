@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Part 0 check — Modern Robotics and Physical AI</title>
+<meta name="description" content="Part 0 check of the “Modern Robotics and Physical AI” course: 13 questions shuffled across lessons 0.1–0.4 and a live-scene task with a PD controller. At the end, a score and the topics worth revisiting.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<script>
+  (function () { try { var t = localStorage.getItem('mr-theme'); if (t) document.documentElement.dataset.theme = t; else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme = 'dark'; } catch (e) {} })();
+</script>
+<style>
+/*@@CSS@@*/
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html#program" title="To the course program"><div>Modern Robotics and Physical AI<small>Part 0 check</small></div></a>
+    <nav class="toc" aria-label="Page sections">
+      <a href="#tasks">Tasks</a>
+      <a href="#result">Result</a>
+    </nav>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Toggle theme">◐</button>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main>
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="kicker"><span class="num">0</span> Part 0 · Introduction: the classical stack and its limits</div>
+    <h1>Part 0 <span class="amp">check</span></h1>
+    <p class="lead">The quiz at the end of a lesson tests that lesson right after you read it. Here the tasks from all lessons of the part come shuffled: that shows what has stuck and whether the topics connect in your head. At the end you get a score per lesson and links to the sections worth revisiting.</p>
+    <div class="hero-meta"><span>≈ 15 minutes</span><span>13 questions and a scene task</span><span>can be retaken</span></div>
+    <div class="hero-list">
+      <div><b>0.1</b>Two paradigms: rules and data</div>
+      <div><b>0.2</b>Inside a robot: actuators and sensors</div>
+      <div><b>0.3</b>Kinematics and control</div>
+      <div><b>0.4</b>State estimation and planning</div>
+    </div>
+    <p style="margin-top:28px"><a class="btn primary" href="#tasks">Start the check ↓</a></p>
+  </div>
+</section>
+
+<section class="section" id="tasks">
+  <div class="wrap">
+    <div class="chk-list" id="chkList"></div>
+  </div>
+</section>
+
+<section class="section alt" id="result">
+  <div class="wrap">
+    <div class="prose" style="max-width:820px">
+      <div class="kicker"><span class="num">✓</span> Result</div>
+      <h2>Check result</h2>
+      <p class="score" id="quizScore"></p>
+      <p class="chk-wait" id="chkWait"></p>
+      <div id="chkResult" hidden>
+        <div class="chk-table" id="chkTable"></div>
+        <h3 style="margin-top:28px">What to revisit</h3>
+        <ul class="links" id="chkReview"></ul>
+        <p style="margin-top:22px"><button class="btn" type="button" id="chkAgain">Take it again</button></p>
+      </div>
+      <div class="callout insight" style="margin-top:34px"><span class="ico">➡️</span><div><p><strong>Next: Part 1, imitation learning.</strong> The classical stack relies on models an engineer writes by hand. The first part of the course starts with behavior cloning: a policy that learns to repeat after the operator.</p><p><a href="1-1-behavior-cloning.html">Lesson 1.1 “Behavior Cloning” →</a></p></div></div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  Part 0 check of the “Modern Robotics and Physical AI” course. Your answers stay in the browser; the site only sees anonymous totals.
+</footer>
+<div class="tooltip" id="tooltip" role="tooltip"></div>
+<script>
+/*@@JS@@*/
+</script>
+</body>
+</html>

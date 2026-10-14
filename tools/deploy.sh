@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Выкладка сайта в Yandex Object Storage (бакет modernrobotics.ru).
-# Собирает уроки и страницы, складывает в dist/ только опубликованное на текущий момент (site/config.json,
+# Собирает уроки и страницы (обе языковые версии, английская — в dist/en/), складывает в dist/ только опубликованное на текущий момент (site/config.json,
 # PUBLISHED; уроки субботних выпусков появляются в 09:00 дня выпуска — site/published.py) и синхронизирует
 # с бакетом через AWS CLI. Ключи — в профиле AWS «mr» (~/.aws), см. заметку «Курс Physical AI — хостинг в Yandex Cloud».
 #   tools/deploy.sh --build-only   только собрать dist/
@@ -18,16 +18,20 @@ export AWS_PROFILE="${AWS_PROFILE:-mr}"
 python3 tools/assemble.py dist
 [ "$MODE" = "--build-only" ] && exit 0
 
-# Защита: урок, который уже есть на сайте (например, вышел в субботу), не должен пропасть из-за sync --delete
+# Защита: урок, который уже есть на сайте (например, вышел в субботу), не должен пропасть из-за sync --delete —
+# ни русский (lessons/), ни английский (en/lessons/)
 if [ "$MODE" != "--force" ]; then
-  aws s3 ls "$BUCKET/lessons/" --endpoint-url https://storage.yandexcloud.net | awk '{print $4}' | python3 -c '
+  for PFX in lessons en/lessons; do
+    (aws s3 ls "$BUCKET/$PFX/" --endpoint-url https://storage.yandexcloud.net || true) | awk '{print $4}' | python3 -c '
 import pathlib, sys
+pfx = sys.argv[1]
 live = {l.strip() for l in sys.stdin if l.strip().endswith(".html")}
-gone = sorted(live - {p.name for p in pathlib.Path("dist/lessons").glob("*.html")})
+gone = sorted(live - {p.name for p in pathlib.Path("dist/" + pfx).glob("*.html")})
 if gone:
-    print("СТОП: эти страницы уже на сайте, но в сборке их нет, и выкладка их удалит:", *gone, sep="\n  ")
-    print("Проверь даты в site/config.json (PUBLISHED). Если страницы и правда нужно убрать — tools/deploy.sh --force")
-    sys.exit(1)'
+    print("СТОП: эти страницы уже на сайте (" + pfx + "/), но в сборке их нет, и выкладка их удалит:", *gone, sep="\n  ")
+    print("Проверь даты в site/config.json (PUBLISHED) и наличие lesson.en.html. Если страницы и правда нужно убрать — tools/deploy.sh --force")
+    sys.exit(1)' "$PFX"
+  done
 fi
 
 DRY=""; [ "$MODE" = "--dryrun" ] && DRY="--dryrun"

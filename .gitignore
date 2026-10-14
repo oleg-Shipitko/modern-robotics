@@ -18,6 +18,9 @@ site/assets/stats.js
 site/404.html
 site/robots.txt
 site/sitemap.xml
+site/en/
+site/assets/*.en.js
+site/assets/hero/*.en.js
 
 # проверки старой разминки (src/) и устаревшие копии прототипа
 tools/build.py

@@ -8,10 +8,12 @@
 ```
 site/        главная страница, 404 и config.json со ссылками и списком опубликованных уроков
   index.src.html, 404.src.html     исходники страниц (about.html — переадресация на блок «Об авторе»)
+  *.en.src.html, changelog.en.json  английская версия страниц (sources/i18n-spec.md); собирается в site/en/
   build.py                         сборка: подставляет иконки и ссылки из config.json
   assets/                          стили, иконки, фото, интерактивы первого экрана (assets/hero)
 lessons/     уроки курса
-  build.py   сборка уроков в самодостаточные HTML-файлы в site/lessons/
+  build.py   сборка уроков в самодостаточные HTML-файлы в site/lessons/ (MR_LANG=en — английская версия из lXX/lesson.en.html
+             со словарями i18n.en.json → site/en/lessons/)
   shared/    общие модули: канвас и подписи (kit.js), миссии лабораторий (missions.js), сортировка карточек (cards.js),
              кнопка «Сказать спасибо» (thanks.js),
              дом Ады и лаборатория «Ты — оператор», модель привода (actuator-core.js),
@@ -30,8 +32,10 @@ tools/       проверки в headless Chrome (без внешних зави
 ## Сборка и проверка
 Нужны Python 3 и Node.js 18+; для проверок — Google Chrome.
 ```
-python3 site/build.py          # главная, 404, robots.txt и sitemap.xml
+python3 site/build.py          # главная, 404, robots.txt и sitemap.xml (и site/en/, если есть *.en.src.html)
 python3 lessons/build.py all   # уроки → site/lessons/
+python3 lessons/build.py all --both   # обе языковые версии; MR_LANG=en … — только английская → site/en/lessons/
+node tools/en_pages.js         # английские страницы: консоль, lang, переключатель, hreflang, остатки кириллицы
 open site/index.html           # всё работает локально, без сервера
 tools/deploy.sh --dryrun       # выкладка в Yandex Object Storage: что уйдёт на сайт
 

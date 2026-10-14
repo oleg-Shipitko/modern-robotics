@@ -1,0 +1,8 @@
+{
+ "е": "e",
+ "Ё": "E",
+ "Е": "E",
+ "Урок ${g.n}${g.st ? ` · ${g.st}` : ''} →": "Lesson ${g.n}${g.st ? ` · ${g.st}` : ''} →",
+ "${n} из ${items.length}": "${n} of ${items.length}",
+ "${items.length} терминов": "${items.length} terms"
+}
