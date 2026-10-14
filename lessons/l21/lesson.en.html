@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2.1 Transporter and CLIPort — Modern Robotics and Physical AI</title>
+<meta name="description" content="Lesson 2.1 of the “Modern Robotics and Physical AI” course: CLIP, Transporter and CLIPort. Train a small CLIP in your browser, teach Ada to pick up a cube from a single demonstration with an action map, find a part's rotation by template matching, and connect words to maps.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<script>
+  (function () { try { var t = localStorage.getItem('mr-theme'); if (t) document.documentElement.dataset.theme = t; else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme = 'dark'; } catch (e) {} })();
+</script>
+<style>
+/*@@CSS@@*/
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html#program" title="To the course program"><div>Modern Robotics and Physical AI<small>Lesson 2.1 · Transporter and CLIPort</small></div></a>
+    <nav class="toc" aria-label="Lesson sections">
+      <a href="#words">Words</a>
+      <a href="#maps">Map</a>
+      <a href="#place">Placing</a>
+      <a href="#cliport">What &amp; where</a>
+      <a href="#today">Today</a>
+      <a href="#quiz">Quiz</a>
+      <a href="#finale">Takeaways</a>
+    </nav>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Toggle theme">◐</button>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main>
+
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="kicker"><span class="num">2.1</span> Part 2 · Spatial representations, language and planning</div>
+    <h1>Transporter and CLIPort: <span class="amp">where and what</span></h1>
+    <p class="lead">The policies of Part 1 look at an image and output numbers: coordinates or joint angles. They need dozens of demonstrations per skill, and most of them can't follow a command given in words. But in tabletop tasks an action is a point in the very image the robot sees: pick here, place there. Transporter turns an action into a pixel map and learns to pick up an object from a single demonstration. CLIP ties words to images, and CLIPort puts the two together: CLIP answers what to pick, Transporter answers where.</p>
+    <div class="hero-meta"><span>≈ 45 minutes</span><span>3 labs, an interactive and a quiz</span><span id="heroMis">missions with a goal</span></div>
+    <div class="hero-list">
+      <div><b>WORDS</b>Train a small CLIP right on the page and find an object that never appeared in training</div>
+      <div><b>MAP</b>Teach the robot to pick up a cube from one demonstration and compare it with coordinate regression</div>
+      <div><b>PLACING</b>Find the rotation at which the part fits into the socket, using maps for 36 angles</div>
+      <div><b>COMMAND</b>Connect words to maps and test a color that never appeared in the demonstrations</div>
+    </div>
+    <p style="margin-top:28px"><a class="btn primary" href="#words">Start the lesson ↓</a></p>
+  </div>
+</section>
+
+<section class="recall-sec" id="recall" aria-label="Warm-up on the previous lesson">
+  <div class="wrap"><div class="card recall" data-recall></div></div>
+  <script type="application/json" id="recallData">{"n": "1.8", "title": "Flow matching", "href": "1-8-flow-matching.html", "q": [{"q": "Why does a single Euler step from noise in flow matching without reflow land at the mean of the data?", "o": ["The training lines cross, and the network learns their average, so the generation paths are curved", "The network is undertrained and outputs the mean", "One step is always too short"], "a": 0, "e": "Lines to different blobs pass through the same point, the field equals their average, and at t = 0 it points at the mean of the data.", "sec": "reflow", "secTitle": "Straightening: reflow"}, {"q": "What does reflow do?", "o": ["Adds fresh noise at every generation step", "Trains the model on its own “noise → result” pairs, and the paths straighten", "Increases the number of steps to cut the corner"], "a": 1, "e": "The model's paths don't cross, so the straight lines between the start and the end of its paths hardly cross either, and one or two steps are almost enough.", "sec": "reflow", "secTitle": "Straightening: reflow"}, {"q": "How many flow matching steps do the action heads of π0 and GR00T N1 take?", "o": ["About 1,000, like DDPM", "One", "10 and 4"], "a": 2, "e": "Flow matching heads take 4–10 steps: π0 and π0.5 (Physical Intelligence) and SmolVLA (Hugging Face) take 10, GR00T N1 (NVIDIA) takes 4. We'll take the models themselves apart in lessons 3.5–3.7.", "sec": "robot", "secTitle": "How π0 builds an action chunk"}]}</script>
+</section>
+
+<section class="section alt" id="words">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">1</span> Words</div>
+      <h2>Images and captions in one space</h2>
+      <p>To carry out the command “put the blue cube in the bowl”, the robot has to connect the words with what it sees. The classical route is a detector with a fixed list of classes. But every new object or attribute calls for new labeled images.</p>
+      <p><strong>CLIP</strong> (Radford et al., OpenAI, 2021) learns differently. Take 400 million image–caption pairs from the internet and two encoder networks: one turns an image into a vector, an embedding, and the other does the same for a caption. The training task is to guess which caption goes with which image. A batch of N pairs has N correct matches and N² − N wrong ones: the vectors of correct pairs are pulled together, and those of wrong pairs are pushed apart. This is <strong>contrastive learning</strong>.</p>
+      <p>After training, words and images live in one space. To find an object, it's enough to describe it in words: the image whose vector is closest to the text vector wins. This way CLIP, without a single labeled ImageNet image, classifies 76.2% of ImageNet images correctly — as well as a ResNet-50 trained on its 1.28 million labeled images.</p>
+      <p>Let's check this in miniature. The objects are four shapes in six colors, and the captions are “color + shape”. One combination is missing from training entirely: the model will never see a purple cube.</p>
+    </div>
+    <div class="lab-badge"><i>🔬</i> Lab 1</div>
+    <div class="lab">
+      <div class="card scene-card">
+        <canvas id="cMat" width="440" height="380" role="img" aria-label="Similarity matrix: eight images and eight captions; the cell color is the similarity of the vectors"></canvas>
+        <div class="cv-legend" id="cMatLegend"></div>
+        <p class="muted-s plot-cap">Rows are captions, columns are images. The brighter the cell, the closer the caption and image vectors. The diagonal is outlined: these are the correct pairs.</p>
+        <div class="readout" id="cOut"></div>
+        <h4 class="sub-h">Search by description</h4>
+        <div class="ctl-row">
+          <div class="seg" id="cColor" role="group" aria-label="Color"></div>
+          <div class="seg" id="cShape" role="group" aria-label="Shape"></div>
+        </div>
+        <canvas id="cGal" width="520" height="200" role="img" aria-label="Twenty-four objects; the top three by similarity to the description are marked with their rank"></canvas>
+        <p class="muted-s plot-cap">The purple cube has a dashed outline: it was not in training.</p>
+        <div class="readout" id="cGalOut"></div>
+      </div>
+      <div class="card guide-card"><div id="cMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: the contrastive objective and our small model</summary><div class="body">
+      <p>Let a batch hold \(N\) pairs, let \(u_i\) be the normalized vector of the \(i\)-th image, \(v_j\) the normalized vector of the \(j\)-th caption, and \(\tau\) the temperature. Similarity is the dot product, and the objective is two cross-entropies: for each image, pick out its caption among \(N\), and for each caption, its image:</p>
+      <div class="formula">\[\begin{gathered} \ell_{ij} = \frac{u_i \cdot v_j}{\tau}, \\ \mathcal L = -\frac{1}{2N}\sum_{i}\Bigl(\log \frac{e^{\ell_{ii}}}{\sum_j e^{\ell_{ij}}} + \log \frac{e^{\ell_{ii}}}{\sum_j e^{\ell_{ji}}}\Bigr). \end{gathered}\]</div>
+      <p>In CLIP the image encoder is a ResNet or a ViT, and the text encoder is a transformer. A batch is 32,768 pairs; the temperature is learned, starting from 0.07.</p>
+      <p>Here an image is 16 × 16 pixels, and it's encoded by a network with one hidden layer: 768 → 48 → 16. A caption is the sum of the vectors of two words, a color and a shape, 16 numbers per word. The vectors are normalized, \(\tau = 0.1\). A batch is 16 different pairs, each image with a random shift, size and noise; 600 Adam steps. The matrix in the scene shows eight pairs the model hasn't seen in this exact form: the images are drawn anew.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>The model never saw a purple cube, yet it found one. A caption vector is the sum of word vectors, and the network learned to encode the color and the shape of an image separately: it saw purple on the ball, the bowl and the can, and cubes in five other colors. For CLIP, scale does the same job: 400 million pairs contain almost any combination of attributes. That is exactly what a robot needs — to understand words that are not in its demonstrations.</p>
+      <p>But CLIP only answers the question “what”. It compares the whole image with the text and doesn't say where on the table to pick the object up or where to put it. How do you get the place of an action out of an image?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="maps">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 2</div>
+    <h2>An action is a cell in the image</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>The policies of Part 1 output an action as numbers: from the whole image the network computes the object's coordinates. If the cube moves, the network has to notice the shift and recompute the numbers, and it learns this from hundreds of examples with the cube in different places.</p>
+      <p><strong>Transporter</strong> (Zeng et al., Google, 2020) notices that in tabletop tasks the action already lies in the image. Depth cameras look at the table, and their images are fused into a top-down view that matches the table: every pixel is a spot where the robot can lower its gripper. So instead of computing coordinates, you can score every pixel: how good is it to pick here. The result is a <strong>map</strong>, and the robot picks where it is brightest.</p>
+      <p>The map is computed by a fully convolutional network: the same weights slide over the whole image. Move the cube, and the peak of the map moves with it. This is <strong>translation equivariance</strong>: there's no need to learn every position of the cube separately.</p>
+      <p class="ada-note"><svg class="ada-ico" viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="10" width="48" height="42" rx="18" fill="#f4efe6" stroke="#3d3c38" stroke-width="3"/><rect x="15" y="19" width="34" height="22" rx="10" fill="#1f2430"/><ellipse cx="25" cy="30" rx="4" ry="5.5" fill="#eb6834"/><ellipse cx="39" cy="30" rx="4" ry="5.5" fill="#eb6834"/></svg><span>Ada is the home humanoid robot the course labs are built around. More about her in <a href="0-1-dve-paradigmy.html#ada">lesson 0.1</a>.</span></p>
+      <p>Let's try it on Ada's table. A demonstration is a scene in which the operator picks up the red cube. We'll train two models: a map — a single 5 × 5 filter that slides over the 24 × 24 table grid — and coordinate regression — a network that outputs two numbers from the whole image, as in Part 1. The test is 30 new scenes in which the objects lie elsewhere.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <canvas id="pCv" width="440" height="440" class="sq-cv" role="img" aria-label="The table from above: cubes, a bowl and a ball; on top, the “where to pick” map and the point chosen by coordinate regression"></canvas>
+        <div class="cv-legend" id="pLegend"></div>
+        <p class="cv-note">Top-down view of the table: squares are cubes, the ring is a bowl, the disk is a ball.</p>
+        <div class="pmap-row">
+          <canvas id="pMap" width="144" height="144" role="img" aria-label="The whole “where to pick” map: the same table, 24 by 24 cells"></canvas>
+          <p><b>The whole “where to pick” map.</b> The same table from above, 24 × 24 cells: the darker the cell, the higher the “pick here” score. The large scene shows only its peak.</p>
+        </div>
+        <div class="readout" id="pOut"></div>
+        <div class="ctl-row">
+          <div class="seg" id="pDemos" role="group" aria-label="Number of demonstrations"><button type="button" data-v="1" aria-pressed="true">1 demonstration</button><button type="button" data-v="5" aria-pressed="false">5</button><button type="button" data-v="20" aria-pressed="false">20</button></div>
+          <div class="seg" id="pTask" role="group" aria-label="Task"><button type="button" data-v="redCube" aria-pressed="true">One red cube</button><button type="button" data-v="twoRed" aria-pressed="false">Two red cubes</button></div>
+        </div>
+        <div class="ctl-row">
+          <label class="hd-range wide" id="wrapPScene"><span>Test scene</span><input id="pScene" type="range" min="1" max="30" step="1" value="1"><output>1</output></label>
+        </div>
+      </div>
+      <div class="card guide-card"><div id="pMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: the map, softmax over cells and equivariance</summary><div class="body">
+      <p>The network outputs a score \(Q(u, v)\) for every cell \((u, v)\). The probability of picking in a cell is a softmax over all cells, and the training objective is the cross-entropy with the cell where the operator picked:</p>
+      <div class="formula">\[\begin{gathered} p(u, v) = \frac{e^{Q(u, v)}}{\sum_{u', v'} e^{Q(u', v')}}, \qquad \mathcal L = -\log p(u^*, v^*), \\ f(g \circ o) = g \circ f(o). \end{gathered}\]</div>
+      <p>The last equation is equivariance: if \(g\) shifts the image \(o\), the map \(f(o)\) shifts the same way. In Transporter the map is computed by a deep fully convolutional network over a top-down view fused from three RGB-D cameras. Here it's a single 5 × 5 filter over three colors: 75 weights and a bias. Coordinate regression is a 1728 → 32 → 2 network over the whole grid, about 55 thousand weights, trained on mean squared error. Both models train right here, with 120 and 300 Adam steps.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>The map picked the red cube in new scenes after one demonstration, while regression kept missing even after twenty: it has to learn how every position of the cube turns into numbers. The Transporter paper shows the same at scale. On the block insertion task the map gets 100% from one demonstration, and a convolutional network with regression gets 8% even with a thousand demonstrations.</p>
+      <p>With two cubes the difference is even starker: the map has two peaks, and the robot picks one of them, while regression outputs the mean — a point between the cubes. This is the multimodality from lesson 1.3, only now you can see it in the image. Picking is only half the task. Where do you put the object down?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="place">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">2</span> Placing</div>
+      <h2>Where to place: template matching</h2>
+      <p>Placing a part into a socket means finding the position and rotation at which the part matches the slot. Transporter does it the way you look for a familiar fragment in a photo: it crops the features around the picked object and lays the crop over every cell of the scene. Wherever the match is best, that's where it places. To find the rotation, the crop is rotated through 36 angles in 10° steps, and a map is built for each angle.</p>
+      <p>Transporter learns the features of the crop and of the scene from demonstrations. Here they are given: +1 in the socket's slot, −1 in the walls around it. The part is an L-shaped corner of five squares. The brightness of the map is the share of the part that lands in the slot minus the share that lands on the walls.</p>
+    </div>
+    <div class="lab-badge"><i>🧩</i> Interactive</div>
+    <div class="lab">
+      <div class="card scene-card">
+        <canvas id="tCv" width="440" height="440" class="sq-cv" role="img" aria-label="An L-shaped socket, the match map for the selected rotation and the part at the best spot"></canvas>
+        <div class="cv-legend" id="tLegend"></div>
+        <div class="readout" id="tOut"></div>
+        <div class="ctl-row">
+          <label class="hd-range wide" id="wrapTAng"><span>Crop rotation</span><input id="tAng" type="range" min="0" max="35" step="1" value="0"><output>0°</output></label>
+        </div>
+      </div>
+      <div class="card guide-card"><div id="tMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: transport as feature correlation</summary><div class="body">
+      <p>Let \(\psi\) be the features of the crop around the pick point and \(\varphi\) the features of the whole scene. The score for placing at pose \(\tau\) (a shift and a rotation) is their cross-correlation:</p>
+      <div class="formula">\[\begin{gathered} Q_{\text{place}}(\tau) = \psi\bigl(o[T_{\text{pick}}]\bigr) * \varphi(o)[\tau], \\ T_{\text{place}} = \arg\max_\tau Q_{\text{place}}(\tau). \end{gathered}\]</div>
+      <p>\(\psi\) and \(\varphi\) are two fully convolutional networks, trained with the same cross-entropy over the poses where the operator placed the object. Rotation is searched explicitly: the input is rotated through \(k = 36\) angles, and the score becomes an H × W × 36 map. So the network doesn't learn rotation as a number; it compares rotated copies. In the scene the features are set by hand, the grid is 32 × 32, and the part covers 80 cells.</p>
+    </div></details>
+    <div class="prose" style="margin:26px 0 18px;max-width:820px">
+      <h3>How many demonstrations you need</h3>
+      <p>Maps and template matching give Transporter a kind of generalization that networks outputting numbers lack. Below is the success rate on tasks from the paper as a function of the number of demonstrations. GT-State MLP gets the exact poses of all objects as input — what perception provides to a classical stack — and still learns more slowly.</p>
+    </div>
+    <div class="card chart-card">
+      <div class="ctl-row" style="margin:0 0 10px"><div class="seg" id="dTask" role="group" aria-label="Task"></div></div>
+      <canvas id="dCv" width="640" height="260" class="plot-cv" role="img" aria-label="Success of three models with 1, 10, 100 and 1000 demonstrations"></canvas>
+      <div class="cv-legend" id="dLegend"></div>
+      <p class="muted-s plot-cap">Horizontal axis: the number of demonstrations; vertical axis: the share of successful attempts. Data: Table 2 of the Transporter paper, 2020.</p>
+    </div>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>Transporter picks and places by maps and learns from dozens of demonstrations. But it knows no words: if there are three cubes on the table, it will pick the one that was picked most often in the demonstrations. How do you add a command to the maps?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="cliport">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 3</div>
+    <h2>CLIPort: CLIP picks what to grasp, Transporter picks where</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>CLIP knows words but gives no location. Transporter gives a location but knows no words. <strong>CLIPort</strong> (Shridhar, Manuelli, Fox, 2021) joins them as two streams. The semantic stream is CLIP features tied to the text of the command: it answers what to pick. The spatial stream is the Transporter network: it answers where. The two streams merge into one map: where to pick and where to place.</p>
+      <p>The main thing CLIP brings is words that never appeared in the demonstrations. In the paper the colors are split: the robot is trained on yellow, brown, gray and cyan objects and tested on orange, purple, pink and white ones. One model for 10 tasks works no worse than a separate model for each, and on a real Franka arm a single model learned 9 tasks from just 179 image–action pairs.</p>
+      <p>Let's build CLIPort in miniature. “Where” is a pick filter that learns to pick up cubes. “What” is the similarity to the command text, computed by the mini-CLIP from Lab 1: for each cell it takes a window, a small square of the table around the cell, and compares it with the command. The result is their product. The robot's demonstrations only have commands with red, blue and green. For comparison, there's a model that learns words from these demonstrations alone: each word adds its own filter to the pick filter.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="cmd-line" id="kCmd"></div>
+        <canvas id="kCv" width="440" height="440" class="sq-cv" role="img" aria-label="The table from above with three cubes and a bowl; the spot where the model picks is marked"></canvas>
+        <div class="kmaps" id="kMaps">
+          <figure><canvas id="kWhere" width="144" height="144" role="img" aria-label="The “where” map"></canvas><figcaption>where</figcaption></figure>
+          <figure><canvas id="kWhat" width="144" height="144" role="img" aria-label="The “what” map"></canvas><figcaption>what</figcaption></figure>
+          <figure><canvas id="kBoth" width="144" height="144" role="img" aria-label="The final map"></canvas><figcaption>final</figcaption></figure>
+        </div>
+        <p class="cv-note">The three maps show the same table from above, 24 × 24 cells; darker means a higher score. “Where” marks the spots where the filter learned to pick up cubes, regardless of the command. “What” marks where a window of the table looks like the words of the command. “Final” is their product: the “where to pick” map, as in Lab 2.</p>
+        <div class="readout" id="kOut"></div>
+        <div class="ctl-row">
+          <div class="seg" id="kMode" role="group" aria-label="Model"><button type="button" data-v="none" aria-pressed="true">No words</button><button type="button" data-v="robot" aria-pressed="false">Words from demos</button><button type="button" data-v="cliport" aria-pressed="false">CLIPort</button></div>
+        </div>
+        <div class="ctl-row">
+          <div class="seg" id="kColor" role="group" aria-label="Color in the command"></div>
+        </div>
+        <div class="ctl-row">
+          <label class="hd-range wide" id="wrapKScene"><span>Test scene</span><input id="kScene" type="range" min="1" max="20" step="1" value="1"><output>1</output></label>
+        </div>
+      </div>
+      <div class="card guide-card"><div id="kMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: how the real CLIPort works and what we simplified</summary><div class="body">
+      <p>In CLIPort the semantic stream is CLIP's frozen image encoder (ResNet-50) and its text encoder. The text features are multiplied with the image features at several decoder levels, and at each level the semantic stream's features are added to the spatial stream's. CLIP gets only color: it was trained without depth, while the spatial stream sees RGB-D. Training uses the same cross-entropy over pick and place poses: 200 thousand steps on a single GPU over two days.</p>
+      <p>Our fusion is simpler: the probabilities of the two maps are multiplied, \(\log p = \log \operatorname{softmax}(Q_{\text{where}}) + \log \operatorname{softmax}(Q_{\text{what}} / \tau)\), \(\tau = 0.05\). The “what” map is the mini-CLIP similarity between the text vector and the vector of the 16 × 16 window around each cell. The “where” filter learns from nine demonstrations to pick the named cube, but it never sees the command. The “words from demos” model adds a word filter to the shared filter; a word that never appeared in the demonstrations has no such filter.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>The model that learned words from the robot's demonstrations knows three colors, and purple means nothing to it. CLIPort knows purple from CLIP, even though the robot never once picked up a purple cube. The demonstrations teach it the main thing — picking cubes up and putting them down — and the words come from a model trained on a huge set of pairs from the internet. This division of labor became the foundation of the models that followed.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="today">
+  <div class="prose">
+    <div class="kicker"><span class="num">3</span> Today</div>
+    <h2>What remains of these ideas</h2>
+    <p>Separate “what” and “where” streams are gone, but the ideas stayed. An encoder trained on image–text pairs sits in almost every vision-language-action model (VLA, Part 3). In OpenVLA, an open VLA from 2024 (lesson 3.5), the image is encoded jointly by DINOv2 and SigLIP, a successor of CLIP. π0 (Physical Intelligence policy, 2024; lesson 3.6) is built on Google's vision-language model PaliGemma with its own SigLIP encoder.</p>
+    <p>The action as a point in the image came back too. RoboPoint (2024), a vision-language model fine-tuned on points, marks on the frame where to reach and where to place, following a command. Gemini Robotics-ER, a 2025 model from Google DeepMind (lesson 3.7), points at objects and predicts grasps, trajectories and 3D bounding boxes. That's the Transporter map, only now it comes from a large model that understands language.</p>
+    <p>But a table map works when the task boils down to pick-and-place and the scene is visible from above. Turning a tap, putting a cup on a shelf 30 cm up or opening a drawer can't be described by a pixel map of the table: you need three dimensions and rotations about every axis. That's what the next lesson is about.</p>
+  </div>
+</section>
+
+<section class="section" id="quiz">
+  <div class="prose">
+    <div class="kicker"><span class="num">4</span> Check yourself</div>
+    <h2>Eight common misconceptions</h2>
+    <div class="quiz" id="quizBox"></div>
+    <p class="score" id="quizScore" style="margin-top:14px"></p>
+  </div>
+</section>
+
+<section class="section alt" id="finale">
+  <div class="prose">
+    <div class="kicker"><span class="num">5</span> Takeaways</div>
+    <h2>Lesson takeaways</h2>
+    <ol class="takeaways">
+      <li><span>CLIP learns from 400 million image–caption pairs to guess which caption goes with which image. Words and images end up in <strong>one space</strong>, and you can find an object by its description, even by a combination of words that never appeared in training.</span></li>
+      <li><span>Transporter outputs an action as a <strong>pixel map</strong> of the top-down view. The network is translation-equivariant, so one demonstration is enough for the map where even a thousand fall short for coordinate regression.</span></li>
+      <li><span>A map can have <strong>several peaks</strong>: two identical cubes are two ways to pick, not the average between them.</span></li>
+      <li><span>Placing is <strong>template matching</strong>: the crop around the picked object is compared with the scene at 36 rotations, and the object goes where the match is best.</span></li>
+      <li><span>CLIPort combines <strong>“what” from CLIP and “where” from Transporter</strong>. One model learns many tasks and, thanks to CLIP, understands words that never appeared in the robot's demonstrations.</span></li>
+    </ol>
+    <h3 style="margin-top:40px">Open questions</h3>
+    <details class="card pad open-q"><summary>Why does Transporter work with a top-down view rather than the camera frame as is?</summary><p>In a camera frame, perspective distorts sizes and distances: the same cube looks bigger closer to the camera, and a pixel doesn't correspond to a single spot on the table. A top-down view fused from depth camera images matches the table, so every pixel is an action, and moving an object is the same shift in the image. Without that, equivariance doesn't work.</p></details>
+    <details class="card pad open-q"><summary>The robot has to put a cup on a shelf 30 cm up. What is a table map missing?</summary><p>Height and rotations about every axis: a pixel map of the top-down view only sets a spot on the plane and a rotation about the vertical. For such tasks Transporter adds regression of the remaining degrees of freedom, while PerAct from lesson 2.2 moves to a 3D grid and searches for the next pose among voxels.</p></details>
+    <h3 style="margin-top:34px">Paper guide</h3>
+    <p><a href="https://arxiv.org/abs/2109.12098" target="_blank" rel="noopener">M. Shridhar, L. Manuelli, D. Fox, “CLIPort: What and Where Pathways for Robotic Manipulation”, CoRL 2021</a>.</p>
+    <ul class="links">
+      <li><strong>Read closely</strong><span>Section 3 and Figure 2: the two streams and how the text is mixed with the image. Section 4: seen and unseen colors and objects, one model for 10 tasks.</span></li>
+      <li><strong>Safe to skip</strong><span>The description of each task in the appendix and the augmentation details.</span></li>
+      <li><strong>Question to keep in mind</strong><span>Why does the semantic stream get only color, while the spatial stream gets color and depth? What would change if CLIP saw depth?</span></li>
+    </ul>
+    <p style="margin-top:18px"><a href="https://arxiv.org/abs/2010.14406" target="_blank" rel="noopener">A. Zeng et al., “Transporter Networks: Rearranging the Visual World for Robotic Manipulation”, CoRL 2020</a> — pick maps, transport as correlation and the Ravens benchmark.</p>
+    <p><a href="https://arxiv.org/abs/2103.00020" target="_blank" rel="noopener">A. Radford et al., “Learning Transferable Visual Models From Natural Language Supervision”, ICML 2021</a> — CLIP: contrastive learning and zero-shot transfer.</p>
+    <h3 style="margin-top:34px">Resources</h3>
+    <ul class="links">
+      <li><a href="https://transporternets.github.io/" target="_blank" rel="noopener">Transporter Networks</a><span>Project page: videos and the code of the Ravens benchmark</span></li>
+      <li><a href="https://cliport.github.io/" target="_blank" rel="noopener">CLIPort</a><span>Project page, videos with a real arm, and code</span></li>
+      <li><a href="https://openai.com/index/clip/" target="_blank" rel="noopener">CLIP: Connecting text and images</a><span>OpenAI's post with zero-shot transfer examples</span></li>
+      <li><a href="https://github.com/mlfoundations/open_clip" target="_blank" rel="noopener">OpenCLIP</a><span>Open CLIP models of different sizes and training code</span></li>
+      <li><a href="https://robo-point.github.io/" target="_blank" rel="noopener">RoboPoint</a><span>A vision-language model that marks action points on the frame following a command</span></li>
+    </ul>
+    <div class="callout insight" style="margin-top:34px"><span class="ico">➡️</span><div><p><strong>Next: PerAct, 3D representations and language.</strong> A pixel map of the table sets a spot on the plane and a rotation about the vertical. To open a drawer or put a cup on a shelf, you have to choose a pose in the volume. PerAct splits space into a million voxels and looks for the next keypose as the most valuable voxel — <a href="2-2-peract.html">lesson 2.2</a>.</p></div></div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Lesson 2.1 of the “Modern Robotics and Physical AI” course. All networks train and run locally in your browser.
+</footer>
+<div class="tooltip" id="tooltip" role="tooltip"></div>
+<script>
+/*@@JS@@*/
+</script>
+</body>
+</html>
