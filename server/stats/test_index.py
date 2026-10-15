@@ -102,6 +102,13 @@ def main():
     code, body = post({'p': '1-5-diffusion-policy', 'e': ['open:desk', 'name:Иван', 'sec:<script>', 'ref:evil.com', 't:5', 42]})
     check(code == 200 and body['n'] == 1 and not any('Иван' in k[2] or 'evil' in k[2] for k in db.table), 'неизвестные события отброшены, известные посчитаны')
     check(post({'p': '../etc', 'e': ['open:desk']})[0] == 400, 'чужая страница — 400')
+    ru_before = db.table[(day, '1-5-diffusion-policy', 'open:desk')]
+    code, body = post({'p': 'en/1-5-diffusion-policy', 'e': ['open:desk', 'sec:lab']}, ip='4.4.4.4')
+    check(code == 200 and db.table[(day, 'en/1-5-diffusion-policy', 'open:desk')] == 1 and db.table[(day, '1-5-diffusion-policy', 'open:desk')] == ru_before,
+          'английская страница принимается и считается отдельно от русской')
+    check(post({'p': 'en/index', 'e': []}, ip='4.4.4.5')[0] == 200 and post({'p': 'en/proverka-chasti-2', 'e': []}, ip='4.4.4.6')[0] == 200, 'английские главная и проверка части принимаются')
+    check(post({'p': 'en/test', 'e': ['open:desk']}, ip='4.4.4.7')[0] == 400 and post({'p': 'de/index', 'e': ['open:desk']}, ip='4.4.4.8')[0] == 400
+          and post({'p': 'en/en/index', 'e': ['open:desk']}, ip='4.4.4.9')[0] == 400, 'другие префиксы и en/test — 400')
     check(post('не json')[0] == 400, 'тело не JSON — 400')
     check(post({'p': 'index', 'e': ['open:phone']}, origin='https://evil.example')[0] == 403, 'запрос не с сайта — 403')
     code, _ = post({'p': 'index', 'e': ['open:phone', 'ref:linkedin']}, b64=True)
@@ -151,13 +158,16 @@ def main():
     del db.fb[n0:]
     check(post({'p': '1-5-diffusion-policy', 'fb': {'r': 'отлично'}}, ip='7.7.7.3')[0] == 400, 'неизвестная оценка — 400')
     check(post({'p': 'index', 'fb': {'r': 'good'}}, ip='7.7.7.4')[0] == 400, 'отзыв о главной не принимается — 400')
+    check(post({'p': 'en/index', 'fb': {'r': 'good'}}, ip='7.7.7.5')[0] == 400, 'отзыв об английской главной тоже не принимается — 400')
+    code, _ = post({'p': 'en/1-5-diffusion-policy', 'fb': {'r': 'good', 't': 'Clear, thanks'}}, ip='7.7.7.6')
+    check(code == 200 and any(r['page'] == 'en/1-5-diffusion-policy' and r['t'] == 'Clear, thanks' for r in db.fb), 'отзыв с английской страницы сохраняется с её адресом')
     check(post({'p': '1-5-diffusion-policy', 'fb': {'r': 'good', 't': 42}}, ip='7.7.7.5')[0] == 400, 'текст не строкой — 400')
 
     index.scan_fb = lambda since: [{'day': f['day'], 'page': f['page'], 'r': f['r'], 't': f['t'], 'at': f['at']} for f in db.fb if f['day'] >= since]
     index.scan = lambda since: [{'day': k[0], 'page': k[1], 'ev': k[2], 'n': v} for k, v in sorted(db.table.items()) if k[0] >= since]
     rep = json.loads(index.report({'days': 7}, None)['body'])
     check(rep['today'] == day and any(r['ev'] == 'quiz:6/8' for r in rep['rows']), 'отчёт по вызову из yc отдаёт строки за 7 дней')
-    check(len(rep['feedback']) == 1 and rep['feedback'][0]['r'] == 'mid', 'отчёт отдаёт и тексты отзывов')
+    check(sorted(f['r'] for f in rep['feedback']) == ['good', 'mid'], 'отчёт отдаёт и тексты отзывов (русский и английский)')
     rep2 = json.loads(index.report({'httpMethod': 'POST', 'body': '{"days": "abc"}'}, None)['body'])
     check(rep2['rows'] == rep['rows'], 'отчёт по HTTP с плохим числом дней — берёт 7')
     print(f'Все проверки прошли: {ok}')

@@ -133,19 +133,22 @@ def analyze(data):
         if r['page'] != 'test':  # служебная страница проверки после выкладки
             C[r['page']][r['ev']] += int(r['n'])
     opens = lambda c: c['open:phone'] + c['open:desk']  # noqa: E731
-    home = C.get('index', collections.Counter())
+    # с 15.10.2026 сайт двуязычный: события английских страниц приходят с префиксом en/ — складываем их с русскими,
+    # а число открытий по-английски показываем отдельно
+    en = lambda key: C.get('en/' + key, collections.Counter())  # noqa: E731
+    home = C.get('index', collections.Counter()) + en('index')
     refs = collections.Counter()
     for c in C.values():
         for ev, n in c.items():
             if ev.startswith('ref:') and ev != 'ref:site':
                 refs[ev[4:]] += n
-    A = {'since': data['since'], 'today': data['today'], 'home': (opens(home), home['open:phone']), 'refs': refs, 'lessons': [], 'drops': [], 'hard': []}
+    A = {'since': data['since'], 'today': data['today'], 'home': (opens(home), home['open:phone']), 'home_en': opens(en('index')), 'refs': refs, 'lessons': [], 'drops': [], 'hard': []}
     for L in lessons():
-        c = C.get(L['slug'], collections.Counter())
+        c = C.get(L['slug'], collections.Counter()) + en(L['slug'])
         o = opens(c)
         quiz = [(int(m.group(1)), int(m.group(2)), n) for ev, n in c.items() for m in [re.match(r'quiz:(\d+)/(\d+)$', ev)] if m]
         qn = sum(n for *_, n in quiz)
-        info = {'L': L, 'opens': o, 'phone': c['open:phone'], 'finale': c['sec:finale'], 'quiz_n': qn,
+        info = {'L': L, 'opens': o, 'en': opens(en(L['slug'])), 'phone': c['open:phone'], 'finale': c['sec:finale'], 'quiz_n': qn,
                 'fb': {r: c['fb:' + r] for r in ('good', 'mid', 'bad')},
                 # chk:99 — проверочная запись при выкладке 06.10, заданий с таким номером нет
                 'chk': sorted((int(m.group(1)), c[f'chk:{m.group(1)}:ok'], c[f'chk:{m.group(1)}:no']) for m in {re.match(r'chk:(\d+):', ev) for ev in c} if m and int(m.group(1)) < 99),
@@ -177,7 +180,9 @@ def analyze(data):
     A['drops'] = sorted(best.values(), key=lambda x: -x[0])[:5]
     A['hard'] = sorted(A['hard'], key=lambda x: x[0])[:5]
     names = {L['slug']: L['n'] for L in lessons()}
-    A['texts'] = sorted(({**f, 'n': names.get(f['page'], f['page'])} for f in data.get('feedback', []) if f['page'] != 'test'),
+    def fb_name(page):
+        return names[page[3:]] + ' (англ.)' if page.startswith('en/') and page[3:] in names else names.get(page, page)
+    A['texts'] = sorted(({**f, 'n': fb_name(f['page'])} for f in data.get('feedback', []) if f['page'] != 'test'),
                         key=lambda f: f.get('at', ''), reverse=True)
     return A
 
@@ -227,7 +232,7 @@ def report(data, only=None):
         if not sel:
             sys.exit(f'Урок {only} не опубликован')
         x = sel[0]; o = x['opens']
-        out += [f"{x['L']['title']}: открыли {times(o)}, с телефона {pct(x['phone'], o)}, "
+        out += [f"{x['L']['title']}: открыли {times(o)} (по-английски {x['en']}), с телефона {pct(x['phone'], o)}, "
                 f"на экране ≥2 мин {pct(x['t'][2], o)}, ≥10 мин {pct(x['t'][10], o)}, ≥30 мин {pct(x['t'][30], o)}", '',
                 'До каких разделов дочитали:']
         out += [f"    {title:<52}{pct(n, o):>6}" for _, title, n in x['secs']]
@@ -238,14 +243,14 @@ def report(data, only=None):
             out += ['', 'Задания проверки — сколько ответили верно:'] + [f"    {k:>2}. {pct(ok, ok + no)} из {ok + no}" for k, ok, no in x['chk']]
         fb = x['fb']; total = sum(fb.values())
         out += ['', f"Оценки: всё понятно {fb['good']}, местами сложно {fb['mid']}, многое непонятно {fb['bad']}." if total else 'Оценок пока нет.']
-        out += [f"    {dm(f['day'])} · {RATING.get(f['r'], f['r'])} — {one_line(f['t'])}" for f in A['texts'] if f['page'] == x['L']['slug']]
+        out += [f"    {dm(f['day'])} · {f['n']} · {RATING.get(f['r'], f['r'])} — {one_line(f['t'])}" for f in A['texts'] if f['page'] in (x['L']['slug'], 'en/' + x['L']['slug'])]
         return '\n'.join(out)
-    out.append(f"Главная: открыли {times(A['home'][0])}, с телефона {pct(A['home'][1], A['home'][0])}.")
+    out.append(f"Главная: открыли {times(A['home'][0])} (по-английски {A['home_en']}), с телефона {pct(A['home'][1], A['home'][0])}.")
     out.append('Откуда пришли (главная и уроки, без переходов внутри сайта): ' + sources(A))
-    out += ['', f"{'Урок':<46}{'Открыли':>8}{'Телефон':>9}{'До итогов':>11}{'Квиз':>7}{'Ср. балл':>10}{'≥10 мин':>9}{'Понятно':>12}"]
+    out += ['', f"{'Урок':<46}{'Открыли':>8}{'Англ.':>7}{'Телефон':>9}{'До итогов':>11}{'Квиз':>7}{'Ср. балл':>12}{'≥10 мин':>9}{'Понятно':>12}"]
     for x in A['lessons']:
         o = x['opens']
-        out.append(f"{lname(x['L'])[:44]:<46}{o:>8}{pct(x['phone'], o):>9}{pct(x['finale'], o):>11}{x['quiz_n']:>7}{qavg(x):>10}{pct(x['t'][10], o):>9}{clear(x):>12}")
+        out.append(f"{lname(x['L'])[:44]:<46}{o:>8}{x['en']:>7}{pct(x['phone'], o):>9}{pct(x['finale'], o):>11}{x['quiz_n']:>7}{qavg(x):>12}{pct(x['t'][10], o):>9}{clear(x):>12}")
     out += ['', 'Где чаще всего бросают (самый большой спад между соседними разделами):']
     out += [f"    {L['n']}: «{ta}» — {pct(na, o)}, следующий раздел «{tb}» — {pct(nb, o)}" for _, L, ta, tb, na, nb, o in A['drops']]
     out += ['', 'Миссии, которые проходят реже всего:'] + [f"    {L['n']} " + mis_text(m) for _, L, m in A['hard']]
@@ -266,13 +271,14 @@ def note(data, demo_mode=False):
         out += ['> [!warning] Пример на выдуманных числах', '> Так будет выглядеть заметка. Настоящие данные появятся после выкладки статистики.', '']
     out += [f"Обновлено {now}. Данные с {dm(A['since'])} по {dm(A['today'])}; статистика собирается с 06.10.2026. Обновить — попросить Claude «обнови статистику» "
             f"(или `python3 tools/stats.py --note`). Это анонимные суммы: одно открытие страницы — одно «открыли», уникальных читателей сайт не считает.", '',
-            f"**Главная:** открыли {times(A['home'][0])}, с телефона {pct(A['home'][1], A['home'][0])}.  ",
+            f"**Главная:** открыли {times(A['home'][0])}, из них по-английски {A['home_en']}; с телефона {pct(A['home'][1], A['home'][0])}.  ",
             f"**Откуда пришли** (главная и уроки, без переходов внутри сайта): {sources(A)}.", '',
-            '## Уроки', '', '| Урок | Открыли | С телефона | До итогов | Квиз | Средний балл | ≥10 минут | Понятно |', '|---|---:|---:|---:|---:|---:|---:|---:|']
+            '## Уроки', '', '| Урок | Открыли | По-английски | С телефона | До итогов | Квиз | Средний балл | ≥10 минут | Понятно |', '|---|---:|---:|---:|---:|---:|---:|---:|---:|']
     for x in A['lessons']:
         o = x['opens']
-        out.append(f"| {cell(lname(x['L']))} | {o} | {pct(x['phone'], o)} | {pct(x['finale'], o)} | {x['quiz_n']} | {qavg(x)} | {pct(x['t'][10], o)} | {clear(x)} |")
-    out += ['', '«Понятно» — доля ответов «Всё понятно» на вопрос в конце урока «Урок был понятен?» и сколько всего ответили.']
+        out.append(f"| {cell(lname(x['L']))} | {o} | {x['en']} | {pct(x['phone'], o)} | {pct(x['finale'], o)} | {x['quiz_n']} | {qavg(x)} | {pct(x['t'][10], o)} | {clear(x)} |")
+    out += ['', '«Открыли» и остальные столбцы — обе языковые версии вместе; «По-английски» — сколько из открытий пришлось на английскую версию (считается с 15.10.2026). '
+            '«Понятно» — доля ответов «Всё понятно» на вопрос в конце урока «Урок был понятен?» и сколько всего ответили.']
     out += ['', '## Отзывы', 'Тексты из конца уроков, свежие сверху. Ответить на них нельзя: читатели не оставляют контактов.', '']
     out += [f"- {dm(f['day'])} · **{f['n']}** · {RATING.get(f['r'], f['r'])} — {one_line(f['t'])}" for f in A['texts']] or ['- отзывов пока нет']
     out += ['', '## Где чаще всего бросают', 'Самый большой спад между соседними разделами урока.', '']
@@ -282,7 +288,7 @@ def note(data, demo_mode=False):
     out += ['', '## По урокам', '']
     for x in A['lessons']:
         o = x['opens']
-        out += [f"> [!info]- {lname(x['L'])} — открыли {times(o)}",
+        out += [f"> [!info]- {lname(x['L'])} — открыли {times(o)}" + (f", по-английски {x['en']}" if x['en'] else ''),
                 f"> С телефона {pct(x['phone'], o)}; вкладка на экране ≥2 мин {pct(x['t'][2], o)}, ≥10 мин {pct(x['t'][10], o)}, ≥30 мин {pct(x['t'][30], o)}.",
                 '>', '> **До каких разделов дочитали**', '>', '> | Раздел | Дочитали |', '> |---|---:|']
         out += [f"> | {cell(title)} | {pct(n, o)} |" for _, title, n in x['secs']]

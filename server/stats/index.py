@@ -33,7 +33,8 @@ TABLE = 'stats'
 SITE = os.environ.get('SITE', 'modernrobotics.ru')
 ORIGINS = {f'{s}://{h}' for s in ('https', 'http') for h in (SITE, 'www.' + SITE)}
 MSK = datetime.timezone(datetime.timedelta(hours=3))
-PAGE = re.compile(r'^(index|test|glossariy|\d-\d{1,2}-[a-z0-9-]{1,60}|proverka-chasti-\d)$')     # test — проверка после выкладки
+# en/… — английская версия сайта (с 15.10.2026), считается отдельно; test — проверка после выкладки
+PAGE = re.compile(r'^(test|(en/)?(index|glossariy|\d-\d{1,2}-[a-z0-9-]{1,60}|proverka-chasti-\d))$')
 EVENT = re.compile(r'^(open:(phone|desk)'
                    r'|ref:(direct|site|telegram|linkedin|google|yandex|github|vk|habr|other)'
                    r'|sec:[a-z][a-zA-Z0-9-]{0,30}'
@@ -236,7 +237,7 @@ def handler(event, context):
 
 def feedback(data, cors):
     page, fb = data.get('p'), data.get('fb')
-    if not isinstance(page, str) or not PAGE.match(page) or page == 'index' or not isinstance(fb, dict) or fb.get('r') not in RATINGS:
+    if not isinstance(page, str) or not PAGE.match(page) or page in ('index', 'en/index') or not isinstance(fb, dict) or fb.get('r') not in RATINGS:
         return reply(400, {'error': 'bad request'}, cors)
     t = fb.get('t')
     if t is not None and not isinstance(t, str):
