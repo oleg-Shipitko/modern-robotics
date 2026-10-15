@@ -86,7 +86,7 @@ const visible = (p, sel) => p.eval(`(() => { const e = document.querySelector('$
   await p.eval(`document.getElementById('bTrain').click(); true`); await sleep(200);
   await p.waitFor(`!window.__l46.Budget.st.busy`, 60000);
   const prop = J(await p.eval(`JSON.stringify(window.__l46.Budget.api.state())`));
-  check(prop.right != null && Math.round(prop.right * 100) === 67, `свободный режим: пачки по числу эпизодов — ${Math.round(prop.right * 100)}% (в «Под капотом»: разница от −4 до +8)`);
+  check(prop.right != null && Math.round(prop.right * 100) === 67, `свободный режим: пакеты по числу эпизодов — ${Math.round(prop.right * 100)}% (в «Под капотом»: разница от −4 до +8)`);
   const after1 = await text(p, '#budgetAfter');
   check(after1.includes('отняло 16 пунктов'), 'вывод после лаборатории 1: видео в общем выходе отняло 70 − 54 = 16 пунктов');
 

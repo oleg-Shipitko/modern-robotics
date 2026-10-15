@@ -212,7 +212,7 @@ const Plan = (() => {
     lab(c, k, 'параметры мира: 17', ex + 75, ey + 16, { px: 11, weight: 700, color: P.spr, halo: false });
     lab(c, k, 'груз, сила моторов, трение…', ex + 75, ey + 34, { px: 9.5, color: P.ink2, halo: false });
     arrow(c, ...g.a1, P.spr, 2, 7);
-    rect(c, cx, cy, 96, 44, 8, A.alpha(P.mot, 0.16), P.mot, 1.8); lab(c, k, 'кодировщик', cx + 48, cy + 22, { px: 11, weight: 700, color: P.mot, halo: false });
+    rect(c, cx, cy, 96, 44, 8, A.alpha(P.mot, 0.16), P.mot, 1.8); lab(c, k, 'энкодер', cx + 48, cy + 22, { px: 11, weight: 700, color: P.mot, halo: false });
     arrow(c, ...g.a2, P.spr, 2, 7);
     cells(c, A, zx, zy, 8, 8, 14, P.spr, 8); lab(c, k, 'z: 8 чисел', zx + 39, zy - 9, { px: 9.5, color: P.spr, halo: false });
     arrow(c, ...g.a3, P.spr, 2, 7);

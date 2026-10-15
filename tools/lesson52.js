@@ -98,7 +98,7 @@ const show = async (p, id, sel, file, pad) => { await p.eval(`document.getElemen
     const tq = J(await p.eval(`(() => { const q = window.__l52.Trace.st.q, l = q.traj[q.T]; return JSON.stringify({ T: q.T, outcome: q.outcome, x: l.x, y: l.y, gpos: q.G.filter((g) => g > 0).length, k: L52.TRACE.k, ep: L52.TRACE.ep, i1: q.G.findIndex((g, t) => g > 0 && q.adv[0.95][t] < 0), i2: q.adv[0].findIndex((a, t) => t >= q.T - 10 && a > 0) }); })()`));
     const bi = await text(p, '#baseline .lab-intro'), bd = await text(p, '#baseline .deep');
     check(tq.outcome === 'crash' && tq.x > 370 && tq.x < 400 && tq.y > 70 && tq.y < 150 && bi.includes('врезалась в край проёма на кухню'), `поездка кончилась столкновением у проёма на кухню (${Math.round(tq.x)}, ${Math.round(tq.y)}), как в тексте`);
-    check(tq.k === 10 && tq.ep === 6 && bd.includes('седьмая из восьми') && bd.includes('перед 11-м обновлением'), '«Под капотом»: седьмая поездка пачки перед 11-м обновлением');
+    check(tq.k === 10 && tq.ep === 6 && bd.includes('седьмая из восьми') && bd.includes('перед 11-м обновлением'), '«Под капотом»: седьмая поездка порции опыта перед 11-м обновлением');
     check(tq.gpos === 49 && tq.T === 68 && (await text(p, '#pg')).includes('отдача положительна на 49 шагах из 68'), `отдача положительна на ${tq.gpos} шагах из ${tq.T} (в разделе о градиенте и в квизе — 49 из 68)`);
     check(!(await visible(p, '#wrapELam')) && (await visible(p, '#wrapEWeight')), 'миссия 1: окраска пути видна, λ скрыт');
     await setRange(p, '#eT', tq.i1 + 1); await sleep(150);
@@ -180,7 +180,7 @@ const show = async (p, id, sel, file, pad) => { await p.eval(`document.getElemen
     await nextMission(p, '#sMis');
     await setRange(p, '#sRobots', 7); await setRange(p, '#sSteps', 0); await sleep(100);
     r = await live(p, '#sMis');
-    check(r.ok && r.out.includes('16 384 × 6 = 98 304') && /0,12 с/.test(r.out), 'миссия 2: 16 384 робота по 6 шагов — та же пачка, отрезок 0,12 с');
+    check(r.ok && r.out.includes('16 384 × 6 = 98 304') && /0,12 с/.test(r.out), 'миссия 2: 16 384 робота по 6 шагов — та же порция опыта, отрезок 0,12 с');
     check(/меньше 25 \(0,5 с\)/.test(await text(p, '#sWarn')), 'калькулятор предупреждает о коротком отрезке');
     await nextMission(p, '#sMis');
     await setRange(p, '#sRobots', 1); await setRange(p, '#sSteps', 6); await sleep(100);

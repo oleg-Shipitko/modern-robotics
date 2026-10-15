@@ -41,9 +41,9 @@
 
 <section class="hero" id="top">
   <div class="wrap">
-    <div class="kicker"><span class="num">1.4</span> Part 1 · Imitation learning · foundations</div>
+    <div class="kicker"><span class="num">1.4</span> Part 1 · Imitation learning</div>
     <h1>Diffusion <span class="amp">models</span></h1>
-    <p class="lead">Regression outputs the average of the answers it was shown. When there are two correct answers, the average is wrong: the robot drives between the two detours straight into the kettle. We need a model that outputs one of the correct answers. This lesson takes apart such a model, the diffusion model. It learns to remove noise from data and generates the other way round: it starts from pure noise and step by step moves toward the data. To see how this works, the labs in this lesson use points on a plane instead of robot actions: a set of points laid out in two spirals is first blurred with random noise, then a network is trained to guess which noise was added, and finally the path is walked backwards, from random points to the spirals. The same scheme works with robot actions: at the end of the lesson you'll check it on the kettle detour from lesson 1.3. If you already know diffusion models, you can skip this lesson.</p>
+    <p class="lead">Regression outputs the average of the answers it was shown. When there are two correct answers, the average is wrong: the robot drives between the two detours straight into the kettle. We need a model that outputs one of the correct answers. This lesson takes apart such a model, the diffusion model. It learns to remove noise from data and generates the other way round: it starts from pure noise and step by step moves toward the data. To see how this works, the labs in this lesson use points on a plane instead of robot actions: a set of points laid out in two spirals is first blurred with random noise, then a network is trained to guess which noise was added, and finally the path is walked backwards, from random points to the spirals. The same scheme works with robot actions: at the end of the lesson you'll check it on the kettle detour from lesson 1.3.</p>
     <div class="hero-meta"><span>≈ 45 minutes</span><span>1 lab and 6 interactives</span><span id="heroMis">16 missions with a goal</span></div>
     <div class="hero-list">
       <div><b>NOISE</b>Draw how the signal fades step by step and compare it with the real curve</div>
@@ -333,7 +333,7 @@
       <div class="formula">\[\tilde\varepsilon = (1 + w)\,\varepsilon_\theta(x_t, c) - w\,\varepsilon_\theta(x_t, \varnothing)\]</div>
       <p>Here \(c\) is the condition and \(\varnothing\) the empty condition. At \(w = 0\) this is an ordinary conditional model. Papers write the weight differently: if the formula is written as \(\varepsilon(\varnothing) + s\,\bigl(\varepsilon(c) - \varepsilon(\varnothing)\bigr)\), then \(s = 1 + w\).</p>
       <p>In the experiment: the same network as in the lab, plus two "spiral number" inputs; if the condition is dropped, both are zero. The probability of dropping the condition is 0.2; for Ho and Salimans the values 0.1 and 0.2 work equally well. 3000 Adam steps. Generation is DDIM over 20 steps, 500 points from the same noise. Precision is the fraction of generated points whose nearest training point is closer than 0.1 and lies on the requested spiral. Coverage is the fraction of the requested spiral's points that have a generated point closer than 0.1.</p>
-      <p>Real-Time Chunking (stitching action chunks, Physical Intelligence, 2025; lesson 1.5) also uses guidance, but a different kind: at every step it adds a gradient term to the velocity field so that the new action chunk agrees with the one already being executed.</p>
+      <p>Real-Time Chunking (stitching action chunks, Physical Intelligence, 2025; lesson 1.5) also uses guidance, but a different kind: at every generation step it adds a gradient term to the velocity field so that the new action chunk agrees with the one already being executed.</p>
     </div></details>
     <div class="prose sec-end">
       <p>It turns out that guidance makes generation more precise but poorer, and at a large weight the points crowd into a few spots on the spiral. The extreme case of poverty is a model that only repeats the training examples. Does that happen with diffusion?</p>
@@ -344,7 +344,7 @@
 <section class="section alt" id="memo">
   <div class="wrap">
     <div class="prose" style="margin:0 0 22px;max-width:820px">
-      <div class="kicker"><span class="num">6</span> Deeper</div>
+      <div class="kicker"><span class="num">6</span> Memorization</div>
       <h2>Memorization or generalization</h2>
       <p>It does. A generator is useful when it creates new examples that resemble the data, while a model that only repeats the training examples is a lookup table.</p>
       <p>Why does this happen? The ideal denoiser from section 3 estimates the clean point as a weighted average of the training points. If you run a generation with it all the way to the end, every point lands exactly on one of the training points. And the network is trained to approximate precisely that.</p>
@@ -409,7 +409,7 @@
       </ul>
     </div></details>
     <div class="prose sec-end">
-      <p>So the same network that put points on spirals puts actions into the clusters: of 100 actions, 50 went left and 50 right, none stayed in the kettle band, while regression on the same starting noises output a mean a centimeter from the center of the band, that is, a drive into the kettle. In lesson 1.5 this same model will drive Ada entirely: instead of two steps, an action chunk, and instead of the spiral number the condition will be the camera observation. What other misconceptions about diffusion are most common?</p>
+      <p>So the same network that put points on spirals puts actions into the clusters: of 100 actions, 50 went left and 50 right, none stayed in the kettle band, while regression on the same starting noises output a mean a centimeter from the center of the band, that is, a drive into the kettle. In lesson 1.5 this same model will drive Ada entirely: instead of shifts on two steps of the detour, an action chunk, and instead of the spiral number the condition will be the camera observation. What other misconceptions about diffusion are most common?</p>
     </div>
   </div>
 </section>

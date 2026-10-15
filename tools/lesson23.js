@@ -53,8 +53,8 @@ const critOk = (p, mis) => p.eval(`(() => { const li = [...document.querySelecto
   check(/ставка сыграла/i.test(r.out), 'ставка «Нет: первый же шаг не выйдет» сыграла');
   await nextMission(p, '#sMis'); r = await viaUI(p, '#sMis', 1);
   const s2 = J(await p.eval(`JSON.stringify(window.__l23.LabPlan.api.state())`));
-  check(r.ok && s2.aff.ids[0] === 'kettle' && s2.aff.fails === 0 && !s2.aff.success, `миссия 2: только аффорданс — начинает с чайника, все шаги удались, итог «${s2.aff.verdict}»`);
-  check(s2.aff.ids.slice(0, 3).join(',') === 'kettle,open,sugar', 'аффорданс: чайник, шкаф, сахар — как в разборе');
+  check(r.ok && s2.aff.ids[0] === 'kettle' && s2.aff.fails === 0 && !s2.aff.success, `миссия 2: только выполнимость — начинает с чайника, все шаги удались, итог «${s2.aff.verdict}»`);
+  check(s2.aff.ids.slice(0, 3).join(',') === 'kettle,open,sugar', 'только выполнимость: чайник, шкаф, сахар — как в разборе');
   await nextMission(p, '#sMis'); r = await viaUI(p, '#sMis', 1);
   const s3 = J(await p.eval(`JSON.stringify(window.__l23.LabPlan.api.state())`));
   check(r.ok && s3.saycan.success && s3.saycan.ids[0] === 'open' && s3.saycan.fails === 0, `миссия 3: SayCan — ${s3.saycan.n} шагов, первый «открыть шкаф», итог «${s3.saycan.verdict}»`);

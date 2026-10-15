@@ -105,7 +105,7 @@ const chain = (p, ids) => p.eval(`(() => { document.getElementById('pReset').cli
   await nextMission(p, '#mMis');
   await p.eval(`window.__l44.Mix.api.setRight(0.25, false).then(() => true)`, true);
   const free = J(await p.eval(`JSON.stringify(window.__l44.Mix.api.state())`));
-  check(free.right === '0.25|0' && !free.busy, 'свободный режим: правая модель переобучается по ползунку и переключателю');
+  check(free.right === '0.25|0' && !free.busy, 'свободный режим: правая модель обучается заново по ползунку и переключателю');
   const mixT = await text(p, '#mix');
   check(/36%/.test(mixT) && /33–36%/.test(mixT) && /46–53%/.test(mixT), '«Под капотом» лаборатории 2 согласован с миссиями');
 

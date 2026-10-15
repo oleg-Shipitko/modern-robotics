@@ -178,6 +178,8 @@ const has = (s, list) => list.filter((x) => !s.includes(x));
     check(r.ok && /Ставка сыграла/.test(r.out) && r.out.includes('Сети прошли 3 сцены из 5') && r.out.includes('«Ваза на пути» — рука задела вазу') && r.out.includes(`«Толчок к столу» — стол давил на захват с силой ${sp(F3)} Н`), `миссия 2: сети — 3 из 5, задели вазу, толчок ${F3} Н`);
     const la = await text(p, '#layersAfter');
     check(la.includes(`ударила по столу с силой ${sp(F3)} Н`), 'вывод после лаборатории 3: сила при толчке совпадает');
+    const sy = await text(p, '#systems');
+    check(la.includes('брала предмет в 42% случаев, а обученная политика — в 100%') && la.includes('71% против 60%') && !sy.includes('42%') && sy.includes('два разных вопроса'), 'RT-Trajectory: в разделе «Системы» — вид цели и исполнитель, сравнение с классикой — после лаборатории 3');
     await show(p, 'layers', '#layers .lab', 'l81-layers-nn.png');
     await nextMission(p, '#cMis');
     for (const k of ['T', 'C']) await p.eval(`(() => { const b = document.querySelector('#cBoard .l-chip[data-k="${k}"]'); b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 10, clientY: 10, pointerId: 1 })); b.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: 10, clientY: 10, pointerId: 1 })); return true; })()`);

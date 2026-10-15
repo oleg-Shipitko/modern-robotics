@@ -126,3 +126,9 @@
 .aloha-anim figcaption { margin: 8px 2px 0; }
 /* подписи под сценами */
 .cv-note { margin: 8px 0 0; font-size: 14px; line-height: 1.5; color: var(--ink-3); }
+/* схема «один проход декодера» */
+.scheme-fig { margin: 0 0 22px; padding: 14px 16px 12px; max-width: 820px; }
+.scheme-fig canvas { display: block; width: 100%; height: auto; }
+.scheme-fig figcaption { margin-top: 8px; }
+@media (max-width: 520px) { .scheme-fig { padding: 10px 10px 8px; } }
+.scheme-fig canvas[data-layout="n"] { max-width: 460px; margin: 0 auto; }

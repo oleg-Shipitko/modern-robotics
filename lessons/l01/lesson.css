@@ -103,6 +103,11 @@ img, svg, canvas { display: block; }
 .brand { display: flex; align-items: center; gap: 10px; font-weight: 650; white-space: nowrap; }
 .brand-mark { width: 26px; height: 26px; border-radius: 8px; background: conic-gradient(from 200deg, var(--classic), var(--hybrid), var(--e2e), var(--classic)); flex: none; }
 .brand small { display: block; font-weight: 500; color: var(--ink-3); font-size: 12px; line-height: 1.2; }
+/* на узком экране длинное название урока в шапке обрезается многоточием, чтобы рядом поместились EN и смена темы */
+@media (max-width: 560px) {
+  .topbar .brand, .topbar .brand > div { min-width: 0; }
+  .topbar .brand small { overflow: hidden; text-overflow: ellipsis; }
+}
 .toc { display: flex; gap: 4px; margin-left: auto; overflow-x: auto; scrollbar-width: none; }
 .toc::-webkit-scrollbar { display: none; }
 .toc a {

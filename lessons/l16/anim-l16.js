@@ -334,7 +334,7 @@
         const col = (kind) => C[kind];
         // ---------- 1. входы ----------
         const I = G.inp;
-        lab(c, k, 'Входы шага', I.title[0], I.title[1], { px: 11.5, weight: 750, color: P.ink, halo: false });
+        lab(c, k, 'Входы', I.title[0], I.title[1], { px: 11.5, weight: 750, color: P.ink, halo: false });
         const hiIn = (j) => pTok > 0 && pTok < 1 && Math.floor(pTok * 4) === j;
         [2, 1, 0].forEach((j) => frameIco(c, I.img[0] + j * 5, I.img[1] + j * 5, I.img[2], I.img[3], P, A, hiIn(0)));
         lab(c, k, '3 кадра камер', I.img[0] + I.img[2] / 2 + 5, I.img[1] + I.img[3] + 20, { px: 10, color: P.ink2, halo: false });

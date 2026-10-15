@@ -166,8 +166,8 @@ html { scroll-padding-top: 76px; scroll-behavior: smooth; }
 <section class="section" id="program"><div class="wrap">
   <div class="kicker">Программа</div>
   <h2>Программа</h2>
-  <p class="lead">9 частей, 54 урока. Части идут в логическом порядке: каждая отвечает на ограничения подходов из предыдущей. 34 урока составляют ядро курса, остальные 20 — углубления по отдельным темам.</p>
-  <div class="legend"><span><span class="tag core">ядро</span> 34 урока</span><span><span class="tag deep">углубление</span> 20 уроков</span><span><span class="tag primer">основы</span> можно пропустить, если тема знакома</span></div>
+  <p class="lead">9 частей, 54 урока. Части идут в логическом порядке: каждая отвечает на ограничения подходов из предыдущей.</p>
+  
   <p class="program-links">Термины из уроков с короткими определениями собраны в <a href="lessons/glossariy.html">глоссарии курса</a>. Что менялось в уроках — на странице <a href="changelog.html">«Что нового»</a>.</p>
   <p class="progress-reset" id="progressReset" hidden>Отметки «пройден» и «начат» хранятся только в этом браузере. <button type="button">Сбросить прогресс</button></p>
   <div class="parts" id="parts" data-channel="{{CHANNEL}}"></div>
@@ -224,7 +224,7 @@ html { scroll-padding-top: 76px; scroll-behavior: smooth; }
     <details class="card"><summary>Курс платный?</summary><div class="a">Нет. Все материалы доступны бесплатно и без регистрации, прогресс сохраняется в браузере. Тексты распространяются по лицензии CC BY-NC 4.0, код — по лицензии MIT.</div></details>
     <details class="card"><summary>Нужен ли робот?</summary><div class="a">Нет. Все лабораторные работы выполняются в браузере.</div></details>
     <details class="card"><summary>Какая нужна подготовка?</summary><div class="a">Python и базовые знания машинного обучения. Формулы и код вынесены в отдельные блоки и не обязательны для понимания основного текста.</div></details>
-    <details class="card"><summary>Сколько времени займёт курс?</summary><div class="a">Урок занимает 30–45 минут. Ядро курса — 34 урока; углубления можно проходить выборочно.</div></details>
+    <details class="card"><summary>Сколько времени займёт курс?</summary><div class="a">Урок занимает 30–45 минут. В курсе 54 урока в девяти частях, все уроки равнозначны.</div></details>
     <details class="card"><summary>Когда выйдут остальные уроки?</summary><div class="a">Новая часть выходит целиком каждую субботу в 9:00 по Москве. Вышедшие уроки отмечены в программе, анонсы — в канале «Продакт роботов».</div></details>
     <details class="card"><summary>Можно ли использовать материалы в преподавании?</summary><div class="a">Да, с указанием источника и в некоммерческих целях. Код лабораторных работ можно использовать без ограничений по лицензии MIT.</div></details>
     <details class="card"><summary>Курс собирает данные о читателях?</summary><div class="a">Нет. Сайт считает только анонимные суммы: сколько раз открыли урок, до каких разделов дочитали, сколько миссий прошли и как ответили на квиз. Отзыв в конце урока сохраняется без имени и контактов. Cookies и данных о читателях нет. По суммам и отзывам видно, какие уроки и задачи стоит доработать. Подробности — в <a href="privacy.html">политике конфиденциальности</a>.</div></details>
@@ -294,16 +294,16 @@ const PARTS = [
   }
   PARTS.forEach((p, i) => {
     if (i === last + 1) box.append(soon(i));
-    const core = p.L.filter((l) => l[2] === 'core').length, nLessons = p.L.filter((l) => l[2] !== 'check').length;
+    const nLessons = p.L.filter((l) => l[2] !== 'check').length;
     const d = document.createElement('details'); d.className = 'card part' + (i > last ? ' later' : ''); d.open = i <= last;
     const s = document.createElement('summary');
     const passed = p.L.filter((l) => l[2] !== 'check' && prog(l[0]) && prog(l[0]).f).length;
-    s.innerHTML = `<span class="num">${i}</span><span><div class="t"></div><div class="q"></div></span><span class="count">${nLessons} ${nLessons < 5 ? 'урока' : 'уроков'} · ядро ${core}${passed ? ` · пройдено ${passed}` : ''}<span class="chev">›</span></span>`;
+    s.innerHTML = `<span class="num">${i}</span><span><div class="t"></div><div class="q"></div></span><span class="count">${nLessons} ${nLessons < 5 ? 'урока' : 'уроков'}${passed ? ` · пройдено ${passed}` : ''}<span class="chev">›</span></span>`;
     s.querySelector('.t').textContent = p.t; s.querySelector('.q').textContent = p.q;
     const ul = document.createElement('ul'); ul.className = 'lessons';
     p.L.forEach(([n, title, kind, primer]) => {
       const li = document.createElement('li');
-      li.innerHTML = `<span class="n">${kind === 'check' ? '✓' : n}</span><span></span><span>${primer ? '<span class="tag primer">основы</span> ' : ''}<span class="tag ${kind}">${kind === 'core' ? 'ядро' : kind === 'check' ? 'проверка' : 'углубление'}</span></span>`;
+      li.innerHTML = `<span class="n">${kind === 'check' ? '✓' : n}</span><span></span><span>${kind === 'check' ? '<span class="tag check">проверка</span>' : ''}</span>`;
       if (READY[n]) {
         const pr = prog(n);
         if (pr) li.children[1].insertAdjacentHTML('beforeend', pr.f ? `<span class="lsn-st done" title="Пройден">${CHECK}</span><span class="sr">Пройден. </span>` : '<span class="lsn-st started" title="Начат"></span><span class="sr">Начат. </span>');

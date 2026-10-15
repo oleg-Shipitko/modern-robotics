@@ -32,13 +32,13 @@
  {
   "id": "vla",
   "t": "VLA",
-  "d": "A model that takes images and a text command and outputs robot actions. Usually built on top of a vision-language model.",
+  "d": "A model that takes camera images and a command in words and directly outputs robot actions. The term was introduced by the authors of RT-2 (Google DeepMind, 2023), who fine-tuned an off-the-shelf vision-language model to output actions. Examples: RT-2, OpenVLA, π0; Helix and GR00T N1 split a VLA into a slow and a fast level.",
   "a": "VLAs?"
  },
  {
   "id": "two-level",
   "t": "Dual-system architecture",
-  "d": "A system made of a slow model that understands the command and decides what to do, and a fast policy that outputs the motions. Helix, GR00T N1 and Gemini Robotics are built this way.",
+  "d": "One way to build a VLA: a slow vision-language model understands the scene and the command, and a fast policy turns its plan into motions. Helix, GR00T N1 and Gemini Robotics are built this way; RT-2 and π0 are a single model.",
   "a": "(?:dual|two)-(?:system|level) (?:architectures?|models?|systems?|networks?|designs?)"
  },
  {
@@ -482,7 +482,7 @@
  {
   "id": "cvae",
   "t": "CVAE",
-  "d": "Conditional variational autoencoder. In ACT, during training the encoder compresses the style of the motion into a vector z; at inference the encoder is dropped and z = 0 is fed in.",
+  "d": "A conditional variational autoencoder. In ACT, during training the CVAE encoder takes the joint positions and the operator's recorded chunk and outputs a 32-number vector z describing the operator's style, while the decoder — the policy itself — reconstructs the chunk from the images, joints and z. At inference the encoder is dropped and z = 0 is fed in.",
   "a": "CVAE"
  },
  {
@@ -524,7 +524,7 @@
  {
   "id": "action-expert",
   "t": "Action expert",
-  "d": "A separate network next to the VLM in π0, about 300 million parameters. It generates the action chunk by flow matching and reads the cached observation.",
+  "d": "A second, smaller set of weights in the same transformer as the VLM; in π0 about 300M parameters. The state and action tokens go through it, and it meets the VLM only in attention, reading the cached keys and values of the images and text. It builds the action chunk with flow matching.",
   "a": "action experts?"
  },
  {
@@ -596,14 +596,14 @@
  {
   "id": "value-function",
   "t": "Value function",
-  "d": "An estimate of how good the current state is for the task: the expected sum of future rewards. If the reward is 1 for success and 0 for failure, the value equals the probability of success.",
+  "d": "An estimate of how good the current state is for the task: the expected sum of future rewards (more in lesson 5.1). If the reward is 1 for success and 0 for failure, the value equals the probability of success; this is how SayCan gets a skill's feasibility.",
   "a": "value functions?"
  },
  {
   "id": "affordance",
-  "t": "Affordance",
-  "d": "What the environment lets you do right now. In SayCan it is the probability that a skill will succeed from the current state, given by the skill’s value function. In VoxPoser the affordance map shows where to reach.",
-  "a": "affordances?"
+  "t": "Feasibility (affordance)",
+  "d": "An estimate that a skill will succeed in the current scene. In SayCan it comes from the skill's value function: with a reward of 1 for success and 0 for failure, the value equals the probability of success. The SayCan paper calls it an affordance; VoxPoser's attraction map (an affordance map in that paper) is a different notion: it shows where to reach.",
+  "a": "feasibility"
  },
  {
   "id": "saycan",
@@ -637,9 +637,9 @@
  },
  {
   "id": "value-map",
-  "t": "Value map",
-  "d": "A 3D grid with a score in every cell. On the affordance map, high values mark where to reach; on the avoidance map, what to stay away from. From a weighted sum of maps the planner gets the path cost.",
-  "a": "(?:value|affordance|avoidance) maps?"
+  "t": "Attraction and avoidance maps",
+  "d": "VoxPoser's 3D grids with a score in every cell: on the attraction map, high values mark where to reach; on the avoidance map, what to stay away from. From a weighted sum of the maps the planner gets the path cost. The paper calls them value maps and the attraction map an affordance map; it has nothing to do with SayCan's feasibility.",
+  "a": "attraction(?: and avoidance)? maps?|avoidance maps?"
  },
  {
   "id": "film",
@@ -656,8 +656,8 @@
  {
   "id": "action-bins",
   "t": "Action bins",
-  "d": "Discretizing a continuous action: the range of every dimension is split into equal intervals, the model predicts the interval index as a class, and the robot gets its center. In RT-1: 256 bins for each of 11 dimensions. Few bins — coarse action; many — more classes than examples.",
-  "a": "action bins?|bins? of actions|action discretization|actions? as tokens?|action tokens?"
+  "d": "A way to output a distribution over actions: the range of each dimension is split into equal intervals, bins, and the model predicts the probability of each bin as a class, while the robot gets the center of the chosen one. Bins over separate dimensions lose the links between dimensions; choosing them one by one (autoregression) brings the links back. RT-1 uses 256 bins for each of 11 dimensions.",
+  "a": "action bins?|bins? of actions|action discretization|actions? as tokens?|action tokens?|(?<=called\\s)bins"
  },
  {
   "id": "ablation",
@@ -800,7 +800,7 @@
  {
   "id": "co-fine-tuning",
   "t": "Co-fine-tuning",
-  "d": "Fine-tuning a pretrained model on new data together with the original data: in RT-2, robot demonstrations in every batch alongside the VLM’s web data. It keeps the model from forgetting what it knew.",
+  "d": "Fine-tuning a pretrained model on new data together with the original data: in RT-2, robot demonstrations in every batch alongside the VLM’s web data. It keeps the model from forgetting what it knew. In RT-2 it clearly helped the 55B model (63% vs 52%), but barely the 5B one (44% vs 42%).",
   "a": "co-fine-tun(?:ing|ed?)"
  },
  {
@@ -818,7 +818,7 @@
  {
   "id": "fine-tuning",
   "t": "Fine-tuning",
-  "d": "Continuing to train a finished model on your own data, starting from its weights rather than from random ones: that is how a model trained on other robots is transferred to your setup.",
+  "d": "Continuing to train a ready model on a small dataset for the target task, starting from its weights rather than random ones. This is how a pretrained model is adapted to a task or to your own robot.",
   "a": "fine-?tun(?:ing|ed?|es)"
  },
  {
@@ -854,7 +854,7 @@
  {
   "id": "pretraining",
   "t": "Pre-training",
-  "d": "The first stage of training a large model — on a large, diverse dataset of many tasks. For robots, such data also contains mistakes and corrections, so the model learns to recover.",
+  "d": "The first stage of training a large model, on a large and diverse dataset covering many tasks: the model learns general things, for example what objects look like. In RT-1 the network that reads the frames is pretrained this way on ImageNet.",
   "a": "pre-?train(?:ing|ed)"
  },
  {
@@ -1238,7 +1238,7 @@
  {
   "id": "max-entropy-rl",
   "t": "Maximum entropy RL",
-  "d": "Reinforcement learning where the policy’s entropy, weighted by α — the temperature — is added to the reward: solve the task while acting as randomly as possible. The basis of SAC; in its second version α tunes itself, holding the entropy at the target −dim A.",
+  "d": "Reinforcement learning where the policy’s entropy, weighted by α — the temperature — is added to the reward: solve the task while acting as randomly as possible. The basis of SAC; in its second version α tunes itself, holding the entropy at the target −dim A. The SAC policy is a single Gaussian with one peak: it widens its spread but does not split probability between two equally good actions.",
   "a": "maximum(?: |-)entropy|max-?entropy"
  },
  {
@@ -1436,7 +1436,7 @@
  {
   "id": "rt-trajectory",
   "t": "RT-Trajectory",
-  "d": "A Google DeepMind policy (2023) whose goal is given as a sketch of the gripper path over the camera frame: time is encoded by one color, height by another, circles mark the grasp. The sketch is drawn by a person, built from video, or written by a language model.",
+  "d": "A Google DeepMind policy (2023) whose goal is given as a sketch of the gripper path over the camera frame: time is encoded by one color, height by another, circles mark the grasp. The sketch is drawn by a person, built from video, or written by a language model. The sketch is executed by a learned policy built like RT-1, not by a classical controller.",
   "a": "RT-Trajectory"
  },
  {
@@ -1486,5 +1486,71 @@
   "t": "Velocity control",
   "d": "The policy outputs increments or velocities; the controller counts them from the actual position, so misses add up and latency drifts the robot off the route.",
   "a": "velocity control"
+ },
+ {
+  "id": "deminf",
+  "t": "DemInf",
+  "a": "DemInf",
+  "d": "A method for automatic selection of demonstrations (Hejna et al., 2025): it scores each episode by its contribution to the mutual information between the states and actions of the dataset. Episodes where the action is easy to predict from the state, while actions across the dataset are diverse, get a high score; episodes with a low score are dropped entirely. The method assumes all demonstrations are successful and scores episodes with pauses highly, so failures and pauses are filtered out separately."
+ },
+ {
+  "id": "motion-capture",
+  "t": "Motion capture",
+  "a": "motion capture",
+  "d": "Sensors or cameras with markers that record the movements of the body and fingers. In DexCap these are gloves with magnetic sensors in the fingertips, in AgiBot World it is recording the operator's whole-body movements for teleoperation, and in Dactyl it is cameras tracking markers on the fingers of the robot hand."
+ },
+ {
+  "id": "causal-mask",
+  "t": "Causal mask",
+  "a": "causal masks?",
+  "d": "An attention mask under which each token sees itself and the tokens to its left, but not the following ones. This is how a language model is trained: the next word is predicted without looking ahead in the sentence."
+ },
+ {
+  "id": "block-mask",
+  "t": "Block mask",
+  "a": "block(?:-wise)? masks?",
+  "d": "A mask that opens and closes attention for whole blocks of tokens: within a block tokens see each other, between blocks only the earlier ones. π0 has three blocks: frames and command, state, actions. The observation does not see the actions, so its keys and values are computed once per chunk and kept in the KV cache."
+ },
+ {
+  "id": "foundation-model",
+  "t": "Foundation model",
+  "a": "foundation models?",
+  "d": "A large model pretrained on a broad and diverse dataset covering many tasks, applied to new tasks directly or after a short fine-tuning. Part 3 of the course is about such models for robots."
+ },
+ {
+  "id": "latency",
+  "t": "Latency",
+  "a": "latency",
+  "d": "The time from a captured frame to the first command built from it: model inference plus the network path. It shows how long the robot waits for a response to what it saw; for Gemini Robotics about 250 ms."
+ },
+ {
+  "id": "data-age",
+  "t": "Data age",
+  "a": "data age",
+  "d": "How much time has passed since the frame from which the currently executed command was built. For the first command of a chunk it equals the latency, and it grows until the next chunk arrives: with a 7 Hz model, from 143 to 286 ms."
+ },
+ {
+  "id": "pi-star-06",
+  "t": "π*0.6",
+  "a": "π\\*0\\.6",
+  "d": "π0.6 adapted for reinforcement learning (Physical Intelligence, 2025): the same architecture, but the input carries an \"Advantage: positive/negative\" label, and the model is trained with RECAP, first on a mixture of data from many tasks and robots, then for each task on the robot's own attempts."
+ },
+ {
+  "id": "rollout-batch",
+  "t": "Rollout batch",
+  "a": "rollout batch(?:es)?",
+  "d": "All the steps an on-policy method like PPO collects with the current policy before one update; several epochs of minibatches are run over it, and then it is discarded."
+ },
+ {
+  "id": "td-target",
+  "t": "TD target",
+  "a": "TD targets?|target values?",
+  "d": "The number y = r + γ·max Q(s′, a′) toward which the estimate Q(s, a) is pulled; it is computed by the target network, and TD3 and SAC take the smaller of two Q′."
+ },
+ {
+  "id": "target-entropy",
+  "t": "Target entropy",
+  "a": "target entropy",
+  "d": "The entropy level SAC maintains by tuning α; by default −dim A, for Ada's arm −2."
  }
 ]

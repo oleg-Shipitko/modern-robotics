@@ -103,6 +103,8 @@ async function desktop() {
   await dragTop(p, '#ikCv', [0.5, 0.35], [0.5 * 0.892 / Math.hypot(0.5, 0.35), 0.35 * 0.892 / Math.hypot(0.5, 0.35)]);
   check(await done(p, 'ik'), 'ОК одно решение (цель прилипла к краю): ' + (await p.eval('document.querySelector("#ikOut").textContent')));
   await next(p, '#ikMis');
+  // «Следующая миссия» плавно прокручивает к условию под сценой: дождаться прокрутки и вернуть сцену в кадр, иначе перетаскивание уходит мимо канваса
+  await sleep(700); await center(p, '#ikCv');
   const e1 = [0.5 * 0.9 / Math.hypot(0.5, 0.35), 0.35 * 0.9 / Math.hypot(0.5, 0.35)];
   await dragTop(p, '#ikCv', e1, [-0.3, 0.9]);
   check(await done(p, 'ik'), 'ОК нет решений: ' + (await p.eval('document.querySelector("#ikOut").textContent')));

@@ -196,7 +196,7 @@ async function act(p, M, shots) {
   await M.next(R);
   await M.bet(R, 'Поможет, но не до конца'); await M.act(R, 90000);
   console.log('    починка:', await M.log(R), '| ставка:', await M.betMarks(R));
-  check((await M.crit(R)) === 'ok', 'переобученная сеть вдвое точнее симулятора');
+  check((await M.crit(R)) === 'ok', 'сеть, обученная заново, вдвое точнее симулятора');
   if (shots) await p.shotEl(out('l02-act-break.png'), '#model .lab', 6);
   await M.next(R);
 }

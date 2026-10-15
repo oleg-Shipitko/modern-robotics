@@ -82,6 +82,32 @@ async function mouseDrag(p, a, b) {
   for (let i = 1; i <= 10; i++) { await p.S('Input.dispatchMouseEvent', { type: 'mouseMoved', x: a.x + (b.x - a.x) * i / 10, y: a.y + (b.y - a.y) * i / 10, button: 'left' }); await sleep(12); }
   await p.S('Input.dispatchMouseEvent', { type: 'mouseReleased', x: b.x, y: b.y, button: 'left', clickCount: 1 }); await sleep(120);
 }
+/** Схема «один проход декодера»: в кадрах t подписи не выходят за края канваса и не налезают друг на друга. */
+async function passLabels(p, frames) {
+  return JSON.parse(await p.eval(`(() => {
+    const cv = document.querySelector('canvas[data-anim=pass]'), orig = CanvasRenderingContext2D.prototype.fillText, bad = [];
+    const [W, H] = cv.style.aspectRatio.split('/').map(Number);
+    let boxes = null;
+    CanvasRenderingContext2D.prototype.fillText = function (txt, x, y) {
+      if (boxes && this.canvas === cv) {
+        const m = this.measureText(txt), fs = parseFloat(/([\\d.]+)px/.exec(this.font)[1]), a = this.textAlign;
+        const x0 = a === 'center' ? x - m.width / 2 : a === 'right' ? x - m.width : x;
+        boxes.push({ t: String(txt), x0, x1: x0 + m.width, y0: y - fs / 2, y1: y + fs / 2 });
+      }
+      return orig.apply(this, arguments);
+    };
+    for (const t of ${JSON.stringify(frames)}) {
+      boxes = []; Anim.seek(cv, t); const b = boxes; boxes = null;
+      b.forEach((q) => { if (q.x0 < 1 || q.x1 > W - 1 || q.y0 < 0 || q.y1 > H) bad.push('t = ' + t + ': за краем «' + q.t + '»'); });
+      for (let i = 0; i < b.length; i++) for (let j = i + 1; j < b.length; j++) {
+        const ox = Math.min(b[i].x1, b[j].x1) - Math.max(b[i].x0, b[j].x0), oy = Math.min(b[i].y1, b[j].y1) - Math.max(b[i].y0, b[j].y0);
+        if (ox > 1 && oy > 1) bad.push('t = ' + t + ': «' + b[i].t + '» на «' + b[j].t + '»');
+      }
+    }
+    CanvasRenderingContext2D.prototype.fillText = orig;
+    return JSON.stringify({ layout: cv.dataset.layout, W, H, bad });
+  })()`));
+}
 async function mouseClick(p, pt) { await p.S('Input.dispatchMouseEvent', { type: 'mousePressed', x: pt.x, y: pt.y, button: 'left', clickCount: 1 }); await p.S('Input.dispatchMouseEvent', { type: 'mouseReleased', x: pt.x, y: pt.y, button: 'left', clickCount: 1 }); await sleep(120); }
 
 async function errLab(p) {
@@ -302,6 +328,8 @@ async function desktop() {
   check(await p.eval('document.querySelectorAll("#alohaBars .rb").length === 6 && document.querySelectorAll(".vid").length === 2'), 'ALOHA: 6 результатов и 2 обложки видео');
   await p.shotEl(out('l17-aloha.png'), '#aloha .wrap', 6);
   await p.shot(out('l17-hero.png'));
+  await center(p, 'canvas[data-anim=pass]'); await p.eval(`Anim.seek(document.querySelector('canvas[data-anim=pass]'), 8.6)`);
+  await p.shotEl(out('l17-pass.png'), '#arch .scheme-fig', 6);
   await errLab(p); await chunkLab(p); await archLab(p); await cvaeLab(p); await teLab(p); await delayLab(p);
   await p.eval('document.querySelectorAll("#quizBox .q-card").forEach((c) => c.querySelectorAll(".q-opt")[1].click())');
   await fwdRefs('после миссий и квиза');
@@ -313,7 +341,12 @@ async function desktop() {
   await p.click('#themeBtn'); await sleep(400);
   for (const [n, s] of [['err', '#errors .lab'], ['lab', '#chunks .lab'], ['arch', '#arch .lab'], ['cvae', '#cvae .lab'], ['te', '#te .lab'], ['delay', '#delay .lab'], ['aloha', '#aloha .wrap']]) await p.shotEl(out(`l17-${n}-dark.png`), s, 6);
   const an = JSON.parse(await p.eval(`JSON.stringify([...document.querySelectorAll('canvas[data-anim]')].map((cv) => { Anim.seek(cv, 1.1); const a = cv.toDataURL(); Anim.seek(cv, 3.7); const b = cv.toDataURL(); return { k: cv.dataset.anim, moves: a !== b, w: cv.width }; }))`));
-  check(an.length === 1 && an[0].k === 'aloha' && an[0].moves, 'схема телеоперации ALOHA идёт');
+  check(an.length === 2 && an[0].k === 'aloha' && an[0].moves, 'схема телеоперации ALOHA идёт');
+  check(an.length === 2 && an[1].k === 'pass' && an[1].moves, 'схема «один проход декодера» идёт');
+  await center(p, 'canvas[data-anim=pass]');
+  const pl = await passLabels(p, [1.1, 3.7, 4.9, 8.6, 12.5]);
+  check(pl.layout === 'w' && pl.bad.length === 0, `схема прохода, ширина ${pl.W}×${pl.H}: подписи в канвасе и не налезают` + (pl.bad.length ? ': ' + pl.bad.slice(0, 4).join('; ') : ''));
+  await p.shotEl(out('l17-pass-dark.png'), '#arch .scheme-fig', 6);
   check(p.logs.length === 0, 'консоль десктопа: ' + (p.logs.join(' | ') || 'чисто'));
   await B.close();
 }
@@ -333,6 +366,11 @@ async function phone() {
   await m.shotEl(out('l17-m-lab.png'), '#chunks .lab', 4);
   const laneH = await m.eval('(() => { const r = document.querySelector("#chunkCv").getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height)]; })()');
   check(laneH[1] / 3 >= 50, `телефон: сцена лабы ${laneH[0]}×${laneH[1]} px, дорожка ${Math.round(laneH[1] / 3)} px`);
+  await center(m, 'canvas[data-anim=pass]');
+  const mpl = await passLabels(m, [1.1, 3.7, 4.9, 8.6, 12.5]);
+  check(mpl.layout === 'n' && mpl.bad.length === 0, `телефон: схема прохода в узкой раскладке ${mpl.W}×${mpl.H}, подписи в канвасе и не налезают` + (mpl.bad.length ? ': ' + mpl.bad.slice(0, 4).join('; ') : ''));
+  await m.eval(`Anim.seek(document.querySelector('canvas[data-anim=pass]'), 3.7)`); await m.shotEl(out('l17-m-pass-3.png'), '#arch .scheme-fig', 4);
+  await m.eval(`Anim.seek(document.querySelector('canvas[data-anim=pass]'), 8.6)`); await m.shotEl(out('l17-m-pass.png'), '#arch .scheme-fig', 4);
   await m.shotEl(out('l17-m-arch.png'), '#arch .lab', 4);
   await center(m, '#cvMis'); await bet(m, '#cvMis', 'Б'); await go(m, '#cvMis', 'cvae');
   check(await done(m, 'cvae'), 'телефон: CVAE М1');

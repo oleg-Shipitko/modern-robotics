@@ -1,6 +1,6 @@
 // Проверка урока 1.3: сначала цифры движка в Node (со своей математикой из ui-l13.js), потом все
 // интерактивы в браузере — опыт «Ада учится у учителя» и прогноз «больше данных», рисование объездов
-// мышью, калибровка, бины и авторегрессия, лаборатория «Три Ады» (четыре миссии и свободный режим),
+// мышью, калибровка, корзины и авторегрессия, лаборатория «Три Ады» (четыре миссии и свободный режим),
 // лаборатория пачек (длина пачки на сцене), стыки пачек, анимированные схемы, квиз; тёмная тема
 // и телефон 390 px. Снимки — в shots/l13-*.png.
 const { launch, sleep } = require('./cdp');
@@ -66,7 +66,7 @@ function nodeNumbers() {
   for (const N of NS) { let crash = 0, miss = 0; for (let j = 0; j < 20; j++) { const DD = K.moreDataDemos(N, j); const rg = K.finish(K.trainReg13(DD.demos, { iters: K.MD.iters, seed: 3 + j })); const q = K.moreDataRun(rg, j); if (q.touch) crash++; miss += q.miss; } NODE.md.push({ crash, miss: miss / 20 }); }
   check(NODE.md[0].crash < 20 && NODE.md.slice(1).every((r) => r.crash === 20) && NODE.md[3].miss < NODE.md[0].miss, `опыт: касаний ${NODE.md.map((r) => r.crash).join(', ')} из 20; промах ${NODE.md.map((r) => f1(r.miss)).join(', ')} см`);
   const Hb = K.binsHist(K.binsData(4)), ind = [], ar = []; for (let s = 1; s <= 5; s++) { ind.push(K.binsSample(Hb, 'ind', 100, 1000 + s).bad); ar.push(K.binsSample(Hb, 'ar', 100, 1000 + s).bad); }
-  check(ind.every((v) => v > 35 && v < 65) && ar.every((v) => v === 0), `бины: виляющих независимые ${ind.join(', ')}, по очереди ${ar.join(', ')}`);
+  check(ind.every((v) => v > 35 && v < 65) && ar.every((v) => v === 0), `корзины: виляющих независимые ${ind.join(', ')}, по очереди ${ar.join(', ')}`);
   const sn = K.seamsBatch('naive', 20, 1), st = K.seamsBatch('te', 20, 21), sb = K.seamsBatch('bid', 20, 41);
   check(sn.touches >= 15 && st.touches >= 12 && sb.touches === 0 && sb.maxSw === 0 && sb.passes === 2 && st.passes === 0.25, `стыки: касаний последняя пачка ${sn.touches}, сглаживание ${st.touches}, согласование ${sb.touches} из 20; проходов на шаг ${st.passes} и ${sb.passes}`);
 }
@@ -180,7 +180,7 @@ async function desktop() {
   check(cal.startsWith(`${Math.round(100 - 20 * pen)} очков`), `калибровка: счёт ${cal.slice(0, 40)} (ожидали ${Math.round(100 - 20 * pen)})`);
   await p.shotEl(out('l13-calib.png'), '#calib', 6);
 
-  // --- 4. способы и бины
+  // --- 4. способы и корзины
   const hm1 = await animHash(p, 'modes4', 0.2), hm2 = await animHash(p, 'modes4', 1.0);
   check(hm1 !== hm2, 'схема «четыре способа» движется');
   await p.eval('document.querySelector("canvas[data-anim=modes4b]").closest("details").open = true'); await sleep(150);
@@ -190,11 +190,11 @@ async function desktop() {
   await center(p, '#binsMis');
   await bet(p, '#binsMis', 'Около половины'); await go(p, '#binsMis', 'bins');
   const b1 = await p.eval('window.__l13.mis.bins.ctx.results[0]');
-  check(b1.bad > 35 && b1.bad < 65 && await p.eval('document.querySelector("#binsMis .bet-right") !== null'), `бины М1: виляющих ${b1.bad} из 100, ставка отмечена`);
+  check(b1.bad > 35 && b1.bad < 65 && await p.eval('document.querySelector("#binsMis .bet-right") !== null'), `корзины М1: виляющих ${b1.bad} из 100, ставка отмечена`);
   await next(p, '#binsMis');
-  await go(p, '#binsMis', 'bins'); check(!(await done(p, 'bins')), 'бины М2: с независимыми бинами миссия не пройдена');
+  await go(p, '#binsMis', 'bins'); check(!(await done(p, 'bins')), 'корзины М2: с независимыми корзинами миссия не пройдена');
   await p.eval('document.querySelector("#wrapBinsMode [data-mode=ar]").click()'); await go(p, '#binsMis', 'bins');
-  check(await done(p, 'bins') && /оранжевый столбец/.test(await p.eval('document.querySelector("#binsOut").textContent')), 'бины М2: по очереди — ' + (await outText(p, '#binsMis')).slice(0, 80));
+  check(await done(p, 'bins') && /оранжевый столбец/.test(await p.eval('document.querySelector("#binsOut").textContent')), 'корзины М2: по очереди — ' + (await outText(p, '#binsMis')).slice(0, 80));
   await p.shotEl(out('l13-bins.png'), '#models .lab', 6);
 
   // --- 5. лаборатория «Три Ады»

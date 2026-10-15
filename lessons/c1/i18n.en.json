@@ -13,7 +13,6 @@
  "Обучить политику на демонстрациях эксперта": "Train the policy on expert demonstrations",
  "Пустить политику ехать самой и записать состояния, в которые она попала": "Let the policy drive on its own and record the states it ends up in",
  "Попросить эксперта разметить эти состояния правильными действиями": "Ask the expert to label those states with the correct actions",
- "Добавить новые примеры к старым и переобучить политику": "Add the new examples to the old ones and retrain the policy",
  "Едет политика, размечает эксперт: так примеры появляются там, куда политика попадает сама. Шаги со второго по четвёртый повторяют несколько раз.": "The policy drives, the expert labels: that is how examples appear where the policy ends up on its own. Steps two through four are repeated several times.",
  "DAgger: едет политика, размечает эксперт": "DAgger: the policy drives, the expert labels",
  "Половина операторов объезжает чайник слева, половина справа. Регрессию с MSE обучили не на 40, а на 4000 таких поездок. Что изменится?": "Half of the operators pass the kettle on the left, half on the right. An MSE regression was trained on 4,000 such drives instead of 40. What changes?",
@@ -117,5 +116,6 @@
  "Ада едет…": "Ada is driving…",
  "Обучаю модель на 40 демонстрациях…": "Training the model on 40 demonstrations…",
  "Например, подходит смесь гауссиан с пачкой из 24 шагов: модель хранит обе стороны объезда, а пачка держит выбранную.": "For example, a Gaussian mixture with a 24-step chunk works: the model keeps both sides of the detour, and the chunk holds the chosen one.",
- "Часть 1 усвоена, можно идти дальше.": "Part 1 is in, you can move on."
+ "Часть 1 усвоена, можно идти дальше.": "Part 1 is in, you can move on.",
+ "Добавить новые примеры к старым и обучить политику заново": "Add the new examples to the old ones and retrain the policy"
 }

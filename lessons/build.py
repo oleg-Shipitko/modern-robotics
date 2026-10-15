@@ -347,7 +347,7 @@ def glossarize(page, key):
     if a < 0 or b < 0:
         return page
     pats = sorted(((g, re.compile(r'(?<![\w-])(?:' + g['a'].replace(' ', r'(?:\s|&nbsp;)+') + r')(?![\w-])', re.I))
-                   for g in GLOSSARY if not g.get('only') or key in g['only']), key=lambda x: -len(x[0]['a']))
+                   for g in GLOSSARY if (not g.get('only') or key in g['only']) and key not in g.get('except', [])), key=lambda x: -len(x[0]['a']))
     used, out, section_ok, prose, skip, katex = {}, [], False, 0, 0, 0
     for part in re.split(r'(<[^>]+>)', page[a:b]):
         if part.startswith('<'):

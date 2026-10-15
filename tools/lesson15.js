@@ -137,13 +137,13 @@ async function desktop() {
   check(d0.decide === 3 && d0.sides[0] === 0 && d0.sides[1] === 0, `денойзинг: стартовая пачка — сторона выбрана на шаге ${d0.decide}, на шагах 1–2 в коридоре (${d0.dists.slice(0, 3).map((v) => f1(v)).join(', ')} см)`);
   await setRange(p, 'scrubS', 2);
   const ro2 = await p.eval('document.querySelector("#scrubOut").textContent');
-  check(/Шаг 2:/.test(ro2) && /в коридоре/.test(ro2) && /Сторона не выбрана/.test(ro2) && ro2.includes(f1(Math.abs(d0.dists[1])).replace('.', ',')), 'денойзинг: подпись на шаге 2 — ' + ro2.slice(0, 110));
+  check(/Шаг денойзинга 2:/.test(ro2) && /в коридоре/.test(ro2) && /Сторона не выбрана/.test(ro2) && ro2.includes(f1(Math.abs(d0.dists[1])).replace('.', ',')), 'денойзинг: подпись на шаге 2 — ' + ro2.slice(0, 110));
   await setRange(p, 'scrubS', d0.decide - 1); await p.eval('document.querySelector("#scrubMark").click()'); await sleep(60);
   const roM = await p.eval('document.querySelector("#scrubOut").textContent');
   check(!(await done(p, 'scrub')) && /ещё не выбрана/.test(roM), `денойзинг: отметка на шаге ${d0.decide - 1} не засчитана, объяснено почему — …${roM.slice(roM.indexOf('Отмечен'), roM.indexOf('Отмечен') + 90)}`);
   await setRange(p, 'scrubS', d0.decide); await p.eval('document.querySelector("#scrubMark").click()'); await sleep(60);
   const ex1 = await outText(p, '#scrubMis');
-  check(await done(p, 'scrub') && ex1.includes(`на шаге ${d0.decide} из 16`) && ex1.includes(f1(Math.abs(d0.dists[1])).replace('.', ',')) && ex1.includes(f1(Math.abs(d0.dists[2])).replace('.', ',')) && /51, на шаге 3 — у 8, на шаге 5 — у одной/.test(ex1), 'денойзинг М1: ' + ex1.slice(0, 160));
+  check(await done(p, 'scrub') && ex1.includes(`на шаге денойзинга ${d0.decide} из 16`) && ex1.includes(f1(Math.abs(d0.dists[1])).replace('.', ',')) && ex1.includes(f1(Math.abs(d0.dists[2])).replace('.', ',')) && /51, на шаге 3 — у 8, на шаге 5 — у одной/.test(ex1), 'денойзинг М1: ' + ex1.slice(0, 160));
   await p.shotEl(out('l15-scrub.png'), '#chunk .lab', 6);
   await next(p, '#scrubMis');
   let tries = 0; while (!(await done(p, 'scrub')) && tries < 20) { await p.eval('document.querySelector("#scrubNew").click()'); await sleep(40); tries++; }
