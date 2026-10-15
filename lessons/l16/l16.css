@@ -58,6 +58,7 @@
 .tok-kpis .kpi b { font-size: 26px; }
 .tok-kpis .kpi small { font-size: 12.5px; color: var(--ink-3); min-height: 1.4em; }
 .tok-more { display: grid; gap: 10px; margin-top: 6px; padding-top: 14px; border-top: 1px solid var(--line); }
+.tok-tl-text { margin: 0; font-size: 14.5px; line-height: 1.5; color: var(--ink-2); }
 .tok-more[hidden] { display: none; }
 .tok-more-h { font-size: 16px; font-weight: 700; }
 .tok-bars { display: grid; gap: 6px; }
@@ -105,8 +106,12 @@
 .mask-head b { font-size: 15px; }
 .mask-head span { font-size: 13px; color: var(--ink-3); }
 .mask-body { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 16px; align-items: start; }
-.mask-grid { display: grid; grid-template-columns: 30px repeat(6, 36px); grid-auto-rows: 30px; gap: 3px; }
+.mask-grid { display: grid; grid-template-columns: 86px repeat(6, 36px); grid-template-rows: 84px; grid-auto-rows: 30px; gap: 3px; }
 .mask-grid .mh { display: grid; place-items: center; font-size: 12px; font-weight: 700; color: var(--ink-2); border-radius: 6px; }
+/* названия токенов: в строках — слева, в столбцах — снизу вверх */
+.mask-grid .mh.row { justify-items: start; padding: 0 7px; white-space: nowrap; }
+.mask-grid .mh.col { align-items: end; padding: 6px 0; }
+.mask-grid .mh.col span { writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; }
 .mask-grid .mh.b0 { background: color-mix(in srgb, var(--tk-img) 22%, transparent); }
 .mask-grid .mh.b1 { background: color-mix(in srgb, var(--tk-st) 26%, transparent); }
 .mask-grid .mh.b2 { background: color-mix(in srgb, var(--tk-act) 22%, transparent); }
@@ -191,7 +196,7 @@
 .pi-top { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; }
 .pi-total { margin-left: auto; font-size: 15px; }
 .pi-total b { font-family: var(--mono); font-size: 20px; }
-.pi-bar { display: flex; gap: 2px; margin-top: 16px; height: 62px; border-radius: 10px; overflow: hidden; position: relative; cursor: crosshair; }
+.pi-bar { display: flex; gap: 2px; margin-top: 16px; height: 62px; border-radius: 10px; overflow: hidden; position: relative; cursor: pointer; }
 .pi-blk { border: 0; padding: 4px 6px; min-width: 0; display: grid; align-content: center; gap: 1px; text-align: left; color: #fff; font-size: 12.5px; line-height: 1.2; cursor: crosshair; overflow: hidden; transition: flex-grow .3s; }
 .pi-blk b { font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pi-blk span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: .92; }
@@ -238,10 +243,26 @@
   .cost-ctl .hd-range { grid-template-columns: 92px minmax(0, 1fr) 84px; }
   .tb-row { grid-template-columns: 96px minmax(0, 1fr) 64px; }
   .ord-chip { font-size: 14.5px; padding: 17px 3px 8px; }
-  .mask-grid { grid-template-columns: 30px repeat(6, minmax(0, 1fr)); grid-auto-rows: 34px; }
+  .mask-grid { grid-template-columns: 82px repeat(6, minmax(0, 1fr)); grid-template-rows: 84px; grid-auto-rows: 34px; }
   .att-ctl .hd-range { display: grid; grid-template-columns: 40px 1fr 40px; width: 100%; }
   .att-ctl .hd-range input { width: 100%; }
 }
 /* подписи под интерактивами */
 .cv-note { margin: 12px 0 0; font-size: 14px; line-height: 1.5; color: var(--ink-3); }
 .tbl-note { margin: -6px 0 12px; }
+
+/* ---------- анимированные схемы (anim-l16.js) ---------- */
+.scheme-fig { margin: 0 0 22px; padding: 14px 16px 12px; max-width: 900px; }
+.scheme-fig canvas { display: block; width: 100%; height: auto; }
+#inputs .scheme-fig { margin: 18px auto 0; }
+#inputs .prose + .wrap .scheme-fig, #inputs .wrap + .prose { margin-top: 22px; }
+@media (max-width: 520px) { .scheme-fig { padding: 10px 10px 8px; } }
+/* схемы внутри миссий лаборатории: в тексте задачи и в разборе */
+.m-fig { display: block; margin: 10px 0; }
+.m-fig canvas { display: block; width: 100%; height: auto; }
+.m-gap { display: block; height: 8px; }
+/* второй шаг миссии √d_k: где включить деление */
+.att-ctl .opt.m-nudge { outline: 2px solid var(--e2e); outline-offset: 3px; border-radius: 8px; animation: m-nudge 1.2s ease-in-out infinite; }
+@keyframes m-nudge { 50% { outline-color: transparent; } }
+@media (prefers-reduced-motion: reduce) { .att-ctl .opt.m-nudge { animation: none; } }
+

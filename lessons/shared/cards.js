@@ -3,7 +3,7 @@
    Перетаскивание мышью и пальцем, а для клавиатуры и на всякий случай —
    «нажми карточку, потом корзину». «Проверить» отмечает каждую карточку
    ✓/✗ и показывает разбор ошибок.
-   Cards.sort(root, { items: [{ id, label, target, why }], targets: [{ id, label, note? }],
+   Cards.sort(root, { items: [{ id, label, sub?, target, why }], targets: [{ id, label, note? }],
                       checkLabel?, onCheck?(score, total) })
    Подходит и для «расставь по шкале»: корзины — интервалы шкалы.
    ===================================================================== */
@@ -28,7 +28,9 @@ window.Cards = (function () {
     poolBody.dataset.zone = '';
     pool.addEventListener('click', (e) => { if (e.target.closest('.c-card')) return; if (sel) { place(sel, null); select(null); } });
     spec.items.forEach((it) => {
-      const c = el('button', 'c-card'); c.type = 'button'; c.textContent = it.label; c.dataset.id = it.id; cards[it.id] = c;
+      const c = el('button', 'c-card'); c.type = 'button'; c.dataset.id = it.id; cards[it.id] = c;
+      // sub — пояснение на карточке под названием: что о предмете нужно знать, чтобы разложить его
+      if (it.sub) { const b = el('b', 'c-name'), sm = el('small', 'c-sub'); b.textContent = it.label; sm.textContent = it.sub; c.append(b, sm); c.classList.add('c-desc'); } else c.textContent = it.label;
       attachDrag(c, it.id); poolBody.append(c);
     });
     const checkBtn = el('button', 'btn primary sm', spec.checkLabel || 'Проверить'); checkBtn.type = 'button'; checkBtn.disabled = true;

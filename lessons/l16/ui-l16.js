@@ -186,6 +186,9 @@
       c.beginPath(); for (let i = 1; i < g; i++) { const v = Math.round(i * cell) + 0.5; c.moveTo(v, 0); c.lineTo(v, W); c.moveTo(0, v); c.lineTo(W, v); } c.stroke();
       c.restore();
       if (st.tl) {
+        // сетка 9 × 9: 81 токен свёрточной сети, из которых TokenLearner собирает 8
+        c.strokeStyle = 'rgba(255,255,255,0.85)'; c.lineWidth = 1 * k;
+        c.beginPath(); for (let i = 1; i < 9; i++) { const v = Math.round(i * W / 9) + 0.5; c.moveTo(v, 0); c.lineTo(v, W); c.moveTo(0, v); c.lineTo(W, v); } c.stroke();
         BLOBS.forEach(([x, y, r], i) => {
           const gr = c.createRadialGradient(x * W, y * W, 0, x * W, y * W, r * W);
           gr.addColorStop(0, `hsla(${HUES[i]}, 75%, 50%, 0.55)`); gr.addColorStop(1, `hsla(${HUES[i]}, 75%, 50%, 0)`);
@@ -197,7 +200,7 @@
         c.fillStyle = 'rgba(235,104,52,0.28)'; c.fillRect(j * cell, i * cell, cell, cell);
         c.strokeStyle = P.e2e; c.lineWidth = 2.5 * k; c.strokeRect(j * cell + 1, i * cell + 1, cell - 2, cell - 2);
       }
-      HeroKit.label(c, k, st.tl ? '8 областей TokenLearner' : `224 × 224 px · патч ${st.patch}`, 8 * k, 12 * k, { align: 'left', px: 11.5, mono: true, color: '#2f2a22', haloColor: 'rgba(255,250,240,0.85)' });
+      HeroKit.label(c, k, st.tl ? '81 клетка признаков → 8 токенов' : `224 × 224 px · патч ${st.patch}`, 8 * k, 12 * k, { align: 'left', px: 11.5, mono: true, color: '#2f2a22', haloColor: 'rgba(255,250,240,0.85)' });
     }
     function side() {
       const n = cur(), moved = st.tl || st.patch !== 32;
@@ -210,7 +213,7 @@
         return `<div class="tb-row${on ? ' cur' : ''}"><span>${t}</span><span class="tb-bar"><i style="width:${(nn * nn / max * 100).toFixed(2)}%"></i></span><output>${int(nn * nn)}</output></div>`;
       }).join(''));
       let txt;
-      if (st.tl) txt = 'TokenLearner учится выбирать 8 областей кадра и сжимает каждую в один токен. RT-1 так превращает 81 токен свёрточной сети в 8: на 6 кадров выходит 48 токенов вместо 486.';
+      if (st.tl) txt = 'Сетка — 81 клетка признаков свёрточной сети, каждая клетка — токен. Цветное пятно — веса одного из 8 выходных токенов: он складывает клетки под пятном. RT-1 так получает 8 токенов на кадр, а на 6 кадров истории — 48 токенов вместо 486.';
       else if (st.hover) { const g = 224 / st.patch, id = st.hover.i * g + st.hover.j + 1; txt = `Патч ${id} из ${int(nOf(st.patch))}: строка ${st.hover.i + 1}, столбец ${st.hover.j + 1}. Его ${st.patch} × ${st.patch} × 3 = ${int(st.patch * st.patch * 3)} чисел станут одним токеном.`; }
       else { const g = 224 / st.patch; txt = `224 / ${st.patch} = ${g} патчей по каждой стороне, ${g} × ${g} = ${int(nOf(st.patch))} токенов.${st.patch === 16 ? ' ViT добавит к ним ещё токен [class].' : ''}`; }
       setOut($('#tokOut'), txt);
@@ -239,7 +242,7 @@
           { label: 'Пар для внимания стало больше: <span class="pick" data-g="p"><button type="button" data-v="4">в 4 раза</button><button type="button" data-v="8">в 8 раз</button><button type="button" data-v="16">в 16 раз</button></span>', test: (s) => s.pickP === 16 },
         ],
         hint: 'Сторона кадра делится на размер патча: 224 / 32 = 7 и 224 / 16 = 14. Токенов — квадрат этого числа, а пар для внимания — квадрат числа токенов.',
-        explain: () => 'При патче 16 выходит 14 × 14 = 196 токенов, и ViT добавляет к ним токен [class]. Внимание сравнивает каждый токен с каждым, поэтому вчетверо больше токенов дают в 16 раз больше пар. В Octo патчи 16 × 16 работают на захватах лучше, чем 32 × 32, но токенов вчетверо больше. Патч 14 даёт 256 токенов — столько π0 получает из картинки 224 px.',
+        explain: () => 'При патче 16 выходит 14 × 14 = 196 токенов, и ViT добавляет к ним токен [class]. Внимание сравнивает каждый токен с каждым, поэтому вчетверо больше токенов дают в 16 раз больше пар. В Octo — открытой политике 2024 года (урок 3.5) — патчи 16 × 16 работают на захватах лучше, чем 32 × 32, но токенов вчетверо больше. Патч 14 даёт 256 токенов — столько π0 получает из картинки 224 px.',
         onDone: () => { $('#tokMore').hidden = false; },
       });
       // Порядок на экране совпадает с порядком действий: ставка, размер патча, кадр, числа, проверка.
@@ -387,7 +390,7 @@
       $$('#maskGrid .mc').forEach((b) => { const i = +b.dataset.i, j = +b.dataset.j; b.setAttribute('aria-pressed', String(st.mask[i][j])); });
       const deps = E.Mask.prefixDeps(st.mask), note = $('#maskNote'), T = E.Mask.TOK;
       if (!deps.length) { note.innerHTML = 'Кадры и команда не видят ни состояния, ни действий. Их K и V не зависят от действий: их можно посчитать один раз и положить в кэш.'; note.className = 'mask-note ok'; }
-      else { const seen = [...new Set(deps.map((d) => T[d[1]].s))]; note.innerHTML = `Кадры и команда видят ${seen.join(', ')}. Их K и V меняются вместе с ${deps.some((d) => d[1] >= 4) ? 'действиями' : 'состоянием'}, и кэшировать их нельзя.`; note.className = 'mask-note'; }
+      else { const seen = [...new Set(deps.map((d) => T[d[1]].short))]; note.innerHTML = `Кадры и команда видят: ${seen.join(', ')}. Их K и V меняются вместе с ${deps.some((d) => d[1] >= 4) ? 'действиями' : 'состоянием'}, и кэшировать их нельзя.`; note.className = 'mask-note'; }
     }
     function draw() { drawTable(); drawPlane(); drawBars(); stat(); drawMask(); }
     function changed() { draw(); if (ctl) ctl.update(); }
@@ -405,13 +408,15 @@
       st.busy = true;
       if (!st.m3ran) st.div = false;
       for (let j = 0; j < E.DKS.length; j++) { st.dkIdx = j; syncDk(); draw(); await sleep(j ? 170 : 60); }
+      if (!st.div) st.ranNoDiv = true;
       st.m3ran = true; st.busy = false; gateM3();
+      $('#wrapDiv').classList.toggle('m-nudge', !st.div); // подсказать, где второй шаг
       const r = compute()[0], max = Math.max(...r.w);
       return { dk: dk(), div: st.div, max, arg: r.w.indexOf(max), lo: Math.min(...r.scores), hi: Math.max(...r.scores) };
     }
     function setupHeads() { st.mode = 2; st.active = 0; st.qh = QH0.map((v) => v.slice()); st.keys = cloneKeys(); st.dkIdx = 0; syncDk(); }
     const api = {
-      reset() { st.mode = 1; st.q = Q0.slice(); st.qh = QH0.map((v) => v.slice()); st.keys = cloneKeys(); st.active = 0; st.dkIdx = 0; st.div = false; st.bars = 'w'; st.mask = E.Mask.full(); st.m3ran = false; syncDk(); draw(); },
+      reset() { st.mode = 1; st.q = Q0.slice(); st.qh = QH0.map((v) => v.slice()); st.keys = cloneKeys(); st.active = 0; st.dkIdx = 0; st.div = false; st.bars = 'w'; st.mask = E.Mask.full(); st.m3ran = false; st.ranNoDiv = false; $('#wrapDiv').classList.remove('m-nudge'); syncDk(); draw(); },
       state, growDk, setupHeads,
       dk2: () => { st.dkIdx = 0; syncDk(); },
       setQ: (x, y) => { if (!st.lock) setActiveQ([x, y]); },
@@ -431,14 +436,14 @@
         hint: 'Если запрос совсем короткий, веса почти равны и ответ падает в среднюю точку стола — там стоит сахарница. Поверни запрос между ключами двух предметов, которые на столе стоят далеко друг от друга.',
         explain: () => { return `Ответ лёг на пустое место стола. Выход внимания — сумма значений с весами. Когда веса размазаны, ответ оказывается между предметами, там, где ничего нет. Это то же усреднение, что у регрессии в уроке 1.3: среднее двух правильных ответов само может быть неправильным.`; } },
       { short: '√d_k', title: 'Не дай softmax схлопнуться', controls: ['bars', 'dk', 'div'],
-        text: 'К двум видимым компонентам ключей и запроса добавим скрытые — случайные числа с дисперсией 1. Сколько всего компонент, задаёт d_k: в трансформере 2017 года d_k = 64, у языковой модели внутри π0 — 256. Запрос в этой миссии не трогаем. Опыт наращивает d_k от 2 до 256. Потом сделай так, чтобы при d_k = 256 наибольший вес стал меньше 0,9.',
+        text: 'К двум видимым компонентам ключей и запроса добавим скрытые — случайные числа с дисперсией 1. Сколько всего компонент, задаёт d_k: в трансформере 2017 года d_k = 64, у языковой модели внутри π0 — 256. Запрос в этой миссии закреплён. Опыт идёт в два шага. Сначала сделай ставку и нажми «Нарастить d_k до 256»: посмотри, что станет с весами без деления. Потом включи «делить на √d_k» под сценой и запусти опыт снова.',
         bet: { q: 'что станет с весами при d_k = 256 без деления?', options: ['Почти не изменятся', 'Выровняются', 'Схлопнутся в один пик'], answer: () => 2 },
         action: { label: 'Нарастить d_k до 256', run: (A) => A.growDk() },
-        criteria: [{ label: 'd_k = 256', test: (r) => E.Check.m3dk(r.dk) }, { label: 'Наибольший вес меньше 0,9', test: (r) => E.Check.m3peak([r.max]) }],
+        criteria: [{ label: 'Шаг 1: опыт без деления, d_k дошёл до 256', test: (r) => E.Check.m3dk(r.dk) && st.ranNoDiv }, { label: 'Шаг 2: опыт с делением на √d_k, наибольший вес меньше 0,9', test: (r) => E.Check.m3dk(r.dk) && r.div && E.Check.m3peak([r.max]) }],
         summary: (r) => `d_k 256, ${r.div ? 'делим на 16' : 'без деления'}: наибольший вес ${fmt2(r.max)}, ${ITEM(r.arg).name}`,
-        fail: (r) => (r.div ? `Наибольший вес ${fmt2(r.max)}. Попробуй ещё раз.` : `Веса схлопнулись в один пик: у предмета «${ITEM(r.arg).name}» ${fmt2(r.max)}, у остальных почти ноль. Оценки q·k разбегаются от ${fmt(r.lo, 0)} до ${fmt(r.hi, 0)}, и softmax от таких чисел выбирает одного. Запрос не трогай: найди ручку, которая вернёт оценки в рабочий диапазон, и запусти опыт снова.`),
-        hint: 'Переключи столбики на q·k: оценки выросли в десятки раз. Включи деление на √d_k.',
-        explain: (r) => `Наибольший вес — <b>${fmt2(r.max)}</b>. При независимых компонентах с дисперсией 1 дисперсия q·k равна d_k: при d_k = 256 оценки разбегаются примерно на ±16, и softmax от таких чисел почти всегда даёт один пик. В обучении это почти нулевые градиенты (вопрос 2 квиза). Деление на √256 = 16 возвращает разброс к единице. Скрытые компоненты у нас случайные, поэтому после деления веса почти не зависят от запроса. В обученной модели все 256 компонент несут смысл, и деление держит оценки в рабочем диапазоне.` },
+        fail: (r) => (r.div ? `Наибольший вес ${fmt2(r.max)}. Попробуй ещё раз.` : `Веса схлопнулись в один пик: у предмета «${ITEM(r.arg).name}» ${fmt2(r.max)}, у остальных почти ноль. Оценки q·k разбегаются от ${fmt(r.lo, 0)} до ${fmt(r.hi, 0)}, и softmax от таких чисел выбирает одного. Шаг 2: включи «делить на √d_k» под сценой и нажми «Нарастить d_k до 256» ещё раз.`),
+        hint: 'Переключи столбики на q·k: без деления оценки выросли в десятки раз. Деление на √d_k = 16 возвращает их к единицам.',
+        explain: (r) => `Наибольший вес — <b>${fmt2(r.max)}</b>. При независимых компонентах с дисперсией 1 дисперсия q·k равна d_k: при d_k = 256 оценки разбегаются примерно на ±16, и softmax от таких чисел почти всегда даёт один пик. Деление на √256 = 16 возвращает разброс к единице.<span class="m-gap"></span>Почему один пик плох для обучения. Сеть учится, подправляя запросы и ключи: она смотрит, как изменится ответ, если чуть сдвинуть оценку, — это и есть градиент. Когда весь вес у одного предмета, сдвиг оценки другого почти не меняет его вес. Градиент около нуля, и сеть не может научиться смотреть на другой предмет, даже если это нужно. На схеме оценку чашки двигают на ±1,5 при тех же оценках, что в опыте.<span class="m-fig"><canvas data-anim="sat" width="400" height="356" role="img" aria-label="Две группы столбиков весов: в рабочем диапазоне вес чашки меняется вслед за её оценкой, при d_k 256 без деления весь вес у молочника и вес чашки остаётся нулевым"></canvas></span>Скрытые компоненты у нас случайные, поэтому после деления веса почти не зависят от запроса. В обученной модели все 256 компонент несут смысл, и деление держит оценки в рабочем диапазоне.` },
       { short: 'Маска π0', title: 'Собери маску π0', controls: ['mask'], onEnter: (A) => A.dk2(),
         text: 'Маска решает, кто кого видит: закрытая клетка ставит оценке −∞, и softmax даёт ей вес 0. Возьмём шесть токенов в порядке π0: кадры двух камер и команда, потом состояние, потом два действия. Собери маску под четыре условия.',
         criteria: [
@@ -450,7 +455,7 @@
         hint: 'Нажми «Каузальная» и посмотри, какие условия она не проходит. Каузальная маска открывает только диагональ и то, что левее, а кадрам и команде нужно видеть друг друга в обе стороны.',
         explain: () => 'Это блочная маска π0. Так же устроена prefix-LM в PaliGemma (урок 3.2): внутри блока внимание идёт в обе стороны, между блоками — только назад. Кадры и команда не видят ни состояния, ни действий, поэтому их K и V не меняются, пока модель уточняет действия. Их считают один раз и кладут в кэш. К этому вернёмся в разделе про KV-кэш.' },
       { short: 'Две головы', title: 'Две головы', controls: ['bars', 'head2'], onEnter: (A) => A.setupHeads(),
-        text: 'У каждой головы своя матрица ключей. Голова «цвет» видит только цвет, голова «место» — только где стоит предмет. Чашка красная и стоит у переднего края. Но у головы «цвет» её ключ совпадает с ключом чайника, а у головы «место» — с ключом миски. Настрой обе головы так, чтобы чашка была главной у обеих. Головы переключаются над плоскостью ключей.',
+        text: 'До сих пор работала одна <b>голова</b> внимания: один запрос, одни ключи, одни веса. В слое трансформера голов несколько. Каждая — отдельное внимание со своими матрицами для запроса, ключей и значений, поэтому каждая сравнивает токены по своим признакам. Головы работают одновременно на одних и тех же токенах, а их выходы потом склеивают.<span class="m-fig"><canvas data-anim="heads" width="400" height="318" role="img" aria-label="Схема двух голов: у шести предметов есть цвет и место; голова «цвет» видит только цвет и делит вес между чашкой и чайником, голова «место» видит только место и делит вес между чашкой и миской; вместе они выделяют чашку"></canvas></span>Здесь две головы. Голова «цвет» видит только цвет, голова «место» — только где стоит предмет. Чашка красная и стоит у переднего края. Но у головы «цвет» её ключ совпадает с ключом чайника, а у головы «место» — с ключом миски. Настрой обе головы так, чтобы чашка была главной у обеих. Головы переключаются над плоскостью ключей.',
         criteria: [
           { label: 'Голова «цвет»: красные предметы вместе получают больше 0,8', test: (r, s) => s.mode === 2 && E.Check.m5color(s.wc) },
           { label: 'Голова «место»: предметы у края вместе получают больше 0,8', test: (r, s) => s.mode === 2 && E.Check.m5place(s.wp) },
@@ -459,7 +464,7 @@
         hint: 'Ключ чашки совпадает с ключом «двойника», и одна голова их не разделит. Направь запрос каждой головы на общий ключ чашки и сделай стрелку длиннее.',
         explain: () => 'Каждая голова по отдельности путает чашку: «цвет» делит внимание между чашкой и чайником, «место» — между чашкой и миской. Выходы голов склеиваются и проходят через матрицу W^O, и вместе они называют чашку однозначно. Ширина каждой головы — d_model/h, поэтому восемь голов стоят почти как одна голова полной размерности (вопрос 3 квиза).' },
       { short: 'Свободно', title: 'Свободный режим', final: true,
-        text: 'Все ручки сразу: запросы обеих голов, d_k с делением и маска π0. Ключи теперь тоже можно тянуть. Попробуй растащить совпавшие ключи чашки и чайника и посмотри, как голова «цвет» начинает их различать.' },
+        text: 'Все настройки сразу: запросы обеих голов, d_k с делением и маска π0. Ключи теперь тоже можно тянуть. Попробуй растащить совпавшие ключи чашки и чайника и посмотри, как голова «цвет» начинает их различать.' },
     ];
     function onStep(i) {
       st.showAns = i >= 1; st.zones = i === 1; st.lock = i === 2; st.dragKeys = i === 5;
@@ -470,9 +475,9 @@
     function initMask() {
       const g = $('#maskGrid'), T = E.Mask.TOK; g.innerHTML = '';
       g.append(h('span', { class: 'mh' }));
-      T.forEach((t) => g.append(h('span', { class: 'mh b' + t.b, title: t.name }, t.s)));
+      T.forEach((t) => g.append(h('span', { class: 'mh col b' + t.b, title: t.name }, h('span', null, t.short))));
       T.forEach((t, i) => {
-        g.append(h('span', { class: 'mh b' + t.b, title: t.name }, t.s));
+        g.append(h('span', { class: 'mh row b' + t.b, title: t.name }, t.short));
         T.forEach((u, j) => {
           const b = h('button', { type: 'button', class: 'mc', 'data-i': i, 'data-j': j, 'aria-label': `${t.name} видит: ${u.name}` });
           b.addEventListener('click', () => { st.mask[i][j] = !st.mask[i][j]; changed(); });
@@ -501,12 +506,14 @@
       $$('#wrapBars button').forEach((b) => b.addEventListener('click', () => { st.bars = b.dataset.v; draw(); }));
       $$('#attHeadSeg button').forEach((b) => b.addEventListener('click', () => { st.active = +b.dataset.h; draw(); }));
       $('#attDk').addEventListener('input', (e) => { st.dkIdx = +e.target.value; syncDk(); changed(); });
-      $('#attDiv').addEventListener('change', (e) => { st.div = e.target.checked; changed(); });
+      $('#attDiv').addEventListener('change', (e) => { st.div = e.target.checked; if (st.div) $('#wrapDiv').classList.remove('m-nudge'); changed(); });
       syncDk();
       const root = $('#attMis'), mark = (i) => root.classList.toggle('m-live', !missions[i].action && !missions[i].final);
       ctl = Missions.mount(root, missions, api, { scene: '#attTable', controls: { bars: '#wrapBars', dk: '#wrapDk', div: '#wrapDiv', mask: '#wrapMask', head2: '#wrapHead2' }, onStep: (i) => { mark(i); onStep(i); } });
       mark(ctl.index); onStep(ctl.index);
       root.addEventListener('click', () => setTimeout(gateM3, 0));
+      // Anim объявлен через const в общем скрипте: это глобальное имя, но не свойство window
+      if (typeof Anim !== 'undefined') new MutationObserver(() => { if (root.querySelector('canvas[data-anim]:not([data-anim-on])')) Anim.init(); }).observe(root, { childList: true, subtree: true });
       redrawOn(draw);
       return ctl;
     }
@@ -622,7 +629,7 @@
       $('#ordReset').addEventListener('click', () => { st.order = P0.slice(); st.sel = null; render(); });
       const cv = $('#peCv');
       const pick = (ev) => { const r = cv.getBoundingClientRect(), Wd = 420, kk = Wd / r.width, pad = 30 * kk, cell = (Wd - pad) / NPOS, x = (ev.clientX - r.left) * kk, y = (ev.clientY - r.top) * kk, j = Math.floor((x - pad) / cell), i = Math.floor((y - pad) / cell); return i >= 0 && j >= 0 && i < NPOS && j < NPOS ? { i, j } : null; };
-      const show = (p) => { st.hover = p; drawPE(); $('#peOut').textContent = p ? `Позиции ${p.i} и ${p.j}: сходство кодировок ${fmt2(E.Pos.peSim(p.i, p.j))}. Чем дальше позиции друг от друга, тем меньше сходство.` : 'Каждая клетка — косинусное сходство кодировок двух позиций, 16 чисел на позицию. Ярче всего диагональ и клетки рядом с ней: соседние позиции похожи, далёкие — меньше, поэтому одно слово на разных местах получает разные векторы. Рамкой отмечены позиции 0–3, на которых стоит команда. Наведи курсор на клетку.'; };
+      const show = (p) => { st.hover = p; drawPE(); $('#peOut').textContent = p ? `Места ${p.i} и ${p.j}: сходство кодировок ${fmt2(E.Pos.peSim(p.i, p.j))}. Чем дальше места друг от друга, тем в целом меньше сходство.` : 'Клетка на пересечении строки i и столбца j — сходство кодировок мест i и j, как на схеме выше, но для всех пар мест 0–23. Ярче всего диагональ и клетки рядом с ней: соседние места похожи, далёкие — меньше, поэтому одно слово на разных местах получает разные векторы. Рамкой отмечены места 0–3, на которых стоит команда. Наведи курсор на клетку.'; };
       cv.addEventListener('pointermove', (ev) => show(pick(ev)));
       cv.addEventListener('pointerdown', (ev) => show(pick(ev)));
       cv.addEventListener('pointerleave', () => show(null));
@@ -734,11 +741,15 @@
       const bar = $('#piBar'), B = blocks(), T = total(), narrow = bar.getBoundingClientRect().width < 560; bar.innerHTML = '';
       B.forEach((b) => {
         const sub = narrow ? (b.id === 'step' ? '' : b.sub.split(' ·')[0]) : b.sub;
-        const el = h('button', { type: 'button', class: `pi-blk ${b.id}${b.id === st.sel || (b.id === 'step' && st.sel === 'step') ? ' sel' : ''}`, style: `flex-grow:${b.ms}`, 'data-t0': b.t0, title: `${b.name}: ${fmt(b.ms, 1)} мс` }, h('b', null, narrow ? b.short : b.name), sub ? h('span', null, sub) : null);
+        const el = h('button', { type: 'button', class: `pi-blk ${b.id}${b.id === st.sel || (b.id === 'step' && st.sel === 'step') ? ' sel' : ''}`, style: `flex-grow:${b.ms}`, 'data-t0': b.t0, 'data-id': b.id, title: `${b.name}: с ${fmt(b.t0, 0)} до ${fmt(b.t1, 0)} мс` }, h('b', null, narrow ? b.short : b.name), sub ? h('span', null, sub) : null);
         el.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); st.sel = b.id; st.cursor = b.t0; draw(); } });
         bar.append(el);
       });
-      if (st.cursor != null) { const m = h('i', { class: 'pi-mark', style: `left:calc(${(st.cursor / T * 100).toFixed(3)}% - 1px)` }); bar.append(m); }
+      if (st.cursor != null) {
+        // курсор на начале блока ставим на левый край самого блока: между блоками есть зазоры, и доля времени не совпадает с долей ширины
+        const at = [...bar.querySelectorAll('.pi-blk')].find((e) => Math.abs(+e.dataset.t0 - st.cursor) < 1e-6);
+        bar.append(h('i', { class: 'pi-mark', style: at && at.offsetLeft > 0 ? `left:${at.offsetLeft - 2}px` : `left:calc(${(st.cursor / T * 100).toFixed(3)}% - 1px)` }));
+      }
       const ax = $('#piAxis'); ax.innerHTML = '';
       const marks = [0].concat(B.filter((b) => b.id !== 'step' || b.n === X.steps).map((b) => b.t1));
       if (st.noCache) marks.splice(1, 0, X.enc);
@@ -753,7 +764,8 @@
         const t = st.cursor, inb = B.find((b) => t >= b.t0 - 1e-9 && t < b.t1 - 1e-9) || B[B.length - 1];
         if (!st.noCache && Math.abs(t - (X.enc + X.obs)) < 1e-6) cur = `<b>${fmt(t, 0)} мс</b> — начинается первый шаг flow. До него энкодеры (14 мс) и проход по наблюдению (32 мс).`;
         else if (Math.abs(t - T) < 1e-6) cur = `<b>${fmt(t, 0)} мс</b> — пачка из 50 действий готова.`;
-        else if (Math.abs(t) < 1e-6) cur = '<b>0 мс</b> — кадры пришли с камер.';
+        else if (Math.abs(t) < 1e-6) cur = '<b>0 мс</b> — кадры пришли с камер, начинают работать энкодеры картинок.';
+        else if (Math.abs(t - inb.t0) < 1e-6) cur = `<b>${fmt(t, 0)} мс</b> — начинается блок «${inb.name}».`;
         else cur = `<b>${fmt(t, 0)} мс</b> — идёт блок «${inb.name}».`;
       }
       $('#piCursor').innerHTML = cur;
@@ -806,18 +818,18 @@
       task = mountTask('#piTask', {
         head: '#piHead',
         title: 'Куда уходят 73 мс',
-        text: 'Сделай ставку про кэш, потом найди на схеме и на ленте два момента.',
+        text: 'Сделай ставку про кэш, потом найди два момента. На полосе вывода нажимай на блоки: курсор встаёт на начало блока, под полосой появляется время. На ленте управления нажимай на тики.',
         bet: { q: 'что станет с выводом без KV-кэша?', options: ['Почти не изменится', 'Станет вдвое дольше', 'Станет раз в пять дольше'], answer: 2 },
         onBet: () => draw(),
         criteria: [
-          { label: 'На полосе найден момент, когда начинается первый шаг flow', test: (s) => s.found46 },
+          { label: 'Найдено, когда начинается первый шаг flow: нажми на блок «10 шагов flow»', test: (s) => s.found46 },
           { label: 'На ленте найден тик, где запускается новая пачка', test: (s) => s.found25 },
           { label: 'Вывод без KV-кэша посмотрен', test: (s) => s.seenNoCache },
         ],
-        hint: 'Нажми на полосу у границы между проходом по наблюдению и шагами flow — курсор прилипнет к ней. На ленте ищи тик, где меняется цвет.',
+        hint: 'Нажми на оранжевый блок «10 шагов flow»: курсор встанет на его начало, а под полосой появится, сколько миллисекунд прошло до него. На ленте ищи тик, где меняется цвет пачки.',
         explain: () => 'До первого шага flow проходит 46 мс из 73: энкодеры картинок (14 мс) и проход по наблюдению (32 мс). Дальше 10 шагов flow по 51 токену читают готовые K и V префикса и занимают 27 мс на все шаги. Без кэша каждый шаг заново проходил бы 816 токенов наблюдения: по нашей оценке, 361 мс, впятеро дольше. Новая пачка запускается каждые 25 тиков, то есть раз в 0,5 с, а действие робот получает каждые 20 мс. Поэтому частота управления — 50 Гц — не равна частоте вывода: модель вызывают дважды в секунду.',
       });
-      $('#piBar').addEventListener('click', (e) => setCursorFromX(e.clientX));
+      $('#piBar').addEventListener('click', (e) => { const b = e.target.closest('.pi-blk'); if (b) { st.cursor = +b.dataset.t0; st.sel = b.dataset.id; draw(); } else setCursorFromX(e.clientX); });
       $('#piNoCache').addEventListener('change', (e) => { st.noCache = e.target.checked; if (st.noCache) { st.seenNoCache = true; task.resolveBet(); } st.cursor = null; st.sel = st.noCache ? 'step' : 'obs'; draw(); });
       $('#piRemote').addEventListener('change', (e) => { st.remote = e.target.checked; st.cursor = null; draw(); });
       $('#piTape').addEventListener('click', (e) => { const cv = e.currentTarget, r = cv.getBoundingClientRect(), L = LAY || layout(cv), x = (e.clientX - r.left) / r.width * L.TW, i = Math.floor((x - L.X0) / L.tw); if (i >= 0 && i < NT) { st.tick = i; draw(); } });
@@ -840,13 +852,13 @@
         { id: 'flow', label: 'Несколько шагов диффузии или flow', note: 'пачку уточняют из шума за несколько шагов' },
       ],
       items: [
-        { id: 'rt2', label: 'RT-2', target: 'ar', why: 'Действие — строка из 8 целых, по 256 бинов на измерение; модель пишет её токен за токеном.' },
-        { id: 'ovla', label: 'OpenVLA', target: 'ar', why: '7 измерений по 256 бинов, авторегрессия на Llama 2.' },
-        { id: 'fast', label: 'π0-FAST', target: 'ar', why: '30–60 токенов действий 2B-модель декодирует по одному.' },
-        { id: 'act', label: 'ACT', target: 'one', why: '100 фиксированных запросов в декодере дают всю пачку 100 × 14 за один проход.' },
-        { id: 'octo', label: 'Octo', target: 'flow', why: 'Readout-токены передают признаки диффузионной голове, она выдаёт пачку.' },
-        { id: 'pi0', label: 'π0', target: 'flow', why: '50 токенов действий через action expert, 10 шагов flow matching.' },
-        { id: 'groot', label: 'GR00T N1', target: 'flow', why: '16 действий за 4 шага flow matching: DiT с cross-attention к VLM.' },
+        { id: 'rt2', label: 'RT-2', sub: 'Действие — 8 целых чисел. Модель выписывает их так же, как текст ответа.', target: 'ar', why: 'Действие — строка из 8 целых, по 256 бинов на измерение; модель пишет её токен за токеном.' },
+        { id: 'ovla', label: 'OpenVLA', sub: 'Каждое из 7 чисел действия заменяет редкое слово словаря языковой модели.', target: 'ar', why: '7 измерений по 256 бинов, авторегрессия на Llama 2.' },
+        { id: 'fast', label: 'π0-FAST', sub: 'Пачку сжимают в 30–60 токенов, и модель выписывает их по одному.', target: 'ar', why: '30–60 токенов действий 2B-модель декодирует по одному.' },
+        { id: 'act', label: 'ACT', sub: 'Декодер получает 100 пустых запросов и за один проход заполняет все 100 действий.', target: 'one', why: '100 фиксированных запросов в декодере дают всю пачку 100 × 14 за один проход.' },
+        { id: 'octo', label: 'Octo', sub: 'Голова на выходе 20 раз убирает шум из черновика пачки.', target: 'flow', why: 'Readout-токены передают признаки диффузионной голове, она выдаёт пачку.' },
+        { id: 'pi0', label: 'π0', sub: '10 раз уточняет черновик из 50 действий, начиная с шума.', target: 'flow', why: '50 токенов действий через action expert, 10 шагов flow matching.' },
+        { id: 'groot', label: 'GR00T N1', sub: 'За 4 шага flow matching превращает шум в 16 действий.', target: 'flow', why: '16 действий за 4 шага flow matching: DiT с cross-attention к VLM.' },
       ],
       after: 'Способ выдачи решает, сколько проходов модели нужно на пачку. π0-FAST тратит на пачку около 750 мс против ~100 мс у π0: токены действий декодируются по одному.',
     });

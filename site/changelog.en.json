@@ -33,6 +33,17 @@
       ]
     },
     {
+      "v": "2.11",
+      "date": "2026-10-15",
+      "title": "Lesson 1.6 revised: transformer and attention diagrams",
+      "items": [
+        "Five new animated diagrams: the whole transformer on one π0 step, attention step by step (query, keys, softmax, a mix of values), why a collapsed softmax doesn't learn, two attention heads, and positional encoding.",
+        "The start of the lesson explains that the action chunk enters the sequence as a draft and leaves as a correction. The lesson header no longer lists models.",
+        "TokenLearner in RT-1 is explained: how 81 tokens of a convolutional network are compressed into 8.",
+        "The √d_k mission runs in two explicit steps, the mask shows full token names, clicking a block on the π0 inference bar puts the cursor at its start, and the sorting cards say how each model gets its actions."
+      ]
+    },
+    {
       "v": "2.10",
       "date": "2026-10-15",
       "title": "The course in English",

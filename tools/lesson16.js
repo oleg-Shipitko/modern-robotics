@@ -139,12 +139,15 @@ async function lab(p, shots) {
   await bet(p, '#attMis', 'Схлопнутся'); await go(p);
   const r3 = await p.eval(`${ctl}.ctx.results[2]`);
   check(!(await done(p)) && r3.dk === 256 && !r3.div && r3.max > 0.95 && (await crit(p, '#attMis')) === 'ok,no' && /схлопнулись/.test(await p.eval('document.querySelector("#attMis .g-out").textContent')), `лаб М3, без деления: наибольший вес ${f(r3.max, 3)} у «${T.ITEMS[r3.arg].name}», оценки от ${f(r3.lo, 0)} до ${f(r3.hi, 0)}`);
-  check(await p.eval('!document.querySelector("#attDk").disabled && !document.querySelector("#attDiv").disabled'), 'лаб М3: после опыта ручки разблокированы');
+  check(await p.eval('!document.querySelector("#attDk").disabled && !document.querySelector("#attDiv").disabled && document.querySelector("#wrapDiv").classList.contains("m-nudge")') && /Шаг 2: включи «делить на √d_k»/.test(await p.eval('document.querySelector("#attMis .g-out").textContent')), 'лаб М3: после первого опыта ползунок и деление разблокированы, деление подсвечено, разбор говорит, что делать на шаге 2');
   if (shots) await p.shotEl(out('l16-lab-m3-peak.png'), '#lab .lab', 6);
   await p.eval(`(() => { const e = document.querySelector('#attDiv'); e.checked = true; e.dispatchEvent(new Event('change', { bubbles: true })); })()`); await sleep(60);
   await go(p);
   const r3b = await p.eval(`${ctl}.ctx.results[2]`);
-  check(await done(p) && r3b.div && r3b.max < 0.9, `лаб М3, с делением на 16: наибольший вес ${f(r3b.max)}; ставка: ${await p.eval('document.querySelector("#attMis .bet-right") ? document.querySelector("#attMis .bet-right").textContent : "нет"')}`);
+  check(await done(p) && r3b.div && r3b.max < 0.9 && (await crit(p, '#attMis')) === 'ok,ok' && !(await p.eval('document.querySelector("#wrapDiv").classList.contains("m-nudge")')), `лаб М3, с делением на 16: наибольший вес ${f(r3b.max)}; ставка: ${await p.eval('document.querySelector("#attMis .bet-right") ? document.querySelector("#attMis .bet-right").textContent : "нет"')}`);
+  await sleep(120);
+  const sat = await p.eval(`(() => { const cv = document.querySelector('#attMis canvas[data-anim="sat"]'); if (!cv) return null; Anim.seek(cv, 0.5); const a = cv.toDataURL(); Anim.seek(cv, 1.6); return { on: cv.dataset.animOn, moves: a !== cv.toDataURL() }; })()`);
+  check(sat && sat.on === '1' && sat.moves, 'лаб М3: в разборе схема «почему один пик плох для обучения» запущена и движется');
   console.log('  журнал М3:', await p.eval('document.querySelector("#attMis .m-log").textContent'));
   if (shots) await p.shotEl(out('l16-lab-m3.png'), '#lab .lab', 6);
   await p.eval('window.__l16.SPEED.k = 1');
@@ -162,6 +165,9 @@ async function lab(p, shots) {
   await next(p);
   // М5: две головы
   check(await p.eval('!document.querySelector("#wrapHead2").hidden && document.querySelector("#wrapMask").hidden && window.__l16.Att.st.mode === 2'), 'лаб М5: две головы, переключатель голов виден');
+  await sleep(120);
+  const hd = await p.eval(`(() => { const cv = document.querySelector('#attMis canvas[data-anim="heads"]'); if (!cv) return null; Anim.seek(cv, 2.5); const a = cv.toDataURL(); Anim.seek(cv, 8); return { on: cv.dataset.animOn, moves: a !== cv.toDataURL(), txt: /отдельное внимание со своими матрицами/.test(document.querySelector('#attMis .g-text').textContent) }; })()`);
+  check(hd && hd.on === '1' && hd.moves && hd.txt, 'лаб М5: в условии сказано, что такое голова, и есть схема двух голов');
   await center(p, '#attPlane');
   await dragQ(p, await curQ(p), [2.4, 0.05]);
   await p.eval('document.querySelector("#attHeadSeg button[data-h=\\"1\\"]").click()'); await sleep(60);
@@ -224,7 +230,7 @@ async function order(p, shots) {
   check(await p.eval('window.__l16.Ord.task.done') && /верно/.test(await p.eval('document.querySelector("#ordAns").textContent')), 'порядок: с позициями ответ верный, задача решена — ' + (await outText(p, '#ordTask')).slice(0, 70));
   await center(p, '#peCv');
   const pe = await cpt(p, '#peCv', 420, 200, 120); await click(p, pe.x, pe.y); await sleep(60);
-  check(/^Позиции \d+ и \d+: сходство/.test(await p.eval('document.querySelector("#peOut").textContent')), 'порядок: тепловая карта отвечает на касание — ' + await p.eval('document.querySelector("#peOut").textContent').then((t) => t.slice(0, 50)));
+  check(/^Места \d+ и \d+: сходство/.test(await p.eval('document.querySelector("#peOut").textContent')), 'порядок: тепловая карта отвечает на касание — ' + await p.eval('document.querySelector("#peOut").textContent').then((t) => t.slice(0, 50)));
   if (shots) await p.shotEl(out('l16-order.png'), '#order .ord-card', 6);
 }
 
@@ -247,11 +253,13 @@ async function cost(p, shots) {
 async function kv(p, shots) {
   await center(p, '#piBar');
   check(await p.eval('document.querySelector("#piNoCache").disabled'), 'вывод π0: до ставки «без кэша» недоступен');
-  const bb = await box(p, '#piBar');
-  await click(p, bb.l + bb.w * 30 / 73, bb.y);
-  check(await p.eval('window.__l16.Pi.st.cursor') !== 46 && (await crit(p, '#piTask')).startsWith('no'), 'вывод π0: щелчок на 30 мс — критерий ещё нет');
-  await click(p, bb.l + bb.w * 47.3 / 73, bb.y);
-  check(await p.eval('window.__l16.Pi.st.cursor') === 46 && /первый шаг flow/.test(await p.eval('document.querySelector("#piCursor").textContent')), 'вывод π0: щелчок у границы прилип к 46 мс — ' + await p.eval('document.querySelector("#piCursor").textContent'));
+  const ob = await box(p, '#piBar .pi-blk.obs');
+  await click(p, ob.x, ob.y);
+  check(await p.eval('window.__l16.Pi.st.cursor') === 14 && (await crit(p, '#piTask')).startsWith('no'), 'вывод π0: нажатие на блок прохода по наблюдению — курсор на его начале, 14 мс; критерий ещё нет');
+  const fb = await box(p, '#piBar .pi-blk.flow');
+  await click(p, fb.x, fb.y);
+  const mk = await p.eval('(() => { const m = document.querySelector("#piBar .pi-mark"), f = document.querySelector("#piBar .pi-blk.flow"); return Math.abs(m.offsetLeft + 2 - f.offsetLeft); })()');
+  check(await p.eval('window.__l16.Pi.st.cursor') === 46 && /первый шаг flow/.test(await p.eval('document.querySelector("#piCursor").textContent')) && mk <= 1, `вывод π0: нажатие на блок «10 шагов flow» — курсор на 46 мс, метка у края блока (${mk} px): ` + await p.eval('document.querySelector("#piCursor").textContent'));
   await center(p, '#piTape');
   const tp = await p.eval('(() => { const f = window.__l16.Pi.tapePt(25), r = document.querySelector("#piTape").getBoundingClientRect(); return { x: r.left + f.fx * r.width, y: r.top + f.fy * r.height }; })()');
   await click(p, tp.x, tp.y);
@@ -298,6 +306,10 @@ async function desktop() {
     check(bare.length === 0, `первое упоминание модели из будущего урока идёт с номером урока (${when})` + (bare.length ? ': ' + bare.join(', ') : ''));
   };
   await fwdRefs('при загрузке');
+  const an = JSON.parse(await p.eval(`JSON.stringify([...document.querySelectorAll('canvas[data-anim]')].map((cv) => { Anim.seek(cv, 1.1); const a = cv.toDataURL(); Anim.seek(cv, 6.4); const b = cv.toDataURL(); return { k: cv.dataset.anim, moves: a !== b, on: cv.dataset.animOn, layout: cv.dataset.layout }; }))`));
+  check(['tf', 'attn', 'pe'].every((k) => an.some((x) => x.k === k && x.moves && x.on === '1' && x.layout === 'w')), 'схемы tf, attn, pe запущены, широкая раскладка, кадры в два момента разные: ' + an.map((x) => x.k).join(', '));
+  check(/Почти все современные политики роботов делают это трансформером/.test(await p.eval('document.querySelector(".hero .lead").textContent')) && !/RT-1|Octo|GR00T/.test(await p.eval('document.querySelector(".hero .lead").textContent')), 'шапка урока без перечисления моделей');
+  check(/черновик пачки — 50 токенов/.test(await p.eval('document.querySelector("#inputs").textContent')), 'раздел 1 объясняет, что пачка действий входит в последовательность черновиком');
   await p.shot(out('l16-hero.png'));
   await p.eval('document.querySelector(".topbar").style.visibility = "hidden"');
   await p.shotEl(out('l16-inputs.png'), '#seqFig', 6);
@@ -355,6 +367,9 @@ async function phone() {
   check(await m.eval('window.__l16.Pi.st.tick') === 50, 'телефон: тик 50 на ленте попадает пальцем — ' + await m.eval('document.querySelector("#piTick").textContent'));
   await m.shotEl(out('l16-m-kv.png'), '#kv .pi-card', 4);
   await m.shotEl(out('l16-m-models.png'), '#models .wrap', 4);
+  const anm = JSON.parse(await m.eval(`JSON.stringify([...document.querySelectorAll('canvas[data-anim]')].map((cv) => ({ k: cv.dataset.anim, layout: cv.dataset.layout })))`));
+  check(['tf', 'attn', 'pe'].every((k) => anm.some((x) => x.k === k && x.layout === 'n')), 'телефон: схемы tf, attn, pe в узкой раскладке');
+  for (const k of ['tf', 'attn', 'pe']) { await m.eval(`Anim.seek(document.querySelector('canvas[data-anim="${k}"]'), 7.5)`); await m.shotEl(out(`l16-m-${k}.png`), `canvas[data-anim="${k}"]`, 4); }
   const wdt = await m.eval('document.documentElement.scrollWidth');
   check(wdt <= 390, `телефон: ширина ${wdt} из 390`);
   check(m.logs.length === 0, 'консоль телефона: ' + (m.logs.join(' | ') || 'чисто'));
