@@ -93,7 +93,8 @@ const rgba = (col, a) => Anim.kit.alpha(col, a);
     // 1. входы
     G.cams.forEach(([x, y], i) => cam(c, x, y, G.camW, G.camH, P, A, pTok > 0 && pTok < 1 && i === Math.floor(pTok * 3) % 3));
     rect(c, G.cmd[0], G.cmd[1], G.cmd[2], 20, 10, rgba(P.ink3, 0.15), P.ink2, 1.2);
-    lab(c, k, '«сложи футболку»', G.cmd[0] + G.cmd[2] / 2, G.cmd[1] + 10, { px: 10.5, color: P.ink, halo: false });
+    { const cmd = '«сложи футболку»'; HeroKit.font(c, k, 10.5, 600); const cw = c.measureText(cmd).width;   // на телефоне плашка узкая: подпись ужимается под неё
+      lab(c, k, cmd, G.cmd[0] + G.cmd[2] / 2, G.cmd[1] + 10, { px: Math.min(10.5, 10.5 * (G.cmd[2] - 10) / cw), color: P.ink, halo: false }); }
     lab(c, k, 'углы суставов', G.state[0], G.state[1] - 4, { px: 10, color: P.cl, haloColor: P.surf2 });
     for (let i = 0; i < 6; i++) { c.fillStyle = rgba(P.cl, 0.7); const hgt = 4 + 10 * hash(i + 5); c.fillRect(G.state[0] - 21 + i * 7, G.state[1] + 16 - hgt, 5, hgt); }
     // 2. токены
@@ -393,7 +394,7 @@ const Lab = (() => {
       action: { label: 'Предобучить и сравнить', run: (X) => X.pre() },
       criteria: [{ label: 'Предобученная и постобученная прошла больше желобков, чем модель с нуля', test: (r) => r.PF.ok > r.S.ok }, { label: 'Без постобучения модель влетает в гнездо хотя бы на половине желобков', test: (r) => r.P.bump >= 10 }],
       explain: (r) => `Из 20 желобков модель с нуля прошла ${r.S.ok}, только предобученная — ${r.P.ok}, предобученная и постобученная — ${r.PF.ok}. В единственной записи желобок сначала поворачивает в одну сторону. На желобках с тем же первым поворотом модель с нуля прошла ${r.sameOk} из ${r.sameN}, с обратным — ${r.otherOk} из ${r.otherN}: зеркальный желобок ей незнаком. Предобученная модель видела повороты в обе стороны в других задачах, но вставлять фигурку медленно её никто не учил, и без постобучения она влетает в гнездо на ${r.P.bump} желобках из 20. Постобучение на одной записи научило её этому, хотя часть желобков после него она задевает: одной записи мало и для постобучения. В π0 так же: предобучение даёт общие навыки и исправления, постобучение — то, как делать конкретную задачу.` },
-    { short: 'Свободно', title: 'Свободный режим', text: 'Листай сцены, меняй темп A и пары моделей, проигрывай проходы. Найди желобок, на котором модель B задевает стенку, и посмотри на график направления: что происходит в момент, когда приходит новая пачка?', final: true, controls: ['scene', 'play', 'tempo', 'pair'] },
+    { short: 'Свободно', title: 'Свободный режим', text: 'Листай сцены, меняй темп A и пары моделей, проигрывай проходы. Посмотри на график направления: что происходит на стыке, когда приходит новая пачка? И найди желобок, где модель B всё-таки задевает стенку: до стыка или после?', final: true, controls: ['scene', 'play', 'tempo', 'pair'] },
   ];
   function init() {
     legend('#lLegend', [['желобок: фигурка не должна касаться стенок', 'var(--ink-3)', 'band'], ['фигурка в захвате Ады', 'var(--ink)', 'ring'], ['гнездо', 'var(--good)', 'dring'], ['путь левой модели (A или с нуля)', 'var(--classic)'], ['путь правой модели (B или после предобучения)', 'var(--e2e)'], ['где модель выдала команду или пачку', 'var(--classic)', 'dot'], ['текущая команда A или пачка B', 'var(--hybrid)', 'dash'], ['что видит модель: точки середины желобка впереди', 'var(--ink-2)', 'ring'], ['где фигурка задела стенку', 'var(--critical)', 'cross']]);
@@ -450,7 +451,8 @@ const Fast = (() => {
       c.beginPath(); c.rect(x0, hh > 0 ? mid - hh : mid, w, Math.abs(hh)); if (j < st.k) { c.fillStyle = col; c.fill(); } else { c.strokeStyle = col; c.lineWidth = 1; c.stroke(); }
     }));
     const kx = l + st.k * bw; c.setLineDash([4, 3]); c.strokeStyle = P.ink2; c.lineWidth = 1.4; c.beginPath(); c.moveTo(kx, 6); c.lineTo(kx, CH - 22); c.stroke(); c.setLineDash([]);
-    HeroKit.label(c, k, `k = ${st.k}`, Math.min(kx + 4, rr - 30), 12, { align: 'left', px: 10.5, weight: 700, color: P.ink2, haloColor: P.bg });
+    { const kt = `k = ${st.k}`; HeroKit.font(c, k, 10.5, 700); const kw = c.measureText(kt).width;   // у правого края подпись уходит влево от линии
+      HeroKit.label(c, k, kt, kx + 4 + kw > rr ? kx - 4 - kw : kx + 4, 12, { align: 'left', px: 10.5, weight: 700, color: P.ink2, haloColor: P.bg }); }
     for (const j of [0, 10, 20, 30, 40, 49]) HeroKit.label(c, k, String(j), l + (j + 0.5) * bw, CH - 9, { px: 10, mono: true, color: P.ink3, halo: false });
   }
   function out() {
