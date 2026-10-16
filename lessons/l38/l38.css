@@ -43,6 +43,7 @@
 .journal li .sub { color: var(--e2e); font-weight: 650; }
 .journal li.cur { background: var(--surface-2); border-radius: 4px; }
 .journal ol:empty::before { content: "Нажми «Проиграть»: здесь появятся шаги."; color: var(--ink-3); margin-left: -1.2em; }
+html[lang="en"] .journal ol:empty::before { content: "Press “Play”: the steps will appear here."; }
 
 /* столбики итогов */
 .bars { display: grid; gap: 6px; margin-top: 12px; }

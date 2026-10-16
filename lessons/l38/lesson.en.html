@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3.8 Generalization and reasoning: from π0.5 to π0.7 — Modern Robotics and Physical AI</title>
+<meta name="description" content="Lesson 3.8 of the “Modern Robotics and Physical AI” course: π0.5 works in homes it has never seen, thanks to co-training on heterogeneous data and subtasks in words inside one model; knowledge insulation protects the vision-language model from the action expert; chain-of-thought reasoning before acting; π*0.6 learns from its own attempts, and π0.7 follows detailed prompts. Compare a flat and a hierarchical policy clearing a table, and spread the same recordings across different numbers of homes.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<script>
+  (function () { try { var t = localStorage.getItem('mr-theme'); if (t) document.documentElement.dataset.theme = t; else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme = 'dark'; } catch (e) {} })();
+</script>
+<style>
+/*@@CSS@@*/
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html#program" title="To the course program"><div>Modern Robotics and Physical AI<small>Lesson 3.8 · From π0.5 to π0.7</small></div></a>
+    <nav class="toc" aria-label="Lesson sections">
+      <a href="#home">New home</a>
+      <a href="#mix">Data</a>
+      <a href="#levels">Subtasks</a>
+      <a href="#lab">Cleanup</a>
+      <a href="#homes">Homes</a>
+      <a href="#ki">Insulation</a>
+      <a href="#ecot">Reasoning</a>
+      <a href="#recap">Experience</a>
+      <a href="#steer">Prompts</a>
+      <a href="#axis">Timeline</a>
+      <a href="#today">Today</a>
+      <a href="#quiz">Quiz</a>
+      <a href="#finale">Takeaways</a>
+    </nav>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Toggle theme">◐</button>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main>
+
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="kicker"><span class="num">3.8</span> Part 3 · Foundation models for robots</div>
+    <h1>From π0.5 to π0.7: <span class="amp">an unfamiliar home and long tasks</span></h1>
+    <p class="lead">In lesson 3.6, π0 folded laundry and assembled boxes after fine-tuning on recordings of exactly those tasks, while a separate model dictated table bussing to it step by step. In someone else's home, everything is different: the dishes, the furniture, the lighting. And a request like “clean the kitchen” stretches over 10–15 minutes and dozens of movements. π0.5 (Physical Intelligence, 2025) was trained on a mixture of very different data: recordings of mobile robots in homes, about 400 hours in roughly 100 homes, make up only 2.4% of the first-stage examples, and the rest came from other robots, captioned images from the internet and recordings in which the steps of a task are named in words. The model itself says what to do next and then does it, and in three homes that weren't in its training data, it cleaned the kitchen and the bedroom. The company's next models learned to improve from their own attempts (π*0.6, 2025) and to follow detailed prompts about what to do, how fast and how carefully (π0.7, 2026). We'll work out which of these ideas let a robot work in a new home, which make long tasks possible, and how one model learns both words and movements without losing one for the sake of the other.</p>
+    <div class="hero-meta"><span>≈ 55 minutes</span><span>2 labs, a diagram, an interactive and a quiz</span><span id="heroMis">missions with a goal</span></div>
+    <div class="hero-list">
+      <div><b>CLEANUP</b>Compare two policies on the same table: one moves the arm as soon as it hears “clear the table”, the other first says in words which object to take and where</div>
+      <div><b>HOMES</b>Spread the same 96 recordings across 1–96 homes with different tablecloths and test the model in 16 homes it has never seen</div>
+      <div><b>DIAGRAM</b>See how training a new part of the model damages what the vision-language model knew about the world, and how this is prevented</div>
+      <div><b>TIMELINE</b>Sort out, model by model from π0 to π0.7, what each one added</div>
+    </div>
+    <p style="margin-top:28px"><a class="btn primary" href="#home">Start the lesson ↓</a></p>
+  </div>
+</section>
+
+<section class="recall-sec" id="recall" aria-label="Warm-up on the previous lesson">
+  <div class="wrap"><div class="card recall" data-recall></div></div>
+  <script type="application/json" id="recallData">{"n": "3.7", "title": "Dual-system architectures: Helix, GR00T, Gemini Robotics", "href": "3-7-dvukhurovnevye-arkhitektury.html", "q": [{"q": "Why does a two-level system guide the arm precisely after a moving cup, even though the large model thinks only 7 times per second?", "o": ["The large model's chunk holds 200 actions", "Every 5 ms, the fast system sees a fresh frame, and from the slow one it only needs to know what to grab", "The large model is run 200 times per second"], "a": 1, "e": "The fast system's data is 5–10 ms old, while the data in the slow model's chunk at 7 Hz is 143–286 ms old. But the robot won't understand a new request any sooner than the slow model sees it and finishes computing.", "sec": "chase", "secTitle": "The arm chases a cup: one model and two systems side by side"}, {"q": "What does Helix's slow system pass to the fast one?", "o": ["The target's coordinates", "A single latent vector whose meaning emerges during training", "The text of a subtask"], "a": 1, "e": "S2, with 7B parameters (7–9 Hz), distills the task into a single vector, and S1, with 80M (200 Hz), places it next to the features of a fresh image. They are trained together, with a temporal offset between their inputs.", "sec": "dual", "secTitle": "Two models running at different rates in one system"}, {"q": "What does Gemini Robotics-ER 1.5 do when paired with the Gemini Robotics 1.5 VLA?", "o": ["Outputs joint angles 200 times per second", "Plans the steps, calls tools such as search, and passes the steps to the VLA in words", "Compresses action chunks before they are sent to the robot"], "a": 1, "e": "The ER model is an orchestrator: it doesn't move the arms itself. The VLA outputs the motion for each step, and ER 2 also watches the video to check whether a step is done.", "sec": "gemini", "secTitle": "Gemini Robotics: the cloud, a decoder on the robot and an orchestrator model"}]}</script>
+</section>
+
+<section class="section alt" id="home">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">1</span> New home</div>
+      <h2>A robot from the lab ends up in someone else's home</h2>
+      <p>A robot trained in lab kitchens is brought to an ordinary apartment. The plates have a different shape, the drawers open differently, the light comes from another side, and the table holds things it has never seen. And it's asked not to “pick up the cup” but to “clean the kitchen”: that's dozens of movements in the right order, and the command names none of them.</p>
+      <p>Both difficulties have come up before. In lesson 3.1, RT-1 completed 70% of the tasks in a real office kitchen with different counters, lighting and objects, even though it was trained in a “robot classroom”, a kitchen built for data collection. In lesson 3.4, a mixture of data from 22 robots often gave positive transfer: a model trained on the shared mixture did better than one trained only on its own robot's data. In lesson 2.3, the SayCan language model broke a long request into skills, but the skills and the planner were trained separately. In lesson 3.6, π0 folded laundry after post-training, while a separate vision-language model dictated table bussing to it step by step: “pick up the napkin”, “throw the napkin into the trash”.</p>
+      <p>π0.5 (Physical Intelligence, April 2025) takes on both problems at once. The authors write that they “demonstrate for the first time that an end-to-end learning-enabled robotic system can perform long-horizon and dexterous manipulation skills, such as cleaning a kitchen or bedroom, in entirely new homes.” Such tasks last 10 to 15 minutes. Generalization here means exactly this: the model works where not a single demonstration was recorded for it.</p>
+      <p>You can't record a robot in every home in the world. So where would the model learn how an unfamiliar home works?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="mix">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">2</span> Data</div>
+      <h2>Co-training: recordings of the target task are a small part of the data</h2>
+      <p>The authors had about 400 hours of recordings of mobile robots cleaning up in real homes, from roughly 100 homes. That's not much for one model, so they added everything even remotely relevant. <strong>Co-training</strong> is training one model on several kinds of data and tasks at once, in a shared mixture. In lesson 3.3, RT-2 was fine-tuned this way, on actions together with web data, so that it wouldn't forget what it knew about the world. π0.5 has six kinds of data:</p>
+    </div>
+    <div class="mix-grid" role="list" aria-label="The six kinds of π0.5 data">
+      <div class="mix-item" role="listitem"><b>MM</b><span>Mobile robots in homes: about 400 hours, about 100 homes. Exactly the task that is evaluated.</span></div>
+      <div class="mix-item" role="listitem"><b>ME</b><span>Static single-arm and bimanual robots in an even larger number of homes: more varied surroundings, but a different body.</span></div>
+      <div class="mix-item" role="listitem"><b>CE</b><span>Lab recordings of various robots on simple tables, plus the open OXE dataset from lesson 3.4.</span></div>
+      <div class="mix-item" role="listitem"><b>HL</b><span>The same recordings with every step captioned in words: “pick up the cutting board”, “adjust the pillow”. The model learns to name the next step.</span></div>
+      <div class="mix-item" role="listitem"><b>WD</b><span>Web data: image captions, questions and answers about images, finding an object in an image.</span></div>
+      <div class="mix-item" role="listitem"><b>VI</b><span>Verbal instructions: a person guides an already trained robot by telling it step by step what to do. About 11% of the high-level examples.</span></div>
+    </div>
+    <p class="cv-note">The six data sources of π0.5, from Section IV-C of the paper. The authors don't give the amounts of ME, CE and web data in hours.</p>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>In the first stage, 97.6% of the examples aren't recordings of mobile robots in homes. Each source teaches something of its own: ME, varied surroundings; CE, movements and grasps across many embodiments; web data, the names and properties of objects; step captions, how a long task is built from short ones.</p>
+      <p>The model is trained in two stages. The first, pre-training, is 280,000 training steps on the whole mixture, with the actions written as FAST tokens from lesson 3.6: this way the model learns faster. The second, post-training, is another 80,000 steps on the home recordings, filtered down to successful episodes below a fixed length, together with web data, step captions and verbal instructions. In the second stage, a flow-matching action expert is added to the model, as in π0: 300M parameters, 10 flow steps, a chunk of 50 actions. Motion targets are sent 50 times per second.</p>
+      <p>From the step captions, the model learns to say for itself what to do next, and that changes how it outputs actions. How does that work?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="levels">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">3</span> Subtasks</div>
+      <h2>First a subtask in words, then actions</h2>
+      <p>The command “clean the kitchen” doesn't say what to do right now. If the model gets it and immediately outputs an action chunk, it has to solve two problems internally at once: what comes next in the task, and how to do it with its hands.</p>
+      <p>π0.5 separates them explicitly. At each inference step, the model first writes a <strong>subtask</strong> as text: a short command that takes a few seconds to complete, such as “pick up the cutting board”. Then the same model outputs an action chunk, and the actions depend only on the subtask, not on the original request:</p>
+      <div class="formula">\[ \pi(a, \hat\ell \mid o, \ell) = \pi(a \mid o, \hat\ell)\; \pi(\hat\ell \mid o, \ell), \]</div>
+      <p>where \(o\) is the images and the robot's state, \(\ell\) is the person's request, \(\hat\ell\) is the subtask the model named itself, and \(a\) is the action chunk. Such a policy is called <strong>hierarchical</strong>: the high level decides what to do, the low level how. A policy that goes straight from the request to actions we'll call <strong>flat</strong>.</p>
+      <p>Previously, the levels were built from two models: in lesson 2.3, a language model chose the skills; in lesson 3.6, a vision-language model dictated the steps to π0; in lesson 3.7, Gemini Robotics-ER gave instructions to the VLA. In π0.5, both levels are the same weights. The authors explain why two levels are needed: the low level benefits from action recordings of any robots, including static ones in other homes, and the high level from step captions, web data and verbal instructions. A short subtask like “put the plate in the sink” shows up in the data of many robots, while a full cleanup of this particular kitchen shows up nowhere.</p>
+      <p>Let's see what this does on Ada's table.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="lab">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 1</div>
+    <h2>A flat and a hierarchical policy clear the table</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p class="ada-note"><svg class="ada-ico" viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="10" width="48" height="42" rx="18" fill="#f4efe6" stroke="#3d3c38" stroke-width="3"/><rect x="15" y="19" width="34" height="22" rx="10" fill="#1f2430"/><ellipse cx="25" cy="30" rx="4" ry="5.5" fill="#eb6834"/><ellipse cx="39" cy="30" rx="4" ry="5.5" fill="#eb6834"/></svg><span>Ada is a home humanoid on a wheeled base; the course labs are built around her. More about her in <a href="0-1-dve-paradigmy.html#ada">lesson 0.1</a>.</span></p>
+      <p>Ada is clearing a table. On it are four objects of different colors: the toys (cubes and balls) go in the box, and the dishes (bowls and cans) go in the sink. One action is a pair: where to pick up an object (a cell of a 24 × 24 grid, as in lesson 2.1) and where to put it, in the box or in the sink. The table is cleared if nothing is left on it and everything is in its place.</p>
+      <p>There's only one action model here: the “where to pick” map from lesson 2.1, a 5 × 5-cell filter over the image of the table, to which each word of the command adds its own correction, plus separate corrections for the box and the sink. It learns from 160 recordings of short commands from other tasks, such as “put the blue ball in the sink” (where to put the object is stated in the command itself), and from 8 recordings of the long task “clear the table”, in which the operator put the objects away in random order and each step was then captioned in words.</p>
+      <p><strong>The flat policy</strong> passes the command “clear the table” to the action model and immediately gets an action. <strong>The hierarchical one</strong> first names a subtask in words, such as “put the blue bowl in the sink”, and the action model gets only that, as in π0.5. The high level gets the names of the objects on the table ready-made: that's what a vision-language model knows from web data, as in lesson 3.2. All it learns is to choose which object comes next and where to take it, from the same 8 recordings. Both policies train right here in your browser, in under a second.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="duo" id="cDuo">
+          <figure class="pane"><figcaption class="pane-head"><b id="cHeadL">Flat</b><span>command straight to action</span></figcaption><canvas id="cCvL" class="clear-cv" width="400" height="490" role="img" aria-label="Top view of the table: the objects, the path of Ada's arm under the flat policy, and the box and the sink below the table"></canvas><div class="pane-stat" id="cStatL"></div></figure>
+          <figure class="pane"><figcaption class="pane-head"><b id="cHeadR" class="fm">Hierarchical</b><span>subtask in words first</span></figcaption><canvas id="cCvR" class="clear-cv" width="400" height="490" role="img" aria-label="Top view of the table: the same objects, the subtask in words above the table and the path of Ada's arm under the hierarchical policy"></canvas><div class="pane-stat" id="cStatR"></div></figure>
+        </div>
+        <p class="cv-note">A top view of the table; the table is 96 × 96 pixels, about 48 × 48 cm, and the thin grid shows the action cells. The scene is the same for both policies. Below the table are the toy box (left) and the sink (right). The marks for Ada's arm, its path and the mistakes are in the legend.</p>
+        <details class="lab-legend"><summary>Legend: marks on the scene</summary><div class="cv-legend" id="cLegend"></div></details>
+        <div class="ctl-row">
+          <label class="hd-range" id="wrapCScene"><span>Table</span><input id="cScene" type="range" min="1" max="20" step="1" value="1"><output>1</output></label>
+          <div class="ctl" id="wrapCRec"><span class="ctl-l">Long-task recordings</span><div class="seg" id="cRec" role="group" aria-label="How many long-task recordings"><button type="button" data-v="2" aria-pressed="false">2</button><button type="button" data-v="8" aria-pressed="true">8</button><button type="button" data-v="32" aria-pressed="false">32</button></div></div>
+          <button type="button" class="btn sm" id="cPlay">Play</button>
+        </div>
+        <div class="journal" id="cJournal" aria-live="polite"><div><h4>Flat: steps</h4><ol id="cJL"></ol></div><div><h4>Hierarchical: steps</h4><ol id="cJR"></ol></div></div>
+        <div class="bars" id="cBars"></div>
+        <div class="prog-line" id="cProg" hidden><i></i></div>
+        <div class="readout" id="cOut"></div>
+      </div>
+      <div class="card guide-card"><div id="cMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: the action model, the high level and why the flat policy mixes up colors</summary><div class="body">
+      <p><b>The action model.</b> For each grid cell \(i\), we take a 5 × 5-cell window over three colors: \(x_i\) is 75 numbers minus the color of the empty table. Each command word \(t\) has a filter correction \(w_t\) shared by both places, corrections \(w_{t,c}\) for the box and the sink, and biases \(b_{t,c}\). The score of the pair “cell \(i\), place \(c\)” under command \(T\) is:</p>
+      <div class="formula">\[\begin{gathered} s(i, c) = \Bigl(w_0 + \sum_{t \in T} (w_t + w_{t,c})\Bigr)^{\!\top} x_i + \sum_{t \in T} b_{t,c}, \\ p(i, c) = \operatorname{softmax}_{i, c}\, s(i, c). \end{gathered}\]</div>
+      <p>The softmax is taken over all 576 × 2 pairs, and the action is the pair with the highest probability. The model is trained with cross-entropy, 150 Adam steps on batches of 32 examples. Each step of the long task gives two examples: one with the subtask in words and one with the command “clear the table”. There's one model, and both policies use the same weights; the only difference is which words they give it.</p>
+      <p><b>The high level.</b> An object is described in words: its color (one of six) and its shape (one of four). For each pair “object on the table, place”, the score is the dot product of the place's weights with these features, followed by a softmax over all pairs. It learns from the 32 captioned steps of the 8 recordings. In words, the rule “bowls go in the sink” lives in a single shape feature, and color doesn't get in its way.</p>
+      <p><b>Why the flat policy gets confused.</b> To tell whether an object is a toy or a dish, the flat policy has to distinguish a bowl from a ball by pixels, and a linear filter's response to shape depends on color as strongly as on the shape itself. From 32 steps, it learned a mix of shape and color. On 200 new tables, it takes the blue ball to the sink 100% of the time, the blue cube 97% and the purple ball 87%, and it takes the yellow bowl to the box 74% of the time. It almost always puts red, green and orange toys in the right place.</p>
+      <p><b>What's simplified.</b> In π0.5, the high level sees the image itself and names the objects itself, and the subtask is written as text tokens. The action model outputs a chunk of 50 motions, not a single pair “where to pick, where to put”. Our operator's cleanup order is random, so the high level learns not the order but only the placement rule.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>Both policies share the same action model, and it almost always finds an object by its name. The flat policy goes wrong elsewhere: the command “clear the table” doesn't say where to take things, so it has to decide that by pixels, from the few recordings of the long task. The hierarchical one moves this decision into words. There, the rule “bowls go in the sink” rests on a single word and immediately carries over to a bowl of any color, and the action model has seen “put the blue bowl in the sink” among the short commands of other tasks.</p>
+      <p>π0.5 makes the same comparison on four tasks in mock homes: dishes in the sink, items in a drawer, laundry in a basket, and making the bed. The full model with subtasks did best of all the variants, even better than the variant in which a person stated the subtasks. Second best was the implicit HL variant: the step captions are in the training data, but the subtask isn't named at inference. So the captions help just by being trained on, and naming the subtask explicitly adds more. Worst of all was the variant in which GPT-4 stated the subtasks without any training on robot data: a general language model doesn't know what this robot can do in this home, the same problem as the language model without value functions in lesson 2.3.</p>
+      <p>All the tables in this lab stood in the same surroundings. What if you change the home itself: the tablecloth, the lighting, the pattern?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="homes">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 2</div>
+    <h2>How many homes it takes to work in a new one</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>The π0.5 authors tested this directly. They post-trained the model on mobile robot recordings from 3, 12, 22, 53, 82 and 104 locations, choosing the number of training steps so that each model saw the same number of unique examples. Only one thing changed: how many locations the examples came from. The models were tested in mock homes that weren't in the training data.</p>
+      <p>Let's repeat the experiment on Ada's table. Here, a home is a tablecloth, its pattern and the lighting: a white tablecloth, a light blue one with green checks, gray plastic with yellow polka dots. The task is short, “pick up the blue bowl”: the same action model as in lab 1, just without choosing a place. There are always 96 recordings, split evenly across 1–96 homes. The test is 128 commands in 16 new homes: two tables in each, four objects on each table, and each object is requested by name. For comparison, there's a model trained on the same number of recordings, 96, made right in the test homes, on other tables.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <canvas id="hCv" class="home-cv" width="400" height="400" role="img" aria-label="Top view of the table in a new home: the tablecloth, the objects and where the model reaches on the command"></canvas>
+        <p class="cv-note">A top view of the table in a new home, as the model sees it: 96 × 96 pixels. The orange fill shows where the model wants to pick up an object for the selected command: the brighter the cell, the higher the probability. The ring marks the object from the command; ✓ means the grasp hit it, ✗ means the grasp missed, landing on the tablecloth or on another object. Click an object to choose the command.</p>
+        <div class="sw-rows">
+          <div class="sw-row"><span class="sw-l">Training homes</span><div class="sw" id="hTrainSw"></div></div>
+          <div class="sw-row"><span class="sw-l">New homes</span><div class="sw test" id="hTestSw"></div></div>
+        </div>
+        <p class="cv-note">Each square is a home's tablecloth with its pattern and lighting. Under each new home's square is how many of its 8 commands the model carried out correctly.</p>
+        <canvas id="hChart" class="home-chart" width="640" height="230" role="img" aria-label="Chart: the share of correctly picked objects in new homes versus the number of training homes"></canvas>
+        <p class="cv-note">Horizontal: the number of training homes, on a log scale; vertical: the percentage of the 128 commands in new homes carried out correctly. Each point is a model trained on 96 recordings from that many homes. The dashed line is the model trained in the test homes themselves.</p>
+        <div class="ctl-row">
+          <label class="hd-range" id="wrapHN"><span>Training homes</span><input id="hN" type="range" min="0" max="9" step="1" value="0"><output>1</output></label>
+          <label class="hd-range" id="wrapHHome"><span>New home</span><input id="hHome" type="range" min="1" max="12" step="1" value="1"><output>1</output></label>
+          <div class="ctl" id="wrapHTable"><span class="ctl-l">Table</span><div class="seg" id="hTable" role="group" aria-label="Which table in the new home"><button type="button" data-v="0" aria-pressed="true">1</button><button type="button" data-v="1" aria-pressed="false">2</button></div></div>
+          <div class="ctl" id="wrapHSet"><span class="ctl-l">Home set</span><div class="seg" id="hSet" role="group" aria-label="Which set of homes to train on"><button type="button" data-v="0" aria-pressed="true">A</button><button type="button" data-v="1" aria-pressed="false">B</button><button type="button" data-v="2" aria-pressed="false">C</button></div></div>
+        </div>
+        <div class="prog-line" id="hProg" hidden><i></i></div>
+        <div class="readout" id="hOut"></div>
+      </div>
+      <div class="card guide-card"><div id="hMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: how the homes are built and why one tablecloth isn't enough</summary><div class="body">
+      <p><b>The home.</b> A tablecloth in one of nine colors, from white to dark wood. In three quarters of the homes, it has stripes, checks or polka dots whose color is 70–95% one of the four object colors and the rest the tablecloth color. The lighting ranges from 80% to 110% brightness, with a warm or cool tint. The objects are red, blue, green and yellow, one of each color, with random shapes.</p>
+      <p><b>The model.</b> The same map as in lab 1: a 5 × 5-cell filter over three colors plus corrections for the color and shape words, a softmax over 576 cells, cross-entropy, 160 Adam steps on batches of 32 recordings. Training one model takes about a second. The filter window sees both the object and the tablecloth around it: a blue bowl can be told from a blue stripe or blue polka dots only by the shape and size of the colored spot. Beyond the edge of the table, the window sees the tablecloth pattern continue.</p>
+      <p><b>Why one tablecloth isn't enough.</b> On a white tablecloth, a blue object is simply “a lot of blue in the window”, and the model doesn't need to learn to tell it from a blue stripe: there are no stripes there. In a new home, a stripe or polka dots in the object's color score as high as the object itself. The more different tablecloths there are in training, the more often the model sees that a striped blue spot isn't a bowl, and the more it relies on shape. The number of recordings doesn't grow; only the variety does.</p>
+      <p><b>What's simplified.</b> For π0.5, a location is a whole home: furniture, layout, objects, not just a tablecloth. Those models were post-trained after pre-training on all the other data, while ours learns from scratch. So the lab's numbers can't be compared with the paper's; only the shape of the dependence is similar.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>In π0.5, the dependence is the same: “the average performance among the tasks generally improves with more training locations”. A control model trained directly on data from the test homes performs about as well as the 104-location model, which never saw those homes. And one more check: the same data without the rest of the co-training, both from the 104 locations and straight from the test homes, gave much worse results. Variety of locations works only together with the rest of the mixture.</p>
+      <p>The authors checked which parts of the mixture matter more by removing them one at a time. Without the data from static robots in homes (ME) or without the lab data from various robots (CE), performance drops noticeably. Without web data, the average performance across tasks drops within the margin of error, but on commands with objects from unfamiliar categories (a funnel, a lighter, safety goggles), the model does noticeably worse. Such objects never appeared in the robot recordings at all, and the model's knowledge of them comes only from web data and from what the vision-language model learned before it ever saw a robot.</p>
+      <p>So π0.5's generalization rests on a mixture in which the vision-language model learns both words and actions at once. But in lesson 3.3, training on actions alone made the model forget what it knew about the world. How do you teach movements without damaging knowledge?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="ki">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">4</span> Insulation</div>
+      <h2>Knowledge insulation: the action expert shouldn't retrain the vision-language model</h2>
+      <p>In π0, the action expert from lesson 3.6 starts training with random weights and learns from the flow matching loss. The block mask from lesson 3.6 keeps the images and text from looking at the action tokens, but the expert itself reads the vision-language model's keys and values. Along this path, the gradient of the expert's loss also flows into the model's weights during training: the model adapts to an expert that can't do anything yet. The authors of the follow-up paper, “Knowledge Insulating Vision-Language-Action Models” (Driess et al., May 2025), showed what this leads to. The model follows commands worse (asked to bus a spoon into the bin, π0 “grasps a piece of trash instead”) and learns more slowly. On table bussing, π0 needed 7.5 times as many training steps as their variant to reach the same performance. The authors attribute this to interference between the gradients of the two objectives.</p>
+      <p>Freezing the vision-language model doesn't work either: the features it learned from images and text aren't enough to control a robot, and in the paper's experiments such a model failed every single trial. The model needs to learn actions, but not from a random expert.</p>
+      <p>The solution is called <strong>knowledge insulation</strong>. It has three parts. First, the vision-language model learns actions itself, as FAST tokens: for it, that's ordinary next-token prediction, and these tokens aren't needed at inference. Second, it keeps learning on web data: captions, questions about images, finding objects. Third, the action expert reads its keys and values through attention, but the gradient of the expert's loss doesn't flow into it. This is a <strong>stop-gradient</strong>: in the forward pass, a quantity takes part as usual, and in the backward pass it's treated as a constant.</p>
+    </div>
+    <figure class="card flow-card">
+      <canvas data-anim="ki" width="720" height="380" role="img" aria-label="Training diagram of two variants: without insulation, the gradient of the action expert's loss flows into the vision-language model and damages its knowledge; with insulation, it stops at the boundary, and the vision-language model learns from FAST tokens and web data"></canvas>
+      <figcaption class="muted-s">The training diagram: π0 without insulation on top, knowledge insulation below. Blue dots are the forward pass: the images and text go into the vision-language model, and the action expert (orange) reads its keys and values. Red dots are the gradient of the flow matching loss; purple dots are the gradient of the loss on FAST tokens and web data. The bar on the right side of the model shows how much it remembers of what it knew about the world before action training. Click the diagram to pause it.</figcaption>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>The authors write that their work “formalizes the approach of π0.5”. π0.5 was first trained only on FAST tokens, and the expert was added in the second stage; knowledge insulation does the same in a single stage. The result is a model that trains as fast as π0-FAST and outputs actions as fast as π0: the expert builds a chunk in a few flow matching steps instead of decoding tokens one at a time. For π0-FAST, a one-second chunk takes about 750 ms on an RTX 4090, and on table bussing it takes twice as long to complete the task. The price of insulation is about 20% more compute per training step because of the two kinds of actions; measured in time to the same performance, training is still faster than with π0.</p>
+    </div>
+    <details class="deep"><summary>Under the hood: two losses and where the gradient stops</summary><div class="body">
+      <p>The sequence is the images, text and robot state, then the FAST tokens, then the expert's noisy actions. The model's loss is the sum of two terms:</p>
+      <div class="formula">\[\begin{gathered} L = -\sum_j M^{\ell}_j \log p_\theta\bigl(\hat\ell_{j+1} \mid x_{1:j}\bigr) \\ +\ \alpha\, \bigl\lVert \omega - a_{1:H} - f_\theta\bigl(a^{\tau,\omega}_{1:H}\bigr) \bigr\rVert^2, \end{gathered}\]</div>
+      <p>where the first sum is the cross-entropy over the text and FAST tokens (the mask \(M^{\ell}\) selects which tokens count), and the second is the expert's flow matching term: \(a^{\tau,\omega} = \tau a + (1 - \tau)\,\omega\), \(\omega \sim \mathcal N(0, I)\), and the expert \(f\) predicts \(\omega - a\). The chunk is \(H = 50\) actions.</p>
+      <p>The expert and the vision-language model meet only in attention. The expert's queries \(Q_a\) look at the model's keys and values, but through a stop-gradient \(\operatorname{sg}\):</p>
+      <div class="formula">\[ \operatorname{softmax}\Bigl(\tfrac{Q_a\, [\operatorname{sg}(K_b),\ K_a]^\top}{\sqrt d}\Bigr)\, [\operatorname{sg}(V_b),\ V_a]. \]</div>
+      <p>The attention mask is set up so that the FAST tokens and the continuous actions can't see each other; otherwise the expert could copy the answer from the FAST tokens. Information flows only from the vision-language model to the expert. Since the expert's loss no longer affects the model, the weight \(\alpha\) can simply be set to 1: the second term now has its own, separate weights. In π0.5's post-training, the weight was \(\alpha = 10\).</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>A subtask in words is a short piece of reasoning before acting: one phrase about what to do next. What if the reasoning is more detailed?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="ecot">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">5</span> Reasoning</div>
+      <h2>Chain-of-thought reasoning before acting</h2>
+      <p>Language models solve hard problems more accurately if they first write out their reasoning and only then the answer. This is called <strong>chain-of-thought</strong> reasoning. A VLA from lesson 3.5 such as OpenVLA answers with an action right away: seven tokens per step, without a single word about what it sees and what it's about to do.</p>
+      <p>ECoT (Embodied Chain-of-Thought, Zawalski et al., 2024) teaches OpenVLA to write a chain about the task and the scene itself before every action. First it rephrases the task, then writes a plan, the current subtask, the motion in words (“move left”), the gripper coordinates in the image and the bounding boxes of the objects on the table, and only then the action tokens:</p>
+    </div>
+    <div class="dialog card" aria-label="An example of an ECoT reasoning chain">
+      <div class="dl-row"><b>Command:</b> put the watermelon on the towel.</div>
+      <div class="dl-row"><b>Task:</b> place the watermelon on the towel.</div>
+      <div class="dl-row"><b>Plan:</b> 1. move to watermelon; 2. firmly grasp it; 3. move to towel; 4. place watermelon on towel.</div>
+      <div class="dl-row"><b>Subtask:</b> move to the watermelon. <i>Reasoning: the watermelon is the first object the robot needs to interact with. The robot is not yet close to the watermelon, so the robot needs to move closer.</i></div>
+      <div class="dl-row"><b>Move:</b> move backward. <i>Reasoning: the watermelon is behind the robot, so it needs to move backward.</i></div>
+      <div class="dl-row"><b>Gripper position:</b> [156, 55]</div>
+      <div class="dl-row"><b>Visible objects:</b> watermelon [126, 146, 141, 125], towel [20, 59, 218, 198], spoon [114, 93, 141, 125]</div>
+      <div class="dl-row"><b>Action:</b> <span class="dl-slot">[Δx, Δθ, Δgrip]: 7 tokens</span></div>
+    </div>
+    <p class="muted-s dl-cap">An example chain from Figure 3 of the ECoT paper. The coordinates are pixels in the camera image; for the objects, they're the corners of the bounding box.</p>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>Nobody wrote the annotations for the 60,000 Bridge V2 demonstrations by hand. The Prismatic vision-language model described the scene, the Grounding DINO detector found the bounding boxes, OWLv2 and SAM located the gripper, the motion in words was computed from the robot's state 4 steps ahead, and Gemini 1.0 wrote the plan and the subtasks from all of this. More than 2.5 million steps were annotated in 7 days.</p>
+      <p>On tasks with new objects, scenes and commands, ECoT raised OpenVLA's absolute success rate by 28 percentage points, with 314 trials per method. It also beat RT-2-X, which is 7 times larger: 55B parameters versus 7B. The chain can be read: when the robot makes a mistake, you can see where it went wrong: for example, the model took a hammer for a screwdriver. It can also be corrected. Once per episode, a person said a phrase like “the cup is tall”, the chain was rewritten based on it, and on the three hardest tasks, success rose by 48 points.</p>
+      <p>The price is speed. Instead of 7 tokens per step, the model writes about 350. So in the main experiments, the upper part of the chain, the plan and the subtask, is recomputed once every 5 steps. In π0.5, the subtask is also reasoning before acting, just a short one, and the authors compare it directly with ECoT: their high level runs less often than the low level. Later, Gemini Robotics 1.5 learned to think in words before acting on its own: more on this in the “Today” section.</p>
+      <p>But both ECoT and π0.5 learn from demonstrations. Such a model is at best as good as the operator, and its own mistakes never appear in the data. How can a robot learn from its own attempts?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="recap">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">6</span> Experience</div>
+      <h2>π*0.6: learning from its own scored attempts</h2>
+      <p>In lesson 1.1, the errors of a policy trained on demonstrations piled up, and in lesson 1.2, DAgger corrected them: a person showed how to get out of the states the policy itself leads to. The authors of π*0.6 (Physical Intelligence, November 2025) set a broader goal: the robot should correct the mistakes it makes on the job and become faster and more reliable than the operator who taught it. For that, copying good behavior isn't enough: the robot needs to know which of its own actions were better.</p>
+      <p>The method is called RECAP (RL with Experience and Corrections via Advantage-conditioned Policies). The robot performs the task on its own, and each episode is labeled with its outcome: success or failure. When the robot is about to make a mistake, the operator can step in and correct it, as in DAgger. A <strong>value function</strong> is trained on all this data, as in SayCan from lesson 2.3, except that here it predicts from the images and the task how many steps are left until success. It sees where an episode went wrong: the value drops when the arm crumples a folded shirt and rises when the robot saves it.</p>
+      <p>From the value, the <strong>advantage</strong> of each action is computed: how much better things went after it than they usually do from that state. Now the key part. The policy is trained on all the data, not just the successful episodes, but text is added to its input: “Advantage: positive” if the advantage is above a threshold, and “Advantage: negative” if it's below. The operator's corrections are always labeled positive. At deployment, the prompt says “Advantage: positive”, and the model outputs actions that resemble the best of its own attempts.</p>
+      <p>The model with this input is π*0.6. The star distinguishes it from the base π0.6, discussed below: the architecture is the same, but π*0.6 has an input for the advantage label and is trained with RECAP, first on a large mixture of data from many tasks and robots, then separately for each task on the robot's own attempts.</p>
+      <p>RECAP is reinforcement learning, as in lesson 1.2: the robot acts on its own and learns from the scores of its attempts. But the authors didn't use the usual methods of this kind of learning: policy gradient methods, they write, are difficult to apply to flow matching models, and weighted regression methods effectively discard a large part of the data. In RECAP, the training step itself is ordinary supervised learning on all the data, as for a model trained on demonstrations, and the model gets the scores of its attempts through the advantage label in its input.</p>
+      <p>The base π0.6 is larger than π0.5: the Gemma 3 vision-language model with 4B parameters and an 860M action expert; it also states subtasks in words and is trained with the knowledge insulation recipe. After RECAP, on the hardest tasks (espresso, folding diverse laundry, assembling boxes), throughput, that is, how many tasks the robot completes successfully per hour, more than doubled, and the failure rate roughly halved. The model made espresso for 13 hours straight and folded unfamiliar laundry in a new home for more than two hours. The authors name the limitation themselves: “our system is not fully autonomous”; people label the episode outcomes, and they also step in and reset the scene.</p>
+    </div>
+    <details class="deep"><summary>Under the hood: the advantage, the threshold and the training objective</summary><div class="body">
+      <p>The reward is sparse: −1 for every step, 0 at the end of a successful episode and a large penalty at the end of a failed one. The value function \(V(o_t)\) is a distribution over 201 bins, trained with cross-entropy on episode returns; its backbone is a 670M-parameter vision-language model. The advantage of an action is an \(N\)-step lookahead estimate, \(N = 50\):</p>
+      <div class="formula">\[\begin{gathered} A(o_t, a_t) = \sum_{t'=t}^{t+N-1} r_{t'} + V(o_{t+N}) - V(o_t), \\ I_t = \mathbb 1\bigl[A(o_t, a_t) > \epsilon_\ell\bigr]. \end{gathered}\]</div>
+      <p>Each task has its own threshold \(\epsilon_\ell\). The training objective is the likelihood of the actions both without a condition and with the condition \(I_t\) written as text:</p>
+      <div class="formula">\[ \min_\theta\ \mathbb E\bigl[-\log \pi_\theta(a_t \mid o_t, \ell) - \alpha \log \pi_\theta(a_t \mid I_t, o_t, \ell)\bigr]. \]</div>
+      <p>This is a relative of classifier-free guidance from lesson 1.4: the model knows both the conditional and the unconditional distribution, and the improved policy is proportional to \(\pi(a \mid o, \ell)\,\bigl[\pi(a \mid I, o, \ell) / \pi(a \mid o, \ell)\bigr]^{\beta}\). With \(\beta = 1\), this is simply \(\pi(a \mid I{=}1, o, \ell)\), and that's how the authors run the model. Larger \(\beta\), they say, make the motions jerky. At every data collection iteration, the value function and the policy are fine-tuned anew from the pre-trained model, and one or two iterations are often enough.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>The text “Advantage: positive” in the input is a hint about how to act, not what to do. Could you hint at speed, care or strategy the same way?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="steer">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">7</span> Prompts</div>
+      <h2>π0.7: the prompt says what to do and how</h2>
+      <p>The more varied the data in the mixture, the more different ways of doing the same thing it contains: fast and slow operators, careful and sloppy ones, successful and failed attempts, recordings from specialists, that is, π*0.6 models fine-tuned with RECAP for a single task. The authors of π0.7 (Physical Intelligence, April 2026) write that naïve training on such a mixture “would lead to a model that averages together different modes in the dataset and produces suboptimal results”. This isn't the average action, as with regression in lesson 1.3: the flow-matching expert outputs actions from one of the modes present in the data. But which one is a matter of chance. Without a hint about what kind of episode this is, the model reproduces the whole mixture, slow, sloppy and failed attempts included, and on average performs like an average recording rather than the best one. There's no way to ask it to act like the best operators.</p>
+      <p>So in training, every example gets a detailed context. Besides the task and the subtask in words, it can include up to three subgoal images showing what the scene should look like after the subtask (they're drawn by a separate 14B-parameter image generation model) and <strong>episode metadata</strong>: how long the episode lasted, its quality on a scale from 1 to 5, whether there was a mistake, and how the arm was controlled. The prompt looks like this:</p>
+    </div>
+    <div class="prompt card" aria-label="An example π0.7 prompt">
+      <code>Task: peel vegetables. Subtask: pick up the peeler. Speed: 8000. Quality: 5. Mistake: false. Control Mode: joint.</code>
+      <p class="muted-s">An example from Section V of the paper: the task is to peel vegetables, the subtask is to pick up the peeler, the speed is the episode length in steps, the quality is 5 out of 5, there are no mistakes, and the arm is controlled in joint space.</p>
+    </div>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>During training, parts of the prompt are randomly dropped so that the model can also work without them. At deployment, the prompt gets the best values: quality 5, “Mistake: false”, and a speed like that of the fast episodes. It's the same idea as “Advantage: positive” in π*0.6, only with more descriptions. Such a model is called <strong>steerable</strong>: its behavior is set by the prompt. The authors checked why this matters. Without metadata, the model “can actually get worse when trained on larger, mixed-quality datasets”, while with metadata, it keeps improving as the data grows.</p>
+      <p>With prompts, you can also compose a new task out of familiar skills. A person guides the robot in words step by step, the way they'd explain the task to another person (the authors call this coaching), and π0.7 loads a sweet potato into an air fryer, even though there was no such task in its data; the authors note that similar appliances appeared in videos of people and in external datasets. It performs short new tasks such as pressing the plunger on a French press right away, but long ones, up to 5 minutes, don't work without a person's prompts. A high-level policy is then trained on the coaching recordings, and it performs about as well as a person giving prompts.</p>
+      <p>π0.7 is a 5B-parameter model: a 4B vision-language model and an 860M action expert, with a chunk of 50 actions in 5 flow steps. On the tasks where π*0.6 was trained with reinforcement learning separately for each task, a single π0.7 performs at the level of those specialists, and on laundry and boxes it even beats them in throughput. It was never trained to fold laundry on the bimanual UR5e robot, and yet it reached 85.6% task progress and an 80% success rate; experienced operators on this robot reached 90.9% task progress.</p>
+      <p>The authors themselves are cautious. The model often completes familiar tasks more than 90% of the time, and new task-robot combinations 60–80% of the time. And it's hard to say which tasks are truly new: the model may be generalizing mostly by “remixing” skills and behaviors it has seen.</p>
+      <p>Four models in a year and a half. What did each one add?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="axis">
+  <div class="wrap">
+    <div class="lab-badge"><i>🧩</i> Interactive</div>
+    <h2>From π0 to π0.7: what each model added</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>The columns below go in time order, left to right: π0 (October 2024), π0.5 (April 2025), π*0.6 (November 2025), π0.7 (April 2026). Sort the ideas by the model in which each one first appeared. The knowledge insulation paper came out a month after π0.5 and describes its recipe, so put its idea with π0.5. Drag a card, or tap it and then a column.</p>
+    </div>
+    <div class="card pad axis-sort" id="axisSort"></div>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>Each new model kept everything that came before it. The chunk of 50 actions from a flow-matching expert came from π0 and stayed in every model; the subtasks in words from π0.5 are in both π0.6 and π0.7; the scored data and autonomous attempts from π*0.6 went into training π0.7. The sizes grew too: the action expert went from 300M parameters in π0 and π0.5 to 860M in π0.6 and π0.7.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="today">
+  <div class="prose">
+    <div class="kicker"><span class="num">8</span> Today</div>
+    <h2>New homes without fine-tuning and reasoning in words have become the norm</h2>
+    <p>π0.5's code is open in the openpi repository, the same one that holds π0 from lesson 3.6. The idea of reasoning in words before acting caught on elsewhere too. Gemini Robotics 1.5 (Google DeepMind, September 2025) “can now think before taking action”: it writes out its reasoning in words and can decide on its own to break a long task into shorter segments. Its partner, Gemini Robotics-ER 1.5, plans the mission and gives the VLA an instruction for each step, as in lesson 3.7. With Gemini Robotics ER 2 (July 2026), the robot thinks about the next step while performing the current one, and it watches the video to track how the task is going so it can correct itself if something goes wrong.</p>
+    <p>Working in an unfamiliar home has become the main yardstick. In September 2026, Figure showed Helix 2.5 in 30 homes where not a single demonstration had been recorded and nothing had been fine-tuned: tidying a living room, folding towels, making a bed. Helix 2.5 was pre-trained from scratch on Index, Figure's own dataset of recordings of human behavior. To measure what this pre-training contributes, Figure compared two policies trained on the same task data: one starting from random weights, the other from weights pre-trained on Index. In the new homes, the first succeeded in 9% of trials and the second in 56%. Figure itself cautions: “The point is not that general humanoid robotics is solved.”</p>
+    <p>All these systems have one thing in common: they're hungry for data. π0 used more than 10,000 hours of recordings; π0.5, hundreds of hours in homes and a mixture in which recordings of the target task make up a few percent; Helix 2.5, recordings of people that, according to Figure, grow by “roughly 35 minutes of new human experience every second”. In lab 2, the same 96 recordings gave different results depending on how many homes they came from. How many recordings you need, where to get them and which ones to collect is the subject of Part 4.</p>
+  </div>
+</section>
+
+<section class="section" id="quiz">
+  <div class="prose">
+    <div class="kicker"><span class="num">9</span> Check yourself</div>
+    <h2>Eight common misconceptions</h2>
+    <div class="quiz" id="quizBox"></div>
+    <p class="score" id="quizScore" style="margin-top:14px"></p>
+  </div>
+</section>
+
+<section class="section alt" id="finale">
+  <div class="prose">
+    <div class="kicker"><span class="num">10</span> Takeaways</div>
+    <h2>Lesson takeaways</h2>
+    <ol class="takeaways">
+      <li><span><strong>Co-training</strong> on heterogeneous data: for π0.5, recordings of mobile robots in homes (about 400 hours in 100 homes) are only 2.4% of the first-stage examples; the rest is other robots, web data, step captions and verbal instructions. The model cleaned the kitchen and the bedroom in three homes that weren't in its training data.</span></li>
+      <li><span>A single model first names a <strong>subtask</strong> in words, then outputs actions, and the actions depend only on the subtask. The low level learns from the actions of any robots, the high level from captions, web data and instructions. On Ada's table, the flat policy cleared 7 tables out of 20, and the hierarchical one with the same action model cleared 20.</span></li>
+      <li><span>Performance in a new home grows with the number of different locations in training, not with the number of recordings: with the same amount of data, π0.5 from 104 locations works about as well as a model trained right in the test homes. In the lab, 96 recordings from one home gave 85 correct grasps out of 128 in new homes, from 12 homes 114, and the model trained in the test homes themselves 118.</span></li>
+      <li><span><strong>Knowledge insulation:</strong> the vision-language model learns actions as FAST tokens and keeps learning from web data, while the action expert's gradient doesn't flow into it. π0 needs 7.5 times as many training steps to reach the same performance; the actions are still output by the fast expert.</span></li>
+      <li><span>ECoT's <strong>chain-of-thought</strong> reasoning (plan, subtask, motion, gripper, object bounding boxes before the action) raised OpenVLA's success by 28 points but costs 350 tokens per step instead of 7. π0.5's subtask is a short and less frequent form of the same thing.</span></li>
+      <li><span>π*0.6 is π0.6 trained with reinforcement learning using RECAP. It learns from its own attempts: a value function scores every action, and “Advantage: positive” or “negative” is written into the model's input; on hard tasks, throughput more than doubled. π0.7 extends the prompt with subgoal images, speed, quality and mistakes and becomes <strong>steerable</strong>: it assembles new tasks out of skills, following a person's prompts.</span></li>
+    </ol>
+    <h3 style="margin-top:40px">Open questions</h3>
+    <details class="card pad open-q"><summary>How often should the subtask be named, and when should it change?</summary><p>The π0.5 authors write that “the high-level subtask inference is easily distracted”: the robot may close and open the same drawer several times. ECoT recomputes the plan every 5 steps, and π0.7 refreshes the subgoal image when the subtask changes or every 4 seconds. π0.5 has almost no memory of what has already been done: the subtask is chosen from the current images. How much context it takes to keep a long task from going in circles is still unclear.</p></details>
+    <details class="card pad open-q"><summary>Who will label the robot's experience?</summary><p>Both RECAP and π0.7's metadata rely on people: operators provide the episode outcomes, quality ratings, mistakes and corrections, and they reset the scene. The π*0.6 authors themselves call this the main limitation. For a robot to learn on the job, the scores will have to come without a human: from a value function, from a success detector as in lesson 2.3, or from a vision-language model watching the video. How far they can be trusted remains to be seen.</p></details>
+    <h3 style="margin-top:34px">Paper guide</h3>
+    <p><a href="https://arxiv.org/abs/2504.16054" target="_blank" rel="noopener">Physical Intelligence (K. Black et al.), “π0.5: a Vision-Language-Action Model with Open-World Generalization”, 2025</a>.</p>
+    <ul class="links">
+      <li><strong>Read closely</strong><span>Section IV-A and Equation 1: how the subtask and the actions are factored within one model. Section IV-C and Figure 4: the six kinds of data. Section V-B: the experiment with the number of locations at an equal amount of data. Section V-E: the high-level variants, from implicit HL to GPT-4 and a human.</span></li>
+      <li><strong>Safe to skip</strong><span>Appendix B with the scoring rules for each task, and Appendix A with the author contributions.</span></li>
+      <li><strong>Question to keep in mind</strong><span>The implicit HL variant is trained on step captions but doesn't name the subtask at inference, and yet it works better than the variant without captions. What do the captions teach the model if it never says them out loud?</span></li>
+    </ul>
+    <p style="margin-top:18px"><a href="https://arxiv.org/abs/2505.23705" target="_blank" rel="noopener">D. Driess et al., “Knowledge Insulating Vision-Language-Action Models: Train Fast, Run Fast, Generalize Better”, 2025</a>: stopping the action expert's gradient, and FAST tokens.</p>
+    <p><a href="https://arxiv.org/abs/2407.08693" target="_blank" rel="noopener">M. Zawalski et al., “Robotic Control via Embodied Chain-of-Thought Reasoning”, 2024</a>: ECoT.</p>
+    <p><a href="https://arxiv.org/abs/2511.14759" target="_blank" rel="noopener">Physical Intelligence, “π*0.6: a VLA That Learns From Experience”, 2025</a>: RECAP.</p>
+    <p><a href="https://arxiv.org/abs/2604.15483" target="_blank" rel="noopener">Physical Intelligence, “π0.7: a Steerable Generalist Robotic Foundation Model with Emergent Capabilities”, 2026</a>.</p>
+    <h3 style="margin-top:34px">Resources</h3>
+    <ul class="links">
+      <li><a href="https://www.pi.website/blog/pi05" target="_blank" rel="noopener">π0.5 blog</a><span>Videos of cleaning up in new homes</span></li>
+      <li><a href="https://www.pi.website/blog/pistar06" target="_blank" rel="noopener">π*0.6 blog</a><span>Espresso, laundry and boxes after RECAP</span></li>
+      <li><a href="https://www.pi.website/blog/pi07" target="_blank" rel="noopener">π0.7 blog</a><span>Prompts, coaching and new tasks</span></li>
+      <li><a href="https://github.com/Physical-Intelligence/openpi" target="_blank" rel="noopener">openpi</a><span>Code for π0 and π0.5</span></li>
+      <li><a href="https://embodied-cot.github.io" target="_blank" rel="noopener">ECoT</a><span>Project page with example chains</span></li>
+      <li><a href="https://deepmind.google/blog/gemini-robotics-15-brings-ai-agents-into-the-physical-world/" target="_blank" rel="noopener">Gemini Robotics 1.5</a><span>Reasoning in words before acting</span></li>
+      <li><a href="https://www.figure.ai/news/helix-2-5-zero-shot-30-home-generalization" target="_blank" rel="noopener">Helix 2.5</a><span>30 new homes without fine-tuning</span></li>
+    </ul>
+    <!--if:proverka-chasti-3.html--><div class="callout" style="margin-top:34px"><span class="ico">✅</span><div><p><strong>Check yourself on all of Part 3.</strong> Questions from lessons 3.1–3.8, shuffled: that shows what has stuck. At the end, a score per lesson and the sections worth revisiting.</p><p><a href="proverka-chasti-3.html">Part 3 check →</a></p></div></div><!--/if-->
+    <div class="callout insight" style="margin-top:34px"><span class="ico">➡️</span><div><p><strong>Next: Part 4, data for training robots.</strong> In Part 3, the models grew from RT-1 to π0.7, and each one needed more recordings than the last: thousands of hours, hundreds of homes, data from many robots. Language models are trained on text from the internet, but someone has to make a robot's recordings by hand. How much data do you need, where do you get it, and what should you collect so that the model works in a new home? <a href="../index.html#program">Course program →</a></p><!--if:4-1-masshtab-dannykh.html--><p><a href="4-1-masshtab-dannykh.html">Lesson 4.1 “The scale of data in robotics” →</a></p><!--/if--></div></div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Lesson 3.8 of the “Modern Robotics and Physical AI” course. The lab models train in your browser; the numbers from the π0.5, Knowledge Insulation, ECoT, π*0.6 and π0.7 papers are given as stated in their text.
+</footer>
+<div class="tooltip" id="tooltip" role="tooltip"></div>
+<script>
+/*@@JS@@*/
+</script>
+</body>
+</html>
