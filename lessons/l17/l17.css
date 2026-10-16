@@ -102,6 +102,9 @@
 .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: var(--radius); }
 .sys-table { min-width: 640px; }
 .sys-table td:first-child { white-space: nowrap; }
+.vs-table { min-width: 640px; }
+.vs-table th:nth-child(2), .vs-table th:nth-child(3) { width: 40%; }
+.vs-table td:first-child { font-weight: 650; }
 
 /* живые миссии: невыполненный критерий — «ещё нет», серым */
 .m-live .m-crit li.no i { border-color: var(--line-2); color: var(--ink-3); background: var(--surface-2); }
