@@ -137,7 +137,12 @@ function vecBar(c, v, x, y, w, hgt, P, vertical) {
     const tv = tokens(c, G.vis[0], G.vis[1], VIS, G.dir, G.sz, G.gap, P, A, pr[2] > 0 ? Math.min(1, pr[2] * 1.4) : 0);
     // 4. запрос словами
     const tw = tokens(c, G.q[0], G.q[1], WQ, G.dir, G.sz, G.gap, P, A, pr[3] > 0 ? Math.min(1, pr[3] * 1.4) : 0);
-    if (pr[3] > 0) QUERY.forEach((w, i) => { if (tw[i] && pr[3] * 3 > i) lab(c, k, w, tw[i][0] + G.wordOff[0], tw[i][1] + G.wordOff[1], { px: 10, color: P.mot, weight: 700, align: G.wordAlign, haloColor: P.surf2 }); });
+    if (pr[3] > 0 && G.dir === 'h' && tw.length) {
+      // токены стоят в ряд слишком тесно для слов по одному: фраза целиком над токенами, слова появляются слева направо
+      const n = QUERY.filter((w, i) => tw[i] && pr[3] * 3 > i).length, full = QUERY.join(' ');
+      HeroKit.font(c, k, 10, 700); const x = (tw[0][0] + tw[tw.length - 1][0]) / 2 - c.measureText(full).width / 2;
+      if (n) lab(c, k, QUERY.slice(0, n).join(' '), x, tw[0][1] + G.wordOff[1], { px: 10, color: P.mot, weight: 700, align: 'left', haloColor: P.surf2 });
+    } else if (pr[3] > 0) QUERY.forEach((w, i) => { if (tw[i] && pr[3] * 3 > i) lab(c, k, w, tw[i][0] + G.wordOff[0], tw[i][1] + G.wordOff[1], { px: 10, color: P.mot, weight: 700, align: G.wordAlign, haloColor: P.surf2 }); });
     // 5. языковая модель читает картинку и запрос целиком
     box(c, G.lm[0], G.lm[1], G.boxW, G.boxH, 'языковая модель', 'префиксное внимание', P, A, pr[4] > 0);
     if (pr[4] > 0 && pr[4] < 1) { const all = tv.concat(tw).filter(Boolean); all.forEach((p, i) => { if ((i + Math.floor(pr[4] * 6)) % 2) line(c, [p, [G.lm[0], G.lm[1]]], alpha(i < 7 ? P.spr : P.mot, 0.3), 0.9); }); flow(c, all, [[G.lm[0], G.lm[1]]], pr[4], 16, P.spr, A); }
@@ -257,16 +262,18 @@ const LabPatches = (() => {
   function state() { return { color: st.color, shape: st.shape, perm: st.perm, pos: st.pos, cos: st.res ? st.res.cos : 1, trained: Store.trained }; }
   function draw() {
     if (!st.res) compute();
-    const { c, k } = HeroKit.fit($('#pCv'), W, H), P = pal(), narrow = k > 1.5, R = st.res;
-    c.fillStyle = P.bg; c.fillRect(0, 0, W, H);
+    const cv = $('#pCv'), H2 = W / (cv.getBoundingClientRect().width || W) > 1.5 ? 330 : H;   // на телефоне строка внизу под подпись выхода
+    if (cv.style.aspectRatio !== `${W} / ${H2}`) cv.style.aspectRatio = `${W} / ${H2}`;
+    const { c, k } = HeroKit.fit(cv, W, H2), P = pal(), narrow = k > 1.5, R = st.res;
+    c.fillStyle = P.bg; c.fillRect(0, 0, W, H2);
     // картинка, собранная из патчей в текущем порядке
     const S = 176, x0 = 18, y0 = 48, cell = S / 4;
     const shown = st.perm ? (() => { const img = new Float32Array(L21.IS * L21.IS * 3); for (let p = 0; p < E.NP; p++) { const src = perm[p], sx = (src % 4) * 4, sy = Math.floor(src / 4) * 4, dx = (p % 4) * 4, dy = Math.floor(p / 4) * 4; for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) { const a = ((dy + y) * L21.IS + dx + x) * 3, b = ((sy + y) * L21.IS + sx + x) * 3; img[a] = st.img[b]; img[a + 1] = st.img[b + 1]; img[a + 2] = st.img[b + 2]; } } return bitmap(img, L21.IS, L21.IS); })() : st.bm;
     drawBitmap(c, shown, x0, y0, S, S);
     c.strokeStyle = P.ink; c.lineWidth = 1; for (let i = 0; i <= 4; i++) { c.beginPath(); c.moveTo(x0 + i * cell, y0); c.lineTo(x0 + i * cell, y0 + S); c.moveTo(x0, y0 + i * cell); c.lineTo(x0 + S, y0 + i * cell); c.stroke(); }
     for (let p = 0; p < E.NP; p++) { const src = st.perm ? perm[p] : p; HeroKit.label(c, k, String(src), x0 + (p % 4) * cell + 9, y0 + Math.floor(p / 4) * cell + 9, { px: 9.5, weight: 700, color: st.perm && src !== p ? P.e2e : P.ink2, haloColor: P.surf }); }
-    HeroKit.label(c, k, st.perm ? 'патчи перемешаны' : 'картинка 16 × 16, патчи 4 × 4', x0 + S / 2, 30, { px: 11, weight: 700, color: P.ink2, haloColor: P.bg });
-    HeroKit.label(c, k, 'номер — исходный патч', x0 + S / 2, y0 + S + 16, { px: 10, color: P.ink3, haloColor: P.bg });
+    HeroKit.label(c, k, st.perm ? 'патчи перемешаны' : narrow ? 'патчи 4 × 4' : 'картинка 16 × 16, патчи 4 × 4', narrow ? x0 : x0 + S / 2, 30, { px: 11, weight: 700, color: P.ink2, haloColor: P.bg, align: narrow ? 'left' : 'center' });
+    HeroKit.label(c, k, narrow ? 'исходные номера' : 'номер — исходный патч', x0 + S / 2, y0 + S + 16, { px: 10, color: P.ink3, haloColor: P.bg });
     // токены: линейная проекция каждого патча (до внимания), столбики 16 чисел
     const tx = 228, ty = 60, tw = 13, gap = 7, th = 128;
     HeroKit.label(c, k, narrow ? 'токены' : 'токены: патч × матрица E', tx + 8 * (tw + gap), 30, { px: 11, weight: 700, color: P.cl, haloColor: P.bg });
@@ -286,9 +293,12 @@ const LabPatches = (() => {
     HeroKit.label(c, k, 'выход', ox + 30, 30, { px: 11, weight: 700, color: P.ink2, haloColor: P.bg });
     vecBar(c, R.base.pooled, ox, oy, 20, th, P, true); c.strokeStyle = P.line; c.strokeRect(ox, oy, 20, th);
     vecBar(c, R.cur.pooled, ox + 40, oy, 20, th, P, true); c.strokeRect(ox + 40, oy, 20, th);
-    HeroKit.label(c, k, 'исход.', ox + 10, oy + th + 14, { px: 9.5, color: P.ink3, haloColor: P.bg });
-    HeroKit.label(c, k, 'сейчас', ox + 50, oy + th + 14, { px: 9.5, color: P.ink3, haloColor: P.bg });
-    HeroKit.label(c, k, `сходство ${fmt(R.cos, 3)}`, ox + 30, oy + th + 34, { px: 11, weight: 700, color: R.cos > 0.9999 ? P.good : P.e2e, haloColor: P.bg });
+    if (narrow) HeroKit.label(c, k, `выход: исходный и текущий · сходство ${fmt(R.cos, 3)}`, x0, H2 - 22, { px: 10.5, weight: 700, color: R.cos > 0.9999 ? P.good : P.e2e, haloColor: P.bg, align: 'left' });
+    else {
+      HeroKit.label(c, k, 'исход.', ox + 10, oy + th + 14, { px: 9.5, color: P.ink3, haloColor: P.bg });
+      HeroKit.label(c, k, 'сейчас', ox + 50, oy + th + 14, { px: 9.5, color: P.ink3, haloColor: P.bg });
+      HeroKit.label(c, k, `сходство ${fmt(R.cos, 3)}`, ox + 30, oy + th + 34, { px: 11, weight: 700, color: R.cos > 0.9999 ? P.good : P.e2e, haloColor: P.bg });
+    }
     HeroKit.label(c, k, '→', 206, 124, { px: 18, color: P.ink3, halo: false }); HeroKit.label(c, k, '→', 548, 124, { px: 18, color: P.ink3, halo: false });
     out();
   }
@@ -405,8 +415,9 @@ const LabVLM = (() => {
   function drawGrid() {
     const cv = $('#vGrid'); if (!st.res) { cv.hidden = true; $('#vGridH').hidden = true; $('#vGridNote').hidden = true; return; }
     cv.hidden = false; $('#vGridH').hidden = false; $('#vGridNote').hidden = false;
-    const narrow0 = GW / (cv.getBoundingClientRect().width || GW) > 1.5, cols = narrow0 ? 3 : 6, rows = 24 / cols;
-    const two = !!st.resB, rowH = two ? 72 : 60, GH2 = rows * rowH + 8; cv.style.aspectRatio = `${GW} / ${GH2}`;
+    const kk = GW / (cv.getBoundingClientRect().width || GW), narrow0 = kk > 1.5, cols = narrow0 ? 3 : 6, rows = 24 / cols;
+    const two = !!st.resB, lh = (narrow0 ? 9.5 : 10) * kk * 1.3, d1 = Math.max(11, 4 + lh / 2), d2 = d1 + Math.max(13, lh);   // строки подписей не налезают друг на друга
+    const rowH = Math.ceil(Math.max(two ? 72 : 60, 30 + (two ? d2 : d1) + lh / 2 + 6)), GH2 = rows * rowH + 8; cv.style.aspectRatio = `${GW} / ${GH2}`;
     const { c, k } = HeroKit.fit(cv, GW, GH2), P = pal(), narrow = k > 1.5, cw = GW / cols;
     c.fillStyle = P.bg; c.fillRect(0, 0, GW, GH2);
     st.tests.forEach((t, i) => {
@@ -414,8 +425,8 @@ const LabVLM = (() => {
       drawBitmap(c, t.bm, x + cw / 2 - S / 2, y, S, S);
       if (E.isHeld(t.c, t.s)) { c.setLineDash([3, 3]); c.strokeStyle = P.ink2; c.lineWidth = 1.4; c.strokeRect(x + cw / 2 - S / 2 - 2, y - 2, S + 4, S + 4); c.setLineDash([]); }
       const put = (g, yy, colOk, colBad) => { const ok = g.color === t.c && g.shape === t.s && g.words.length === 2; HeroKit.label(c, k, (ok ? '✓ ' : '✗ ') + sayWords(g.words), x + cw / 2, yy, { px: narrow ? 9.5 : 10, weight: 650, color: ok ? colOk : colBad, haloColor: P.bg }); };
-      if (t.a) put(t.a, y + S + 11, P.good, P.bad);
-      if (two && t.b) put(t.b, y + S + 24, P.cl, P.bad);
+      if (t.a) put(t.a, y + S + d1, P.good, P.bad);
+      if (two && t.b) put(t.b, y + S + d2, P.cl, P.bad);
     });
   }
   function out() {

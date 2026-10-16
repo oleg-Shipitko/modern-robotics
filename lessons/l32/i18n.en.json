@@ -189,5 +189,8 @@
  "[урок] ошибка в": "[lesson] error in",
  "${n} ${plural(n, 'миссия', 'миссии', 'миссий')} с целью": "${n} ${plural(n, 'mission', 'missions', 'missions')} with a goal",
  "5,8": "5.8",
- "0,02": "0.02"
+ "0,02": "0.02",
+ "патчи 4 × 4": "patches 4 × 4",
+ "исходные номера": "original numbers",
+ "выход: исходный и текущий · сходство ${fmt(R.cos, 3)}": "output: original and current · cos ${fmt(R.cos, 3)}"
 }
