@@ -62,7 +62,7 @@ const LabTok = (() => {
   const st = { bins: [0, 128, 128, 128, 128, 128, 128, 128], tok: 'palix', hi: null, lastErr: '', accepted: null };
   let ctl = null;
   const pose = () => E.binsToPose(st.bins);
-  const sgn = (v) => (v > 0 ? '+' : v < 0 ? '−' : '') + fmt(Math.abs(v), 2);
+  const sgn = (v) => { const r = Math.round(v * 100) / 100; return (r > 0 ? '+' : r < 0 ? '−' : '') + fmt(Math.abs(r), 2); };   // без «−0,00» у корзин рядом с серединой
   function draw() {
     const { c, k } = HeroKit.fit($('#tCv'), W, H), P = pal(), p = pose(), dark = HeroKit.dark();
     c.fillStyle = P.bg; c.fillRect(0, 0, W, H);
@@ -90,8 +90,8 @@ const LabTok = (() => {
     c.strokeStyle = P.e2e; c.lineWidth = 2.4; c.beginPath(); c.arc(ax, ay, 14, -Math.PI / 2, -Math.PI / 2 + p.rx * Math.PI * 0.7, p.rx < 0); c.stroke();
     if (!narrow) HeroKit.label(c, k, `крен ${sgn(p.rx)}`, ax, ay + 28, { px: 10.5, color: P.ink2, haloColor: P.bg });
     const grip = p.grip <= 0.1 ? 'губки сомкнуты' : p.grip >= 0.9 ? 'губки раскрыты' : `захват раскрыт на ${pc(p.grip)}`;
-    HeroKit.label(c, k, narrow ? grip : `${grip} · наклон ${sgn(p.ry)} · подъём ${sgn(p.dz)}`, sx, 236, { px: 11, color: P.ink2, haloColor: P.bg });
-    if (st.bins[0] === 1) { c.strokeStyle = P.bad; c.lineWidth = 3; c.strokeRect(2, 2, W - 4, H - 4); HeroKit.label(c, k, 'признак завершения = 1: эпизод окончен, движение не исполняется', W / 2, H - 14, { px: 12, weight: 700, color: P.bad, haloColor: P.bg }); }
+    if (st.bins[0] !== 1) HeroKit.label(c, k, narrow ? grip : `${grip} · наклон ${sgn(p.ry)} · подъём ${sgn(p.dz)}`, sx, 236, { px: 11, color: P.ink2, haloColor: P.bg });
+    if (st.bins[0] === 1) { c.strokeStyle = P.bad; c.lineWidth = 3; c.strokeRect(2, 2, W - 4, H - 4); HeroKit.label(c, k, narrow ? 'завершение = 1: движения нет' : 'признак завершения = 1: эпизод окончен, движение не исполняется', W / 2, H - 14, { px: 12, weight: 700, color: P.bad, haloColor: P.bg }); }
     else if (!narrow) HeroKit.label(c, k, `смещение x ${sgn(p.dx)}, y ${sgn(p.dy)} · поворот ${sgn(p.rz)}`, cx, H - 14, { px: 11, color: P.ink2, haloColor: P.bg });
     void dark;
   }
@@ -141,7 +141,7 @@ const LabTok = (() => {
   };
   const missions = [
     { short: 'Запиши', title: 'Запиши действие восемью числами', text: 'Задай ползунками действие: сдвинуть захват по x вперёд не меньше чем на треть диапазона, при этом сомкнуть губки и не завершать эпизод. Следи за строкой под сценой: она меняется с каждым ползунком.',
-      criteria: [{ label: 'Признак завершения — 0', test: (r, s) => s.term === 0 }, { label: 'Корзина Δx не меньше 170: смещение больше трети диапазона', test: (r, s) => s.bins[1] >= 170 }, { label: 'Захват сомкнут: корзина захвата не больше 25', test: (r, s) => s.gripBin <= 25 }],
+      criteria: [{ label: 'Признак завершения — 0', test: (r, s) => s.term === 0 }, { label: 'Корзина Δx не меньше 170: смещение не меньше трети диапазона', test: (r, s) => s.bins[1] >= 170 }, { label: 'Захват сомкнут: корзина захвата не больше 25', test: (r, s) => s.gripBin <= 25 }],
       hint: 'Ползунок Δx — второй в ряду, захват — последний. Корзина 128 — середина шкалы, нулевое смещение.',
       explain: (r) => `Действие стало строкой «${E.binsToString(r.bins)}»: восемь целых, первое — отдельная команда 0 или 1, остальные — номера корзин из 256. Для PaLI-X это восемь токенов из тех, что уже были в словаре для чисел: модель предсказывает их так же, как слова ответа. Такое же разбиение на 256 корзин было у RT-1 в уроке 3.1, новое в RT-2 то, что корзины стали токенами языковой модели.` },
     { short: 'Прочитай', title: 'Прочитай строку из статьи', text: `В статье приведён пример целевой строки: «${PAPER}». Вставь его в поле «Строка действия» и примени.`,
@@ -275,7 +275,7 @@ const LabVla = (() => {
   function out() {
     const seen = L.SEEN.includes(st.color);
     $('#lCmd').innerHTML = `Команда: <b>«возьми ${colorWord(st.color, 'm')} кубик»</b>${seen ? '' : ' <span class="tag-new">цвета не было в демонстрациях</span>'}`;
-    if (st.busy) { const kd = KINDS.find((x) => x.id === st.busy); setOut($('#lOut'), `Обучаю: ${kd.name.toLowerCase()} — ${pc(st.prog)}…`); return; }
+    if (st.busy) { const kd = KINDS.find((x) => x.id === st.busy); setOut($('#lOut'), `Обучаю модель «${kd.name}» — ${pc(st.prog)}…`); return; }
     const parts = KINDS.filter((kd) => kd.acts && get(kd.id)).map((kd) => `${kd.name.split(':')[0].toLowerCase()} ${get(kd.id).byColor[st.color].ok}`);
     const caps = KINDS.filter((kd) => get(kd.id)).map((kd) => `${kd.name.split(':')[0]} ${get(kd.id).cap.okColor}/${CAPN}`);
     setOut($('#lOut'), parts.length ? `«Возьми ${colorWord(st.color, 'm')} кубик», ${NT} новых сцен, взято: <b>${parts.join(', ')}</b>. Верных слов цвета в подписях: ${caps.join(', ')}. Сцена ${st.scene}: кружок — выбор модели, пунктир — не тот предмет.` : `Модели ещё не обучены. Веб-пар в обучении: ${st.web}, демонстраций: ${NR}.`);
@@ -291,7 +291,7 @@ const LabVla = (() => {
     state, train, trainAll, setColor, setWeb, setSeed, setScene, summary,
   };
   const missions = [
-    { short: 'С нуля', title: 'Только демонстрации, как RT-1', text: 'Первая модель учится с нуля на 300 демонстрациях: команды только с красным, синим и зелёным кубиком. Проверим её на команде «возьми фиолетовый кубик» — и для сравнения на красном.',
+    { short: 'С нуля', title: 'Только демонстрации, как RT‑1', text: 'Первая модель учится с нуля на 300 демонстрациях: команды только с красным, синим и зелёным кубиком. Проверим её на команде «возьми фиолетовый кубик» — и для сравнения на красном.',
       onEnter: (X) => X.setColor('purple'),
       bet: { q: 'возьмёт ли она фиолетовый кубик?', options: ['Да: кубики она брать умеет, а цвет видит на картинке', 'Нет: слова «фиолетовый» не было в её данных, запрос с ним ничего не значит', 'Через раз'], answer: (r) => (r.purple >= 14 ? 0 : r.purple <= 8 ? 1 : 2) },
       action: { label: 'Обучить с нуля', run: (X) => X.train('scratch') },
@@ -470,7 +470,7 @@ function initTables() {
    4. Что появилось само: команды из статьи по трём корзинам
    ===================================================================== */
 const EMERGENT = [
-  { id: 'num', label: '«move coke can near 3» — подвинь банку колы к цифре 3', target: 'web', why: 'Цифр в данных робота нет. Это группа «понимание символов» таблицы 3, RT-2-PaLI-X справился с ней в 93% запусков.' },
+  { id: 'num', label: '«move coke can near 3» — подвинь банку колы к цифре 3', target: 'web', why: 'Цифр в данных робота нет. Команда из группы «понимание символов»: в её подгруппе с цифрами и буквами RT-2-PaLI-X справился в 93% запусков, по всей группе — в 82% (таблица 5 статьи).' },
   { id: 'color', label: '«move apple to cup with same color» — к чашке того же цвета', target: 'web', why: 'Сравнить цвета предметов модель училась на вопросах о картинках, а не на демонстрациях. Группа «рассуждение».' },
   { id: 'sum', label: '«move banana near the sum of two plus one» — к сумме два плюс один', target: 'web', why: 'Арифметика пришла из веб-данных. Здесь сильнее оказалась RT-2-PaLM-E: 35% против 25% у PaLI-X.' },
   { id: 'es', label: '«mueve la manzana al vaso verde» — команда по-испански', target: 'web', why: 'Команды робота были только по-английски, а WebLI содержит тексты на 109 языках.' },
