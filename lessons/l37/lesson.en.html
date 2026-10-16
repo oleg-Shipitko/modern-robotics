@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3.7 Dual-system architectures: Helix, GR00T, Gemini Robotics — Modern Robotics and Physical AI</title>
+<meta name="description" content="Lesson 3.7 of the “Modern Robotics and Physical AI” course: Helix, GR00T N1 and Gemini Robotics. A slow vision-language model understands the scene and the command, a fast policy guides the arm 200 times per second, the third level of Helix 02 keeps balance at 1 kHz, and Gemini Robotics-ER plans the steps and passes them to the VLA in words. Work out how old the frames guiding the arm are, compare one model with two systems side by side on Ada's arm and sort a humanoid's tasks by level.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<script>
+  (function () { try { var t = localStorage.getItem('mr-theme'); if (t) document.documentElement.dataset.theme = t; else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme = 'dark'; } catch (e) {} })();
+</script>
+<style>
+/*@@CSS@@*/
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html#program" title="To the course program"><div>Modern Robotics and Physical AI<small>Lesson 3.7 · Dual-system architectures</small></div></a>
+    <nav class="toc" aria-label="Lesson sections">
+      <a href="#slow">Latency</a>
+      <a href="#delay">Data age</a>
+      <a href="#dual">Helix</a>
+      <a href="#chase">Cup</a>
+      <a href="#gr00t">GR00T</a>
+      <a href="#levels">Levels</a>
+      <a href="#gemini">Gemini</a>
+      <a href="#today">Today</a>
+      <a href="#quiz">Quiz</a>
+      <a href="#finale">Takeaways</a>
+    </nav>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Toggle theme">◐</button>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main>
+
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="kicker"><span class="num">3.7</span> Part 3 · Foundation models for robots</div>
+    <h1>Helix, GR00T, Gemini Robotics: <span class="amp">a slow model understands, a fast one guides the arm</span></h1>
+    <p class="lead">In lesson 3.6, π0 thought twice per second while commands went to the robot 50 times per second: the model output a chunk of 50 actions, and the robot executed it piece by piece. For a humanoid, that's not enough. Helix drives 35 degrees of freedom of a Figure humanoid (wrists, fingers, torso and head) 200 times per second, while its 7B-parameter vision-language model manages to look at the scene only 7–9 times. If the model runs in the cloud, the network adds to that: for Gemini Robotics, the path from a frame to actions takes about 250 ms. In 2025, Figure, NVIDIA and Google DeepMind arrived at the same solution: split the work between models running at different rates. A large, slow model understands the scene and the command, a small, fast one guides the arms using fresh frames, and in Helix 02 a third level appeared beneath them that keeps the robot balanced 1,000 times per second. This lesson covers what one model passes to the other in Helix, GR00T N1 and Gemini Robotics, why such a system guides the arm precisely but doesn't understand a new request any faster, and how Gemini's planner model hands out steps to the executor in words.</p>
+    <div class="hero-meta"><span>≈ 45 minutes</span><span>2 labs, an interactive, 2 diagrams and a quiz</span><span id="heroMis">missions with a goal</span></div>
+    <div class="hero-list">
+      <div><b>LATENCY</b>Work out how old the frames guiding the arm are when the model thinks 7 times per second while commands go out 200 times, and how much the cloud adds</div>
+      <div><b>CUP</b>Compare two arms side by side on the same scene: a single model and a pair of models running at different rates reach for a cup that someone moves across the table, and then the person changes their mind</div>
+      <div><b>LEVELS</b>Sort a humanoid's tasks into three levels: which one understands the request, which guides the arms, which keeps balance</div>
+      <div><b>PLANNER</b>Follow on the diagram how a Gemini model looks up the rules, hands out steps to an executor model and checks the result through the camera</div>
+    </div>
+    <p style="margin-top:28px"><a class="btn primary" href="#slow">Start the lesson ↓</a></p>
+  </div>
+</section>
+
+<section class="recall-sec" id="recall" aria-label="Warm-up on the previous lesson">
+  <div class="wrap"><div class="card recall" data-recall></div></div>
+  <script type="application/json" id="recallData">{"n": "3.6", "title": "π0", "href": "3-6-pi0.html", "q": [{"q": "How many actions does π0 output per inference call, and how many does a robot that gets commands 50 times per second execute?", "o": ["One action; the model is called 50 times per second", "A chunk of 50; the robot executes 25 and gets a new chunk every 0.5 s", "A chunk of 16; the robot executes all of them"], "a": 1, "e": "In 10 flow steps, the action expert builds a chunk of 50 actions. Inference takes 73 ms on an RTX 4090, and 25 actions of 20 ms each are 0.5 s of motion.", "sec": "arch", "secTitle": "A vision-language model and an action expert in one transformer"}, {"q": "What is the action expert in π0?", "o": ["A separate model with its own cameras", "A second, smaller set of weights in the same transformer for the state and action tokens; it is connected to PaliGemma through attention", "The last layer of PaliGemma, retrained for actions"], "a": 1, "e": "About 300M parameters versus PaliGemma's 3B. The action tokens read the images and text through attention, while the images and text are computed once and kept in the cache.", "sec": "arch", "secTitle": "A vision-language model and an action expert in one transformer"}, {"q": "Why does π0 have two stages, pre-training and post-training?", "o": ["Pre-training teaches language, post-training teaches motion", "Diverse recordings with mistakes provide general skills and corrections; curated recordings of the task teach the model to do it well", "It's faster: post-training replaces pre-training"], "a": 1, "e": "According to the authors, a model trained only on curated recordings is brittle and can't recover from mistakes. Pre-training is more than 10,000 hours, 7 robot configurations and 68 tasks; post-training is 5 to 100-plus hours of a single task.", "sec": "recipe", "secTitle": "First lots of diverse recordings, then a few clean ones"}]}</script>
+</section>
+
+<section class="section alt" id="slow">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">1</span> Latency</div>
+      <h2>Why one large model can't keep up with the arm</h2>
+      <p>In lesson 3.6, π0 built a chunk of 50 actions in 73 ms on an RTX 4090 GPU. The robot executed 25 of them, one every 20 ms, and got a new chunk every 0.5 s. The chunk let a model that thinks twice per second give commands 50 times per second. But the robot executes a chunk blind: all 25 actions are built from a frame captured before inference even started. If the cup was moved during that half second, the arm will head to where the cup used to be.</p>
+      <p>A humanoid's task is harder. Figure's Helix model, which this lesson is about, drives the robot's upper body: wrist poses, finger flexion and abduction, torso and head orientation, 35 degrees of freedom in total. It outputs commands 200 times per second, that is, every 5 ms. In 5 ms, a 7B-parameter vision-language model can't even read the frame: in Helix, it runs 7–9 times per second. RT-2 from lesson 3.3, with a 55B-parameter model, managed 1–3 times per second, and OpenVLA from lesson 3.5 about 6.</p>
+      <p>It gets worse if the model doesn't fit on board the robot. Gemini Robotics (Google DeepMind, 2025) is built on Gemini 2.0, and its main part runs in the cloud. The authors write that large models like their Gemini Robotics-ER take seconds to respond and require special hardware. The cloud part was sped up to respond in under 160 ms, but the path from a frame to an action chunk on the robot still takes about 250 ms. This time, from a captured frame to the first command built from it, is called <strong>latency</strong>. It is made up of the inference time and the trip over the network, and it tells you how long the robot waits for a response to what it saw; for π0 on board, it was 73 ms.</p>
+      <p>Figure put it this way: vision-language models are general but not fast, and visuomotor policies, which drive the robot from camera images, are fast but not general. What does a large model's slowness cost when you already have chunks and someone is moving the cup? You can work it out.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="delay">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 1</div>
+    <h2>Command rate and data age</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p class="ada-note"><svg class="ada-ico" viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="10" width="48" height="42" rx="18" fill="#f4efe6" stroke="#3d3c38" stroke-width="3"/><rect x="15" y="19" width="34" height="22" rx="10" fill="#1f2430"/><ellipse cx="25" cy="30" rx="4" ry="5.5" fill="#eb6834"/><ellipse cx="39" cy="30" rx="4" ry="5.5" fill="#eb6834"/></svg><span>Ada is a home humanoid on a wheeled base; the course labs are built around her. More about her in <a href="0-1-dve-paradigmy.html#ada">lesson 0.1</a>.</span></p>
+      <p>Ada reaches for a cup while a person moves it across the table at 15 cm/s. The slow model takes a camera frame, computes a chunk from it and immediately takes the next frame: at 7 Hz, inference takes 1/7 of a second, about 143 ms. If the model is in the cloud, the network adds to the inference time. The chunk arrives at the robot, and the arm executes it one command every 5 ms until the next chunk arrives.</p>
+      <p>Latency tells you when the first command built from a frame arrives. But the arm keeps executing the chunk after that, and meanwhile the frame grows older. Let's define <strong>data age</strong> as the time since the capture of the frame that the arm's current command was built from. A chunk has one latency, but each of its commands has its own data age: for the first command it equals the latency, and for the following ones it's larger. With π0 from lesson 3.6, the arm gets the chunk's first command 73 ms after the frame, and the last of the 25 when the frame is already more than half a second old. If the data age is 200 ms, the arm aims at where the cup was 200 ms ago, and in that time the cup has moved 3 cm. To grab the cup, the gripper has to get closer than that: in lab 2, the tolerance is 2 cm.</p>
+      <p>Below are a one-second timeline and a plot of data age. In the second mission, a switch for a second loop appears: the <strong>fast system</strong>, a small network on board that takes a fresh frame 200 times per second and guides the arm toward what the slow model named. Everything is computed exactly: the rates and delays are set, and nothing is trained.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <canvas id="dCv" class="tl-cv" width="640" height="220" role="img" aria-label="A one-second timeline: when the slow model takes a frame, how long it computes, how long the response takes over the network and when the arm gets commands"></canvas>
+        <p class="cv-note">A 1 s timeline, left to right, labeled in milliseconds. Rows from top to bottom: blue marks are the frames the model computes from; purple bars are the slow model's inference; gray hatched bars are the response's trip over the network; the orange comb is the fast system's ticks, if it's on; gray marks at the bottom are commands to the arm every 5 ms. A dashed arc links the command under the cursor to the frame it was built from.</p>
+        <canvas id="dPlot" class="age-cv" width="640" height="170" role="img" aria-label="Plot: the age of the data guiding the arm at each moment of the second"></canvas>
+        <p class="cv-note">Data age in milliseconds (vertical) at each moment of the second (horizontal): how old the frame is from which the arm's command was built. The purple line is the slow model's data, the orange one the fast system's, and the gray dashed line is the age at which the cup moves 2 cm away from the aim point. Click the timeline to move the cursor.</p>
+        <div class="ctl-row">
+          <label class="hd-range" id="wrapDF"><span>Model rate</span><input id="dF" type="range" min="1" max="10" step="1" value="7"><output>7 Hz</output></label>
+          <div class="ctl" id="wrapDFast"><span class="ctl-l">Fast system</span><div class="seg" id="dFast" role="group" aria-label="Fast system"><button type="button" data-v="0" aria-pressed="true">off</button><button type="button" data-v="1" aria-pressed="false">200 Hz on board</button></div></div>
+          <label class="hd-range" id="wrapDL"><span>Network delay</span><input id="dL" type="range" min="0" max="300" step="10" value="0"><output>0 ms</output></label>
+          <label class="hd-range" id="wrapDV"><span>Cup speed</span><input id="dV" type="range" min="0" max="25" step="1" value="15"><output>15 cm/s</output></label>
+        </div>
+        <div class="readout" id="dOut"></div>
+      </div>
+      <div class="card guide-card"><div id="dMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: where the bounds on data age come from</summary><div class="body">
+      <p>Let the slow model run at rate \(f\) and compute without pauses: inference takes \(c = T = 1/f\), frame \(k\) is captured at \(t_k = kT\), and the response takes another \(L\) over the network. The chunk from frame \(k\) arrives at the robot at \(t_k + T + L\) (the latency here is \(T + L\)) and is executed until the chunk from frame \(k + 1\) arrives, that is, for another \(T\). The data age at time \(t\) is \(t - t_k\) for the last chunk that has arrived:</p>
+      <div class="formula">\[\begin{gathered} a_{\min} = T + L, \quad a_{\max} = 2T + L,\\ \bar a = \tfrac{3}{2}\,T + L. \end{gathered}\]</div>
+      <p>At 7 Hz without a network, that's 143 and 286 ms, 214 ms on average. A cup moving at speed \(v\) gets \(v\,a\) away from the point the arm is aiming at: at 15 cm/s, from 2.1 to 4.3 cm. The rate of commands to the arm has nothing to do with it: you can slice the chunk into commands every 1 ms if you like, and the data in them stays the same.</p>
+      <p>The fast system takes a frame every tick, \(T_1 = 5\) ms, computes for one tick and outputs the command at the start of the next one, so its data is from \(T_1\) to \(2T_1\) old, that is, from 5 to 10 ms. The slow model hasn't gone anywhere, though: the robot will understand a person's new request no sooner than the slow model sees it and finishes computing. This reaction time to a request lies within the same bounds, \([T + L,\ 2T + L]\).</p>
+      <p>In real systems, inference doesn't always take the whole period, the models run on different GPUs, and camera frames arrive at their own rate. The numbers change, but the structure is the same: latency is the inference time plus the network, and data age is the latency plus the time the chunk has already been executing.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>Even with the slow model raised to 10 Hz, the data age can't go below 100 ms, or the miss at 15 cm/s below 1.5 cm. A chunk makes the motion smooth but doesn't make the data fresh. The fast system gives the arm frames 5–10 ms old, and it doesn't have to understand the request: it only needs to know what to reach for. How are such pairs of models built, and what does one tell the other?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="dual">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">2</span> Helix</div>
+      <h2>Two models running at different rates in one system</h2>
+      <p>Lab 1 showed that the arm needs frames a few milliseconds old, while there's no need to understand the request that often: until the person changes their mind, the answer to “what should I do?” stays the same. Helix (Figure, February 2025) splits the work between two models. The names come from psychologist Daniel Kahneman's book “Thinking, Fast and Slow” (2011), which the GR00T N1 authors also cite: System 2 is slow deliberation, and System 1 is fast, habitual action.</p>
+      <p><strong>The slow system</strong> (System 2, S2) is a 7B-parameter open-weight vision-language model. It gets a frame from the robot's camera, the robot's state (wrist poses and finger positions) and the request as text, runs 7–9 times per second and understands the scene and the task. What it outputs is neither text nor coordinates but a single <strong>latent vector</strong>: a set of numbers whose meaning nobody set in advance; it emerges during training. According to Figure, S2 distills into this vector everything about the task that matters for the motion.</p>
+      <p><strong>The fast system</strong> (System 1, S1) is an 80M-parameter transformer. It gets the same frames and state as S2 but processes them 200 times per second, and it outputs commands for the upper body: wrist poses, finger flexion, torso and head orientation. S1 reads the image with its own convolutional network, which was first trained in simulation. The latent vector from S2 is projected into an S1 token and placed in one sequence with the image features. That way, the fast system knows what to reach for, and it sees for itself where that thing is right now.</p>
+      <p>The systems run <strong>asynchronously</strong>: each at its own pace, without waiting for the other. S2 is a background process and S1 a separate real-time process; each runs on its own low-power embedded GPU, and both are on the robot itself. Every tick, S1 takes a fresh frame and the latest vector S2 has managed to output.</p>
+    </div>
+    <figure class="card flow-card">
+      <canvas data-anim="dual" width="720" height="330" role="img" aria-label="Helix over time: the slow system outputs a latent vector every 130 milliseconds, and the fast one takes a fresh frame and the latest vector every 5 milliseconds and outputs commands to the arms"></canvas>
+      <figcaption class="cv-note">Helix over time, slowed down 10 times. Blue marks are camera frames, purple bars are inference runs of the slow system S2, and purple squares are the latent vector it outputs; orange marks are ticks of the fast system S1, and gray arrows at the bottom are commands to the upper body. The number on a square is the vector's number: each S1 tick uses the latest one that has arrived. The S2 period in the diagram is 130 ms, about 7.7 Hz, within the 7–9 Hz range from Figure's blog. Click the diagram to pause it.</figcaption>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>Both systems are trained together, end-to-end, as one policy that maps pixels and text to actions, as in lesson 0.1. One subtlety has to do with time. On the robot, S1 sees a fresher frame than the one S2 computed its latest vector from. If both systems got the same frame during training, S1 would get used to something that never happens on the robot. So during training, a temporal offset is added between the inputs of S1 and S2, calibrated to match the gap between their latencies on the robot.</p>
+      <p>There isn't much data: about 500 hours of teleoperation, recordings in which the operator, a person, controlled the robot. Figure demonstrated one and the same set of weights, without task-specific fine-tuning, on moving objects around, working with drawers and a refrigerator, and handing objects from one robot to another. Given a command like “Pick up the [X]”, the robots picked up thousands of novel items from clutter.</p>
+      <p>But if S2 passes a vector rather than coordinates, can the arm keep up with a cup that's being moved? And what happens when the person changes their mind, given that S1 doesn't hear commands?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="chase">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 2</div>
+    <h2>The arm chases a cup: one model and two systems side by side</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>Take Ada's arm from lesson 0.3 (two links of 50 and 40 cm) and look at the table from above. A person moves the red cup to the right, and the blue one stays put. Ada grabs a cup if the gripper stays within 2 cm of it for 0.15 s: that's how long it takes to close the fingers. The gripper accelerates at no more than 3 m/s² and moves no faster than 0.6 m/s, like a real arm that can't change its velocity instantly.</p>
+      <p>On the left, the arm is controlled by <strong>one model</strong>, like π0 from lesson 3.6: from a single frame, it builds a chunk that guides the gripper to where the cup was in that frame (you can't tell the cup's velocity from one frame). On the right are <strong>two systems</strong>: the slow one, at the same rate, decides which cup to take and passes its name to the fast one, and the fast one looks at a fresh frame every 5 ms and guides the gripper to that cup. In Helix, a latent vector takes the place of the name, but its role is the same. Both sides are programs without perception errors, and no network is trained here: the arms differ only in when and what their models see.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="duo" id="cDuo">
+          <figure class="pane"><figcaption class="pane-head"><b class="one">One model</b><span id="cSubL">frame every 143 ms</span></figcaption><canvas id="cCvL" width="400" height="400" role="img" aria-label="Top view of the table: Ada's arm, controlled by one model, reaches for a cup"></canvas><div class="pane-stat" id="cStatL"></div></figure>
+          <figure class="pane"><figcaption class="pane-head"><b class="two">Two systems</b><span id="cSubR">slow 7 Hz + fast 200 Hz</span></figcaption><canvas id="cCvR" width="400" height="400" role="img" aria-label="Top view of the same table: Ada's arm, controlled by two systems, reaches for a cup"></canvas><div class="pane-stat" id="cStatR"></div></figure>
+        </div>
+        <p class="cv-note">A top view of the table in front of Ada; the scene is the same for both arms, and a grid cell is 10 cm. At the bottom is Ada seen from above: the wheeled base, body and head, and a two-link arm with a gripper at the end. The other marks are in the legend.</p>
+        <details class="lab-legend"><summary>Legend: marks on the scene</summary><div class="cv-legend" id="cLegend"></div></details>
+        <canvas id="cPlot" class="dist-cv" width="640" height="170" role="img" aria-label="Plot: the distance from the gripper to the requested cup over time for both arms"></canvas>
+        <p class="cv-note">The distance from the gripper to the requested cup in centimeters (vertical) over time from the start in seconds (horizontal). The purple line is the single model, the orange one the two systems, and the gray dashed line the 2 cm tolerance; beyond 12 cm, the line runs along the top edge. A circle marks the moment the gripper closed. If the request changes, the distance is measured to the new cup, and a purple dashed line marks the slow model's response that already takes the new request into account.</p>
+        <div class="ctl-row">
+          <label class="hd-range" id="wrapCV"><span>Cup speed</span><input id="cV" type="range" min="0" max="25" step="1" value="15"><output>15 cm/s</output></label>
+          <label class="hd-range" id="wrapCF"><span>Slow model</span><input id="cF" type="range" min="1" max="10" step="1" value="7"><output>7 Hz</output></label>
+          <label class="hd-range" id="wrapCL"><span>Network delay</span><input id="cL" type="range" min="0" max="300" step="10" value="0"><output>0 ms</output></label>
+          <div class="ctl" id="wrapCCmd"><span class="ctl-l">Request</span><div class="seg" id="cCmd" role="group" aria-label="The person's request"><button type="button" data-v="move" aria-pressed="true">“the red one”</button><button type="button" data-v="switch" aria-pressed="false">at 1.05 s: “no, blue”</button></div></div>
+          <button type="button" class="btn sm" id="cPlay">Play</button>
+        </div>
+        <div class="readout" id="cOut"></div>
+      </div>
+      <div class="card guide-card"><div id="cMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: how the arm executes commands and how we simplified the real systems</summary><div class="body">
+      <p>Both models give the gripper a target point \(p^\ast\) every 5 ms, and the arm's low level turns it into the gripper velocity \(v\) and the joint angles \(q\). The velocity command \(u\) is proportional to the miss, the actual velocity follows it with a lag \(\tau\), and the joint angles change through the Jacobian \(J\) from lesson 0.3:</p>
+      <div class="formula">\[\begin{gathered} u = K\,(p^\ast - p), \qquad \tau\,\dot v = u - v,\\ \dot q = J(q)^{-1}\,v. \end{gathered}\]</div>
+      <p>Here \(K = 25\) 1/s and \(\tau = 30\) ms; the gripper's acceleration is limited to 3 m/s² and its speed to 0.6 m/s.</p>
+      <p>For the single model, \(p^\ast\) is the cup's position in the frame captured at the start of the latest inference whose result has arrived; the point doesn't change until the next response. For the two systems, \(p^\ast\) is the cup's position in the frame from 5 ms ago, and which cup to take is given by the slow system's latest response. Until there's a response, both arms stand still. The simulation step is 1 ms, and the slow model's inference takes its entire period, as in lab 1.</p>
+      <p>Simplifications. A real S1 is a trained network, not an exact program: it makes mistakes, but from several frames it can notice that the cup is moving and aim ahead of it. A single model could also see several consecutive frames and extrapolate the motion, but it would respond to an unexpected jerk with the same delay. We only move the gripper in the plane of the table and model neither the fingers nor the height.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>Two systems split the reaction time into two parts. How precisely the arm guides the gripper is up to the fast system: its frames are 5–10 ms old. How quickly the robot understands a new request is up to the slow one: that can take as long as its period plus the inference time plus the network. Helix is a closed system: everything we know about it comes from Figure's own posts. How is the same split done in a model with open weights and a paper?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="gr00t">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">3</span> GR00T</div>
+      <h2>GR00T N1: the fast system reads the slow one's tokens</h2>
+      <p>All that's known about Helix is what Figure wrote: rates, sizes and the overall design, with no paper and no weights. GR00T N1 (NVIDIA, March 2025) is an open model for humanoids: there's a paper, the GR00T-N1-2B weights and data. It's built on the same principle, and the authors explicitly call its parts System 2 and System 1.</p>
+      <p>System 2 is the Eagle-2 vision-language model: 1.34B of the 2.2B parameters in the whole model. Each 224 × 224-pixel frame becomes 64 tokens, which the language part then processes together with the text of the command. On an L40 GPU, System 2 runs 10 times per second. The features are taken not from the language model's last layer but from the 12th, in the middle: according to the authors, this makes inference faster and the policy succeeds more often.</p>
+      <p>System 1 is a diffusion transformer (DiT) trained with flow matching, as in π0 from lesson 3.6. It alternates two kinds of blocks: self-attention over the tokens of the noisy actions and the robot's state, and cross-attention to the System 2 tokens, that is, attention where the queries come from one sequence and the keys and values from another, as in lesson 1.6. In 4 Euler steps, it builds a chunk of 16 actions; on an L40, that takes 63.9 ms, and the actions go out 120 times per second. The state and actions of different robots have different lengths, so System 1 has small MLP networks at its input and output, one for each configuration: a single-arm manipulator, two arms, the Fourier GR-1 humanoid with dexterous hands.</p>
+      <p>The main difference from Helix is in what one system passes to the other. In Helix, it's a single vector; in GR00T N1, it's the whole sequence of middle-layer tokens, and System 1 itself uses attention to pick out what it needs at that step. In π0 from lesson 3.6, the action expert was part of the same transformer and read the keys and values of all of PaliGemma's layers. Both GR00T N1 systems are trained together, but the language part of System 2 is kept frozen, as in lesson 3.2: its weights change neither in pre-training nor in fine-tuning.</p>
+      <p>The authors stack the data into a pyramid. At the bottom are web data and videos of people: they're the most plentiful, but they contain no robot actions. In the middle are simulation data and videos generated by a video model: 780,000 simulated trajectories, equivalent to 6,500 hours of demonstrations, were produced in 11 hours. At the top are recordings of a real robot, the scarcest kind. For videos without actions, the authors learn latent actions, a compressed description of what changed between two frames. These latents are different from Helix's vector; data like this is the subject of part 4.</p>
+    </div>
+    <details class="deep"><summary>Under the hood: flow matching in System 1 and the sign in the paper</summary><div class="body">
+      <p>Let \(A_t = [a_t, \dots, a_{t+H-1}]\) be a chunk of \(H = 16\) actions, \(\varphi_t\) the System 2 tokens, \(q_t\) the robot's state and \(\varepsilon \sim \mathcal N(0, I)\) the noise. The noise sits at \(\tau = 0\) and the chunk at \(\tau = 1\), as in lesson 1.8 and in π0. The DiT \(V_\theta\) learns to predict the velocity from the noise to the chunk, and at inference it takes \(K = 4\) Euler steps:</p>
+      <div class="formula">\[\begin{gathered} A_t^\tau = \tau A_t + (1-\tau)\,\varepsilon,\\ L(\theta) = \mathbb E\,\bigl\lVert V_\theta(\varphi_t, A_t^\tau, q_t) - (A_t - \varepsilon)\bigr\rVert^2,\\ A_t^{\tau + 1/K} = A_t^\tau + \tfrac{1}{K}\,V_\theta(\varphi_t, A_t^\tau, q_t). \end{gathered}\]</div>
+      <p>The text of the paper writes the target as \(\varepsilon - A_t\): the same sign mismatch as in the early versions of the π0 paper (lesson 3.6). With this path and this Euler step, the network should predict \(A_t - \varepsilon\). The time \(\tau\) is drawn from a beta distribution skewed toward the noise, with the same parameters as in π0. The step \(\tau\) is fed into the DiT blocks through adaptive layer normalization (AdaLN), and the action encoder gets it together with the noisy chunk.</p>
+      <p>Pre-training GR00T-N1-2B took about 50,000 H100 GPU hours. Generating the videos for the middle of the pyramid took about 105,000 L40 GPU hours: 827 hours of video, at 2 minutes per second of footage.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>On a real GR-1, the model fine-tuned on the full set of recordings succeeded in 76.8% of trials on average, and Diffusion Policy from lesson 1.5 in 46.4%. With 10% of the recordings, it was 42.6% versus 10.2%: a tenth of the data was enough for the pre-trained model to fall only 3.8 percentage points short of Diffusion Policy trained on the full data. In simulation, with 100 demonstrations per task, it was 45.0% versus 33.4% for Diffusion Policy and 26.4% for a transformer trained with behavior cloning. The authors name the limitation themselves: the model handles short tabletop tasks, and long tasks that involve moving around a home are left for future work.</p>
+      <p>The 2025 Helix also works with its upper body at a table. But a humanoid also has to stand, bend over and walk, all while working with its hands. Who keeps the robot balanced while its arms reach into the dishwasher?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="levels">
+  <div class="wrap">
+    <div class="lab-badge"><i>🧩</i> Interactive</div>
+    <h2>A third level: Helix 02 keeps its balance</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>While a humanoid stands at a table, its legs and balance can be handed to a separate controller. When it needs to walk up to the dishwasher, crouch and take out a plate, the movements of the arms and legs have to be coordinated. In Helix 02 (January 2026), a third level, S0, appeared beneath S1. “Each system operates at its natural timescale,” Figure writes.</p>
+      <p><strong>S0</strong> is a 10M-parameter neural network. It gets the state of all the joints and the motion of the base 1,000 times per second and outputs commands to the joint actuators: it handles balance, contact and coordination across the whole body. It was trained entirely in simulation, in more than 200,000 parallel environments, on more than 1,000 hours of human motion retargeted to the robot's joints. S0 replaced 109,504 lines of hand-written C++ code. S1 now outputs targets for the joints of the whole body 200 times per second, while S2 understands the scene and language and decides in what order to do things; Figure doesn't give its rate in Helix 02.</p>
+      <p>In the demo, a Figure 03 humanoid unloads and reloads a dishwasher for four minutes without human help: 61 actions in which it both walks and works with its hands. It has cameras in its head and palms, and tactile sensors on its fingertips that can feel a force as small as three grams.</p>
+      <p>Sort the tasks by level. The cards come from Helix, Helix 02 and GR00T N1: look not at the name of the system but at what needs to be done and how often. Drag a card, or tap it and then a level.</p>
+    </div>
+    <div class="card pad lv-sort" id="lvSort"></div>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>The lower the level, the more often it runs and the smaller the network: in the 2025 Helix, S2 has 7B parameters and S1 80M, and S0 in Helix 02 has 10M. It's the same rate ladder as in lesson 0.2, with slow understanding at the top and fast loops at the actuators at the bottom, except that neural networks have now come all the way down to the 1 kHz loop.</p>
+      <p>Both Helix and GR00T keep all the levels on the robot. What if the top model is so large that it doesn't fit on board?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="gemini">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">4</span> Gemini</div>
+      <h2>Gemini Robotics: the cloud, a decoder on the robot and an orchestrator model</h2>
+      <p>Gemini Robotics (Google DeepMind, March 2025) is a vision-language-action model based on Gemini 2.0, and it doesn't fit on board. The authors split it into two parts. The backbone runs in the cloud: it's a distilled version of Gemini Robotics-ER, that is, a smaller model trained to reproduce the large model's answers. Its response time was cut from seconds to under 160 ms. The robot's onboard computer runs the <strong>action decoder</strong>, the part of the model that turns the backbone's response into a chunk of motion. According to the authors, the decoder compensates for the backbone's latency: the path from a frame to an action chunk takes about 250 ms, and thanks to the multiple actions in a chunk, the effective control frequency is 50 Hz. The paper doesn't say how the decoder is built or how many actions are in a chunk.</p>
+      <p>The model was trained on thousands of hours of recordings from a fleet of bimanual ALOHA 2 robots, collected over 12 months, together with web documents, code, images and video. The baselines for comparison, π0 and Diffusion Policy, were trained on the same data and run locally on an RTX 4090, while Gemini Robotics ran from the cloud. On 20 tasks from its own data, without fine-tuning, it succeeded in more than 80% of trials on half of them and, according to the authors, clearly outperformed both baselines.</p>
+      <p>Gemini Robotics-ER itself is an <strong>embodied reasoning</strong> (ER) model: that's what the authors call the understanding of the space and physics of a scene that a robot needs. It marks points and bounding boxes of objects on a frame, draws trajectories and grasps, and estimates the positions of objects in 3D; in lesson 2.1, such points were compared with a Transporter map. In the paper, ER controlled the robot without any action data at all: it wrote code calling the robot's functions (move the gripper, open, close, find an object), like Code as Policies from lesson 2.3, got new frames and the result of the execution, and wrote the next piece of code. In simulation, Gemini 2.0 Flash managed 27% of the tasks this way on average, and Gemini Robotics-ER 53%.</p>
+      <p>In Gemini Robotics 1.5 (September 2025), these roles were split between two models. Gemini Robotics-ER 1.5 became the <strong>orchestrator</strong>, a model that doesn't move the arms itself: it plans the steps, calls tools such as Google Search, and hands the steps out to the executor. The executor is the Gemini Robotics 1.5 VLA: for each step, it gets an instruction in plain words and outputs the motion. Before moving, the VLA writes a short line of reasoning in words; according to the authors, this helps it with steps that take some thought. The motions transfer between robots: tasks shown only on ALOHA 2 during training work on Apptronik's Apollo humanoid and on a bimanual Franka, and vice versa.</p>
+    </div>
+    <figure class="card flow-card">
+      <canvas data-anim="orch" width="720" height="340" role="img" aria-label="Diagram: a person asks for the trash to be sorted by the city's rules, the orchestrator model looks up the rules and passes a step to the executor in words, the executor outputs chunks of motion, the camera shows the orchestrator the result, and it issues the next step"></canvas>
+      <figcaption class="cv-note">A diagram based on the descriptions of Gemini Robotics 1.5 and ER 2. Purple is the Gemini Robotics-ER orchestrator, orange is the VLA executor and its chunks of motion, and blue is what is measured and found: camera frames and the search result. The current step is highlighted: request, search, step in words, motion, check through the camera. Click the diagram to pause it.</figcaption>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>The design resembles SayCan from lesson 2.3: a language model chose a step, and a trained skill executed it. The difference is in the executor: instead of a list of skills with short descriptions, there's a single VLA that gets the step as free-form text. And the channel between the levels here is words: a person can read them, and any VLA trained on commands understands them.</p>
+      <p>Gemini Robotics ER 2 and Gemini Robotics 2 came out in July 2026. According to Google, ER 2 “hands off motor execution to any given lower level vision-language-action (VLA) model”, commands action models and robotics APIs, and watches continuous video to track the task's progress so it can notice a failure and correct it. Through the Gemini Live API, it responds in under a second. Gemini Robotics 2 is a VLA that controls a humanoid “from feet to fingertips”: Apollo 2 walks up to a table, picks up a watering can and puts it on the bottom shelf. Paired with ER, the robot completes tasks lasting several minutes and involving hundreds of decisions, and the authors name movement speed as the weak spot. Google doesn't publish the rates or latencies of these models.</p>
+      <p>So at all three companies, the robot thinks slowly and moves fast. What of this has survived in the 2026 systems, and where is it heading?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="today">
+  <div class="prose">
+    <div class="kicker"><span class="num">5</span> Today</div>
+    <h2>Three ways to connect the levels</h2>
+    <p>In 2026, Figure, NVIDIA and Google all split the work into slow understanding and fast motion, and they differ in what the upper level passes to the lower one. In Helix, it's a latent vector; in GR00T, middle-layer tokens that the fast system reads with attention; in Gemini Robotics, steps in words from ER to the VLA. The vector and the tokens are learned together with the fast system, and only it understands them. Words can be read by a person and by any VLA, which is why ER 2 promises to work with “any given lower level” VLA.</p>
+    <p>Helix 2.5 (Figure, September 2026) was pre-trained from scratch on Index, a dataset of recordings of human behavior. In 30 homes where not a single recording had been collected, the policy with this pre-training succeeded in 56% of trials, and the same policy without it, trained from random weights, in 9%; more on this in lesson 3.8. The announcement says nothing about how the levels are built. GR00T N1.6 (weights released in December 2025, 3B parameters) took an internal variant of the Cosmos-Reason-2B vision-language model, which NVIDIA also trained on embodied reasoning tasks, made the DiT twice as large as in N1.5 (32 layers instead of 16) and unfroze the top 4 layers of the vision-language model during pre-training. On an RTX 4090 with 4 flow steps, it builds a chunk in 44 ms: 25 ms go to the vision-language model and 17 ms to the action head. GR00T N1.7 switched to Cosmos-Reason2 and the open Apache 2.0 license. Gemini Robotics 2 controls the humanoid's whole body, and ER 2 plans on top of it.</p>
+    <p>What remains is the question that all of part 3 rests on: how well do such models generalize to new homes and tasks? In π0.5 from Physical Intelligence, the same model first states a subtask in words and then executes it with the action expert: both levels live inside one network. How do you train a model on heterogeneous data so that it copes in homes it wasn't trained in, and how can it learn from its own mistakes? That's the subject of lesson 3.8.</p>
+  </div>
+</section>
+
+<section class="section alt" id="quiz">
+  <div class="prose">
+    <div class="kicker"><span class="num">6</span> Check yourself</div>
+    <h2>Eight common misconceptions</h2>
+    <div class="quiz" id="quizBox"></div>
+    <p class="score" id="quizScore" style="margin-top:14px"></p>
+  </div>
+</section>
+
+<section class="section" id="finale">
+  <div class="prose">
+    <div class="kicker"><span class="num">7</span> Takeaways</div>
+    <h2>Lesson takeaways</h2>
+    <ol class="takeaways">
+      <li><span>A large vision-language model thinks 1–10 times per second, while a humanoid needs commands 200 times per second. A chunk makes commands frequent but <strong>not fresh</strong>. <strong>Latency</strong> is the time from a frame to the first command built from it; <strong>data age</strong> is the time from a frame to the command being executed right now. At 7 Hz, the latency is 143 ms, and the data age grows from 143 to 286 ms; in the cloud, both are longer by the network time.</span></li>
+      <li><span>A two-level system splits the work: the <strong>slow system</strong> understands the scene and the request, and the <strong>fast</strong> one guides the arms using fresh frames. They run asynchronously, and every tick the fast one takes the slow one's latest output.</span></li>
+      <li><span>The arm's precision is set by the fast system, and the <strong>reaction to a new request</strong> by the slow one: up to its period plus the inference time plus the network. With Ada's arm at 7 Hz, both arms turned toward the new cup after 0.24 s.</span></li>
+      <li><span>Helix passes <strong>a single latent vector</strong> from a 7B-parameter model (7–9 Hz) to an 80M-parameter policy (200 Hz). GR00T N1 passes <strong>12th-layer tokens</strong>, which the DiT reads with cross-attention: 10 Hz and 120 Hz, a chunk of 16 actions in 63.9 ms. Both pairs are trained together.</span></li>
+      <li><span>Helix 02 added a third level, <strong>S0</strong>: a 10M-parameter neural network running 1,000 times per second, trained in simulation. It keeps the whole body balanced and replaced 109,504 lines of C++.</span></li>
+      <li><span>Gemini Robotics keeps the backbone in the cloud (a response in under 160 ms, about 250 ms to a chunk) and the decoder on the robot. The Gemini Robotics-ER <strong>orchestrator</strong> plans the steps, calls tools and passes the steps to the VLA in words.</span></li>
+    </ol>
+    <h3 style="margin-top:40px">Open questions</h3>
+    <details class="card pad open-q"><summary>Why not make the fast system smarter and do without the slow one?</summary><p>The fast system's tick is 5 ms on an embedded GPU, and that budget fits an 80M-parameter network but not a 7B one. And knowledge about unfamiliar objects and words comes from pre-training on internet data, which only large models can hold. The boundary is moving: GR00T N1.6 on a desktop RTX 4090 spends 25 ms on the vision-language model, still five times longer than a Helix tick. Another path is to keep one network but split its work by rate inside it, like the action expert in π0 from lesson 3.6.</p></details>
+    <details class="card pad open-q"><summary>Who should stop the robot when a person is nearby: the slow system or the fast one?</summary><p>Google writes that ER 2 stops the humanoid when a person is nearby and responds in under a second. That's enough to understand the situation but not to avoid a collision: in half a second, an arm moving at 0.6 m/s covers 30 cm. So the decision to stop can be made by the upper level, while force and speed limits and the emergency stop are kept at the lower levels, which run hundreds and thousands of times per second, like the controllers from lesson 0.3.</p></details>
+    <h3 style="margin-top:34px">Paper guide</h3>
+    <p><a href="https://arxiv.org/abs/2503.14734" target="_blank" rel="noopener">NVIDIA, “GR00T N1: An Open Foundation Model for Generalist Humanoid Robots”, 2025</a>.</p>
+    <ul class="links">
+      <li><strong>Read closely</strong><span>Section 2.1 and Figure 3: System 2 and System 1, the 12th-layer features, cross-attention, K = 4. Tables 2 and 3: results in simulation and on a real GR-1 with 10% and 100% of the data.</span></li>
+      <li><strong>Safe to skip</strong><span>Section 3 with the list of datasets, and the appendices with training hyperparameters.</span></li>
+      <li><strong>Question to keep in mind</strong><span>Why do features from a middle layer of the language model work better than those from the last one? What does the last layer of a language model learn, and what part of it does a policy not need?</span></li>
+    </ul>
+    <p style="margin-top:18px"><a href="https://arxiv.org/abs/2503.20020" target="_blank" rel="noopener">Gemini Robotics Team, “Gemini Robotics: Bringing AI into the Physical World”, 2025</a>: the cloud backbone and the decoder on the robot (Section 3.1), Gemini Robotics-ER and control through code (Section 2.3).</p>
+    <h3 style="margin-top:34px">Resources</h3>
+    <ul class="links">
+      <li><a href="https://www.figure.ai/news/helix" target="_blank" rel="noopener">Helix</a><span>Figure's blog, February 2025: S2 and S1, the latent vector, asynchronous operation</span></li>
+      <li><a href="https://www.figure.ai/news/helix-02" target="_blank" rel="noopener">Helix 02</a><span>Figure's blog, January 2026: the S0 level and the dishwasher</span></li>
+      <li><a href="https://huggingface.co/nvidia/GR00T-N1.6-3B" target="_blank" rel="noopener">GR00T N1.6</a><span>Model card and weights on Hugging Face</span></li>
+      <li><a href="https://github.com/NVIDIA/Isaac-GR00T" target="_blank" rel="noopener">Isaac-GR00T</a><span>Fine-tuning and inference code, inference times on different GPUs</span></li>
+      <li><a href="https://deepmind.google/blog/gemini-robotics-15-brings-ai-agents-into-the-physical-world/" target="_blank" rel="noopener">Gemini Robotics 1.5</a><span>DeepMind blog, September 2025: the ER 1.5 orchestrator and the VLA</span></li>
+      <li><a href="https://deepmind.google/blog/gemini-robotics-2-brings-whole-body-intelligence-to-robots/" target="_blank" rel="noopener">Gemini Robotics 2</a><span>DeepMind blog, July 2026: a VLA for a humanoid's whole body</span></li>
+      <li><a href="https://blog.google/innovation-and-ai/models-and-research/google-deepmind/gemini-robotics-er-2/" target="_blank" rel="noopener">Gemini Robotics ER 2</a><span>Google blog, July 2026: video, planning, calling any VLA</span></li>
+    </ul>
+    <!--if:3-8-obobshchenie-i-rassuzhdenie.html--><div class="callout insight" style="margin-top:34px"><span class="ico">➡️</span><div><p><strong>Next: 3.8 “Generalization and reasoning: from π0.5 to π0.7”.</strong> In this lesson, the models were split by rate: a slow one understands, a fast one moves. The next lesson covers Physical Intelligence models that learn from heterogeneous data, state subtasks in words themselves, learn from their own experience and follow hints. <a href="3-8-obobshchenie-i-rassuzhdenie.html">Lesson 3.8 →</a></p></div></div><!--/if-->
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Lesson 3.7 of the “Modern Robotics and Physical AI” course. The lab models are exact programs with set rates and delays; the numbers for Helix, GR00T and Gemini Robotics are taken from the papers and official blogs.
+</footer>
+<div class="tooltip" id="tooltip" role="tooltip"></div>
+<script>
+/*@@JS@@*/
+</script>
+</body>
+</html>
