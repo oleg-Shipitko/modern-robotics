@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3.1 RT-1 — Modern Robotics and Physical AI</title>
+<meta name="description" content="Lesson 3.1 of the “Modern Robotics and Physical AI” course: RT-1, a transformer that turns camera frames and a text command into robot actions for more than 700 tasks. Work out what it takes to collect 130,000 demonstrations, turn an action into tokens and train a mini-RT-1 with 8, 32 and 256 bins, then use the paper's tables to see what matters more for generalization: the volume of data or its diversity.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<script>
+  (function () { try { var t = localStorage.getItem('mr-theme'); if (t) document.documentElement.dataset.theme = t; else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme = 'dark'; } catch (e) {} })();
+</script>
+<style>
+/*@@CSS@@*/
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html#program" title="To the course program"><div>Modern Robotics and Physical AI<small>Lesson 3.1 · RT-1</small></div></a>
+    <nav class="toc" aria-label="Lesson sections">
+      <a href="#data">Data</a>
+      <a href="#arch">Architecture</a>
+      <a href="#tokens">Tokens</a>
+      <a href="#diversity">Diversity</a>
+      <a href="#today">Today</a>
+      <a href="#quiz">Quiz</a>
+      <a href="#finale">Takeaways</a>
+    </nav>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Toggle theme">◐</button>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main>
+
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="kicker"><span class="num">3.1</span> Part 3 · Foundation models for robots</div>
+    <h1>RT-1: <span class="amp">one model for seven hundred tasks</span></h1>
+    <p class="lead">In lesson 2.3 the robot was assembled from separate parts: a language model planned, the skills and value functions were trained separately, detectors watched the scene, and each part could let the others down. The policies of Part 1 are simpler: an image goes in, an action comes out, but each of them learned a single task from dozens of demonstrations. RT-1 (Google, 2022) brings the two lines together: one network takes camera frames and the text of a command and outputs actions for more than 700 tasks. To get there, 13 robots spent 17 months collecting 130,000 demonstrations, and each of the 11 numbers of an action was replaced by the index of one of 256 equal intervals, so the model picks an action the way it picks a word from a vocabulary. We'll see how a frame and a command become 48 tokens, why it's convenient to predict an action as a class, and what matters more in the data for handling new commands and new surroundings: volume or diversity.</p>
+    <div class="hero-meta"><span>≈ 40 minutes</span><span>1 lab, 2 interactives and a quiz</span><span id="heroMis">missions with a goal</span></div>
+    <div class="hero-list">
+      <div><b>SCALE</b>Work out how many robots and months it takes to collect demonstrations for hundreds of tasks</div>
+      <div><b>DATA PATH</b>Follow on the diagram how a camera frame and the text of a command turn into one motion of the robot's arm and base in 15 ms</div>
+      <div><b>GRID ON THE TABLE</b>Split the table into cells and train a model to pick the cell to grasp: find the cell size at which it both hits the cube and still learns from 300 demonstrations</div>
+      <div><b>WHAT TO COLLECT</b>Use the paper's tables to check what hurts performance on new commands and in new surroundings more: removing half of the recordings or a quarter of the tasks</div>
+    </div>
+    <p style="margin-top:28px"><a class="btn primary" href="#data">Start the lesson ↓</a></p>
+  </div>
+</section>
+
+<section class="recall-sec" id="recall" aria-label="Warm-up on the previous lesson">
+  <div class="wrap"><div class="card recall" data-recall></div></div>
+  <script type="application/json" id="recallData">{"n": "2.3", "title": "LLM planners and VoxPoser", "href": "2-3-llm-planirovshchiki.html", "q": [{"q": "Why does SayCan multiply the language model's score by the skill's value function instead of using just one of them?", "o": ["The product is small if either score is small: a step has to be both useful for the request and feasible right now", "The product is faster to compute on the robot", "The value function is only needed for navigation skills"], "a": 0, "e": "The language model knows the order of steps but can't see the kitchen; the value function knows what is feasible right now but doesn't know the request. The product rules out a step that is useful but infeasible.", "sec": "saycan", "secTitle": "SayCan: useful and feasible"}, {"q": "The cup slipped out of the gripper. How does the language model in Inner Monologue find out?", "o": ["The model is fine-tuned on failed episodes", "The step's outcome is appended to the prompt in words: “Detector: success — no”", "It doesn't: the feasibility of the next step will fix everything"], "a": 1, "e": "The model doesn't change: the feedback arrives as text, as a continuation of the dialogue, and the model decides on its own whether to repeat the step or choose another one.", "sec": "monologue", "secTitle": "Inner Monologue: the step's outcome in words"}, {"q": "What builds the gripper's path to the drawer handle in VoxPoser?", "o": ["The language model writes out the trajectory points as text", "A classical planner, over cost maps filled in by code the model wrote", "A policy trained on demonstrations of opening drawers"], "a": 1, "e": "The model writes code, the code fills in the attraction and avoidance maps from the detectors' outputs, and the planner searches for a path over the cost map and recomputes it on the fly. No part is trained for the task.", "sec": "voxposer", "secTitle": "VoxPoser: code builds the map, the planner builds the path"}]}</script>
+</section>
+
+<section class="section alt" id="data">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">1</span> Data</div>
+      <h2>One model and 130,000 demonstrations</h2>
+      <p>In lesson 2.3 the success detector said “yes” when the cup had slipped, and the language model carried on with the plan, while the VoxPoser planner saw only its maps and knew nothing about what hadn't made it into them. A system of separate parts rests on agreements between them, and each part can let the others down. What we want is one model: pixels and words in, actions out, with no intermediate formats.</p>
+      <p>We've already met such models in this course. The policies of Part 1 map an image straight to an action, but each of them learned a single task from dozens of demonstrations, and a new task meant new demonstrations and a new network. By 2022, computer vision and language processing had moved from narrow datasets for every task to large models trained in two stages.</p>
+      <p><strong>Pre-training</strong> is the first stage: one large model is trained on a large and diverse dataset covering many tasks, and it learns general things, such as what objects look like and how language works. <strong>Fine-tuning</strong> is the second: training continues from the ready weights rather than random ones, on a small dataset for the target task; sometimes it isn't needed at all, and the model handles a new task right away. A model that serves as such a common base for many tasks is called a <strong>foundation model</strong>, which is where Part 3 gets its title. RT-1 already has this pair in a small form: the network that reads the frames is pretrained on ImageNet, the set of labeled photos from lesson 2.1, and then trains together with the rest of the model on robot demonstrations. The authors of <strong>RT-1</strong> (Brohan et al., Google, 2022) ask a broader question: can you train one large model on data from many robot tasks and get what other fields got, namely transfer to new tasks, objects and surroundings?</p>
+      <p>That takes data. For 17 months, 13 Everyday Robots mobile manipulators (an arm with 7 degrees of freedom, a two-finger gripper and a mobile base) collected demonstrations in a “robot classroom”: an office kitchen of counters and drawers built for data collection. The result was about 130,000 <strong>episodes</strong> (an episode is one recording of a task from start to finish: the camera frames, the command and the operator's actions at every step) and 744 instructions. An instruction is a verb and one or two nouns: “pick coke can”, “move apple near sponge”, “open the top drawer”. The instructions are grouped by verb into skills:</p>
+    </div>
+    <div class="card pad" style="max-width:820px;padding:14px 18px">
+      <table class="skills" aria-label="RT-1 skills and the number of instructions">
+        <thead><tr><th>Skill</th><th>Instructions</th><th class="ex">Example</th></tr></thead>
+        <tbody>
+          <tr><td>Move an object near another object</td><td class="num">337</td><td class="ex">move pepsi can near rxbar blueberry</td></tr>
+          <tr><td>Pick an object from a receptacle and place it on the counter</td><td class="num">162</td><td class="ex">pick green jalapeno chip bag from paper bowl and place on counter</td></tr>
+          <tr><td>Pick up an object</td><td class="num">130</td><td class="ex">pick iced tea can</td></tr>
+          <tr><td>Place an object into a receptacle</td><td class="num">84</td><td class="ex">place brown chip bag into white bowl</td></tr>
+          <tr><td>Place an elongated object upright</td><td class="num">8</td><td class="ex">place water bottle upright</td></tr>
+          <tr><td>Knock an elongated object over</td><td class="num">8</td><td class="ex">knock redbull can over</td></tr>
+          <tr><td>Open or close a drawer</td><td class="num">6</td><td class="ex">open the top drawer</td></tr>
+          <tr><td>Tasks for long-horizon instructions</td><td class="num">9</td><td class="ex">pull napkin out of dispenser</td></tr>
+          <tr><td>Total</td><td class="num">744</td><td class="ex"></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="prose" style="margin:22px 0 22px;max-width:820px">
+      <p>The demonstrations were recorded through teleoperation: the operator stood next to the robot and drove it with two VR controllers. The position and rotation of a controller became a gripper displacement, and the joystick turned and drove the base. The robot drove up to a station by itself and told the operator which instruction to demonstrate and how to rearrange the objects: that kept the dataset balanced across tasks and varied across scenes. Only successful episodes went into training, and the training itself is the same behavior cloning as in lesson 1.1: maximize the likelihood of the operator's actions given the frames and the command.</p>
+      <p>To get a feel for the scale, do the math yourself. RT-1's collection rate is 130,000 episodes from 13 robots over 17 months, about 590 episodes per robot per month; that's simply the paper's numbers divided out, not a measured operator throughput.</p>
+    </div>
+    <div class="card calc" id="calc" aria-label="Data collection calculator">
+      <div class="calc-ctl">
+        <label class="hd-range"><span>Tasks</span><input id="cTasks" type="range" min="1" max="1000" step="1" value="744"><output>744</output></label>
+        <label class="hd-range"><span>Demonstrations per task</span><input id="cPer" type="range" min="10" max="500" step="5" value="175"><output>175</output></label>
+        <label class="hd-range"><span>Robots</span><input id="cRobots" type="range" min="1" max="30" step="1" value="13"><output>13</output></label>
+      </div>
+      <div class="calc-out">
+        <div class="kpi"><b id="cEpisodes">—</b><span>episodes in total</span></div>
+        <div class="kpi"><b id="cMonths">—</b><span id="cMonthsCap">months of collection at RT-1's rate</span></div>
+        <div class="kpi ref"><b>130,000</b><span>RT-1's episodes: 744 tasks, 13 robots, 17 months</span></div>
+      </div>
+      <p class="cv-note calc-note">Episodes are tasks times demonstrations; the time is episodes divided by RT-1's rate of about 590 episodes per robot per month. The card with the dashed border shows RT-1's real numbers for comparison; the sliders don't change it.</p>
+    </div>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>One task from Part 1 on one robot takes a day. Seven hundred tasks take a whole fleet a year. And data of that size and diversity still has to be learned by something: the network has to read a frame and a command and output an action, fast enough to control the robot in real time. How is it built?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="arch">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">2</span> Architecture</div>
+      <h2>From a frame to action tokens</h2>
+      <p>A transformer is good at learning many tasks from a language command, but all-to-all attention between tokens is expensive, and the robot can't wait. People perform the instructions from the dataset in 2–4 seconds, so the authors require at least three actions per second from the model, and once the camera and communication delays are taken into account, the network itself gets less than 100 ms.</p>
+      <p>So the input is compressed to a small number of tokens. A 300 × 300 frame goes through EfficientNet-B3, a convolutional network pretrained on ImageNet, and gives a 9 × 9 × 512 feature map: 81 image tokens. Universal Sentence Encoder encodes the command into a single vector, and that vector enters the convolutional network through <strong>FiLM</strong> layers: from the command vector, a scale and a shift are computed for every feature channel. The image features are extracted with the command in mind from the very start, rather than being joined with the text at the end, as in Gato. To keep FiLM from damaging the pretrained weights, its layers are initialized to the identity: scale 1, shift 0. The image and command tokenizer has 16M parameters.</p>
+      <p>Next, <strong>TokenLearner</strong> reduces the 81 tokens to 8: a small network computes attention weights over the tokens and assembles eight weighted sums from them, so only the combinations that matter for the command reach the transformer. A history of 6 frames gives 48 tokens with positional encodings, and they are read by a decoder-only transformer with 8 attention layers and 19M parameters. RT-1 has 35M parameters in total and computes one action in 15 ms: TokenLearner speeds it up 2.4×, and not recomputing the tokens of the five previous frames gives another 1.7×.</p>
+      <p>The output works differently from Part 1. An action is 11 numbers: 7 for the arm (displacements along x, y, z, three rotations and the gripper opening), 3 for the base (x, y and rotation), and a mode: move the arm, move the base or end the episode. Each continuous dimension is split into 256 equal <strong>bins</strong> between its bounds, and the model predicts not a number but a bin index: 11 distributions over 256 classes, trained with cross-entropy, as in classification. All 11 tokens come out in a single pass: autoregression, where the next action token depends on the previous ones, made the model twice as slow and didn't improve the results.</p>
+    </div>
+    <figure class="card flow-card">
+      <canvas data-anim="rt1" width="720" height="300" role="img" aria-label="The data path in RT-1: a frame and a command; EfficientNet-B3 with FiLM gives 81 tokens; TokenLearner keeps 8; a history of six frames gives 48 tokens; an eight-layer transformer; eleven action tokens of 256 bins each; the action is executed three times per second"></canvas>
+      <figcaption class="cv-note">A diagram of one RT-1 step, not a picture of the robot. On the left are the camera frame (the table from above: three cubes, a bowl and the orange bracket of the gripper) and the command. Blue marks the image tokens: 81 after EfficientNet, 8 after TokenLearner, 48 over six frames; the orange dashed lines from the command are FiLM, the command changing the image features. Purple is the transformer, and the arcs are attention between tokens. On the right, 11 orange strips are the action tokens: each strip is the 256 bins of one dimension, and the black tick is the chosen bin. The dashed line at the bottom is the action going to the robot, and the step repeats 3 times per second. The diagram has as many tokens as the paper. Click the diagram to pause it.</figcaption>
+    </figure>
+    <details class="deep"><summary>Under the hood: FiLM, TokenLearner and the training objective</summary><div class="body">
+      <p>FiLM (feature-wise linear modulation) scales and shifts every channel \(c\) of the feature map \(F\) by numbers that depend on the command embedding \(e\):</p>
+      <div class="formula">\[ \hat F_c = \bigl(1 + \gamma_c(e)\bigr)\, F_c + \beta_c(e), \qquad \gamma(e) = W_\gamma e,\quad \beta(e) = W_\beta e. \]</div>
+      <p>The matrices \(W_\gamma\) and \(W_\beta\) are zero at the start of training, so \(\hat F = F\): the pretrained network works as before, and the command starts to affect the features as training goes on. For each of the \(M = 8\) output tokens, TokenLearner computes weights over the \(N = 81\) input tokens and takes the weighted sum:</p>
+      <div class="formula">\[ \alpha_{j} = \operatorname{softmax}_{i}\bigl(g_j(z_i)\bigr), \qquad \tau_j = \sum_{i=1}^{N} \alpha_{ji}\, z_i . \]</div>
+      <p>A continuous action dimension \(a_k\) with bounds \([a_k^{\min}, a_k^{\max}]\) turns into a bin index, and the training objective is the sum of cross-entropies over the 11 dimensions given the command \(i\) and the last six frames:</p>
+      <div class="formula">\[\begin{gathered} b_k = \Bigl\lfloor 256\, \frac{a_k - a_k^{\min}}{a_k^{\max} - a_k^{\min}} \Bigr\rfloor, \\ \mathcal L = -\sum_{k=1}^{11} \log p_\theta\bigl(b_k \mid i,\ x_{t-5}, \dots, x_t\bigr). \end{gathered}\]</div>
+      <p>At execution time, the most probable bin is taken for each dimension, and its center is returned as a number. To keep the action rate from drifting, the system waits a fixed 280 ms before applying an action, the largest of the observed component latencies.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>The policies of Part 1 output an action as numbers, and in lesson 1.3 regression with mean squared error averaged the two detours around the kettle. Bins don't do that: a distribution over 256 classes can have two peaks, like the map from lesson 2.1. The paper also has a direct test: the same model with continuous actions and a Gaussian output completed 68% of familiar tasks instead of 97%. But bins raise a question of their own. With few bins, the bin center is far from the right point. With 256 of them, each class has few examples. How many bins do you need to both hit the object and learn from the demonstrations you have?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="tokens">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab</div>
+    <h2>Action as a token</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>Before training a model with bins, you have to choose how many. Too few bins, and the bin center is far from the right point, so even a perfectly trained model misses. Too many, and each class has few examples, so the model doesn't manage to learn which bin is where. It's a trade-off between action resolution and the amount of data.</p>
+      <p>Let's test it on Ada's table from lesson 2.1: 96 × 96 pixels, three cubes of different colors and a bowl, the command “pick up the &lt;color&gt; cube”, and the action is the grasp point. First without training: lay a grid of \(B\) bins per axis over the table, put the grasp point into its bin and return the bin center, as the robot does with an action token. Then we'll train a <strong>mini-RT-1</strong>: a tokenizer over cells of 3 × 3 pixels with FiLM conditioning on the command word, soft selection of one token from the cells, as in TokenLearner, a small fully connected network instead of the transformer, and two heads, one for the x bin and one for the y bin. The model trains right here in the browser, in 1000 steps on 300 demonstrations, and is tested on 30 new scenes.</p>
+      <p class="ada-note"><svg class="ada-ico" viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="10" width="48" height="42" rx="18" fill="#f4efe6" stroke="#3d3c38" stroke-width="3"/><rect x="15" y="19" width="34" height="22" rx="10" fill="#1f2430"/><ellipse cx="25" cy="30" rx="4" ry="5.5" fill="#eb6834"/><ellipse cx="39" cy="30" rx="4" ry="5.5" fill="#eb6834"/></svg><span>Ada is a home humanoid on a wheeled base; the course labs are built around her. More about her in <a href="0-1-dve-paradigmy.html#ada">lesson 0.1</a>.</span></p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <p class="cmd-line" id="tCmd"></p>
+        <canvas id="tCv" width="440" height="440" class="rt-cv" role="img" aria-label="The table from above with a grid of bins: three cubes and a bowl, a dashed ring around the target cube, a cross at the center of the target's bin, and the predictions of the trained models"></canvas>
+        <p class="cv-note">Top-down view of the table, as in lesson 2.1: 96 × 96 pixels, three cubes and a bowl (the ring). Thin lines are the grid of bins, and the label at the top says how many bins there are per axis. The dashed ring is the hit zone around the cube named in the command, and the cross is the center of its bin: green for a hit, red for a miss. Rings with a number show where the trained models aim, in the color of the model's card below the scene. The other marks are in the legend.</p>
+        <details class="lab-legend"><summary>Legend: marks on the scene</summary><div class="cv-legend" id="tLegend"></div><div class="cv-legend" id="tLegendM"></div></details>
+        <div class="readout" id="tOut"></div>
+        <div class="ctl-row">
+          <label class="hd-range wide" id="wrapTBins"><span>Bins per axis</span><input id="tBins" type="range" min="0" max="5" step="1" value="1"><output>8</output></label>
+          <div class="ctl" id="wrapTSize"><span class="ctl-l">Cube</span><div class="seg" id="tSize" role="group" aria-label="Size of the target cube"><button type="button" data-v="normal" aria-pressed="true">normal</button><button type="button" data-v="small" aria-pressed="false">small</button></div></div>
+        </div>
+        <div class="ctl-row">
+          <div class="ctl" id="wrapTDemos"><span class="ctl-l">Demonstrations</span><div class="seg" id="tDemos" role="group" aria-label="Number of demonstrations"><button type="button" data-v="100" aria-pressed="false">100</button><button type="button" data-v="300" aria-pressed="true">300</button><button type="button" data-v="1000" aria-pressed="false">1000</button></div></div>
+          <label class="hd-range" id="wrapTScene"><span>Test scene</span><input id="tScene" type="range" min="1" max="30" step="1" value="1"><output>1</output></label>
+          <button type="button" class="btn sm" id="tTrain">Train</button>
+        </div>
+        <div class="models" id="tModels"></div>
+      </div>
+      <div class="card guide-card"><div id="tMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: mini-RT-1 and its simplifications</summary><div class="body">
+      <p>Cell \(i\) of the table gives its color minus the background, \(c_i \in \mathbb R^3\), and its position \((x_i, y_i)\). The tokenizer with FiLM conditioning on the command word \(w\), the soft selection of one token and the classification heads work like this:</p>
+      <div class="formula">\[\begin{gathered} h_i = \tanh\bigl((1 + \gamma_w) \odot (W c_i + b) + \beta_w\bigr), \qquad \alpha_i = \operatorname{softmax}_i(u^\top h_i + c), \\ (\bar x, \bar y) = \sum_i \alpha_i\,(x_i, y_i), \qquad \mathcal L = -\log p_x\bigl(b_x \mid \bar x, \bar y\bigr) - \log p_y\bigl(b_y \mid \bar x, \bar y\bigr). \end{gathered}\]</div>
+      <p>The matrices \(\gamma_w\) and \(\beta_w\) hold one pair of vectors for each of the six words and start at zero: FiLM starts as the identity, as in the paper. The weights \(\alpha_i\) are attention over the cells, and that's what is drawn on the table in the model's color. The head \(p_x, p_y\) is a 2 → 48 → \(2B\) network with tanh, \(B\) logits per axis; the prediction is the most probable bin, and the action is its center. Training is 1000 Adam steps on mini-batches of 16 examples, with the learning rate decaying from 0.03 to 0.003.</p>
+      <p>Simplifications relative to RT-1: one frame instead of six, one word instead of a sentence, one token instead of eight, a fully connected network instead of a transformer, two axes instead of eleven dimensions. The cells of the empty table are identical, so the background takes part in the selection as a single cell at its average position, and the head sees only the token's position, not its features. Everything else is real training on the page, and its result depends on the random seed and the number of steps: the numbers in the mission debriefs are computed from what you got.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>A grid of 8 bins misses the cube no matter how well the model is trained, 256 bins on 300 demonstrations don't get learned, and the middle works. The paper follows the same logic: 256 bins per dimension became possible with 130,000 episodes, and replacing the bins with single-peaked continuous actions dropped success on familiar tasks from 97% to 68%. Bins pay for precision with data, and they need a lot of it. But what kind of data: more episodes or more distinct tasks?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="diversity">
+  <div class="wrap">
+    <div class="lab-badge"><i>🧩</i> Interactive</div>
+    <h2>Diversity matters more than volume</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>Every episode costs a minute of operator and robot time, and before collecting data you have to decide what to spend them on: recording more demonstrations of the tasks you already have or adding new tasks. The RT-1 authors answered this with ablations, experiments in which one part of a system is removed to measure what is lost: they trained the model on cut-down datasets.</p>
+      <p>The data was cut in two ways, to separate <strong>data diversity</strong>, how many distinct tasks the dataset has, from its volume, the number of episodes. The first way keeps all the tasks but caps the episodes per task at 200, 100 or 50, which leaves 51%, 37% and 22% of the data. The second keeps almost all the data but removes the tasks with the fewest episodes, which leaves 75% of the tasks and 97% of the episodes. The evaluation is the same as in the paper's main table: familiar tasks, new instructions, distractor objects on the table and new backgrounds. The last three are <strong>generalization</strong>: success on what wasn't in training, and “generalization, overall” is their average.</p>
+      <p>There were also experiments in the other direction, adding data from elsewhere to the demonstrations. From simulation they added 518,000 episodes in which the robot picked up objects that weren't in the “robot classroom”, and the real robot started picking up those objects in 87% of attempts instead of 23%, while success on familiar tasks barely changed: 90% versus 92%. From another robot, a Kuka arm that picked objects out of a bin, they added 209,000 episodes: their actions were converted to the RT-1 format, and all the episodes were labeled with a single command, “pick anything”. After that, the Everyday Robots robot picked objects out of a similar bin in 39% of attempts instead of 22%, even though it had never been trained to, and lost only 2 percentage points on its own tasks. A model trained on the Kuka data alone didn't succeed on it even once. Ablations were also run on the model itself, removing one part at a time. Without history, with one frame instead of six, success with distractors fell from 83% to 50%. Without ImageNet pre-training, when EfficientNet starts training from random weights, new instructions fell from 76% to 43%: the authors attribute this to how large and diverse the ImageNet image set is. The table rows open after your bet, and below the table you'll sort these and other experiments from the paper by what they did.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="abl-wrap" id="ablTable">
+          <table class="abl" aria-label="RT-1 data ablations: share of tasks and episodes versus success">
+            <thead><tr id="ablHead"></tr></thead>
+            <tbody id="ablBody"></tbody>
+            <tfoot id="ablFoot"></tfoot>
+          </table>
+        </div>
+        <p class="cv-note">Table 7 of the paper: rows are datasets, columns are kinds of evaluation, and the cells hold the success rate in percent. The bar under a number shows its size: blue for familiar tasks, orange for the generalization tests. In parentheses is the difference from the full dataset in percentage points; red marks a drop of more than 2 points.</p>
+        <div class="abl-detail" id="ablDetail"></div>
+        <h3 class="sub-h" style="margin-top:18px">What helped and what didn't</h3>
+        <div class="abl-sort" id="ablSort"></div>
+      </div>
+      <div class="card guide-card"><div id="aMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: comparison with Gato and BC-Z, model ablations and long-horizon tasks</summary><div class="body">
+      <p>The baselines were trained on the same RT-1 data; otherwise they would have had nothing to generalize from. Gato is also a transformer, but its image tokens come from patches without language, the text is added late, and its size was cut to 37M parameters to run on the robot; the original 1.2 billion took 1.9 s per action. BC-Z is a ResNet convolutional network with no frame history and with continuous actions; BC-Z XL is the same network scaled up to the size of RT-1. Table 2 of the paper, success in percent:</p>
+      <table class="skills" aria-label="RT-1 versus Gato and BC-Z">
+        <thead><tr><th>Model</th><th>Familiar tasks</th><th>New instructions</th><th>Distractors</th><th>New backgrounds</th></tr></thead>
+        <tbody>
+          <tr><td>Gato</td><td class="num">65</td><td class="num">52</td><td class="num">43</td><td class="num">35</td></tr>
+          <tr><td>BC-Z</td><td class="num">72</td><td class="num">19</td><td class="num">47</td><td class="num">41</td></tr>
+          <tr><td>BC-Z XL</td><td class="num">56</td><td class="num">43</td><td class="num">23</td><td class="num">35</td></tr>
+          <tr><td>RT-1</td><td class="num">97</td><td class="num">76</td><td class="num">83</td><td class="num">59</td></tr>
+        </tbody>
+      </table>
+      <p style="margin-top:14px">Model ablations (Table 13): without ImageNet pre-training, new instructions fall from 76% to 43%; without frame history, distractors fall from 83% to 50%; with continuous actions, familiar tasks fall from 97% to 68%, and without the transformer, with EfficientNet alone, to 86%. Autoregression over the action tokens didn't help and slowed inference from 15 to 36 ms. In a real office kitchen, where the counters, lighting, objects and their places vary, RT-1 completed 70% of the tasks, Gato 30% and BC-Z 45%.</p>
+      <p>Long-horizon tasks were tested inside SayCan from lesson 2.3: the language model breaks a request like “bring me two different sodas” into steps, and RT-1 executes each step as a skill. On 15 requests averaging 9.6 steps, planning was correct 87% of the time for all policies, and execution succeeded 67% of the time with RT-1 versus 53% with BC-Z and 33% with Gato in the familiar kitchen; in a new kitchen RT-1 kept 67%, BC-Z got 13% and Gato 0%. In a video accompanying the paper, a single request is broken into 50 steps.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>A quarter of the tasks is worth as much generalization as half of all the episodes, and the model takes in data from simulation and from another robot without losing anything on its own tasks. The authors draw a conclusion from this that the second half of Part 3 starts from: a model should absorb diverse data, and the wider the range of tasks, objects and robots, the better it generalizes. They also name the limitations: imitation doesn't surpass the operator, new instructions are only combinations of skills and objects seen before, and the tasks don't require dexterity. What of RT-1 is still around in the systems of 2026?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="today">
+  <div class="prose">
+    <div class="kicker"><span class="num">3</span> Today</div>
+    <h2>What's left of RT-1</h2>
+    <p>The action as a token has stayed. RT-2 (2023, lesson 3.3) outputs the same action bins as text tokens of a language model, and it no longer needs a separate head. OpenVLA (2024, lesson 3.5) splits each dimension into 256 bins, as RT-1 does, and writes them into rarely used tokens of the language model's vocabulary. FAST (2025, lesson 3.6) goes further: an action chunk is compressed with the discrete cosine transform and encoded into tokens, like text, so a second of motion takes several times fewer tokens than per-dimension bins would.</p>
+    <p>The model type itself has stayed too: a transformer policy that reads frames and a command and outputs an action. What has changed is how the input is encoded: instead of EfficientNet and a sentence embedding, a pretrained vision-language model that brings knowledge about the world from the internet with it. The rate has changed too. RT-1 output one action three times per second and paid for that with model size, while the policies of 2025–2026 output action chunks dozens of control steps ahead, like ACT from lesson 1.7, and drive the robot at 50 Hz; π0 from lesson 3.6 does this by replacing bins with flow matching from lesson 1.8.</p>
+    <p>The conclusion that diversity matters more than volume shaped the next step. The Kuka data in RT-1 was the first experiment in mixing robots; a year later Open X-Embodiment (lesson 3.4) pooled data from 22 robots from dozens of labs and trained RT-1 and RT-2 on it. Before looking at those models, we need to understand how an image gets into a language model in the first place. That's what lesson 3.2 is about.</p>
+  </div>
+</section>
+
+<section class="section" id="quiz">
+  <div class="prose">
+    <div class="kicker"><span class="num">4</span> Check yourself</div>
+    <h2>Eight common misconceptions</h2>
+    <div class="quiz" id="quizBox"></div>
+    <p class="score" id="quizScore" style="margin-top:14px"></p>
+  </div>
+</section>
+
+<section class="section alt" id="finale">
+  <div class="prose">
+    <div class="kicker"><span class="num">5</span> Takeaways</div>
+    <h2>Lesson takeaways</h2>
+    <ol class="takeaways">
+      <li><span>RT-1 is <strong>one model</strong> for 744 instructions: frames and a command in, actions out. The data is 130,000 demonstrations collected by 13 robots over 17 months; success is 97% on familiar tasks and 76% on new instructions.</span></li>
+      <li><span>The input is compressed to 48 tokens: EfficientNet-B3 with <strong>FiLM conditioning</strong> on the command gives 81 tokens per frame, TokenLearner keeps 8, and a history of six frames makes 48. An 8-layer transformer, 35M parameters and 3 actions per second.</span></li>
+      <li><span><strong>Action as a token</strong>: 11 dimensions of 256 bins each, classification instead of regression. A distribution over bins can hold several peaks; single-peaked continuous actions gave 68% instead of 97%.</span></li>
+      <li><span>The number of bins is a trade-off: too few means a coarse action and misses, too many means more classes than examples. 256 bins pay off only with a large dataset.</span></li>
+      <li><span><strong>Diversity matters more than volume</strong>: removing 25% of the tasks cost as much generalization as removing 49% of the episodes. The model absorbs data from simulation and from another robot without losing ground on its own tasks.</span></li>
+      <li><span>Limitations: imitation doesn't surpass the operator, new instructions are only combinations of skills and objects seen before, and there is one action per step at 3 Hz.</span></li>
+    </ol>
+    <h3 style="margin-top:40px">Open questions</h3>
+    <details class="card pad open-q"><summary>Each of the 11 dimensions is its own argmax over 256 bins. How do you get a coherent action if the axes are chosen independently?</summary><p>All 11 distributions are computed from the same transformer features, so they are coordinated through the shared context rather than by conditioning on each other. Where the distribution along an axis has two peaks, independent choice can take the x of one solution and the y of another: lesson 1.3 calls this losing the links between dimensions. The authors tried autoregression, where each next token takes the previous ones into account, as in Gato, and it didn't improve the results but made inference twice as slow. The models of the next lessons solve this differently: RT-2 outputs action tokens one after another, like text, and π0 predicts all dimensions of all actions in a chunk with one continuous generator.</p></details>
+    <details class="card pad open-q"><summary>Why 256 bins and not 64 or 1024, and how do you choose the number of bins for your own task?</summary><p>The bins are uniform between the bounds of a dimension, so the action resolution is the range divided by the number of bins: with a gripper step of a few centimeters, 256 bins give fractions of a millimeter, and precision is limited by the data, not by the grid. The lower bound comes from the task: a bin has to be smaller than the hit tolerance, as in the lab, with 16 bins for the normal cube and 32 for the small one. The upper bound comes from the data: each class needs enough examples, otherwise neighboring bins get confused. The paper doesn't justify the number 256 separately; it's the authors' choice for 130,000 episodes, and on 300 demonstrations it doesn't work.</p></details>
+    <h3 style="margin-top:34px">Paper guide</h3>
+    <p><a href="https://arxiv.org/abs/2212.06817" target="_blank" rel="noopener">A. Brohan et al., “RT-1: Robotics Transformer for Real-World Control at Scale”, RSS 2023</a>.</p>
+    <ul class="links">
+      <li><strong>Read closely</strong><span>Section 5.1 and Figure 3: image tokenization with FiLM, TokenLearner, action bins. Tables 2 and 7 and Section 6.5: the comparison with Gato and BC-Z and the data ablations that show diversity matters more than volume.</span></li>
+      <li><strong>Safe to skip</strong><span>Appendix C.3 on model selection through simulation with RetinaGAN, and the instruction lists in Appendix D.1.</span></li>
+      <li><strong>Question to keep in mind</strong><span>Gato and Decision Transformer use autoregression over action tokens. Why did it give nothing in RT-1, and what would change if the 11 dimensions were strongly linked to each other?</span></li>
+    </ul>
+    <h3 style="margin-top:34px">Resources</h3>
+    <ul class="links">
+      <li><a href="https://robotics-transformer1.github.io/" target="_blank" rel="noopener">RT-1 project page</a><span>Videos: 744 instructions, new kitchens, long-horizon tasks with SayCan</span></li>
+      <li><a href="https://github.com/google-research/robotics_transformer" target="_blank" rel="noopener">RT-1 code</a><span>An open implementation of the model in TensorFlow</span></li>
+      <li><a href="https://arxiv.org/abs/1709.07871" target="_blank" rel="noopener">E. Perez et al., “FiLM: Visual Reasoning with a General Conditioning Layer”, AAAI 2018</a><span>The conditioning layer through which the command enters the convolutional network</span></li>
+      <li><a href="https://arxiv.org/abs/2106.11297" target="_blank" rel="noopener">M. Ryoo et al., “TokenLearner: What Can 8 Learned Tokens Do for Images and Videos?”, NeurIPS 2021</a><span>Soft token selection that compresses 81 tokens to 8</span></li>
+    </ul>
+    <!--if:3-2-vision-language-modeli.html--><div class="callout insight" style="margin-top:34px"><span class="ico">➡️</span><div><p><strong>Next: 3.2 Vision-language models.</strong> RT-1 reads the image with a convolutional network and the command as a single vector. For the model to know more about the world than the robot has seen, the image has to go into a language model: how image patches become tokens next to words, and what such a model learns from image–text pairs from the internet. <a href="3-2-vision-language-modeli.html">Lesson 3.2 →</a></p></div></div><!--/if-->
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Lesson 3.1 of the “Modern Robotics and Physical AI” course. The grid of bins and mini-RT-1 are computed in your browser; the paper's results are quoted from its tables.
+</footer>
+<div class="tooltip" id="tooltip" role="tooltip"></div>
+<script>
+/*@@JS@@*/
+</script>
+</body>
+</html>
