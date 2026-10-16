@@ -27,8 +27,9 @@
       "date": "2026-10-17",
       "title": "Part 3: foundation models for robots",
       "items": [
-        "Lessons 3.1 “RT-1”, 3.2 “Vision-language models”, 3.3 “RT-2”, 3.4 “Open X-Embodiment”, 3.5 “Open VLAs: Octo, OpenVLA”, 3.6 “π0”, 3.7 “Two-level architectures: Helix, GR00T, Gemini Robotics”, 3.8 “Generalization and reasoning: from π0.5 to π0.7”, and the Part 3 check with a live scene task.",
+        "Lessons 3.1 “RT-1”, 3.2 “Vision-language models”, 3.3 “RT-2”, 3.4 “Open X-Embodiment”, 3.5 “Open VLAs: Octo, OpenVLA”, 3.6 “π0”, 3.7 “Dual-system architectures: Helix, GR00T, Gemini Robotics”, 3.8 “Generalization and reasoning: from π0.5 to π0.7”, and the Part 3 check with a live scene task.",
         "Every lesson has an animated diagram of how the model or dataset is built.",
+        "The Part 3 lessons and the Part 3 check are available in English from day one.",
         "41 new glossary terms."
       ]
     },
