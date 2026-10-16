@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3.3 RT-2 — Modern Robotics and Physical AI</title>
+<meta name="description" content="Lesson 3.3 of the “Modern Robotics and Physical AI” course: RT-2, a vision-language model that outputs robot actions as text tokens. Turn a gripper pose into a string of eight numbers, train a mini-VLA on the table in three ways and measure what the model forgets without web data, and sort the commands from the paper into learned and emergent ones.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<script>
+  (function () { try { var t = localStorage.getItem('mr-theme'); if (t) document.documentElement.dataset.theme = t; else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme = 'dark'; } catch (e) {} })();
+</script>
+<style>
+/*@@CSS@@*/
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html#program" title="To the course program"><div>Modern Robotics and Physical AI<small>Lesson 3.3 · RT-2</small></div></a>
+    <nav class="toc" aria-label="Lesson sections">
+      <a href="#vla">VLA</a>
+      <a href="#tokens">Tokens</a>
+      <a href="#cofinetune">Fine-tuning</a>
+      <a href="#lab">Lab</a>
+      <a href="#emergent">Emergent</a>
+      <a href="#today">Today</a>
+      <a href="#quiz">Quiz</a>
+      <a href="#finale">Takeaways</a>
+    </nav>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Toggle theme">◐</button>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main>
+
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="kicker"><span class="num">3.3</span> Part 3 · Foundation models for robots</div>
+    <h1>RT-2: <span class="amp">actions as text tokens</span></h1>
+    <p class="lead">In lesson 3.1, RT-1 learned more than 700 tasks from 130,000 demonstrations, but an object or a word that wasn't in the demonstrations doesn't exist for it. In lesson 3.2, vision-language models read an image as tokens and answered questions about it in words: they know the world from billions of image–text pairs, but they can't act. RT-2 (Google DeepMind, 2023) brings the two together without a new architecture: it takes the ready-made VLMs PaLI-X, with 55 billion parameters, and PaLM-E, with 12 billion, and fine-tunes them to output a robot action as a string of eight integers, that is, as one more phrase. They are fine-tuned together with the original web data; otherwise the model forgets what it knew about the world. In generalization to new objects, backgrounds and environments, RT-2 is about twice as good as RT-1, and it carries out commands that weren't in the robot data: place a can on the number 3, move an apple to the cup of the same color, choose a drink for a tired person. The price: the 55-billion-parameter model runs on a TPU cluster at 1–3 Hz.</p>
+    <div class="hero-meta"><span>≈ 45 minutes</span><span>1 lab, 2 interactives and a quiz</span><span id="heroMis">missions with a goal</span></div>
+    <div class="hero-list">
+      <div><b>AN ACTION IN WORDS</b>Turn a gripper motion into a string of eight numbers and see how two different language models read it</div>
+      <div><b>THREE WAYS TO TRAIN</b>Train a small “image and command → action” model on the table in the paper's three ways and compare them side by side on a command about a color the robot has never seen</div>
+      <div><b>WHAT GETS LOST</b>Measure how a model fine-tuned on actions alone forgets how to name the color of an object in an image</div>
+      <div><b>WHAT EMERGED ON ITS OWN</b>Sort the commands from the paper: what the robot was taught with demonstrations, what came from the internet and what it can't do</div>
+    </div>
+    <p style="margin-top:28px"><a class="btn primary" href="#vla">Start the lesson ↓</a></p>
+  </div>
+</section>
+
+<section class="recall-sec" id="recall" aria-label="Warm-up on the previous lesson">
+  <div class="wrap"><div class="card recall" data-recall></div></div>
+  <script type="application/json" id="recallData">{"n": "3.2", "title": "Vision-language models", "href": "3-2-vision-language-modeli.html", "q": [{"q": "How does ViT turn an image into a sequence of tokens?", "o": ["It cuts the image into 16 × 16 patches, maps each patch to a vector with one linear layer and adds a position vector", "It takes every pixel as a separate token", "It runs the image through a convolutional network and takes its classes"], "a": 0, "e": "A 224 × 224 image gives 196 patches; the projection matrix is the same for all patches, and the position is a trainable vector. Without positions, the input is a bag of patches.", "sec": "patches", "secTitle": "ViT: patches become tokens"}, {"q": "What does the projector in LLaVA do?", "o": ["It compresses the image into a single token", "It maps the tokens of the frozen CLIP encoder to the dimension of the language model's embeddings; it's a single trainable matrix", "It turns the model's answer back into an image"], "a": 1, "e": "H_v = W · Z_v: after the projector, the image tokens are placed in the sequence before the prompt, and the language model reads them with ordinary attention. In LLaVA-1.5 the projector is a two-layer MLP.", "sec": "llava", "secTitle": "LLaVA and PaliGemma: a projector between the encoder and the language model"}, {"q": "How does attention in PaliGemma differ from an ordinary causal mask?", "o": ["The image and prompt tokens see each other in full; only the answer has a causal mask", "The image takes no part in attention", "All tokens see all tokens, including the answer"], "a": 0, "e": "Prefix attention: the image tokens can “peek” at the question. The authors tried a causal mask on the prompt and on the image, and both were worse.", "sec": "llava", "secTitle": "LLaVA and PaliGemma: a projector between the encoder and the language model"}]}</script>
+</section>
+
+<section class="section alt" id="vla">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">1</span> VLA</div>
+      <h2>Knowledge from the internet and robot actions</h2>
+      <p>RT-1 from lesson 3.1 learned hundreds of tasks from demonstrations, but only with the objects and words that appeared in them. The command “move apple to 3” means nothing to it: there were no digits in the data. Collecting demonstrations for every object and word in the world is impossible: the RT-2 authors write that a brute-force approach would mean millions of robot trials, while the most capable language and vision-language models are trained on billions of tokens and images from the internet, an amount unlikely to be matched with robot data in the near future.</p>
+      <p>Knowledge of the world already lives in the <strong>vision-language models</strong> (VLMs) of lesson 3.2. But their output is text, and a robot needs numbers: a gripper displacement and rotation angles. In lesson 2.3, language models got around this by working as planners: SayCan chose a skill from a list, and Code as Policies wrote code. The RT-2 authors describe this role as a state machine: the model parses a command into ready-made primitives, and the low-level controllers that execute them get nothing from the model's knowledge. The paper puts its question directly: “can large pretrained vision-language models be integrated directly into low-level robotic control to boost generalization and enable emergent semantic reasoning?”</p>
+      <p>RT-2's answer is simple. A VLM already outputs a sequence of tokens, usually words. If you write the robot's action as text, you can put it in the model's answer next to ordinary words and fine-tune the model on robot demonstrations just as on questions about images. The authors call a model that takes an image and a command and outputs an action a <strong>vision-language-action model</strong> (VLA). No new parameters are added for the actions: “pre-existing vision-language models… are trained without any new parameters to output text-encoded actions”. Two models were fine-tuned: PaLI-X in versions with 5 and 55 billion parameters, and PaLM-E with 12 billion. The robot data is the same as RT-1's: demonstrations collected by 13 robots over 17 months in an office kitchen, with commands made of a skill verb and object names.</p>
+      <p>So how exactly does an action become text: which numbers, how many of them, and how does the language model's tokenizer see them?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="tokens">
+  <div class="wrap">
+    <div class="lab-badge"><i>🧩</i> Interactive</div>
+    <h2>An action in words</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>A language model outputs vocabulary tokens, while a robot action is a set of continuous quantities. To turn one into the other, the continuous values have to be split into bins, and each bin has to get a token. A <strong>token</strong> here is an element of the language model's vocabulary, one “word” it can output; a <strong>bin</strong> is one of the equal intervals the range of an axis is divided into, so that instead of the exact value you write down the number of the interval.</p>
+      <p>RT-2 takes the split from RT-1. An action is an episode termination flag, six displacements of the gripper pose (three for position and three for rotation) and how far the gripper is open: eight quantities. RT-1 in lesson 3.1 had 11: the same seven for the arm and gripper, three for moving the base, and a mode: move the arm, move the base or end the episode. The RT-2 paper describes the action without the base, and instead of the mode it has a single command, to terminate the episode. Each continuous quantity is split uniformly into 256 bins, and the action becomes eight integers separated by spaces; this conversion is called <strong>action discretization</strong>: “terminate Δpos<sub>x</sub> Δpos<sub>y</sub> Δpos<sub>z</sub> Δrot<sub>x</sub> Δrot<sub>y</sub> Δrot<sub>z</sub> gripper_extension”. From here on, everything depends on the <strong>tokenizer</strong> of the particular VLM, the rule that splits text into vocabulary tokens. In PaLI-X, integers up to 1000 have their own tokens, so the bin number is the token. PaLM-E has no such tokens, and the authors overwrote the 256 least frequently used tokens of its vocabulary to represent actions; they call this a form of symbol tuning. The model's prompt is formatted as an ordinary question about an image, “Q: what action should the robot take to [task instruction]? A:”, and the answer is a string of numbers. Converting the answer tokens back into numbers for the robot is called <strong>detokenization</strong>.</p>
+      <p>Below is a translator with no training. The sliders set the gripper action, the string under them is the same action as eight numbers, and the tiles are the tokens the model will see. You can edit the string by hand: a number in it moves the gripper. The paper doesn't give the axis ranges, so the scales here are fractions of the range from −1 to +1, without centimeters or degrees.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <canvas id="tCv" width="600" height="250" class="tok-cv" role="img" aria-label="The robot gripper in a top view and a side view, with displacement arrows, rotation arcs and the opening of the jaws"></canvas>
+        <p class="cv-note">The robot gripper in two views: on the left, the top view (displacement along x and y, rotation around the vertical); on the right, the side view (lift along z, tilt, jaw opening; the arc at the top is roll). The scales are fractions of the axis range from −1 to +1.</p>
+        <div class="cv-legend" id="tLegend"></div>
+        <div class="tok-sliders" id="tSliders"></div>
+        <div class="ctl-row">
+          <div class="ctl" id="wrapTTok"><span class="ctl-l">Tokenizer</span><div class="seg" id="tTok" role="group" aria-label="Tokenizer"><button type="button" data-v="palix" aria-pressed="true">PaLI-X</button><button type="button" data-v="palme" aria-pressed="false">PaLM-E</button></div></div>
+        </div>
+        <div class="tok-str" id="tStrBox"><span class="tok-q">Q: what action should the robot take to <i>pick the cup</i>? A:</span> <code id="tStr"></code></div>
+        <div class="tok-tiles" id="tTokens" aria-label="Tokens of the action string"></div>
+        <label class="tok-input" id="wrapTInput"><span>Action string</span><input id="tInput" type="text" inputmode="numeric" spellcheck="false" autocomplete="off" aria-label="A string of eight numbers"><button type="button" class="btn sm" id="tApply">Apply</button><span class="muted-s" id="tErr"></span></label>
+        <div class="readout" id="tOut"></div>
+      </div>
+      <div class="card guide-card"><div id="tMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: discretization, two vocabularies and the output constraint</summary><div class="body">
+      <p>For a continuous quantity \(a\) with bounds \(a_{\min}\) and \(a_{\max}\), the bin number and the conversion back to the bin center are:</p>
+      <div class="formula">\[\begin{aligned} b &= \operatorname{round}\!\Bigl( \frac{a - a_{\min}}{a_{\max} - a_{\min}} \cdot 255 \Bigr), \\ \hat a &= a_{\min} + \frac{b}{255}\,(a_{\max} - a_{\min}). \end{aligned}\]</div>
+      <p>The termination flag is a separate discrete command, 0 or 1; it isn't split into bins. The quantization error is at most half a bin width; with the same 256 bins, that was precise enough for RT-1 to control the robot at 3 Hz.</p>
+      <p>The string in the paper looks like this: “1 128 91 241 5 101 127”. The paper prints this example with seven numbers, even though there are eight fields. In PaLI-X, the number 128 is the token “128”, one of the thousand number tokens in the vocabulary; in PaLM-E, the number is replaced by one of the 256 rare tokens reassigned to actions. The paper doesn't say which tokens exactly were reassigned, so here they are shown symbolically as ⟨r128⟩. The model is trained to predict the next token, and the authors note that this objective corresponds to the behavior cloning loss from lesson 1.1.</p>
+      <p>When the model controls a robot, it can't be allowed to answer in words. So the output is constrained: when the prompt is a command to the robot, only action tokens are allowed during decoding; on ordinary vision-language tasks, the model still outputs any text. In the interactive, the constraint works the other way around: a string is accepted only if it holds eight integers within the allowed limits.</p>
+      <p>The direction of the gripper scale here is the lesson's assumption: 0 means the jaws are closed, 255 means they are fully open. The paper doesn't specify the direction.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>The format is settled: the action has become a phrase made of tokens, and it can be given to the model in the same form as the answer to a question about an image. But fine-tuning changes the weights of the whole model. If you train it on action strings alone, won't it lose what it was chosen for in the first place, its knowledge of the world from web data?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="cofinetune">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">2</span> Fine-tuning</div>
+      <h2>Co-fine-tuning and what it brings</h2>
+      <p>The risk is real. If you show the model only robot demonstrations, the weights responsible for knowledge of the world rearrange themselves for a single task, and the model forgets what it learned from web data. This is called <strong>catastrophic forgetting</strong>, or simply forgetting: new training erases old skills, because nobody checks them any more. The authors name <strong>co-fine-tuning</strong> as the key detail of the recipe: the robot data is given together with the VLM's original web data (visual question answering, captions, interleaved images and text) instead of “naïve” fine-tuning on actions alone. The paper's explanation: this way the policy is exposed to both abstract visual concepts from web-scale data and low-level robot actions, which leads to more generalizable policies. The robot data gets a higher sampling weight in every batch: it makes up about 50% of the mixture for RT-2-PaLI-X and about 66% for RT-2-PaLM-E. The web data is, for example, WebLI: around 10 billion image–text pairs in 109 languages, filtered to the top 10% by cross-modal similarity, which leaves about a billion examples.</p>
+      <p>Here is the path of the data: the camera image and the command go into the vision encoder and the language model, the answer is tokens, and they are detokenized into numbers and sent to the robot; during training, the same model also receives web pairs with answers in words.</p>
+    </div>
+    <figure class="card flow-card">
+      <canvas data-anim="rt2" width="720" height="300" role="img" aria-label="The data path in RT-2: the camera image and the command become tokens and pass through the vision encoder and the language model, the model outputs action tokens, they are converted into eight numbers and sent to the robot; below, a web pair with a question about an image gets an answer in words from the same model"></canvas>
+      <figcaption class="cv-note">A diagram, not a drawing of the robot: the path from the robot camera is one control step, and the path from the web pair is an example of web data. Orange marks the action tokens and the command to the robot, blue the image patches, purple the words of the answer. Click the diagram to pause it.</figcaption>
+    </figure>
+    <div class="prose" style="margin:22px 0 22px;max-width:820px">
+      <p>The authors measured what this gives in about 6,000 trials on a real robot. On the familiar tasks from the RT-1 set, more than 200 commands, RT-2 and RT-1 performed alike: 91–93% versus 92%. The difference is in generalization: new objects, new backgrounds and new environments, over 280 commands, each category in an easy and a hard version. Hover over a table cell to see the condition.</p>
+    </div>
+    <div class="card pad rt-tables">
+      <div class="ctl-row cap-top" style="margin-top:0">
+        <div class="ctl"><span class="ctl-l">Table</span><div class="seg" id="rtPick" role="group" aria-label="Which table to show"><button type="button" data-v="t4" aria-pressed="true">4: generalization</button><button type="button" data-v="t6" aria-pressed="false">6: training</button></div></div>
+      </div>
+      <div class="rt-scroll">
+        <table class="rt-table" id="rtT4" aria-label="Table 4 of the RT-2 paper: success in percent">
+          <thead><tr><th>Model</th><th data-c="familiar tasks (the same commands as in training, with the objects placed differently)">familiar</th><th data-c="new objects, easy version (a banana, a pear, a Pepsi can)">objects, easy</th><th data-c="new objects, hard version (toys, a wristwatch, a rolling pin)">objects, hard</th><th data-c="new background, easy version (a different tablecloth, the same objects)">background, easy</th><th data-c="new background, hard version (a busy background and new objects)">background, hard</th><th data-c="new environment, easy version (a kitchen sink)">environment, easy</th><th data-c="new environment, hard version (an office desk with monitors)">environment, hard</th><th data-c="the average over the six generalization columns">average</th></tr></thead>
+          <tbody>
+            <tr data-r="pretrained visual features from videos of people (Ego4D), with an RT-1 policy on top"><th>R3M</th><td>45</td><td>32</td><td>14</td><td>13</td><td>9</td><td>0</td><td>2</td><td>12</td></tr>
+            <tr data-r="a visual foundation model for robotics, with an RT-1 policy on top"><th>VC-1</th><td>63</td><td>34</td><td>10</td><td>13</td><td>3</td><td>0</td><td>0</td><td>10</td></tr>
+            <tr data-r="the model from lesson 3.1, a 35M-parameter transformer trained on the same demonstrations without web data"><th>RT-1</th><td>92</td><td>31</td><td>43</td><td>71</td><td>9</td><td>26</td><td>14</td><td>32</td></tr>
+            <tr data-r="a VLM marks the target object on the image with a colored pixel, and RT-1 does the rest"><th>MOO</th><td>75</td><td>58</td><td>48</td><td>38</td><td>41</td><td>19</td><td>3</td><td>35</td></tr>
+            <tr class="ours" data-r="RT-2 on PaLI-X with 55B parameters, co-fine-tuned"><th>RT-2-PaLI-X-55B</th><td>91</td><td>70</td><td>62</td><td>96</td><td>48</td><td>63</td><td>35</td><td>62</td></tr>
+            <tr class="ours" data-r="RT-2 on PaLM-E with 12B parameters, co-fine-tuned"><th>RT-2-PaLM-E-12B</th><td>93</td><td>84</td><td>76</td><td>75</td><td>71</td><td>36</td><td>33</td><td>62</td></tr>
+          </tbody>
+        </table>
+        <table class="rt-table" id="rtT6" aria-label="Table 6 of the RT-2 paper: model size and training method" hidden>
+          <thead><tr><th>RT-2-PaLI-X</th><th data-c="how the model was trained">training</th><th data-c="new objects, easy version">objects, easy</th><th data-c="new objects, hard version">objects, hard</th><th data-c="new background, easy version">background, easy</th><th data-c="new background, hard version">background, hard</th><th data-c="new environment, easy version">environment, easy</th><th data-c="new environment, hard version">environment, hard</th><th data-c="the average over the six columns">average</th></tr></thead>
+          <tbody>
+            <tr data-r="5B parameters trained from scratch, with no VLM weights, on robot demonstrations only"><th>5B</th><td>from scratch</td><td>0</td><td>10</td><td>46</td><td>0</td><td>0</td><td>0</td><td>9</td></tr>
+            <tr data-r="5B parameters, the pretrained VLM fine-tuned on robot data only"><th>5B</th><td>fine-tuning</td><td>24</td><td>38</td><td>79</td><td>50</td><td>36</td><td>23</td><td>42</td></tr>
+            <tr class="ours" data-r="5B parameters, co-fine-tuned on robot data together with web data"><th>5B</th><td>co-fine-tuning</td><td>60</td><td>38</td><td>67</td><td>29</td><td>44</td><td>24</td><td>44</td></tr>
+            <tr data-r="55B parameters, fine-tuned on robot data only"><th>55B</th><td>fine-tuning</td><td>60</td><td>62</td><td>75</td><td>38</td><td>57</td><td>19</td><td>52</td></tr>
+            <tr class="ours" data-r="55B parameters, co-fine-tuned, the main variant of the paper"><th>55B</th><td>co-fine-tuning</td><td>70</td><td>62</td><td>96</td><td>48</td><td>63</td><td>35</td><td>63</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="rt-note cv-note" id="rtNote">Success in percent: the share of trials in which the robot carried out the command, from Tables 4 and 6 of the paper. Underlined: the best in the column. Hover over a cell or tap it.</p>
+    </div>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>Averaged over generalization, both versions of RT-2 scored 62% versus 32% for RT-1 and 35% for MOO: about twice as good, and about six times better than R3M and VC-1. Table 6 answers where the gain comes from. The same 5-billion-parameter architecture trained from scratch on demonstrations alone generalizes in 9% of cases; fine-tuning the pretrained VLM on robot data alone raises that to 42%, and co-fine-tuning to 44%. At 55 billion the gap is more noticeable: 52% versus 63%. The authors attribute this to the original data kept next to the robot data, which lets the model not forget the concepts it learned during VLM training; a larger model also generalizes better, and the authors didn't even train the 55-billion model from scratch. So the main gain comes from VLM pre-training itself, and co-fine-tuning adds noticeably to it only in the large model: 2 percentage points at 5 billion and 11 at 55. We'll come back to this difference in lesson 3.4.</p>
+      <p>Such a model comes at a price. 55 billion parameters can't run on an onboard computer, so RT-2 runs in the cloud on a TPU cluster; the robot queries it over the network, and one cluster serves several robots. The largest model outputs actions at 1–3 Hz, the 5-billion version at about 5 Hz. The authors admit that in tasks that need high-frequency control this may become a major bottleneck.</p>
+      <p>In the paper, forgetting shows up as a single row of a table. Can you see it in a model you train yourself, and measure what exactly it forgets?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="lab">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab</div>
+    <h2>Co-fine-tuning on the table</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>The paper compares three ways of training one architecture, and the difference shows only in the numbers of a table. Let's repeat the three ways on the table from lesson 2.1 with a model that trains in your browser in seconds, and see what each of them can and can't do.</p>
+      <p>The mini-VLA follows the RT-2 recipe. The table image is cut into 8 × 8 patches, and a shared encoder gives each patch a vector; the command words add up to a query, a single cross-attention picks a patch, and three output slots produce tokens from a <strong>shared vocabulary</strong>: one list in which words and actions sit side by side, and the model chooses from it in the same way. It holds both words (six colors and four shapes) and action tokens: the x bin, the y bin and the gripper state. There are 24 bins per axis, as many as there are cells in the action grid of lesson 2.1; RT-2 has 256. The token vectors at the input and at the output are the same, so a word learned from captions also works in a command. There are two datasets. The first is 300 robot demonstrations: the command “pick up the … cube” with red, blue and green only, and action tokens as the answer. The second is 240 “web pairs”: an image with one object of any of the six colors and four shapes, and a two-word caption. As in RT-2, the vocabulary is constrained by the task in training and at inference: for a robot command, only action tokens; for “describe”, only words.</p>
+      <p>The test is 20 new scenes for each command; the robot never once picked up a purple cube in the demonstrations. Captions are checked on 48 new images, two for each combination of color and shape; a caption counts as correct if it names the color correctly: the small model is worse at telling shapes apart, and even the pretrained model gets only about half of its captions fully right. Training one model takes from a few seconds to just over twenty on a computer, and longer on a phone.</p>
+    </div>
+    <div class="lab lab-wide">
+      <div class="card scene-card">
+        <div class="cmd-line" id="lCmd"></div>
+        <div class="vla-grid">
+          <canvas id="lCv" width="440" height="440" class="vla-cv" role="img" aria-label="The table from above: three cubes and a bowl; rings show where each trained model grasps, and the ring's color is the model"></canvas>
+          <div class="vla-models" id="lModels" aria-label="Trained models: attention and tokens on this scene"></div>
+        </div>
+        <p class="cv-note">Top-down view of the table, as in lesson 2.1: three cubes and a bowl. Next to the scene are the cards of the trained models: what each model answered with tokens on this scene and how many of the 20 scenes it solved.</p>
+        <details class="lab-legend"><summary>Legend: marks on the scene</summary><div class="cv-legend" id="lLegend"></div><p class="muted-s" style="margin:8px 0 0">The small image in a card is the same scene with the 8 × 8 patch grid; the patches the model's attention falls on are filled in, and brighter means stronger. In the VLM card, the attention is shown for the “describe” command.</p></details>
+        <div class="prog" id="lProg" hidden><i></i></div>
+        <div class="ctl-row">
+          <div class="ctl" id="wrapLColor"><span class="ctl-l">Command</span><div class="seg" id="lColor" role="group" aria-label="Cube color in the command"></div></div>
+          <div class="ctl" id="wrapLWeb"><span class="ctl-l">Web pairs</span><div class="seg" id="lWeb" role="group" aria-label="How many web pairs go into training"><button type="button" data-v="120" aria-pressed="false">120</button><button type="button" data-v="240" aria-pressed="true">240</button></div></div>
+          <div class="ctl" id="wrapLSeed"><span class="ctl-l">Seed</span><div class="seg" id="lSeed" role="group" aria-label="Random seed for training"><button type="button" data-v="a" aria-pressed="true">A</button><button type="button" data-v="b" aria-pressed="false">B</button><button type="button" data-v="c" aria-pressed="false">C</button></div></div>
+          <label class="hd-range" id="wrapLScene"><span>Scene</span><input id="lScene" type="range" min="1" max="20" step="1" value="2"><output>2</output></label>
+        </div>
+        <div class="readout" id="lOut"></div>
+      </div>
+      <div class="card guide-card"><div id="lMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: the mini-VLA, the shared vocabulary and the three training modes</summary><div class="body">
+      <p>A patch \(p\) gives a vector \(h_p\) through a shared two-layer encoder; the patch position, the sum of a column vector and a row vector, is added to it. The query is the sum of the vectors of the command words, \(q = \sum_{w} E_w\). Attention and context:</p>
+      <div class="formula">\[\begin{gathered} a_p = \operatorname{softmax}_p\bigl(h_p \cdot q\bigr), \qquad c = \sum_p a_p \,(h_p + \text{pos}_p), \\ \text{logit}_{s,t} = (c + S_s)\cdot E_t + b_t . \end{gathered}\]</div>
+      <p>Here \(S_s\) is the vector of slot \(s\), and \(E_t\) is the vector of token \(t\) from the shared vocabulary, the same one that goes into the query. For the command “pick up the purple cube”, slot 1 chooses among the x tokens, slot 2 among the y tokens, and slot 3 between “close” and “open”; for the command “describe”, slot 1 chooses a color and slot 2 a shape. The loss is cross-entropy within the task's vocabulary, the optimizer is Adam, and the batches hold 16 examples.</p>
+      <p>The three modes from Table 6. “From scratch”: random weights, 100 epochs on demonstrations only. “Fine-tuning”: first 60 epochs on web pairs, which gives the pretrained VLM, then 120 epochs on demonstrations only. “Co-fine-tuning”: the same VLM, then 120 epochs on demonstrations and web pairs together. The mix has 240 web pairs out of 540 examples, so the demonstrations make up about 56%, close to the 50% of RT-2-PaLI-X.</p>
+      <p>Transfer to purple is possible because the vector of the word “purple” is learned from captions and shared by the input and the output: the web pairs align it with the vectors of patches of purple objects, and a query with this word finds the purple patch, even though the robot has never picked up such a cube. When fine-tuning on actions alone, the encoder weights and the vectors of the command words drift toward the action task, while “describe” and the caption words stay as they were and stop agreeing with them: that's the forgetting. The “picked” criterion is the same as in lesson 2.1: the center of the chosen cell is closer than 0.85 of the radius to the center of the right cube. The model is small, so the results depend on the random seed; the spread over several seeds is given in the mission debriefs.</p>
+      <p><b>The same in every browser.</b> The exponential, the logarithm, the hyperbolic tangent and the cosine in the engine are built from additions, multiplications, division and the square root: the versions of these functions built into browsers sometimes differ in the last digit, and fine-tuning inflates such a difference into different numbers in the lab. That's why you'll get the same numbers in Chrome, in Safari and on your phone as in the debriefs.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>On the tabletop, Table 6 repeated only in part. The difference between training from scratch and fine-tuning is there: the model trained from scratch doesn't pick up the purple cube, while the pretrained VLM, after fine-tuning, carries the word “purple” over from the web pairs into the action. Forgetting is there too, on all three seeds: the model fine-tuned on actions alone forgets how to describe images, and the co-fine-tuned one doesn't. But the tabletop didn't show a gain from co-fine-tuning in the actions: both models pick up the purple cube about equally often, and on seed C the co-fine-tuned one even falls behind. All the mini-model knows about the world is six colors and four shapes, and the word “purple” never appears in the robot's commands, so fine-tuning on actions doesn't touch its vector, and forgetting hardly gets in the way of transfer. RT-2 has incomparably more concepts from web data, and the authors explain the gain from co-fine-tuning by the model not forgetting them. But even in the paper the gain is noticeable only in the large model: 63% versus 52% at 55 billion parameters and 44% versus 42% at 5 billion. What skills did the robot gain that nobody taught it?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="emergent">
+  <div class="wrap">
+    <div class="lab-badge"><i>🧩</i> Interactive</div>
+    <h2>What emerged on its own</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>The robot data had commands like “pick 7up can” and “open drawer”. The web data had digits, logos, faces, words in other languages and reasoning about images. Which of this knowledge reaches the actions, and which doesn't?</p>
+      <p>The authors use the term <strong>emergent capabilities</strong> for what the model does without a single demonstration of that kind, by transferring knowledge from web data, and divide them into three groups: symbol understanding (“move apple to 3”, “push coke can on top of heart”), reasoning (“move the apple to cup with same color”, “move banana near the sum of two plus one”, “mueve la manzana al vaso verde”) and human recognition (“move the coke can to the person with glasses”). Each command was run 5 times on four models under identical conditions. On average, RT-2-PaLI-X-55B succeeded in 60% of cases, RT-1 in 17% and VC-1 in 11%: more than three times better than the closest rival. By group, RT-2-PaLI-X got 82% on symbols, 46% on reasoning and 53% on people. The smaller RT-2-PaLM-E-12B averaged 40%, but turned out to be stronger at math: 35% versus 25%, which the authors attribute to a different pre-training mixture.</p>
+      <p>The authors state the limit of transfer up front: don't expect new motions from web data; it's concepts that transfer: objects, relations, symbols. The model's physical skills are limited to the distribution of skills in the robot data, and it only applies them in new ways. The appendix lists what RT-2 did poorly: grasping an object by a specific part, such as the handle; motions that weren't in the data, such as wiping with a towel or using a tool; precise motions like folding a towel; and reasoning that requires several layers of indirection.</p>
+      <p>Sort the commands from the paper into three groups. Drag a card, or tap it and then a group.</p>
+    </div>
+    <div class="card pad emergent-sort" id="eSort"></div>
+    <details class="deep"><summary>Under the hood: chain-of-thought reasoning inside a VLA</summary><div class="body">
+      <p>Since the model outputs text, you can put reasoning into the answer before the action. The authors fine-tuned a variant of RT-2-PaLM-E for just a few hundred gradient steps on data with an added “Plan” step: first the purpose of the action is described in words, and then come the action tokens. An example from the paper: “Instruction: I’m hungry. Plan: pick rxbar chocolate. Action: 1 128 124 136 121 158 111 255”. The authors call this addition a bridge between VQA datasets, where models learn to reason, and manipulation datasets, where they learn to act.</p>
+      <p>With chain-of-thought reasoning, the model answered more sophisticated commands: “I need to hammer a nail, what object from the scene might be useful?” → “Rocks. Action: 1 129 138 122 132 135 106 127”; “Bring me a drink” → “Plan: pick 7up can”; “I am sleepy, bring me a drink to help” → “Plan: Pick redbull can”. The authors stress that these are qualitative observations and initial evidence that a language-model planner like the ones in lesson 2.3 and a low-level policy can live in a single VLA.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>Web data gave the robot words, symbols and reasoning, but not a single new motion, and it costs 1–3 Hz on a TPU cluster. What of the RT-2 idea lives on in the models of 2025–2026?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="today">
+  <div class="prose">
+    <div class="kicker"><span class="num">3</span> Today</div>
+    <h2>What's left of the idea</h2>
+    <p>Actions as vocabulary tokens became the standard way to make a VLA out of a ready-made VLM. OpenVLA (2024), an open 7-billion-parameter model built on Llama 2, encodes actions almost the same way RT-2 does: each action dimension is split into 256 bins, and the 256 least used tokens of the Llama vocabulary, which are its last 256 tokens, are overwritten for them. Lesson 3.5 covers OpenVLA and how such models are fine-tuned for your own robot.</p>
+    <p>The weak spot of this recipe is the rate. In RT-2, every action costs eight tokens that the model outputs one at a time, and even on a TPU cluster that comes to 1–3 Hz. Careful two-handed motions need dozens of actions per second, and the authors of FAST (2025) show that simple per-dimension, per-timestep binning works poorly on high-frequency data: the model learns to predict nearly identical neighboring tokens. FAST compresses the action sequence with the discrete cosine transform and only then turns the compressed sequence into tokens; the universal tokenizer FAST+ is trained on a million real robot trajectories, and training a VLA with it is up to five times faster. The other way out is not to output actions as tokens at all, but to generate a chunk of continuous actions with a separate part of the model on top of the same VLM. That's how π0 is built; it's the subject of lesson 3.6.</p>
+    <p>Co-training with web data has stayed too, but not everywhere. π0.5 (Physical Intelligence, 2025; lesson 3.8) learns from a mixture of robot recordings and web data, while OpenVLA was fine-tuned on robot data only. How much such a mixture is needed depends on the size of the model and on how diverse the robot data is. What happens when the data comes not from one robot but from twenty-two is the subject of the next lesson.</p>
+  </div>
+</section>
+
+<section class="section alt" id="quiz">
+  <div class="prose">
+    <div class="kicker"><span class="num">4</span> Check yourself</div>
+    <h2>Eight common misconceptions</h2>
+    <div class="quiz" id="quizBox"></div>
+    <p class="score" id="quizScore" style="margin-top:14px"></p>
+  </div>
+</section>
+
+<section class="section" id="finale">
+  <div class="prose">
+    <div class="kicker"><span class="num">5</span> Takeaways</div>
+    <h2>Lesson takeaways</h2>
+    <ol class="takeaways">
+      <li><span>RT-2 is a ready-made VLM fine-tuned to output <strong>actions as text</strong>: eight integers, each one a bin out of 256. In PaLI-X, numbers up to 1000 are tokens of their own; in PaLM-E, the 256 least frequently used tokens are overwritten for actions. No new parameters are added.</span></li>
+      <li><span><strong>Co-fine-tuning</strong>, robot data together with the original web data, is needed so that the model doesn't forget the concepts learned during VLM training. In the paper it clearly helped the large model, 63% versus 52% at 55B parameters, while at 5B it gave only 44% versus 42%. On the tabletop, forgetting shows in the captions: the model fine-tuned on actions alone forgets how to describe images, and the co-fine-tuned one doesn't; in the actions the difference is small.</span></li>
+      <li><span>On familiar tasks RT-2 and RT-1 are equal; in <strong>generalization</strong> to new objects, backgrounds and environments RT-2 is about twice as good: 62% versus 32%. Trained from scratch, the same architecture generalizes in 9% of cases.</span></li>
+      <li><span>Web data transfers <strong>concepts</strong>: symbols, relations, words in other languages, faces. No new motions appear: the physical skills are limited by the robot data.</span></li>
+      <li><span>Chain-of-thought reasoning fits into the same text: “Plan: …” before the action tokens, after a few hundred steps of fine-tuning.</span></li>
+      <li><span>The price is speed: 55 billion parameters in the cloud on TPUs give <strong>1–3 Hz</strong>. Hence FAST, which compresses action tokens, and π0, with a separate part for continuous actions.</span></li>
+    </ol>
+    <h3 style="margin-top:40px">Open questions</h3>
+    <details class="card pad open-q"><summary>RT-2's bins are uniform. What does that mean for precise motions?</summary><p>A bin is 1/255 of the axis range wide, and that width is the same for a sweeping transfer and for bringing the gripper up to a handle. If the displacement range is wide, there isn't enough precision for small motions; if it's narrow, you can't move fast. OpenVLA sets the bin bounds by quantiles of the data so that rare large displacements don't stretch the scale, and FAST moves away from per-axis bins to compressing the whole action sequence. Whether bins can be made non-uniform while staying ordinary tokens is an open question.</p></details>
+    <details class="card pad open-q"><summary>Web data teaches the model words but not motions. Where do you get motions that aren't in the demonstrations?</summary><p>The RT-2 authors point to videos of people: they have plenty of motion, but neither robot actions nor the robot's body. Another path is more data from different robots, the subject of lesson 3.4. A third is to have the model learn from its own experience once it can already act: that's how π*0.6 (Physical Intelligence, 2025) learns, and lesson 3.8 covers it. So far none of these has given motions what web data gave words.</p></details>
+    <h3 style="margin-top:34px">Paper guide</h3>
+    <p><a href="https://arxiv.org/abs/2307.15818" target="_blank" rel="noopener">A. Brohan et al., “RT-2: Vision-Language-Action Models Transfer Web Knowledge to Robotic Control”, Google DeepMind, 2023</a>.</p>
+    <ul class="links">
+      <li><strong>Read closely</strong><span>Section 3.2 on action encoding, the two vocabularies and co-fine-tuning; Section 4.3 and Table 6: from scratch, fine-tuning and co-fine-tuning on the same architecture; Section 4.2 and Figure 8 with examples of emergent capabilities.</span></li>
+      <li><strong>Safe to skip</strong><span>Appendix A with the authors' contributions, Appendix D on the PaLI-X and PaLM-E architectures if lesson 3.2 is still fresh in your mind, and the full command lists in Tables 2 and 3.</span></li>
+      <li><strong>Question to keep in mind</strong><span>In Table 6, co-fine-tuning beats plain fine-tuning 44% to 42% at 5 billion parameters and 63% to 52% at 55 billion. Why does the gap grow with model size, and what should happen to forgetting in an even larger model?</span></li>
+    </ul>
+    <h3 style="margin-top:34px">Resources</h3>
+    <ul class="links">
+      <li><a href="https://robotics-transformer2.github.io" target="_blank" rel="noopener">RT-2</a><span>Project page: videos of the robot, examples of emergent capabilities and of chain-of-thought reasoning</span></li>
+      <li><a href="https://arxiv.org/abs/2212.06817" target="_blank" rel="noopener">RT-1</a><span>The paper that the robot data and the split of actions into 256 bins come from</span></li>
+      <li><a href="https://arxiv.org/abs/2406.09246" target="_blank" rel="noopener">OpenVLA</a><span>An open 7B-parameter VLA with the same action encoding</span></li>
+      <li><a href="https://arxiv.org/abs/2501.09747" target="_blank" rel="noopener">FAST</a><span>Action tokenization with the discrete cosine transform</span></li>
+    </ul>
+    <!--if:3-4-open-x-embodiment.html--><div class="callout insight" style="margin-top:34px"><span class="ico">➡️</span><div><p><strong>Next: Open X-Embodiment.</strong> RT-2 learned from the data of one robot in one kitchen, and web data helped it generalize. In lesson 3.4 the data comes from 22 robots in different labs, in a common format, and the question is put differently: does one arm benefit from the experience of another? <a href="3-4-open-x-embodiment.html">Lesson 3.4 →</a></p></div></div><!--/if-->
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Lesson 3.3 of the “Modern Robotics and Physical AI” course. The mini-VLA, its training and its tests run in your browser; the numbers about RT-2 come from the paper.
+</footer>
+<div class="tooltip" id="tooltip" role="tooltip"></div>
+<script>
+/*@@JS@@*/
+</script>
+</body>
+</html>
