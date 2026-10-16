@@ -118,7 +118,7 @@
     </div>
     <figure class="card flow-card">
       <canvas data-anim="rt1" width="720" height="300" role="img" aria-label="The data path in RT-1: a frame and a command; EfficientNet-B3 with FiLM gives 81 tokens; TokenLearner keeps 8; a history of six frames gives 48 tokens; an eight-layer transformer; eleven action tokens of 256 bins each; the action is executed three times per second"></canvas>
-      <figcaption class="cv-note">A diagram of one RT-1 step, not a picture of the robot. On the left are the camera frame (the table from above: three cubes, a bowl and the orange bracket of the gripper) and the command. Blue marks the image tokens: 81 after EfficientNet, 8 after TokenLearner, 48 over six frames; the orange dashed lines from the command are FiLM, the command changing the image features. Purple is the transformer, and the arcs are attention between tokens. On the right, 11 orange strips are the action tokens: each strip is the 256 bins of one dimension, and the black tick is the chosen bin. The dashed line at the bottom is the action going to the robot, and the step repeats 3 times per second. The diagram has as many tokens as the paper. Click the diagram to pause it.</figcaption>
+      <figcaption class="cv-note">A diagram of one RT-1 step, not a picture of the robot. On the left are the camera frame (the table from above: three cubes, a bowl and the orange bracket of the gripper) and the command. Blue marks the image tokens: 81 after EfficientNet, 8 after TokenLearner, 48 over six frames; the orange dashed lines from the command are FiLM, the command changing the image features. Purple is the transformer, and the arcs are attention between tokens. On the right, 11 orange strips are the action tokens: each strip is the 256 bins of one dimension, and the tick is the chosen bin. The dashed line at the bottom is the action going to the robot, and the step repeats 3 times per second. The diagram has as many tokens as the paper. Click the diagram to pause it.</figcaption>
     </figure>
     <details class="deep"><summary>Under the hood: FiLM, TokenLearner and the training objective</summary><div class="body">
       <p>FiLM (feature-wise linear modulation) scales and shifts every channel \(c\) of the feature map \(F\) by numbers that depend on the command embedding \(e\):</p>
@@ -203,15 +203,15 @@
     </div>
     <details class="deep"><summary>Under the hood: comparison with Gato and BC-Z, model ablations and long-horizon tasks</summary><div class="body">
       <p>The baselines were trained on the same RT-1 data; otherwise they would have had nothing to generalize from. Gato is also a transformer, but its image tokens come from patches without language, the text is added late, and its size was cut to 37M parameters to run on the robot; the original 1.2 billion took 1.9 s per action. BC-Z is a ResNet convolutional network with no frame history and with continuous actions; BC-Z XL is the same network scaled up to the size of RT-1. Table 2 of the paper, success in percent:</p>
-      <table class="skills" aria-label="RT-1 versus Gato and BC-Z">
-        <thead><tr><th>Model</th><th>Familiar tasks</th><th>New instructions</th><th>Distractors</th><th>New backgrounds</th></tr></thead>
+      <div class="abl-wrap tight"><table class="skills" aria-label="RT-1 versus Gato and BC-Z">
+        <thead><tr><th>Model</th><th>Familiar tasks</th><th>New instructions</th><th>Distractors</th><th>New back&shy;grounds</th></tr></thead>
         <tbody>
           <tr><td>Gato</td><td class="num">65</td><td class="num">52</td><td class="num">43</td><td class="num">35</td></tr>
           <tr><td>BC-Z</td><td class="num">72</td><td class="num">19</td><td class="num">47</td><td class="num">41</td></tr>
           <tr><td>BC-Z XL</td><td class="num">56</td><td class="num">43</td><td class="num">23</td><td class="num">35</td></tr>
           <tr><td>RT-1</td><td class="num">97</td><td class="num">76</td><td class="num">83</td><td class="num">59</td></tr>
         </tbody>
-      </table>
+      </table></div>
       <p style="margin-top:14px">Model ablations (Table 13): without ImageNet pre-training, new instructions fall from 76% to 43%; without frame history, distractors fall from 83% to 50%; with continuous actions, familiar tasks fall from 97% to 68%, and without the transformer, with EfficientNet alone, to 86%. Autoregression over the action tokens didn't help and slowed inference from 15 to 36 ms. In a real office kitchen, where the counters, lighting, objects and their places vary, RT-1 completed 70% of the tasks, Gato 30% and BC-Z 45%.</p>
       <p>Long-horizon tasks were tested inside SayCan from lesson 2.3: the language model breaks a request like “bring me two different sodas” into steps, and RT-1 executes each step as a skill. On 15 requests averaging 9.6 steps, planning was correct 87% of the time for all policies, and execution succeeded 67% of the time with RT-1 versus 53% with BC-Z and 33% with Gato in the familiar kitchen; in a new kitchen RT-1 kept 67%, BC-Z got 13% and Gato 0%. In a video accompanying the paper, a single request is broken into 50 steps.</p>
     </div></details>

@@ -199,7 +199,7 @@ const Calc = (() => {
     const episodes = st.tasks * st.per, months = episodes / (st.robots * RATE);
     $('#cEpisodes').textContent = fmtInt(episodes);
     $('#cMonths').textContent = months < 1 ? fmt(months * 30, 0) + ' дн.' : months < 24 ? fmt(months, months < 10 ? 1 : 0) : fmt(months / 12, 1) + ' лет';
-    $('#cMonthsCap').textContent = months < 1 ? 'дней сбора при темпе RT-1' : months < 24 ? 'месяцев сбора при темпе RT-1' : 'сбора при темпе RT-1';
+    $('#cMonthsCap').textContent = months < 1 ? 'сбора при темпе RT-1' : months < 24 ? 'месяцев сбора при темпе RT-1' : 'сбора при темпе RT-1';
   }
   function bind(id, key, fmtv) { const inp = $(id); inp.addEventListener('input', () => { st[key] = +inp.value; syncRange(inp, fmtv(st[key])); out(); }); syncRange(inp, fmtv(st[key])); }
   function init() { bind('#cTasks', 'tasks', String); bind('#cPer', 'per', String); bind('#cRobots', 'robots', String); out(); }

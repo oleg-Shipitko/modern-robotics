@@ -46,6 +46,8 @@
 
 /* таблица абляций с наведением */
 .abl-wrap { overflow-x: auto; margin-top: 12px; }
+.abl-wrap.tight { margin-top: 4px; }
+@media (max-width: 560px) { .abl-wrap.tight .skills { font-size: 12.5px; } .abl-wrap.tight .skills thead th { font-size: 10.5px; } .abl-wrap.tight .skills th, .abl-wrap.tight .skills td { padding: 6px 4px; } .abl-wrap.tight .skills td:first-child { white-space: nowrap; } }
 .abl { width: 100%; border-collapse: collapse; font-size: 13.5px; min-width: 460px; }
 .abl th, .abl td { padding: 7px 6px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
 .abl th:first-child, .abl td:first-child { text-align: left; white-space: normal; min-width: 120px; padding-left: 8px; }
