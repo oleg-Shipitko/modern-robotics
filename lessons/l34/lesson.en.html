@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3.4 Open X-Embodiment — Modern Robotics and Physical AI</title>
+<meta name="description" content="Lesson 3.4 of the “Modern Robotics and Physical AI” course: Open X-Embodiment, 60 datasets from 22 robots in one format, and the RT-1-X and RT-2-X models. Sort the actions of different robots into a common vector, read the paper's tables and train one policy on Ada's table on a mixture of four robots' data to see positive transfer.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<script>
+  (function () { try { var t = localStorage.getItem('mr-theme'); if (t) document.documentElement.dataset.theme = t; else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme = 'dark'; } catch (e) {} })();
+</script>
+<style>
+/*@@CSS@@*/
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html#program" title="To the course program"><div>Modern Robotics and Physical AI<small>Lesson 3.4 · Open X-Embodiment</small></div></a>
+    <nav class="toc" aria-label="Lesson sections">
+      <a href="#problem">Transfer</a>
+      <a href="#dataset">Dataset</a>
+      <a href="#format">Format</a>
+      <a href="#models">RT-X</a>
+      <a href="#results">Results</a>
+      <a href="#mix">Mixture</a>
+      <a href="#today">Today</a>
+      <a href="#quiz">Quiz</a>
+      <a href="#finale">Takeaways</a>
+    </nav>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Toggle theme">◐</button>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main>
+
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="kicker"><span class="num">3.4</span> Part 3 · Foundation models for robots</div>
+    <h1>Open X-Embodiment: <span class="amp">one format for 22 robots</span></h1>
+    <p class="lead">RT-1 and RT-2 from lessons 3.1 and 3.3 were trained on one kind of robot and one fleet's data: 130,000 demonstrations collected over 17 months on 13 Google robots. Most labs can't do that: they have their own robot, their own camera and a few hundred or a few thousand recordings. In language and vision, a model trained on diverse data outperforms narrow models, and in 2023, 21 institutions tested whether this works for robots. They brought 60 datasets from 22 robots into one format and trained the same RT-1 and RT-2 architectures on the mixture. Trained on this mixture, RT-1 was on average 50% more successful on robots with small datasets than the models the authors of those datasets had trained on their own data, and the large RT-2, after the same mixture, succeeded three times as often at skills that weren't in its robot's data. This lesson covers what exactly was aligned, what got lost along the way and where transfer didn't work.</p>
+    <div class="hero-meta"><span>≈ 45 minutes</span><span>1 lab, 2 interactives and a quiz</span><span id="heroMis">missions with a goal</span></div>
+    <div class="hero-list">
+      <div><b>FORMAT</b>Sort the data of different robots: what goes into the common seven-number action record as is, what gets converted, what gets dropped and what stays different</div>
+      <div><b>TABLES</b>Read the paper's tables and find the rows that show where the large model trained on pooled data gets its new skills, and what model size, several input frames and training on internet data contribute</div>
+      <div><b>MIXTURE</b>Train four policies on Ada's table, each on its own robot's data, and one on all the data at once, compare them side by side on every robot and choose what share of the data to take from each</div>
+      <div><b>AXIS</b>Find the robot that the pooled data didn't help and figure out how its recordings differ from everyone else's</div>
+    </div>
+    <p style="margin-top:28px"><a class="btn primary" href="#problem">Start the lesson ↓</a></p>
+  </div>
+</section>
+
+<section class="recall-sec" id="recall" aria-label="Warm-up on the previous lesson">
+  <div class="wrap"><div class="card recall" data-recall></div></div>
+  <script type="application/json" id="recallData">{"n": "3.3", "title": "RT-2", "href": "3-3-rt-2.html", "q": [{"q": "How does RT-2 output a robot action?", "o": ["With a separate regression head on top of the language model", "As a string of eight integers (a termination flag, six displacements of the gripper pose and the gripper), each one a bin out of 256, written as vocabulary tokens", "It picks a skill from a list, like SayCan"], "a": 1, "e": "The action is written as text, and the model predicts it the same way as the words of an answer. In PaLI-X, numbers up to 1000 are tokens of their own; in PaLM-E, the 256 least frequently used tokens are overwritten for actions. No new parameters are added.", "sec": "tokens", "secTitle": "An action in words"}, {"q": "Why is RT-2 fine-tuned on robot data together with web data, rather than on demonstrations alone?", "o": ["To speed up training", "Without web data, the model forgets the concepts it learned during VLM training and generalizes worse", "Web data contains robot actions"], "a": 1, "e": "In Table 6 of the paper, co-fine-tuning at 55B parameters gave 63% generalization versus 52% for plain fine-tuning, and training from scratch at 5B gave 9%. Robot data makes up about 50% of the mixture for PaLI-X and 66% for PaLM-E.", "sec": "cofinetune", "secTitle": "Co-fine-tuning and what it brings"}, {"q": "What transferred from web data into RT-2's actions?", "o": ["New motions: wiping a table, folding a towel", "Concepts: digits and symbols, colors, languages, people, relations between objects; the motions stayed the ones from the demonstrations", "Nothing: web data only gets in the way"], "a": 1, "e": "RT-2-PaLI-X carried out “move coke can near 3” or “move coke can to person with glasses” without a single such demonstration: 60% on average versus 17% for RT-1. No new skills appeared, and the authors name this as a limitation outright.", "sec": "emergent", "secTitle": "What emerged on its own"}]}</script>
+</section>
+
+<section class="section alt" id="problem">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">1</span> Transfer</div>
+      <h2>One robot, one dataset, one model</h2>
+      <p>In lesson 3.3, RT-2 generalized to new objects and commands, but all of its motion data came from one kind of robot: the same 130,000 demonstrations as RT-1's from lesson 3.1, recorded over 17 months on 13 robots of the same design in Google's office kitchens. A lab with one manipulator and two grad students will never have a dataset like that: it has a few hundred or a few thousand recordings made with its own camera and its own controller.</p>
+      <p>The Open X-Embodiment authors describe the state of affairs like this: “conventionally, robotic learning methods train a separate model for every application, every robot, and even every environment.” Each dataset is narrow along at least one axis: a single environment, a single set of objects or a narrow range of tasks. Even the largest robot datasets are a fraction of the size of vision benchmarks with 5–18 million images and language corpora with 1.5–4.5 billion examples.</p>
+      <p>Vision and language learned their lesson long ago: a model trained on a large, diverse corpus outperforms narrow models even on their own tasks, and a new task is solved by fine-tuning a general model rather than by training from scratch. In Part 1, imitation learning started from scratch every time, on the data of one robot, and in lesson 1.2 DAgger collected corrections anew for every new route. We've already seen transfer between the tasks of one robot: RT-1 from lesson 3.1 learned 700 commands at once and benefited from the shared data. But robots differ: one has seven joints, another six; the camera sits above the table or on the wrist; an action is recorded as a gripper velocity, a pose change or joint angles; one robot's gripper uses “1 = closed”, another's “0 = closed”.</p>
+      <p>Hence the question the paper asks directly: if you collect data from many robots in many labs and train one model, will each robot get <strong>positive transfer</strong>, that is, a higher success rate than a model trained only on its own data? Previous work introduced special mechanisms for this: a shared action space, learned representations, modules for a specific robot. Here the authors chose to test the simplest thing: bring the data into a coarsely aligned format and train the ready-made RT-1 and RT-2 architectures on it, without any special mechanisms for the differences between robots. What did they have to collect for this?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="dataset">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">2</span> Dataset</div>
+      <h2>60 datasets, 22 robots, 21 institutions</h2>
+      <p>By definition, one robot's data isn't enough for such a question, and collecting new data from twenty robots would take too long. So Open X-Embodiment (Open X-Embodiment Collaboration, 2023) doesn't record new demonstrations but pools existing ones: 60 datasets from 34 labs at 21 institutions, more than a million trajectories from 22 robots, from single arms to bimanual robots and quadrupeds. Hence the name: an <strong>embodiment</strong> is a robot's body with its joints, cameras and way of being controlled, and the X stands for “cross”, as in across different bodies. A <strong>trajectory</strong> here is a recording of one execution of a task from start to finish: the frames, the robot's states and the actions at every step; in lesson 3.1 the same thing was called an episode. Together they cover 527 skills and 160,266 tasks. Franka has the most separate datasets, while xArm and Google Robot contribute the most trajectories thanks to a few very large datasets.</p>
+      <p>The authors extracted the skills and objects from the text annotations with the PaLM language model. Most skills belong to the pick-place family, but the long tail contains skills like “wiping” or “assembling”, and the objects range from appliances to food items and utensils. All the datasets are stored in the <strong>RLDS</strong> format: tfrecord files of episodes in a format that accommodates different action spaces and different sets of observations, from a single camera to several cameras, depth and point clouds, and that loads into all major deep learning frameworks.</p>
+      <p>A single repository doesn't make the data compatible yet. Every robot has its own observations and its own action units, and for one model to learn from all of them at once, the recordings have to be brought to one form. What exactly counts as a common format, and what does it cost?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="format">
+  <div class="wrap">
+    <div class="lab-badge"><i>🧩</i> Interactive</div>
+    <h2>A common format: one frame and seven numbers</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>Robots' observation and action spaces differ a lot, and the authors name this as one of the challenges of building X-embodiment models. Their alignment is coarse. From each dataset they take <strong>one canonical camera</strong> and resize its frames to a common resolution; the other cameras, depth and point clouds don't reach the model. Any robot's action is rewritten as a <strong>7-dimensional vector</strong>: the gripper position x, y, z, three rotation angles and the gripper opening, or the rates of these same quantities. Before discretization, each dataset's actions are normalized by its own statistics, and the model's output is later de-normalized: converted back into the units of a specific robot, differently for each one. This way the same model outputs the same string of tokens, and each robot reads it in its own units.</p>
+      <div class="fmt-ex" aria-label="Three native action formats from Figure 3 of the paper">
+        <div><b>Robot 1 · 10 Hz</b><code>velocity · z-rotation velocity · closed gripper</code></div>
+        <div><b>Robot 2 · 3 Hz</b><code>position delta · rotation delta · gripper</code></div>
+        <div><b>Robot 3 · 5 Hz</b><code>position delta · no rotation · gripper</code></div>
+      </div>
+      <p>The paper also lists what isn't aligned. Cameras sit at different poses relative to the robot and have different properties, and that stays in the frames. The coordinate frames in which the gripper is controlled aren't aligned, and the action values are left as the robot's controller recorded them: absolute poses, increments or velocities. The authors acknowledge the consequence: “the same action vector may induce very different motions for different robots.” The model has to guess from the image which robot it is giving a command to right now.</p>
+      <p>Sort the records from the datasets by what happens to them during conversion to the common format. Drag a card, or tap it and then a column.</p>
+    </div>
+    <div class="card pad" id="fmtSort"></div>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>The format is coarse on purpose: the authors didn't want to add special mechanisms for the differences between robots and tested whether ready-made architectures would do with the data as is. Tokenization is the same in both models: 256 bins for each of eight dimensions, seven components of gripper motion and an episode termination flag. This is the same eight-number action as RT-2's in lesson 3.3. RT-1 in lesson 3.1 had 11 numbers: three more for moving the base, and instead of the termination flag, a mode: arm, base or end of episode; the common format has no base. Which models were trained on such a mixture, and what did they show?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="models">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">3</span> RT-X</div>
+      <h2>RT-1-X and RT-2-X: the same architectures on a data mixture</h2>
+      <p>For a heterogeneous mixture to pay off, the model needs capacity, and the authors take two familiar transformers without changing how they are built. <strong>RT-1-X</strong> is RT-1 from lesson 3.1: a 35M-parameter network that takes a history of 15 frames, encodes them with an ImageNet-pretrained EfficientNet and the command with a Universal Sentence Encoder (USE) vector, interweaves image and text with FiLM layers into 81 tokens per frame and outputs discrete actions with a decoder-only transformer. In lesson 3.1 the history was 6 frames, and the transformer read 8 tokens per frame: the 81 tokens are the output of EfficientNet with FiLM before the compression that TokenLearner performed in RT-1, and the short description of RT-1-X in the Open X-Embodiment paper doesn't mention this step. The paper doesn't explain why the history was extended to 15 frames. <strong>RT-2-X</strong> is RT-2 from lesson 3.3 in its 55B-parameter PaLI-X version: a ViT image encoder and a UL2 language model, pretrained on the WebLI web data; the action is written as text, for example “1 128 91 241 5 101 127”. RT-1-X was trained on the robotics mixture only, and RT-2-X with co-fine-tuning, with web data and robot data in roughly equal parts.</p>
+      <p>The mixture used in all the experiments is smaller than the full dataset. It covers 9 manipulators from 12 datasets: RT-1, QT-Opt, Bridge, Task Agnostic Robot Play, Jaco Play, Cable Routing, RoboTurk, NYU VINN, Austin VIOLA, Berkeley Autolab UR5, TOTO and Language Table. The authors explain the difference simply: the dataset kept growing, and at the time of the experiments this was all the data. On a robot, the models run at the rate it needs, from 3 to 10 Hz; RT-1-X runs locally, while RT-2-X is hosted in the cloud, and the robot queries it over the network.</p>
+    </div>
+    <figure class="card flow-card">
+      <canvas data-anim="oxe" width="720" height="300" role="img" aria-label="The data path in RT-X: four robots with their own datasets and action units; episodes fly into a common format of one frame and seven normalized numbers, the format goes into one model, and the predicted action returns to each robot in its own units"></canvas>
+      <figcaption class="cv-note">A diagram of the data path in RT-X, not a drawing of the robots. On the left are four robots from the dataset, and under each one, the units and rate in which it records actions; the stacks of cards are their episodes, and the taller the stack, the more data. Blue marks observations and episodes: the square with a grid in the middle is a frame in the common format, and the seven orange cells under it are the action numbers: x, y, z, three rotation angles (r, p, y) and the gripper (g). Purple is the one model; its small squares are the action tokens, 8 dimensions of 256 bins each. At the end, orange dots carry the predicted action back to each robot in its own units. The caption at the bottom right is the step number. The robots and units on the diagram are examples: the experiments' mixture has 9 robots, the dataset 22. Click the diagram to pause it.</figcaption>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>There's one pipeline but many robots, and each has its own amount of data: from hundreds of episodes to hundreds of thousands. The authors ask three questions. Does every robot get positive transfer, that is, higher success than a model trained only on its own data? Does the mixture generalize better to new tasks? And which design choices (model size, history, web pre-training, data composition) matter for this? They answer in two tables and one figure, based on 3,600 trials on 6 robots.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="results">
+  <div class="wrap">
+    <div class="lab-badge"><i>🧩</i> Interactive</div>
+    <h2>The paper's tables: where transfer works and where it doesn't</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>Transfer can't be checked with a single number: a robot with three hundred episodes needs other robots' data more than a robot with hundreds of thousands. So the authors split the evaluation by <strong>domains</strong> (a domain is a robot together with its dataset and evaluation site) into domains with small datasets and domains with large ones, and everywhere they compare against two baseline models. <strong>Original Method</strong> is the dataset authors' model, trained only on that dataset: it was tuned for this data, so it isn't easy to beat. The second is RT-1 trained only on this dataset: that shows what the mixture itself contributes, as opposed to the architecture.</p>
+      <p>In the five small domains (Kitchen Manipulation on Jaco, Cable Routing, NYU Door Opening, AUTOLab UR5 and Robot Play), RT-1-X beat Original Method in four of the five, and its mean success rate is 50% higher than that of either Original Method or RT-1 trained on its own data (Fig. 4 of the paper; the numbers for individual domains appear only in the figure, so they aren't given here). Table I covers the large domains, Table II the ablations of RT-2-X. The numbers in the cells open with a button: place your bet first. Hover over a cell or click a row to read what's behind it.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="ctl-row cap-top">
+          <div class="ctl" id="wrapTSel"><span class="ctl-l">Table</span><div class="seg" id="tSel" role="group" aria-label="Which table to show"><button type="button" data-v="t1" aria-pressed="true">I: large datasets</button><button type="button" data-v="t2" aria-pressed="false">II: RT-2-X ablations</button></div></div>
+        </div>
+        <div class="tbl-wrap" id="tBox" aria-live="polite"></div>
+        <p class="cv-note" id="tNote"></p>
+        <div class="readout" id="tOut"></div>
+      </div>
+      <div class="card guide-card"><div id="tMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: how the evaluations work and what the tables don't show</summary><div class="body">
+      <p>All the policies in this section are trained on the same mixture of 9 manipulators. The evaluation is real trials: 3,600 attempts in total on 6 robots in the dataset authors' labs, and the lab logos in Fig. 4 indicate where the robot was run. For Table I, Bridge was evaluated on WidowX in two labs, IRIS at Stanford and RAIL at Berkeley, and the Original Method there is LCBC from the Bridge paper; the six skills from the RT-1 paper were tested on Google Robot, where the Original Method is RT-1 itself.</p>
+      <p>Table II looks at two different properties. “RT-2 generalization” is the protocol from lesson 3.3: new objects, backgrounds and environments. The “Skills from Bridge” column is called “Emergent Skills” in the paper, but it means something different from RT-2's emergent capabilities: these are tasks with objects and skills that aren't in the Google Robot data but are in the Bridge dataset, recorded on WidowX; they are evaluated on Google Robot. This checks whether a skill transferred from one robot to another.</p>
+      <p>What the tables don't have: the models weren't tested on robots that weren't in the mixture; robots with very different sensing and actuation, such as the quadrupeds from the full dataset, weren't included in the experiments; and the paper gives no criterion for telling in advance whether transfer will be positive. The authors call all of this directions for future work.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>The picture is uneven. The mixture helps the small domains noticeably, while in the large ones the small RT-1-X loses to RT-1 on RT-1's own data: 35M parameters can't hold nine robots at once, and the authors call this underfitting. The large RT-2-X keeps up with RT-1 in the large domains, and on the skills from another robot's dataset it's three times better than RT-2; without the Bridge data, its success on these skills drops by almost half. Model size, frame history and web pre-training all matter. But co-fine-tuning with web data versus fine-tuning on robot data alone changes almost nothing here: 52% versus 47% in generalization and 44.4% versus 48.7% on the skills from Bridge. In lesson 3.3, co-fine-tuning was a key detail of the RT-2 recipe, and the authors themselves note that their finding runs contrary to it. Their explanation is the data: the mixture of nine robots is much more diverse than the single robot's data RT-2 learned from. There's a second circumstance too: this ablation was done on a 5B-parameter model, and at that size RT-2's gap was small as well, 44% versus 42%. It was noticeable, 63% versus 52%, only at 55B, and Open X-Embodiment didn't test fine-tuning without web data on a model of that size.</p>
+      <p>But real robots don't let you look inside: you can't remove one dataset, change the mixture weights and see a minute later what happened to each robot. Can we set up such an experiment on a table where everything is computed before your eyes?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="mix">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab</div>
+    <h2>Mixing four robots' data on one table</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>In the paper, transfer is measured on six real robots, and what happens inside the mixture can only be judged from the final percentages. Let's build a small X-embodiment setup where everything is visible. The table is the one from lesson 2.1: cubes and a bowl, the command “pick up the &lt;color&gt; cube”, and this time four Ada robots work at it.</p>
+      <p class="ada-note"><svg class="ada-ico" viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="10" width="48" height="42" rx="18" fill="#f4efe6" stroke="#3d3c38" stroke-width="3"/><rect x="15" y="19" width="34" height="22" rx="10" fill="#1f2430"/><ellipse cx="25" cy="30" rx="4" ry="5.5" fill="#eb6834"/><ellipse cx="39" cy="30" rx="4" ry="5.5" fill="#eb6834"/></svg><span>Ada is a home humanoid on a wheeled base; the course labs are built around her. More about her in <a href="0-1-dve-paradigmy.html#ada">lesson 0.1</a>.</span></p>
+      <p>They all share the same scenes, but their recordings differ. Robot A's camera sees the whole table, the action is recorded as a cell of a 24 × 24 grid, the gripper uses “1 = closed”, and the dataset has 300 demonstrations. Robot B's camera is closer and sees only the middle of the table, the action is a cell of a coarse 12 × 12 grid, the gripper uses “0 = closed”, and there are 100 demonstrations. Robot C's camera is on the other side of the table, so its frame is mirrored, the action is recorded in millimeters in its base frame, and there are 40 demonstrations. Robot D's frame is slightly cropped, the action is an offset from the home point in centimeters, and its x axis points toward the camera, that is, opposite to the image; there are 15 demonstrations.</p>
+      <p>The common format is like the paper's, only smaller: a frame from any camera is reduced to a 12 × 12 grid, and the action is two normalized coordinates in the frame, discretized into 24 bins per axis, plus the gripper with “1 = close”. The conversion is normalization by the robot's workspace; as in the paper, we don't align the coordinate frames. The policy is the same small network for every robot, and it trains here, in your browser; the test is 60 new scenes on each robot, and success means the gripper came down on the right cube. First, each policy learns only from its own data.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="robots" id="xRobots"></div>
+        <p class="cv-note">The four frames show the same table from above as the four robots' cameras see it: A sees the whole table, B the middle, larger, C a mirror image, D the table with its edges cropped. The cubes are colored squares, the bowl is a colored ring. Under each frame is how the robot records an action; the bars are the hit rate on 60 new scenes: blue for the robot's own policy, orange for the mixture policy. Before training, the dashed ring is where the operator picked the cube in the first demonstration. After training, the frame shows a test scene: the black ring is the right cube, the blue cross is where the robot's own policy lowered the gripper, the orange dot is the mixture policy, and green means a hit.</p>
+        <details class="lab-legend"><summary>Legend: marks on the scene</summary><div class="cv-legend" id="xLegend"></div></details>
+        <div class="ctl-row">
+          <label class="hd-range" id="wrapXScene"><span>Test scene</span><input id="xScene" type="range" min="1" max="60" step="1" value="1"><output>1</output></label>
+          <div class="ctl" id="wrapXAlign"><span class="ctl-l">Robot D's x axis</span><div class="seg" id="xAlign" role="group" aria-label="Robot D's coordinate frame"><button type="button" data-v="0" aria-pressed="true">as recorded</button><button type="button" data-v="1" aria-pressed="false">align</button></div></div>
+        </div>
+        <div class="weights" id="xWeights" hidden></div>
+        <div class="train-prog" id="xProg" hidden><i></i></div>
+        <div class="native" id="xNative"></div>
+        <div class="readout" id="xOut"></div>
+      </div>
+      <div class="card guide-card"><div id="xMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: the format, the policy, training and our simplifications</summary><div class="body">
+      <p>The observation of robot \(r\) is its camera frame \(I_r\), averaged over cells down to a \(12 \times 12\) grid. The operator's action is a point \((x, y)\) on the table; in the common format, it becomes normalized coordinates in the frame and bins:</p>
+      <div class="formula">\[\begin{gathered} (u, v) = \phi_r(x, y) \in [0, 1]^2, \qquad b_u = \lfloor 24u \rfloor,\ b_v = \lfloor 24v \rfloor, \\ \text{the robot executes } \phi_r^{-1}\!\Bigl(\tfrac{b_u + 0.5}{24},\ \tfrac{b_v + 0.5}{24}\Bigr) \text{ in its own units.} \end{gathered}\]</div>
+      <p>\(\phi_r\) is normalization by the workspace: for grid cells it's \((c + 0.5)/n\), for millimeters, division by the width of the workspace, and for an offset from the home point, \(0.5 + \Delta x / L\). By default, robot D's axis sign isn't included in \(\phi_r\), so its labels in the common format mirror those of the other robots for the same image. The “align” switch adds the axis sign to \(\phi_D\) and \(\phi_D^{-1}\): that's the alignment of coordinate frames that the paper doesn't do.</p>
+      <p>The policy: a \(12 \times 12\) frame and the command word → a network with one hidden layer of 32 neurons → two softmax heads over 24 bins; the objective is cross-entropy over both heads, as in RT-1 with its 256 bins. Instead of a trainable image encoder, there's a frozen one: a map of how similar the color of each cell is to the color named in the command, in the same role as the pretrained EfficientNet and USE in RT-1 and mini-CLIP in CLIPort from lesson 2.1. Training is 500 Adam steps with batches of 16 examples; for each example in a batch, a dataset is chosen first, with a probability proportional to its weight in the mixture, and then a random demonstration from it. For the policies trained on their own data, only one dataset has a nonzero weight. All randomness is seeded, so the numbers repeat from run to run.</p>
+      <p>What's missing here: frame history, gripper rotation and height, multiple steps per episode. The robots' cameras differ only in cropping, scale and mirroring, and the objects and the table are the same, so transfer comes easier here than between a Franka in one lab and a WidowX in another. The lab's numbers have nothing to do with the paper's numbers.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>The policy trained on its own data worked well for the robot with 300 demonstrations and almost never for the robot with 15, and the mixture evened this out: it added tens of percentage points to the small datasets and changed almost nothing for the large one. The paper shows the same pattern on real robots: small domains gain a lot, large ones only with a large enough model. But robot D improved only after we aligned its axis: normalization alone doesn't make “right” the same word for all robots, and the paper leaves this to the model, which has to recognize the robot from the image. Here, where the cameras are almost identical, there's nothing to recognize it by. And the mixture weights turned out not to be cosmetic: remove the largest dataset and the others drop; raise the weight of the smallest one and the largest one drops.</p>
+      <p>Open X-Embodiment showed that a common format and a mixture work, and it released the dataset and the models. What has grown out of it by 2026?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="today">
+  <div class="prose">
+    <div class="kicker"><span class="num">4</span> Today</div>
+    <h2>What grew out of the common format</h2>
+    <p>The main result of Open X-Embodiment isn't the models but a habit: robot data is now routinely released in a common format, and models are trained on mixtures. The next generation of open vision-language-action models, Octo and OpenVLA, were trained on mixtures of Open X-Embodiment datasets, and the question of mixture weights, which our sliders settled, became a separate section of their papers; lesson 3.5 covers them. The models of lessons 3.6–3.8, from π0 to Gemini Robotics, also learn from the data of many robots at once, and their authors describe separately how they mix data from different robot configurations.</p>
+    <p>The way data is collected has changed too. Open X-Embodiment pooled other labs' recordings after the fact and so had to put up with different cameras and coordinate frames. DROID, collected in 2024, was recorded with a single protocol on identical Franka setups with identical cameras in many labs: such data barely needs aligning. Hugging Face's LeRobot library set an open dataset format into which both the Open X-Embodiment datasets and recordings from desktop arms costing a few hundred dollars have been converted, so any lab or hobbyist can add their episodes to the shared ones.</p>
+    <p>A question the paper listed among its directions for future work is still open: there's still no criterion for when transfer is positive, and mixture weights are tuned by hand. And the larger the models get, the more obvious it is that a million trajectories isn't much: vision and language models learn from billions of examples. Where to get data for robots (teleoperation, simulation, videos of people) is the subject of Part 4.</p>
+  </div>
+</section>
+
+<section class="section" id="quiz">
+  <div class="prose">
+    <div class="kicker"><span class="num">5</span> Check yourself</div>
+    <h2>Eight common misconceptions</h2>
+    <div class="quiz" id="quizBox"></div>
+    <p class="score" id="quizScore" style="margin-top:14px"></p>
+  </div>
+</section>
+
+<section class="section alt" id="finale">
+  <div class="prose">
+    <div class="kicker"><span class="num">6</span> Takeaways</div>
+    <h2>Lesson takeaways</h2>
+    <ol class="takeaways">
+      <li><span>Open X-Embodiment recorded no new demonstrations: 60 existing datasets from 22 robots and 21 institutions were brought into <strong>one RLDS format</strong>, more than a million trajectories and 527 skills.</span></li>
+      <li><span>The common format is deliberately coarse: one camera, a frame at a common resolution and a <strong>7-dimensional gripper action vector</strong> normalized per dataset. Coordinate frames, rates and the meaning of the values aren't aligned, and one vector can mean different motions for different robots.</span></li>
+      <li><span>The models are the same as before: RT-1-X with 35M parameters and RT-2-X with 55B, trained on a mixture of 9 robots without any special mechanisms for the differences between them. <strong>Positive transfer</strong> came from the data alone.</span></li>
+      <li><span>The mixture helps small domains: RT-1-X beat the authors' methods on 4 of 5 datasets, by 50% on average. In large domains, the small model <strong>underfits</strong> and loses to RT-1 on RT-1's own data, while the large RT-2-X doesn't.</span></li>
+      <li><span>Skills transfer between robots: on tasks from Bridge, recorded on WidowX, RT-2-X on Google Robot gets 75.8% versus 27.3% for RT-2, and 42.8% without Bridge in the mixture. It takes model size, frame history and web pre-training.</span></li>
+      <li><span>In the lab, transfer was reproduced on the table: the small datasets gained tens of percentage points, the large one barely changed, and the robot with the unaligned axis improved only after alignment. The mixture weights and the data composition change every robot's result.</span></li>
+    </ol>
+    <h3 style="margin-top:40px">Open questions</h3>
+    <details class="card pad open-q"><summary>How can you tell in advance whether a mixture will help a given robot or hurt it?</summary><p>The paper gives no criterion and calls it future work. The experiments show three conditions: the less data a domain has of its own, the more it gains; data-rich domains need a model with enough capacity; and an inconsistent format, like robot D's axis in the lab, breaks transfer. For now, the only practical method is ablations: remove a dataset from the mixture and measure what changed, as in row 3 of Table II. It would be cheaper to predict transfer from how similar the observations and actions of two datasets are, but no such measure has been validated on robots yet.</p></details>
+    <details class="card pad open-q"><summary>The common vector describes one gripper. What about the bimanual robots and quadrupeds that are in the dataset but not in the experiments?</summary><p>The authors explicitly left robots with very different sensing and actuation out of the experiments. Options that appeared later: separate action heads for each robot configuration, masks for missing dimensions, longer vectors with zeros in the unused components. In lesson 3.5, Octo attaches new action heads when fine-tuning for a new robot, and in lesson 3.7, models such as GR00T N1 and Helix describe a humanoid's actions with dozens of numbers and learn from a mixture of robot data and videos of people. The common denominator of all these solutions: the frame and the language stay shared, and the action is adapted to the robot.</p></details>
+    <h3 style="margin-top:34px">Paper guide</h3>
+    <p><a href="https://arxiv.org/abs/2310.08864" target="_blank" rel="noopener">Open X-Embodiment Collaboration, “Open X-Embodiment: Robotic Learning Datasets and RT-X Models”, ICRA 2024</a>.</p>
+    <ul class="links">
+      <li><strong>Read closely</strong><span>Section IV-A on data format consolidation: what is aligned and what isn't. Section V-A with Figure 4 and Table I: small and large domains. Sections V-B and V-C with Table II: where the emergent skills come from and what size, history and web pre-training contribute.</span></li>
+      <li><strong>Safe to skip</strong><span>The two pages of authors and institutions, the related work in Section II and the references; the details of RT-1 and RT-2 in Section IV-B, which lessons 3.1 and 3.3 already cover.</span></li>
+      <li><strong>Question to keep in mind</strong><span>RT-1-X saw tens of times more data than RT-1 on Bridge and still lost to it. What would you change first (the model, the mixture weights or the format), and how would you check that it was exactly this change that helped?</span></li>
+    </ul>
+    <h3 style="margin-top:34px">Resources</h3>
+    <ul class="links">
+      <li><a href="https://robotics-transformer-x.github.io/" target="_blank" rel="noopener">Open X-Embodiment and RT-X</a><span>Project page: a list of all 60 datasets with their formats, videos and the RT-1-X weights</span></li>
+      <li><a href="https://github.com/google-deepmind/open_x_embodiment" target="_blank" rel="noopener">The open_x_embodiment repository</a><span>Code for loading the RLDS datasets with TensorFlow Datasets, plus notebooks with examples and RT-1-X inference</span></li>
+      <li><a href="https://github.com/google-research/rlds" target="_blank" rel="noopener">RLDS</a><span>The episode storage format the dataset is built on</span></li>
+    </ul>
+    <!--if:3-5-otkrytye-vla.html--><div class="callout insight" style="margin-top:34px"><span class="ico">➡️</span><div><p><strong>Next: 3.5 “Open VLAs: Octo and OpenVLA”.</strong> The RT-X models were released only in part, and training them cost as much as training a large language model. The next lesson covers open models trained on Open X-Embodiment mixtures and how to fine-tune them for your own robot with LoRA on a single GPU. <a href="3-5-otkrytye-vla.html">Lesson 3.5 →</a></p></div></div><!--/if-->
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Lesson 3.4 of the “Modern Robotics and Physical AI” course. The numbers in the tables come from the paper; the data mixture lab runs in your browser and has nothing to do with the paper's results.
+</footer>
+<div class="tooltip" id="tooltip" role="tooltip"></div>
+<script>
+/*@@JS@@*/
+</script>
+</body>
+</html>
