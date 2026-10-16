@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3.2 Vision-language models — Modern Robotics and Physical AI</title>
+<meta name="description" content="Lesson 3.2 of the “Modern Robotics and Physical AI” course: how an image gets into a language model. Cut an image into patches and tokens, as ViT does, train a mini-VLM in your browser that describes an object in words, compare a pretrained encoder with one trained from scratch, and see what the projector between the encoder and the language model does in LLaVA and PaliGemma.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<script>
+  (function () { try { var t = localStorage.getItem('mr-theme'); if (t) document.documentElement.dataset.theme = t; else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme = 'dark'; } catch (e) {} })();
+</script>
+<style>
+/*@@CSS@@*/
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html#program" title="To the course program"><div>Modern Robotics and Physical AI<small>Lesson 3.2 · Vision-language models</small></div></a>
+    <nav class="toc" aria-label="Lesson sections">
+      <a href="#problem">Knowledge</a>
+      <a href="#patches">Patches</a>
+      <a href="#llava">Projector</a>
+      <a href="#vlm">Mini-VLM</a>
+      <a href="#space">Space</a>
+      <a href="#flow">Path</a>
+      <a href="#today">Today</a>
+      <a href="#quiz">Quiz</a>
+      <a href="#finale">Takeaways</a>
+    </nav>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Toggle theme">◐</button>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main>
+
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="kicker"><span class="num">3.2</span> Part 3 · Foundation models for robots</div>
+    <h1>Vision-language models: <span class="amp">how an image gets into a language model</span></h1>
+    <p class="lead">RT-1 from lesson 3.1 knows exactly as much about the world as there was in 130,000 robot demonstrations. Large language models do know about the world, but they read text, while the robot sees through a camera. In this lesson we'll work out how an image is turned into a sequence of tokens and fed into a language model. ViT cuts an image into squares of 16 × 16 pixels and makes a token out of each one. LLaVA takes a ready-made vision network from CLIP and a ready-made language model and trains a single matrix between them that maps image tokens to vectors the language model understands. PaliGemma is built the same way from open parts and has 3 billion parameters. Models that read an image together with text and answer in words are called vision-language models, or VLMs. In the lab, a small VLM trains in your browser and describes an object in two words, and a vision network trained in advance competes with one that learns from scratch.</p>
+    <div class="hero-meta"><span>≈ 40 minutes</span><span>1 lab, 2 interactives, a diagram and a quiz</span><span id="heroMis">missions with a goal</span></div>
+    <div class="hero-list">
+      <div><b>CUTTING UP THE IMAGE</b>Cut an image of an object into 16 squares, turn each one into a column of numbers and check whether the model notices that the squares are shuffled</div>
+      <div><b>DESCRIBING IN WORDS</b>Train a model in your browser that describes an object in two words, and test it on a combination of color and shape that wasn't in training</div>
+      <div><b>READY-MADE VISION</b>Compare, on the same 200 captions, a model with a vision network trained in advance and a model that learns vision from scratch</div>
+      <div><b>A BRIDGE TO WORDS</b>See on a map of the language model's vectors what changes when you train a single matrix between the vision network and the language model</div>
+    </div>
+    <p style="margin-top:28px"><a class="btn primary" href="#problem">Start the lesson ↓</a></p>
+  </div>
+</section>
+
+<section class="recall-sec" id="recall" aria-label="Warm-up on the previous lesson">
+  <div class="wrap"><div class="card recall" data-recall></div></div>
+  <script type="application/json" id="recallData">{"n": "3.1", "title": "RT-1", "href": "3-1-rt-1.html", "q": [{"q": "How does RT-1 output a robot action?", "o": ["By regressing 11 numbers with mean squared error", "By classification: for each of the 11 dimensions, one of 256 bins", "As text that a planner then parses"], "a": 1, "e": "Each action dimension is split into 256 equal bins, the model predicts the bin index, and the robot gets the bin center. The same model with continuous actions completed 68% of familiar tasks instead of 97%.", "sec": "arch", "secTitle": "From a frame to action tokens"}, {"q": "Where does the command text meet the image in RT-1?", "o": ["Inside EfficientNet: through FiLM, the command vector sets the scale and shift of the features", "At the end: text tokens are added to the image tokens before the transformer", "The command isn't needed: the model recognizes the task from the scene"], "a": 0, "e": "This is early language fusion: the image features are extracted with the command taken into account. The transformer reads the tokens already compressed by TokenLearner, 8 per frame and 48 over six frames.", "sec": "arch", "secTitle": "From a frame to action tokens"}, {"q": "What hurt RT-1's generalization more in the data ablations?", "o": ["Removing 49% of the episodes while keeping all the tasks", "Removing 25% of the tasks while keeping 97% of the episodes: as much as losing half the episodes", "Both datasets generalize as well as the full one"], "a": 1, "e": "Table 7 of the paper: 54% generalization without a quarter of the tasks versus 50% without half the episodes. Data diversity matters more than data quantity.", "sec": "diversity", "secTitle": "Diversity matters more than volume"}]}</script>
+</section>
+
+<section class="section alt" id="problem">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">1</span> Knowledge</div>
+      <h2>The robot knows its demonstrations, the language model knows the world</h2>
+      <p>In lesson 3.1, RT-1 picks an action as a token out of 256 bins, and it learned to do that from 130,000 demonstrations. They contain nothing beyond what people showed the robot: objects from the counters of an office kitchen and commands from a set that took 17 months to collect. Ask RT-1 to pick up an object that wasn't in the demonstrations, or to explain what a “dead screen” means, and the model has nowhere to get it from.</p>
+      <p>Large language models do know about the world. In lesson 2.3, SayCan asked a language model which step is useful for a request, Code as Policies had it write code, and VoxPoser built maps from its code. But each time the model got text and returned text, and the scene was retold to it by detectors: a list of objects, coordinates, the answer “success — no”. A detector sees only what it was trained to see, and anything outside its vocabulary never reaches the language model.</p>
+      <p>We'd like to remove the middleman and show the language model the image itself. A model that takes an image and text and answers with text is called a <strong>vision-language model</strong>, or VLM. The difficulty is that a language model reads a sequence of tokens: each token is a fixed-length vector from an embedding table, and the attention from lesson 1.6 works with such vectors. An image is a 224 × 224 × 3 grid of pixels, some 150,000 numbers with no sequence to them at all. How do you turn it into tokens that a transformer will read the same way it reads words?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="patches">
+  <div class="wrap">
+    <div class="lab-badge"><i>🧩</i> Interactive 1</div>
+    <h2>ViT: patches become tokens</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>A transformer reads a sequence of vectors of the same length, and an image is a grid of pixels. In lesson 1.6 we already cut a kitchen frame into patches to work out the cost of attention; <strong>Vision Transformer</strong> (ViT, Dosovitskiy et al., Google, 2021) builds the whole model on this slicing. A 224 × 224 image is cut into <strong>patches</strong>, squares of 16 × 16 pixels, which gives 14 × 14 = 196 patches. Each patch is flattened into a vector of 16 · 16 · 3 = 768 numbers and multiplied by one and the same trainable matrix: this is a linear layer, and it maps the patch to a vector of the model's width. The authors call the result patch embeddings, and from there an ordinary transformer from lesson 1.6 works with them: all-to-all attention, fully connected blocks, normalization. A separate trainable token at the start of the sequence, like [class] in BERT, gathers the answer for classification.</p>
+      <p>Attention doesn't know the order of tokens: shuffle them, and the output is shuffled the same way. For words, this was solved by the positional encodings from lesson 1.6, and for patches it's solved the same way: a trainable vector for the patch's position is added to each patch embedding. At the start of training, these vectors in ViT know nothing about patch 2 lying to the right of patch 1: the model learns all spatial relations from data, unlike a convolutional network, where neighborhood is built into every layer.</p>
+      <p>On the scene is a 16 × 16 icon from the table world of lesson 2.1, cut into 16 patches of 4 × 4 pixels. A linear layer maps each patch to a vector of 16 numbers, a position vector is added to it, and the 16 tokens go into a single attention block. This is the <strong>encoder</strong>, the part of the model that turns an image into vectors; the small VLM in the lab below will need it. On the right is the mean of all output tokens and its similarity to the output for the original, unshuffled image.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <canvas id="pCv" width="640" height="300" class="patch-cv" role="img" aria-label="An icon cut into 16 patches, 16 token vectors with position numbers, and the encoder output"></canvas>
+        <p class="cv-note">A diagram of the encoder on one image, not a picture of the model. On the left is a 16 × 16 pixel icon cut into 16 patches of 4 × 4; the number in the corner is the original patch number, orange if the patch has been moved. In the middle are the 16 tokens: a column is a vector of 16 numbers, an orange cell is a positive number and a blue one a negative number, and the brighter the cell, the larger its magnitude. The purple squares with numbers under the columns are the position vectors 0–15. On the right is the encoder output, the mean of all tokens after the attention block, for the original image and for the current one; cos is their similarity, the cosine of the angle between them, and 1.000 means the outputs match.</p>
+        <div class="ctl-row">
+          <div class="ctl" id="wrapPObj"><span class="ctl-l">Object</span><div class="seg" id="pColor" role="group" aria-label="Color"></div><div class="seg" id="pShape" role="group" aria-label="Shape"></div></div>
+          <div class="ctl" id="wrapPPerm"><span class="ctl-l">Patches</span><div class="seg" id="pPerm" role="group" aria-label="Patch order"><button type="button" data-v="0" aria-pressed="true">in order</button><button type="button" data-v="1" aria-pressed="false">shuffled</button></div></div>
+          <div class="ctl" id="wrapPPos"><span class="ctl-l">Position vectors</span><div class="seg" id="pPos" role="group" aria-label="Position vectors"><button type="button" data-v="1" aria-pressed="true">on</button><button type="button" data-v="0" aria-pressed="false">off</button></div></div>
+        </div>
+        <div class="readout" id="pOut"></div>
+      </div>
+      <div class="card guide-card"><div id="pMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: the ViT formula, model sizes and what positions gave</summary><div class="body">
+      <p>An image \(x \in \mathbb R^{H \times W \times C}\) is cut into \(N = HW/P^2\) patches with side \(P\); \(N\) is the sequence length. The paper writes the transformer input like this:</p>
+      <div class="formula">\[\begin{gathered} z_0 = [\,x_\text{class};\ x_p^1 E;\ x_p^2 E;\ \dots;\ x_p^N E\,] + E_\text{pos}, \\ E \in \mathbb R^{(P^2 C) \times D}, \qquad E_\text{pos} \in \mathbb R^{(N+1) \times D}. \end{gathered}\]</div>
+      <p>One matrix \(E\) for all patches, a separate row of \(E_\text{pos}\) for each position, then \(L\) identical blocks: multi-head attention and a fully connected block, each with normalization before its input and a residual connection. Three sizes from the paper: ViT-Base has 12 layers, width 768 and 86M parameters; ViT-Large has 24 layers, width 1024 and 307M; ViT-Huge has 32 layers, width 1280 and 632M. The notation ViT-L/16 means the Large model with a 16 × 16 patch; the sequence length is inversely proportional to the square of the patch side, so ViT-L/14, with a patch of 14, is more expensive than ViT-L/16.</p>
+      <p>The positional vectors in the paper are one-dimensional: 196 trainable rows, one per patch number in reading order. The authors also tried two-dimensional encodings (separately for the row and the column) and relative ones: on ImageNet with five examples per class, ViT-B/16 without positional vectors gives 0.614, with one-dimensional ones 0.642, with two-dimensional ones 0.640, and with relative ones 0.640. The gap between “no positions” and “with positions” is large, and between the ways of encoding them there is almost none. Without positions, the authors call the input a “bag of patches”.</p>
+      <p>Data mattered more than architecture. Pretrained on ImageNet with 1.3M images, ViT-Large loses to ViT-Base; on ImageNet-21k with 14M images they draw level, and only on the private JFT dataset with 303M images do the large models come into their own. ViT-H/14 after JFT reaches 88.55% on ImageNet for 2,500 TPUv3-core-days, while the ResNet BiT-L gets 87.54% for 9,900. Our encoder is tiny: a patch of 4 × 4 × 3 = 48 numbers, width 16, one block, one head, 3,200 parameters.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>Once it's cut up, an image is no different from text: it's a sequence of vectors, and a transformer reads it with the same attention. Everything that follows rests on this: PerAct in lesson 2.2 cut a voxel grid into 5 × 5 × 5 patches, RT-1 in 3.1 took 81 tokens from a convolutional network, and the VLMs we're about to discuss get hundreds of image tokens from a ViT. But a language model has its own embedding table: the vector of the word “red” is a row of that table, while a patch vector is the output of someone else's network, with a different width and a different scale. How do you put them into one sequence?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="llava">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">2</span> Projector</div>
+      <h2>LLaVA and PaliGemma: a projector between the encoder and the language model</h2>
+      <p>Image tokens and word tokens live in different spaces: the encoder has its own width and its own meaning for the axes, and the language model has its own embedding table that all of its attention is tuned to. Training a single network from scratch that reads both would mean rebuilding both the knowledge of the world from text and vision from images.</p>
+      <p><strong>LLaVA</strong> (Liu et al., University of Wisconsin–Madison and Microsoft Research, 2023) takes both parts ready-made. Vision is CLIP's image encoder, ViT-L/14, the very one whose vectors found the blue bowl from a description in lesson 2.1; its weights are frozen. Language is the Vicuna model. Between them sits a <strong>projector</strong>: a trainable matrix \(W\) that maps each output token of the encoder to a vector of the same dimension as the language model's word embeddings. After the projector, the image tokens are simply placed in the sequence before the question tokens, and the language model reads them with ordinary attention, without telling them apart from words. The authors describe this stage as training “a compatible visual tokenizer for the frozen LLM”.</p>
+      <p>Training goes in two stages. In the first, both the encoder and the language model are frozen, and only the projector is trained, on 595,000 image–caption pairs filtered from the CC3M dataset: the model learns to produce the caption from the image. In the second, the projector and the language model are fine-tuned together on instructions: 158,000 examples that a text-only GPT-4 wrote from the captions and bounding boxes of COCO images, namely 58,000 conversations, 23,000 detailed descriptions and 77,000 answers with reasoning. The encoder stays frozen throughout. All the training ran on eight A100 GPUs, and on a synthetic set of questions the result came to 85.1% of GPT-4's score; without the second stage, the ability to follow instructions dropped by more than 50 points. In LLaVA-1.5, from the same year, the linear projector was replaced with a two-layer MLP, and the encoder was taken at a resolution of 336 px.</p>
+      <p><strong>PaliGemma</strong> (Beyer, Steiner, Pinto, Kolesnikov, Wang et al., Google DeepMind, 2024) is built the same way from open parts: the SigLIP-So400m encoder with 400M parameters, trained contrastively with a sigmoid loss, the Gemma-2B language model, and a linear projector between them initialized to zeros. In total, under 3B parameters. The image is resized to a square of 224, 448 or 896 pixels and gives 256, 1024 or 4096 tokens; they come first, followed by the beginning-of-text token, the prompt and a newline as a separator, then the answer. The attention is <strong>prefix attention</strong>: the image and prompt tokens see each other in full, in both directions, so the image can “peek” at the question, while the answer tokens are generated autoregressively and see only what comes before them. The authors also tried the ordinary causal mask from lesson 1.6, on the prompt and on the image: both work worse. The loss is computed only on the answer tokens.</p>
+      <p>Unlike LLaVA, PaliGemma freezes nothing, even in the first multimodal stage: the encoder is fine-tuned together with the language model on a billion examples at 224 px, with a slow warm-up of its learning rate so that the gradients of the not-yet-aligned language model don't ruin its features. According to the authors' ablation, after transfer to tasks there's no difference between a frozen and a trainable encoder, but on tasks about where objects are, perplexity is noticeably better without freezing; a frozen language model is much worse, and any part trained from scratch instead of starting from a ready checkpoint makes the result collapse. They compared projectors too: linear versus MLP, 77.2 versus 77.1 points with all weights trained. Then the resolution is raised to 448 on 50M examples and to 896 on 10M, and the three base models are fine-tuned for a specific task.</p>
+      <p>The recipe is the same: a ready-made encoder, a ready-made language model and a trainable bridge between them. To see what exactly happens on this bridge, let's build such a model in miniature and train it right here. Will a ready-made encoder work better than an encoder trained together with everything else?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="vlm">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab</div>
+    <h2>A mini-VLM describes an image</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>Let's build a miniature LLaVA out of three parts, each of which trains here, in your browser. The encoder is the mini-ViT from the interactive above: 16 patches, one attention block, 3,200 parameters. We pretrain it contrastively, with the same InfoNCE objective as the mini-CLIP in lesson 2.1: the mean of the image tokens is pulled toward the sum of the vectors of the caption's two words, and mismatched pairs are pushed apart. The stream of images for pre-training covers all 24 combinations of six colors and four shapes, with 16 new images per step: that's the encoder's “internet”. The projector is a linear layer from the encoder's 16 numbers to the language model's 16 numbers, 272 parameters. The language model is a single transformer block with prefix attention, as in PaliGemma, and a vocabulary of ten words and two special tokens, 2,400 parameters; we pretrain it on caption text without images, so that it knows a shape comes after a color, and the end of the answer comes after the shape.</p>
+      <p>The VLM itself is trained on 200 images with two-word captions. There isn't a single purple cube among them: 23 combinations out of 24. Training goes as in LLaVA: first, with the encoder and the language model frozen, only the projector learns; then the projector and the language model learn together, while the encoder stays frozen. The answer is generated word by word: from the image tokens and the start token the model picks a color, from the image and the color word a shape, then the end token. The test is on new images of all 24 combinations, images that weren't in training.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <canvas id="vCv" width="640" height="250" class="vlm-cv" role="img" aria-label="The path of an image through the mini-VLM: the icon, 16 patches, the encoder tokens, the projector, the language model and the answer words with their probabilities"></canvas>
+        <p class="cv-note">A diagram of the mini-VLM on one image, not a picture of the model. On the left is the icon cut into 16 patches. Next, the columns are vectors of 16 numbers (orange for positive, blue for negative, brighter for larger): the 16 encoder tokens, the projector W, a 16 × 16 matrix, and the 16 image tokens after it, which the language model reads. On the right is the answer word by word: a bar is the probability of the chosen word, green means the word is correct, red means a mistake, and &lt;eos&gt; is the end of the answer. After mission 2, the answer of the model with an encoder trained from scratch appears in blue at the bottom right.</p>
+        <div class="ctl-row">
+          <div class="ctl" id="wrapVObj"><span class="ctl-l">Object</span><div class="seg" id="vColor" role="group" aria-label="Color"></div><div class="seg" id="vShape" role="group" aria-label="Shape"></div></div>
+        </div>
+        <div class="ctl-row">
+          <label class="hd-range" id="wrapVDx"><span>Shift</span><input id="vDx" type="range" min="-5" max="5" step="1" value="0"><output>0 px</output></label>
+          <label class="hd-range" id="wrapVR"><span>Size</span><input id="vR" type="range" min="3" max="7.5" step="0.5" value="5.8"><output>5.8</output></label>
+          <label class="hd-range" id="wrapVNoise"><span>Noise</span><input id="vNoise" type="range" min="0" max="0.4" step="0.05" value="0.02"><output>0.02</output></label>
+        </div>
+        <div class="readout" id="vOut"></div>
+        <div class="train-log" id="vLog" hidden></div>
+        <h4 class="sub-h" id="vGridH" hidden>Test on new images</h4>
+        <canvas id="vGrid" width="640" height="260" class="grid-cv" role="img" aria-label="Twenty-four new images with the model's captions; the captions of the model with an encoder trained from scratch are in the second line" hidden></canvas>
+        <p class="cv-note" id="vGridNote" hidden>24 new images, one for each combination of six colors and four shapes. Under each image is the model's caption: a green ✓ means correct, a red ✗ means a mistake. The second line appears after mission 2 and holds the caption of the model with an encoder trained from scratch: a blue ✓ means correct, a red ✗ means a mistake. The dashed frame marks the purple cube: this combination wasn't among the 200 captions.</p>
+      </div>
+      <div class="card guide-card"><div id="vMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: the contrastive objective, the prefix mask and the mini-VLM loss</summary><div class="body">
+      <p>We pretrain the encoder on batches of \(B = 16\) pairs. Let \(u_i\) be the normalized mean of the tokens of image \(i\), \(v_j\) the normalized sum of the word vectors of caption \(j\), and \(\tau = 0.1\). The loss is symmetric, as in CLIP and in lesson 2.1:</p>
+      <div class="formula">\[ \mathcal L_\text{enc} = -\frac{1}{2B}\sum_{i=1}^{B}\Bigl[\log \frac{e^{u_i \cdot v_i/\tau}}{\sum_j e^{u_i \cdot v_j/\tau}} + \log \frac{e^{u_i \cdot v_i/\tau}}{\sum_j e^{u_j \cdot v_i/\tau}}\Bigr]. \]</div>
+      <p>The projector is a matrix \(W \in \mathbb R^{16 \times 16}\) with a bias, like \(H_v = W Z_v\) in LLaVA: the encoder tokens \(Z_v\) (16 × 16) become the image tokens \(H_v\) in the language model's space. The language model's sequence is the 16 image tokens, then \(\langle\text{bos}\rangle\), the color and the shape; the text tokens have their own positional vectors. The attention mask is a prefix mask, as in Figure 2 of PaliGemma: token \(i\) sees token \(j\) if \(j\) is an image token or \(j \le i\). The output is read through the same embedding table as the input (tied embeddings): the logit of word \(w\) at position \(t\) is the dot product of the normalized state \(h_t\) and the word vector \(e_w\). The loss is the cross-entropy over the three answer positions:</p>
+      <div class="formula">\[ \mathcal L_\text{vlm} = -\frac{1}{3}\sum_{t=1}^{3} \log \frac{e^{h_t \cdot e_{y_t}}}{\sum_{w} e^{h_t \cdot e_w}}, \qquad y = (\text{color},\ \text{shape},\ \langle\text{eos}\rangle). \]</div>
+      <p>As in LLaVA, the loss is computed only on the answer tokens; the image tokens and \(\langle\text{bos}\rangle\) predict nothing. Stage 1: only \(W\) is updated, 20 epochs over the 200 captions. Stage 2: \(W\) and the language model, 80 epochs. The optimizer is Adam with a batch size of 10. The model with an encoder from scratch starts from the same initial weights of the projector and the language model and trains on the same captions for the same 80 epochs, but its encoder is random and trains together with everything else.</p>
+      <p><b>The same in every browser.</b> All the numbers on the scene are computed afresh on every run and come out the same: the random seeds are fixed, and the engine computes the exponential, the logarithm, the hyperbolic tangent and the powers in Adam itself, with additions, multiplications and divisions. The built-in Math.exp and Math.pow in Chrome and Safari sometimes differ in the last digit, and training the encoder from scratch inflates such a difference about tenfold per epoch, so by the end the model gives different answers.</p>
+      <p><b>Ten seeds.</b> The lab uses a single seed, 9. On seeds 1–10, the pretrained model is right on new images in 82–98% of cases and the model with an encoder from scratch in 60–87%, and the pretrained one is more accurate on every seed, by 5–32 points. The from-scratch model learns unstably: with seed 9, its training accuracy over the last ten epochs jumps between 82 and 97%, and if you change the learning rate by one part in a trillion, it scores anywhere from 78 to 90% on the test. The from-scratch model never once described the purple cube correctly. Neither did the pretrained one on seven seeds out of ten; on the other three it got it right in 1–3 images out of 8, and on nine seeds its most frequent answer is “purple ball”.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px" id="vlmAfter">
+      <p>After a short joint training, three parts trained separately answer in words about an image that none of them has seen before. And the projector is just a 16 × 16 matrix; in LLaVA it's a single matrix too. What exactly does this matrix do with the image tokens, if in the first stage the language model is frozen and doesn't change its word embeddings?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="space">
+  <div class="wrap">
+    <div class="lab-badge"><i>🧩</i> Interactive 2</div>
+    <h2>The projector: what changes in word space</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>In LLaVA's first stage the language model is frozen: its embedding table, attention and fully connected blocks don't change, and only the projector matrix learns. The authors write that this aligns the image tokens with the word embeddings, and they call the projector a visual tokenizer. Let's see what that means in our mini-VLM: take the space of its language model, 16 numbers, and project three kinds of vectors onto two <strong>principal axes</strong>, the two directions along which the vectors differ the most. The words are the ten rows of the embedding table. The model's readout is its state at the last position before it picks a word: it's the dot product of this state with the word vectors that gives the probabilities, so the readout has to lie closest to the word the model will name. And the image tokens themselves after the projector: for each of the 24 images, their mean.</p>
+      <p>The left panel always shows the state before the projector is trained: the matrix is random, and the language model has been trained only on text. The right panel shows the state after the first stage, when only the projector learned, or after the second, when the language model was fine-tuned too. The axes are shared by both panels.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="space-pair">
+          <figure><canvas id="sCv0" width="320" height="320" class="space-cv" role="img" aria-label="Word space before projector training"></canvas><figcaption>before projector training</figcaption></figure>
+          <figure><canvas id="sCv1" width="320" height="320" class="space-cv" role="img" aria-label="Word space after training"></canvas><figcaption id="sCap1">after stage 1: projector trained</figcaption></figure>
+        </div>
+        <p class="cv-note">A map of the language model's space: vectors of 16 numbers projected onto two principal axes. The axes have no units: distances and directions are what matter; the axes are shared by both panels, and the label at the bottom of a panel says what share of the vectors' spread they show. Labeled rings are color words, labeled squares are shape words, and the small markers are the 24 images: a marker's color is the object's color, and its shape is the object's shape. The “Points” switch sets what exactly the markers show.</p>
+        <details class="lab-legend"><summary>Legend: marks on the scene</summary><div class="cv-legend" id="sLegend"></div></details>
+        <div class="ctl-row">
+          <div class="ctl" id="wrapSStage"><span class="ctl-l">Right panel</span><div class="seg" id="sStage" role="group" aria-label="Which stage to show on the right"><button type="button" data-v="1" aria-pressed="true">after stage 1</button><button type="button" data-v="2" aria-pressed="false">after stage 2</button></div></div>
+          <div class="ctl" id="wrapSWhat"><span class="ctl-l">Points</span><div class="seg" id="sWhat" role="group" aria-label="What the points show"><button type="button" data-v="read0" aria-pressed="true">readout before color</button><button type="button" data-v="read1" aria-pressed="false">readout before shape</button><button type="button" data-v="tok" aria-pressed="false">image tokens</button></div></div>
+        </div>
+        <div class="readout" id="sOut"></div>
+      </div>
+      <div class="card guide-card"><div id="sMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: how the axes are computed and why the readout has to be near a word</summary><div class="body">
+      <p>The two principal axes are computed from the covariance of a set of 10 word vectors and 24 readouts before the color after the second stage; all three kinds of points on both panels are projected onto the same axes, so the panels can be compared. The logit of word \(w\) at position \(t\) is \(h_t \cdot e_w\), and softmax picks the word with the largest dot product. The readout \(h_t\) is normalized, so “closest by dot product” almost coincides with “closest by angle”; on the plane of the two axes this shows only approximately, since part of the distance stays in the other 14 dimensions.</p>
+      <p>Image tokens have no such obligation. Nobody compares them with words directly: they enter attention as keys and values, and the language model decides for itself what to take from them. So the alignment done by the projector in LLaVA doesn't mean that an image token becomes similar to the vector of some word. It means that the frozen language model starts extracting from these tokens what it needs for the answer. In the PaliGemma paper the projector is initialized to zeros: at the start of training the image tokens are zero vectors, and the language model sees nothing until the projector starts filling them in.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>The projector maps image tokens not into words but into vectors from which the language model can assemble a word. That's the bridge between the two ready-made parts: the better the encoder and the more captions there are, the better the bridge is learned. Now let's put the whole path of an image into one diagram.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="flow">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 6px;max-width:820px">
+      <div class="kicker"><span class="num">3</span> The image's path</div>
+      <h2>From pixels to an answer in words</h2>
+      <p>Let's put together everything from this lesson. The image is cut into patches, a linear layer with positional vectors turns the patches into tokens, the encoder passes them through its attention blocks, the projector maps the encoder outputs to the language model's width, the tokens of the text prompt line up after them, and the language model reads it all as one sequence: the image and prompt tokens in full, as in PaliGemma's prefix attention, and the answer word by word. In PaliGemma at 224 px, that's 256 image tokens per frame; in RT-1 from lesson 3.1, a frame gave 81 tokens, and TokenLearner kept 8.</p>
+    </div>
+    <figure class="card flow-card">
+      <canvas data-anim="vlm" width="720" height="300" role="img" aria-label="The path of an image through a VLM: the image, patches, the encoder, the projector, prompt tokens, the language model and an answer in words"></canvas>
+      <figcaption class="cv-note">A diagram of the path of one image through a VLM, not a picture of the model. On the left is the image with the patch grid. Blue squares are patches and encoder tokens, purple ones are image tokens after the projector, and orange ones are the words of the prompt and the answer; the arrows show where the tokens go. The language model reads the image and prompt tokens together and outputs the answer word by word. Only a few patches and tokens are drawn; the labels at the bottom say how many there are in PaliGemma at 224 px. Click the diagram to pause it.</figcaption>
+    </figure>
+    <div class="prose" style="margin:18px 0 0;max-width:820px">
+      <p>What matters for a robot is that nothing on this path knows only about words: the language model's answer can be any token from its vocabulary. Teach it to output not words but action tokens after an image and a command, the way RT-1 output bins, and you get a model that goes straight from pixels and words to actions. What of the VLM design lives on in the systems of 2025–2026?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="today">
+  <div class="prose">
+    <div class="kicker"><span class="num">4</span> Today</div>
+    <h2>VLMs inside the robots of 2026</h2>
+    <p>The “encoder, projector, language model” recipe has become the basis of almost all the models in Part 3. π0 (Physical Intelligence, 2024) takes PaliGemma whole as a 3B-parameter backbone and adds a 300M action expert to it, 3.3B in total; the authors write that they chose PaliGemma for its openness and small size, which matters for real-time control, and that any pretrained VLM would have done. π0.5 (2025) keeps the same backbone. OpenVLA (2024) is built on the Prismatic-7B VLM: a two-part encoder, SigLIP and DINOv2, a two-layer MLP projector and the 7B Llama 2 language model, and Prismatic itself is fine-tuned on the LLaVA-1.5 dataset. GR00T N1 (NVIDIA, 2025) reads the scene through the Eagle-2 VLM with a SigLIP-2 encoder: a 224 × 224 frame gives 64 image tokens. Gemini Robotics (Google DeepMind, 2025) is built on Gemini 2.0, a general-purpose VLM to which the authors added reasoning about the physical world.</p>
+    <p>SigLIP, a contrastively trained encoder of the CLIP family, is almost everywhere; the debates are about whether to freeze the encoder (LLaVA: yes, PaliGemma: no) and how many image tokens to keep: 256 per frame in PaliGemma and π0, 64 in GR00T N1. The more tokens, the more detail is visible and the more expensive each control step becomes: the same trade-off RT-1 resolved with TokenLearner.</p>
+    <p>The first model that taught a VLM to output actions was RT-2: it took the ready-made PaLI-X and PaLM-E and fine-tuned them on robot demonstrations together with data from the internet. How actions become tokens of a language model, and what carries over from the internet to the robot along the way, is the subject of the next lesson.</p>
+  </div>
+</section>
+
+<section class="section" id="quiz">
+  <div class="prose">
+    <div class="kicker"><span class="num">5</span> Check yourself</div>
+    <h2>Eight common misconceptions</h2>
+    <div class="quiz" id="quizBox"></div>
+    <p class="score" id="quizScore" style="margin-top:14px"></p>
+  </div>
+</section>
+
+<section class="section alt" id="finale">
+  <div class="prose">
+    <div class="kicker"><span class="num">6</span> Takeaways</div>
+    <h2>Lesson takeaways</h2>
+    <ol class="takeaways">
+      <li><span>An image is turned into a sequence just like text: ViT cuts it into <strong>16 × 16 patches</strong>, a single linear layer makes a vector out of each patch, a position vector is added to it, and from there an ordinary transformer takes over. Without positions, the input is a bag of patches.</span></li>
+      <li><span>Image tokens and words live in different spaces. The <strong>projector</strong> (a single matrix in LLaVA, a two-layer MLP in LLaVA-1.5 and OpenVLA, a zero-initialized linear layer in PaliGemma) maps the encoder outputs to the language model's width, and the model reads them as part of the sequence.</span></li>
+      <li><span>Ready-made parts are cheaper than new ones. LLaVA keeps the CLIP encoder frozen and, in two stages on 595,000 captions and 158,000 instructions from GPT-4, trains the projector and then the projector together with the language model; in our lab, the <strong>pretrained encoder</strong> is more accurate on the same 200 captions than an encoder trained from scratch.</span></li>
+      <li><span>PaliGemma is assembled from SigLIP-So400m and Gemma-2B: under 3B parameters, 256 image tokens at 224 px and 4096 at 896. The attention is <strong>prefix attention</strong>: the image and the prompt see each other in full, and the answer is generated autoregressively. Nothing is frozen, and that's no worse after transfer, and better on tasks about where objects are.</span></li>
+      <li><span>A language model answers from the image and from habit at the same time. Our mini-VLM called the purple cube a ball because in the captions “purple” was never followed by “cube”, even though the encoder saw the cube; LLaVA likewise answered “yes” about strawberry-flavored yogurt. <strong>Caption diversity</strong> is as much a part of the model as its weights.</span></li>
+      <li><span>The output of a language model can be any token in its vocabulary. That opens the way to models that take an image and a command and output <strong>action tokens</strong>: to RT-2 in lesson 3.3.</span></li>
+    </ol>
+    <h3 style="margin-top:40px">Open questions</h3>
+    <details class="card pad open-q"><summary>After the projector, the image tokens don't lie near the word vectors. Does that mean the projector can be trained any old way, as long as the answers are right?</summary><p>No: the space the projector puts the image tokens into determines what the frozen language model will be able to extract from them with its attention. In LLaVA, the first stage trains the projector on captions with the model frozen, and the authors note that without the second stage, where the language model is fine-tuned too, instruction-following quality drops by more than 50 points. PaliGemma goes further and freezes nothing, and it initializes the projector to zeros so that at the start of training the language model doesn't get random noise instead of an image. What remains open is how many tokens, and how wide, an image really needs: PaliGemma takes 256 per frame, GR00T N1 keeps 64.</p></details>
+    <details class="card pad open-q"><summary>The encoder is frozen in LLaVA and trained in PaliGemma. Which should a robot use?</summary><p>PaliGemma's ablation says there's no difference after transfer to tasks, while on tasks about where objects are, a trainable encoder gives better perplexity, and for a robot the position of objects is exactly what matters. But a trainable encoder needs a learning-rate warm-up and a lot of data; otherwise the gradients from a not-yet-aligned language model spoil its features, which is just what our model with an encoder from scratch shows on 200 captions. OpenVLA instead adds a second encoder, DINOv2, to SigLIP for the sake of positional features. Which path wins with robot data, of which there's never enough, is a question for Part 4.</p></details>
+    <h3 style="margin-top:34px">Paper guide</h3>
+    <p><a href="https://arxiv.org/abs/2304.08485" target="_blank" rel="noopener">H. Liu, C. Li, Q. Wu, Y. J. Lee, “Visual Instruction Tuning”, NeurIPS 2023</a>: LLaVA.</p>
+    <ul class="links">
+      <li><strong>Read closely</strong><span>Section 4: the architecture with the projector \(H_v = W Z_v\), the two training stages and what is frozen in each. Section 3: how a text-only GPT-4 wrote 158,000 instructions from captions and bounding boxes.</span></li>
+      <li><strong>Safe to skip</strong><span>The tables with example conversations and the details of the evaluation with GPT-4 as a judge; the ScienceQA results.</span></li>
+      <li><strong>Question to keep in mind</strong><span>The authors take the CLIP features from before the last transformer layer, not after it. Why might the last layer of a contrastively trained encoder be worse for a language model?</span></li>
+    </ul>
+    <p style="margin-top:18px"><a href="https://arxiv.org/abs/2407.07726" target="_blank" rel="noopener">L. Beyer, A. Steiner, A. S. Pinto, A. Kolesnikov, X. Wang et al., “PaliGemma: A versatile 3B VLM for transfer”, 2024</a>: Sections 3.1 and 3.2 on the architecture and the training stages, and Section 5 with the ablations: the attention mask, freezing, the projector.</p>
+    <p><a href="https://arxiv.org/abs/2010.11929" target="_blank" rel="noopener">A. Dosovitskiy et al., “An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale”, ICLR 2021</a>: Section 3.1 with Equation 1, Section 4.3 on dataset size and Appendix D.4 on positional encodings.</p>
+    <h3 style="margin-top:34px">Resources</h3>
+    <ul class="links">
+      <li><a href="https://llava-vl.github.io/" target="_blank" rel="noopener">LLaVA</a><span>Project page: demo, code, instruction data and weights</span></li>
+      <li><a href="https://arxiv.org/abs/2310.03744" target="_blank" rel="noopener">LLaVA-1.5</a><span>“Improved Baselines with Visual Instruction Tuning”: the MLP projector and the 336 px encoder</span></li>
+      <li><a href="https://github.com/google-research/big_vision" target="_blank" rel="noopener">big_vision</a><span>Google Research code for ViT, SigLIP and PaliGemma</span></li>
+      <li><a href="https://github.com/google-research/vision_transformer" target="_blank" rel="noopener">Vision Transformer</a><span>The official ViT implementation and pretrained weights</span></li>
+    </ul>
+    <!--if:3-3-rt-2.html--><div class="callout insight" style="margin-top:34px"><span class="ico">➡️</span><div><p><strong>Next: RT-2.</strong> A VLM can output any token in its vocabulary. RT-2 takes the ready-made PaLI-X and PaLM-E, writes robot actions as tokens and fine-tunes the model on demonstrations together with data from the internet: knowledge of the world starts to carry over into motions. <a href="3-3-rt-2.html">Lesson 3.3 →</a></p></div></div><!--/if-->
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Lesson 3.2 of the “Modern Robotics and Physical AI” course. The mini-VLM, its encoder and its projector really train in your browser; the numbers about ViT, LLaVA and PaliGemma come from the papers.
+</footer>
+<div class="tooltip" id="tooltip" role="tooltip"></div>
+<script>
+/*@@JS@@*/
+</script>
+</body>
+</html>
