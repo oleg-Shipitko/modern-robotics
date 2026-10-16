@@ -227,7 +227,6 @@
  "Да: она узнаёт больше о действиях": "Yes: it learns more about actions",
  "Нет: градиент случайно инициализированного эксперта портит её знания — модель хуже следует командам и учится медленнее": "No: the gradient of a randomly initialized expert damages its knowledge, so the model follows commands worse and learns more slowly",
  "Нет: она перестаёт видеть картинки": "No: it stops seeing the images",
- "В статье о изоляции знаний π0 на просьбу убрать ложку брала мусор и требовала в 7,5 раза больше шагов обучения. Решение — остановить градиент эксперта и учить модель действиям через токены FAST.": "In the knowledge insulation paper, π0 grabbed trash when asked to bus a spoon, and it needed 7.5 times as many training steps. The solution is to stop the expert's gradient and teach the model actions through FAST tokens.",
  "Остановка градиента значит, что модель зрения и языка заморожена?": "Does stop-gradient mean that the vision-language model is frozen?",
  "Да, её веса не меняются": "Yes, its weights don't change",
  "Нет: она продолжает учиться на токенах FAST и веб-данных; не проходит в неё только градиент эксперта": "No: it keeps learning from FAST tokens and web data; only the expert's gradient doesn't reach it",
@@ -249,5 +248,8 @@
  "Нет: это номер версии модели": "No: it's the model's version number",
  "Метаданные позволяют учиться на данных разного качества: без них модель на большей смеси может стать хуже, с ними — продолжает улучшаться.": "Metadata let the model learn from data of varying quality: without them, the model can get worse on a larger mixture; with them, it keeps improving.",
  "[урок] ошибка в": "[lesson] error in",
- "${n} ${plural(n, 'миссия', 'миссии', 'миссий')} с целью": "${n} ${plural(n, 'mission', 'missions', 'missions')} with a goal"
+ "${n} ${plural(n, 'миссия', 'миссии', 'миссий')} с целью": "${n} ${plural(n, 'mission', 'missions', 'missions')} with a goal",
+ "токены FAST": "FAST tokens",
+ "и веб-данные": "and web data",
+ "В статье об изоляции знаний π0 на просьбу убрать ложку брала мусор и требовала в 7,5 раза больше шагов обучения. Решение — остановить градиент эксперта и учить модель действиям через токены FAST.": "In the knowledge insulation paper, π0 grabbed trash when asked to bus a spoon, and it needed 7.5 times as many training steps. The solution is to stop the expert's gradient and teach the model actions through FAST tokens."
 }
