@@ -84,6 +84,7 @@
 .disp.lose { border-color: var(--critical); background: var(--critical-soft); }
 .disp.lose .verdict { display: block; color: var(--critical); }
 .disp.mine::after { content: "твой выбор"; position: absolute; right: 10px; top: 9px; font-size: 11px; font-weight: 700; color: var(--ink-3); }
+html[lang="en"] .disp.mine::after { content: "your choice"; }
 .dlp-cv.drawing { touch-action: none; cursor: crosshair; }
 
 /* CVAE: три сцены рядом */

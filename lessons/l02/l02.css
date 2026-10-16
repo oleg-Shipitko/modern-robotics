@@ -98,6 +98,8 @@
 .scale-sort .c-zones { grid-template-columns: repeat(5, minmax(0, 1fr)); position: relative; padding-top: 22px; }
 .scale-sort .c-zones::before { content: 'медленнее'; position: absolute; left: 0; top: 0; font-size: 12px; color: var(--ink-3); }
 .scale-sort .c-zones::after { content: 'быстрее →'; position: absolute; right: 0; top: 0; font-size: 12px; color: var(--ink-3); }
+html[lang="en"] .scale-sort .c-zones::before { content: 'slower'; }
+html[lang="en"] .scale-sort .c-zones::after { content: 'faster →'; }
 .scale-sort .c-zone { background: linear-gradient(180deg, var(--surface-2), var(--surface)); }
 .scale-sort .c-zone-h { font-family: var(--mono); font-size: 12.5px; }
 .scale-sort .c-card { font-size: 13.5px; }

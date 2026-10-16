@@ -41,8 +41,9 @@
         "Terminology is consistent across lessons: one word per concept, so the same term never means two different things, and the SayCan and VoxPoser lessons clearly separate skill feasibility, attraction and avoidance maps, and the value function.",
         "Contradictions between lessons are fixed: the definition of VLA in 0.1, the action rate of Diffusion Policy in 1.5, the RT-1 and RT-2 numbers, the role of co-fine-tuning, and the lab conclusions in several lessons.",
         "Key explanations moved from collapsible blocks and mission debriefs into the main text: how the Transporter map is trained, why one denoising step gives the mean, attention masks and heads, why diffusion needs more steps than flow, why ACT needs a CVAE.",
-        "Lesson 1.7 now builds on the earlier lessons about action chunks and has a new diagram, “A hundred actions in one pass”; lessons that return to chunks and their seams say what is new in them.",
-        "On phones, a long lesson title in the header no longer pushes the page past the edge of the screen."
+        "Lesson 1.7 now opens with the Diffusion Policy problem that ACT solves, builds on the earlier lessons about action chunks and compares ACT with Diffusion Policy in a section of its own. New diagrams: “A hundred actions in one pass” and how the CVAE works during training and on the robot. Lessons that return to chunks and their seams say what is new in them.",
+        "On phones, a long lesson title in the header no longer pushes the page past the edge of the screen.",
+        "No more Russian text on English pages once all cards in a sorting task are placed."
       ]
     },
     {
