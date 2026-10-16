@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3.6 π0 — Modern Robotics and Physical AI</title>
+<meta name="description" content="Lesson 3.6 of the “Modern Robotics and Physical AI” course: π0, the PaliGemma vision-language model with a flow-matching action expert, chunks of 50 actions at 50 Hz, pre-training on 10,000 hours and post-training. Guide a peg through a narrow groove with token commands and with a chunk, compare a pre-trained model with one trained from scratch and compress an action chunk the way FAST does.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<script>
+  (function () { try { var t = localStorage.getItem('mr-theme'); if (t) document.documentElement.dataset.theme = t; else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme = 'dark'; } catch (e) {} })();
+</script>
+<style>
+/*@@CSS@@*/
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html#program" title="To the course program"><div>Modern Robotics and Physical AI<small>Lesson 3.6 · π0</small></div></a>
+    <nav class="toc" aria-label="Lesson sections">
+      <a href="#tokens">Tokens</a>
+      <a href="#arch">Architecture</a>
+      <a href="#recipe">Data</a>
+      <a href="#lab">Groove</a>
+      <a href="#fast">FAST</a>
+      <a href="#results">Tasks</a>
+      <a href="#today">Today</a>
+      <a href="#quiz">Quiz</a>
+      <a href="#finale">Takeaways</a>
+    </nav>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Toggle theme">◐</button>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main>
+
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="kicker"><span class="num">3.6</span> Part 3 · Foundation models for robots</div>
+    <h1>π0: <span class="amp">a vision-language model that outputs smooth motion</span></h1>
+    <p class="lead">In lesson 3.5, OpenVLA output an action as words: each of the action's seven numbers was the index of one of 256 bins, and the model produced about six actions per second. That won't do for folding laundry or assembling a box: the arms of a bimanual robot get commands 50 times per second, and the motion has to be smooth. π0 (Physical Intelligence, 2024) keeps the 3B-parameter PaliGemma vision-language model and adds an action expert to it: a second, smaller set of weights with 300M parameters. The expert builds a chunk of 50 continuous actions with flow matching: in ten flow steps it turns noise into motion. The model was trained in two stages: first on more than 10,000 hours of recordings from 7 robot configurations in 68 tasks, then on curated recordings of specific tasks such as folding laundry, assembling a box and clearing a table. This lesson covers how π0 is built, why a chunk is more precise than token commands, why both training stages are needed, and how the same authors later compressed the chunk into a few tokens.</p>
+    <div class="hero-meta"><span>≈ 45 minutes</span><span>a lab, two interactives and a quiz</span><span id="heroMis">missions with a goal</span></div>
+    <div class="hero-list">
+      <div><b>GROOVE</b>Guide a peg through a narrow S-shaped groove with two models: one gives a command every third of a second, the other outputs 50 moves at once</div>
+      <div><b>TWO STAGES</b>Compare a model trained on a single recording of the task with a model that first learned other tabletop tasks</div>
+      <div><b>COMPRESSION</b>Break a chunk of motion down into smooth components and work out how many of its numbers you need to keep</div>
+      <div><b>TASKS</b>Sort the tasks from the paper by whether the model had seen them before fine-tuning</div>
+    </div>
+    <p style="margin-top:28px"><a class="btn primary" href="#tokens">Start the lesson ↓</a></p>
+  </div>
+</section>
+
+<section class="recall-sec" id="recall" aria-label="Warm-up on the previous lesson">
+  <div class="wrap"><div class="card recall" data-recall></div></div>
+  <script type="application/json" id="recallData">{"n": "3.5", "title": "Open VLAs: Octo and OpenVLA", "href": "3-5-otkrytye-vla.html", "q": [{"q": "How does Octo let you add a new sensor or a new way of controlling the robot without rebuilding the model?", "o": ["It trains the model from scratch on the new data every time", "Everything the model takes in and puts out is tokens: a new input is added with its own tokenizer, a new output with a new head on top of the readout tokens, and the backbone stays the same", "It converts any input into a single image"], "a": 1, "e": "The readout tokens read the task and observation tokens, but no token reads them, so the head can be replaced without touching the backbone. That's how Octo was fine-tuned for a force sensor, for joint control and for the bimanual ALOHA with 14 numbers per action.", "sec": "octo", "secTitle": "Octo: inputs and outputs are added as tokens"}, {"q": "What is trained when OpenVLA is fine-tuned with LoRA?", "o": ["Only the last layer", "Low-rank updates B·A to the frozen matrices of all linear layers: 1.4% of the parameters", "All 7 billion weights, but at 4 bits"], "a": 1, "e": "Rank-32 LoRA trains 97.6M numbers out of 7,188.1M and gives 68.2% successful trials versus 69.7% for fine-tuning all the weights. The last layer alone gave 30.3%.", "sec": "lora", "secTitle": "LoRA: train a small update, not the whole matrix"}, {"q": "The operators put the cube sometimes in the left bowl and sometimes in the right one. What does the token head output if you take the most likely token?", "o": ["A point between the bowls", "Always the same bowl, to within a bin width", "Sometimes one bowl, sometimes the other"], "a": 1, "e": "Regression outputs the mean, and diffusion answers with both bowls. The most likely x token picks one bowl, the y token follows it, and the answer doesn't change from one question to the next.", "sec": "heads", "secTitle": "The action head: the mean, tokens or diffusion"}]}</script>
+</section>
+
+<section class="section alt" id="tokens">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">1</span> Tokens</div>
+      <h2>Why action tokens fail at fine motion</h2>
+      <p>In lesson 3.5, OpenVLA output an action the same way as text. Each of the action's seven numbers was split into 256 bins, and the model named the index of the bin as a token, one token per pass. On an RTX 4090 GPU, that's about 6 actions per second. RT-2 from lesson 3.3 managed 1–3 actions per second with a 55B-parameter model and about 5 with a 5B one.</p>
+      <p>That was enough to move a cube or open a drawer. Folding laundry and assembling a box are dexterous tasks: the grippers move fast and smoothly, and a mistake has to be corrected right away, before the fabric slips. Physical Intelligence's bimanual robots get commands 50 times per second. Sent as tokens, one second of motion of a bimanual robot with 14 numbers per action is 50 × 14 = 700 tokens: that's the count from the FAST paper, which we'll get to below.</p>
+      <p>There's a second problem. At 50 Hz, neighboring actions are almost identical, and the next token is easy to guess: just repeat the previous one. The FAST authors showed this on a simple example: the higher the sampling rate of a trajectory, the worse a model with bins learns it, until in the end it simply repeats the first action.</p>
+      <p>The way out came up back in lesson 1.7: the <strong>action chunk</strong>, where the model outputs several future actions at once in a single inference call. A chunk of continuous actions can be built with flow matching. In lesson 1.8 we worked through it on points in a plane: in a few steps the network turned noise into data. Here the same method builds a chunk of motion; the next section shows how. What remains is to connect such a head to a vision-language model that understands the image and the command. How do you do that without spoiling what the model knows about the world?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="arch">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">2</span> Architecture</div>
+      <h2>A vision-language model and an action expert in one transformer</h2>
+      <p>π0 is built on PaliGemma, an open 3B-parameter vision-language model (VLM). The input is two or three camera images, a text command such as “fold the shirt” and the robot's state, its joint angles. The images and the state are turned into vectors of the same length as word tokens, and from then on the transformer processes them as one sequence.</p>
+      <p>The actions are output by the <strong>action expert</strong>, a second, smaller set of weights in the same transformer with about 300M parameters. The image and text tokens go through PaliGemma's weights, and the state and action tokens go through the expert's weights. The two sets of weights meet only in attention: the action tokens read the images and text as in one shared transformer. The authors compare this to a mixture of experts with two elements and write that separate weights for the robot tokens noticeably improved the results. The model has 3.3B parameters in total.</p>
+      <p>The attention mask splits the sequence into three blocks: images and text, state, actions. Within a block, tokens see each other, and between blocks attention goes only backward. The images and text don't look at the robot inputs, which are new to the VLM, so it drifts less from what it learned on internet data. The state has a block of its own because it doesn't change while the chunk is being built, so its keys and values can be kept in the cache, as in lesson 1.6.</p>
+      <p>A chunk is 50 actions. On robots that get commands 50 times per second, that's one second of motion. The robot executes the first 25 actions and gets a new chunk every 0.5 s. An action is a vector of 18 numbers: two arms with six joints each, two grippers, a mobile base and a lifting torso. For a single-arm robot, the extra numbers are filled with zeros, and missing cameras are masked out.</p>
+      <p>The expert builds the chunk with <strong>flow matching</strong>. At first the chunk is pure noise: 50 × 18 random numbers. The expert looks at the noisy chunk, at the images and the command, and at the time \(\tau\), which says how much of the way from noise has already been covered, from 0 to 1. For each number in the chunk it predicts a velocity: in which direction and how fast to move that number so that the noise turns into motion. Such a rule, which tells you for any noisy chunk where to move it, is called a <strong>velocity field</strong>.</p>
+      <p>An <strong>Euler step</strong> moves each number by its velocity times the step length. π0 takes 10 flow steps of length 0.1: after each one, the expert looks at the shifted chunk again and predicts new velocities, and by the tenth step the noise has become a smooth trajectory; in the diagram below, you can see this on the chunk plot. The expert is trained on recordings: take a real chunk and random noise, mix them in a random proportion, and the correct answer is the velocity of a straight-line move from the noise to the chunk, that is, the chunk minus the noise. This is ordinary regression.</p>
+    </div>
+    <figure class="card flow-card">
+      <canvas data-anim="pi0" width="720" height="320" role="img" aria-label="The data path in π0: three camera frames, the command and the state become tokens, PaliGemma processes the images and text once, the action expert turns noise into a chunk of 50 actions in ten flow steps, and the robot executes 25 of them while the next chunk is being built"></canvas>
+      <figcaption class="muted-s">The data path in one π0 inference call. Blue marks the image and state tokens (what is measured), gray the command tokens, and orange the action expert and the action tokens. The images and text pass through PaliGemma once and sit in the cache, while the action expert passes over the 50 action tokens ten times, once per flow step. The strokes at the chunk's points show where each point will move on the next step: by its velocity times 0.1. Click the diagram to pause it.</figcaption>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>The ten flow steps are cheap: the expert is ten times smaller than the VLM, and the images and text are computed once per chunk. On an RTX 4090 with three cameras, inference takes 73 ms: 14 ms for the image encoders, 32 ms for the pass over the images and text, and 27 ms for all 10 flow steps. If the model runs on a server rather than on the robot, the network adds 13 ms.</p>
+    </div>
+    <details class="deep"><summary>Under the hood: the training objective, the choice of the time τ and the expert's input</summary><div class="body">
+      <p>Let \(A_t = [a_t, \dots, a_{t+H-1}]\) be a chunk of \(H = 50\) actions and \(o_t\) the observation: the images, the command and the state. The paper denotes the flow matching time by \(\tau \in [0, 1]\), with noise at \(\tau = 0\), as in lesson 1.8. The noisy chunk and the training objective:</p>
+      <div class="formula">\[\begin{gathered} A^\tau = \tau A + (1 - \tau)\,\varepsilon, \quad \varepsilon \sim \mathcal N(0, I),\\ L(\theta) = \mathbb E\,\bigl\lVert v_\theta(A^\tau, o) - (A - \varepsilon) \bigr\rVert^2. \end{gathered}\]</div>
+      <p>At inference, 10 Euler steps from pure noise: \(A^{\tau+\delta} = A^\tau + \delta\, v_\theta(A^\tau, o)\), \(\delta = 0.1\). The 2024 versions of the paper write the target as \(\varepsilon - A\); in the January 2026 version, the sign is corrected. In the openpi code, by contrast, the noise sits at \(t = 1\): see the note on time conventions in lesson 1.8.</p>
+      <p>The time \(\tau\) isn't sampled uniformly during training. The authors reason as follows: given a caption, it's easy to guess the mean image, but given a robot's observation, it's hard to guess the mean action, because the observation almost uniquely determines what to do. So noisy moments, small \(\tau\), are sampled more often:</p>
+      <div class="formula">\[ \tfrac{s - \tau}{s} \sim \mathrm{Beta}(1.5;\ 1), \quad s = 0.999. \]</div>
+      <p>Moments above \(s\) aren't needed as long as the integration step is larger than \(1 - s\), that is, for up to a thousand Euler steps. The expert gets each noisy action together with the time: \(W_3\cdot\operatorname{swish}\bigl(W_2\cdot[\,W_1 a^\tau,\ \varphi(\tau)\,]\bigr)\), where \(\varphi\) is a sinusoidal encoding, like positions in a transformer. The expert's width is 1024 versus 2048 in Gemma 2B, and its inner MLP layer is 4096 versus 16,384; both have 18 layers and a single key-value head.</p>
+      <p>For comparison, the authors also trained π0-small, a 470M-parameter model without a VLM: DistilBERT encodes the language, a small ViT encodes the images, and the expert reads the observation through cross-attention. It also takes 10 flow matching steps.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>The architecture is half of the method. The other half is what data the model was trained on, and in what order.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="recipe">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">3</span> Data</div>
+      <h2>First lots of diverse recordings, then a few clean ones</h2>
+      <p>For a model to fold laundry, you need recordings of laundry folding. But there are always few recordings of any single task, and they lack what happens rarely: fabric that slipped, a failed grasp, a correction. π0 was trained in two stages, like large language models.</p>
+      <p><strong>Pre-training</strong> is training on a large and diverse dataset with many tasks. For π0, that's more than 10,000 hours of Physical Intelligence's own recordings: 903M control steps, 797M of them from bimanual robots. The recordings were made on 7 robot configurations (one and two UR5e arms, Franka, bimanual Trossen and ARX, mobile platforms) in 68 tasks. A task here is broad: “table bussing” covers dozens of different plates, cups, utensils and pieces of trash. Another 9.1% of the mixture comes from the open OXE, Bridge v2 and DROID datasets from lesson 3.4, where robots get commands 2 to 10 times per second. Each “task–robot” combination enters the mixture with a weight of \(n^{0.43}\), where \(n\) is its number of examples, so that laundry folding, which has the most recordings, doesn't crowd out everything else.</p>
+      <p><strong>Post-training</strong> is fine-tuning the already trained model on recordings of one task: from 5 hours for the simplest tasks to 100 hours or more for the hardest. These recordings are curated: the operator, the person guiding the robot, acts carefully and sticks to a single strategy. The authors explain why both stages are needed. Clean recordings contain almost no mistakes, and a model trained only on them is brittle: it can't recover. Diverse recordings are of lower quality, but they contain mistakes and corrections. Pre-training provides a repertoire of corrections, and post-training teaches the model to do the task well.</p>
+      <p>The command can be broken into parts too. For table bussing, the authors put a high-level VLM on top of π0 that states the subtasks in words, such as “pick up the napkin” or “throw the napkin into the trash”, like the language model in SayCan from lesson 2.3. π0 executes each subtask as a separate command.</p>
+      <p>Let's test both ideas on Ada's table: first the chunk against token commands, then pre-training against training on a single task.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="lab">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab</div>
+    <h2>Token commands and a chunk in a narrow groove</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p class="ada-note"><svg class="ada-ico" viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="10" width="48" height="42" rx="18" fill="#f4efe6" stroke="#3d3c38" stroke-width="3"/><rect x="15" y="19" width="34" height="22" rx="10" fill="#1f2430"/><ellipse cx="25" cy="30" rx="4" ry="5.5" fill="#eb6834"/><ellipse cx="39" cy="30" rx="4" ry="5.5" fill="#eb6834"/></svg><span>Ada is a home humanoid on a wheeled base; the course labs are built around her. More about her in <a href="0-1-dve-paradigmy.html#ada">lesson 0.1</a>.</span></p>
+      <p>Ada holds a peg in her gripper and guides it through a narrow S-shaped groove, and at the end she inserts it into a socket. From the middle of the groove to the wall, the peg has 2.75 pixels of clearance on each side, and a pixel here is a table unit of about 5 mm. If the peg touches a wall, the trial fails. It has to enter the socket slowly: if it goes in faster than 0.5 pixels per tick, it hits the socket and bounces off. The time limit is 1.3 times the operator's time. The control tick is 20 ms, 50 commands per second, as on π0's bimanual robots.</p>
+      <p>Here the models don't parse an image. A model gets what a detector would extract from the image: seven points on the center line of the groove ahead of the peg, how much of the path is left and the command. Both models learn from the same 24 operator recordings, made on 24 different grooves.</p>
+      <p><strong>Model A</strong> is built like OpenVLA and RT-2: once every 17 ticks, that is, every 0.34 s, or about three times per second, it names with two tokens of 256 bins each where to move the peg over that time, first along the groove, then across it, and Ada moves the peg there in a straight line. <strong>Model B</strong> is built like π0: an action expert builds a chunk of 50 offsets of the peg, one per tick, in 10 Euler steps; Ada executes 25 and asks for a new chunk. Both models are small networks that train right here in your browser in a few seconds.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="duo" id="lDuo">
+          <figure class="pane"><figcaption class="pane-head"><b id="lHeadL">Model A: tokens</b><span id="lSubL">a command every 0.34 s</span></figcaption><canvas id="lCvL" width="400" height="400" role="img" aria-label="Top view of the table: the groove and the path of the peg under the left model's control"></canvas><div class="pane-stat" id="lStatL"></div></figure>
+          <figure class="pane"><figcaption class="pane-head"><b id="lHeadR" class="fm">Model B: chunk</b><span id="lSubR">50 offsets per inference</span></figcaption><canvas id="lCvR" width="400" height="400" role="img" aria-label="Top view of the table: the same groove and the path of the peg under the right model's control"></canvas><div class="pane-stat" id="lStatR"></div></figure>
+        </div>
+        <p class="cv-note">A top view of the table, zoomed in on the area with the groove; a grid cell is 12 px, about 6 cm. The scene is the same for both models. The light strip with walls is the groove, the circle with a rim is the peg in Ada's gripper, and the double ring is the socket. The other marks are in the legend.</p>
+        <details class="lab-legend"><summary>Legend: marks on the scene</summary><div class="cv-legend" id="lLegend"></div></details>
+        <canvas id="lHead" class="head-cv" width="640" height="150" role="img" aria-label="Plot: the direction of the peg's motion over time for the two models"></canvas>
+        <p class="cv-note">Where the peg's velocity points, in degrees, over time in seconds. The angle is measured from the direction of the groove at the start. Vertical ticks mark the moments when a model output a new command or chunk.</p>
+        <div class="ctl-row">
+          <label class="hd-range" id="wrapLScene"><span>Scene</span><input id="lScene" type="range" min="1" max="20" step="1" value="1"><output>1</output></label>
+          <label class="hd-range" id="wrapLTempo"><span>A's pace</span><input id="lTempo" type="range" min="0.5" max="1" step="0.05" value="1"><output>1</output></label>
+          <div class="ctl" id="wrapLPair"><span class="ctl-l">Models</span><div class="seg" id="lPair" role="group" aria-label="Which models to show"><button type="button" data-v="ab" aria-pressed="true">A and B</button><button type="button" data-v="pre" aria-pressed="false">from scratch and pre-trained</button></div></div>
+          <button type="button" class="btn sm" id="lPlay">Play</button>
+        </div>
+        <div class="bars" id="lBars"></div>
+        <div class="prog-line" id="lProg" hidden><i></i></div>
+        <div class="readout" id="lOut"></div>
+      </div>
+      <div class="card guide-card"><div id="lMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: what the models see, how they learn and where we simplified π0</summary><div class="body">
+      <p><b>Observation.</b> Seven points on the center line of the groove at 4, 8, 13, 19, 26, 34 and 44 pixels of path ahead of the peg, the remaining path to the end and the command. The points are given in axes rotated along the groove at the peg, one axis along it and the other across it, as a wrist camera would see them. All that's left of the command here is one number: 1 for “insert it into the socket”, 0 for “bring it to the object”. In π0, the command is read by the language model.</p>
+      <p><b>Model A.</b> Two networks with two layers of 48 neurons; each outputs 256 bins over ±36 pixels, a bin width of about 0.3 pixels. The first network names the bin for the move along the groove, the second the bin for the move across it, knowing the first answer. They are trained with cross-entropy, like a classifier, with labels slightly smoothed over neighboring bins. The pace is one more input: at pace 0.7, the model names where the operator moved the peg over 0.7 × 17 ≈ 12 ticks, and Ada drives there over the same 17 ticks, that is, more slowly. Decoding is greedy: the most likely bin is taken.</p>
+      <p><b>Model B.</b> A 64 × 64 network takes the observation, the noisy chunk and the time \(\tau\) and estimates the final chunk \(\hat x\), and the velocity is computed from that estimate:</p>
+      <div class="formula">\[\begin{gathered} v = \frac{\hat x - x_\tau}{1 - \tau}, \qquad x_{\tau + 0.1} = x_\tau + 0.1\, v. \end{gathered}\]</div>
+      <p>We train on the error \(\lVert \hat x - x_1 \rVert^2\), which is the same flow matching objective \(\lVert v - (x_1 - x_0)\rVert^2\) multiplied by \((1 - \tau)^2\). In π0, the network predicts the velocity directly. One more simplification: our network outputs the chunk not as a hundred numbers but as eight coefficients of a cosine decomposition per axis, which the next interactive covers. They are enough for a smooth chunk, and they make learning easier for a small network. As in π0, the time \(\tau\) is drawn from a beta distribution, but with \(s = 0.9\): with 10 flow steps, moments above 0.9 never occur.</p>
+      <p><b>Recordings.</b> The 24 groove recordings are clean: the operator starts exactly in the middle and guides the peg evenly. For pre-training, there are 120 recordings of other tasks on the same table: bring the peg along an S-shaped groove to a cube, take it around a bowl, weave it in a zigzag, bring it in a straight line. There the operator starts slightly to the side, the peg is sometimes pushed during the recording, and the operator brings it back to the middle: the DART technique from lesson 1.1. At an object, the operator slows down only a little, to 0.4 of full speed, and inserts the peg into the socket slowly, at 0.12.</p>
+      <p><b>Training.</b> Model B gets 3,000 Adam steps on the 24 recordings, model A 1,000 steps. Pre-training is 6,000 steps on the 120 recordings, and post-training is another 300 steps, with a learning rate 6 times lower, on one groove recording. The from-scratch model trains on the same recording for 3,000 steps. The result with one recording depends on which recording it is, so we repeated the experiment with six different recordings and initial weights. On average, the pre-trained model got through 8.7 scenes out of 20 and the from-scratch model 4.3. The pre-trained model won on four of the six sets, the two tied on one, and on one the from-scratch model got through one scene more.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>Model A loses not because it learned the recordings badly: even the command the operator would give moves the peg in a straight line, and a straight line cuts the bend. To stay within the walls, the segments have to be shorter, which means driving slower or commanding more often. Slower means missing the time limit, and more often isn't possible: each action costs several passes of a large model. A chunk removes this contradiction: one inference call gives 50 points of the trajectory, and between calls the robot moves along a curve. And π0 calls the model only twice per second, not 50 times.</p>
+      <p>The π0 paper shows the same on real tasks. Without fine-tuning, right after pre-training, π0 was compared with OpenVLA and Octo trained on the same data mixture. According to the authors, OpenVLA struggled because its tokens don't support action chunks. Octo does output chunks but lacks capacity. π0 beat both on all five tasks, and a version trained for 160,000 steps instead of 700,000, no more than the baselines got, also beat all of them. Even π0-small without a VLM did better than OpenVLA and Octo.</p>
+      <p>Still, tokens are convenient: any language model understands them, and they train faster. Can tokens be made short and precise at the same time?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="fast">
+  <div class="wrap">
+    <div class="lab-badge"><i>🧩</i> Interactive</div>
+    <h2>FAST: compress the chunk before cutting it into tokens</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>A chunk has many tokens because every number of every tick gets its own token, even though neighboring ones are almost the same. Two and a half months after π0, the same authors proposed <strong>FAST</strong> (Frequency-space Action Sequence Tokenization, Pertsch et al., January 2025): first compress the chunk, the way JPEG compresses an image, and only then turn it into tokens.</p>
+      <p>The compression is done with the <strong>discrete cosine transform</strong> (DCT). It decomposes a sequence of 50 numbers into a sum of 50 cosines of different frequencies: the coefficient of each cosine says how much of it there is in the signal. Low frequencies set the overall shape, high ones the sharp jumps. In a smooth motion, almost everything is concentrated in a few low frequencies, and the other coefficients are close to zero.</p>
+      <p>FAST maps each action number to the range from −1 to 1 using the 1st and 99th percentiles of the data, applies the DCT to each number separately, multiplies the coefficients by a scale \(\gamma = 10\) and rounds them to integers. Most coefficients become zeros. Then the coefficients of all the numbers are lined up in a row, low frequencies first, and the BPE algorithm (byte-pair encoding, the same one that cuts text into tokens in language models) merges zeros and frequent combinations into tokens. All these transformations are invertible, so the chunk can be recovered from the tokens.</p>
+      <p>Below is a chunk from the lab: 50 per-tick offsets of the peg along two axes, along the groove at the starting point and across it. Keep the first \(k\) coefficients of the decomposition per axis, round them and see how far the reconstructed path strays from the original one.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <canvas id="fCv" class="fast-cv" width="640" height="330" role="img" aria-label="Two plots: the peg's offsets along and across the groove over 50 ticks, original and reconstructed from k coefficients"></canvas>
+        <p class="cv-note">Horizontally: the tick number in the chunk, from 1 to 50; vertically: the offset per tick in pixels. The gray line is the original chunk, and the orange one is the chunk reconstructed from the coefficients kept.</p>
+        <canvas id="fCoef" class="coef-cv" width="640" height="150" role="img" aria-label="Bars: the decomposition coefficients by frequency, kept and discarded"></canvas>
+        <p class="cv-note">The decomposition coefficients by frequency index, from 0 to 49, after multiplying by \(\gamma\) and rounding. A bar's height is the square root of the magnitude, so that the small ones are visible too. Filled bars are kept, outlined ones discarded; blue bars are along the groove, purple ones across it; the dashed line is the k boundary.</p>
+        <div class="ctl-row">
+          <label class="hd-range wide" id="wrapFK"><span>Coefficients per axis, k</span><input id="fK" type="range" min="1" max="50" step="1" value="50"><output>50</output></label>
+          <div class="ctl" id="wrapFG"><span class="ctl-l">Scale γ</span><div class="seg" id="fG" role="group" aria-label="Scale before rounding"><button type="button" data-v="3" aria-pressed="false">3</button><button type="button" data-v="10" aria-pressed="true">10</button><button type="button" data-v="30" aria-pressed="false">30</button></div></div>
+        </div>
+        <div class="readout" id="fOut"></div>
+      </div>
+      <div class="card guide-card"><div id="fMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: the DCT formulas and what BPE does</summary><div class="body">
+      <p>For a sequence \(x_0, \dots, x_{N-1}\), \(N = 50\), the DCT-II coefficients and the inverse transform are</p>
+      <div class="formula">\[\begin{gathered} C_j = \alpha_j \sum_{n=0}^{N-1} x_n \cos\Bigl(\tfrac{\pi}{N}\bigl(n + \tfrac12\bigr) j\Bigr),\\ x_n = \sum_{j=0}^{N-1} \alpha_j\, C_j \cos\Bigl(\tfrac{\pi}{N}\bigl(n + \tfrac12\bigr) j\Bigr),\\ \alpha_0 = \sqrt{1/N}, \quad \alpha_{j>0} = \sqrt{2/N}. \end{gathered}\]</div>
+      <p>FAST quantizes \(\bar C_j = \operatorname{round}(\gamma\, C_j)\). The rounding error of each coefficient is up to \(1/(2\gamma)\), so a small \(\gamma\) compresses more, but more coarsely. The tokenizer has two hyperparameters: \(\gamma = 10\) and a BPE vocabulary size of 1024; the authors write that neither is very sensitive. In our interactive, the rounded coefficients are the “tokens” before BPE, so we count them as \(k\) per axis. We measure the error by position: the offsets are summed, and the reconstructed path of the peg is compared with the original one.</p>
+      <p>The order matters: first come the zeroth frequencies of all the action numbers, then the first ones, and so on. The model predicts the overall shape of the chunk first and then the details, and according to the authors, this makes the robot's behavior more stable. Without BPE, many zeros remain in the sequence, and the model learns worse and decodes more slowly, but it still does better than with bins.</p>
+      <p>The universal FAST+ tokenizer was trained on about a million one-second chunks from different robots. On new datasets it hasn't seen, it cuts the number of action tokens at least in half.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>The FAST paper computes the compression for one-second chunks. For Bridge V2 (7 numbers, 5 Hz), you get 20 tokens instead of 35 with bins; for DROID (7 numbers, 15 Hz), 29 instead of 105; for table bussing (7 numbers, 20 Hz), 28 instead of 140; and for T-shirt folding (14 numbers, 50 Hz), 53 instead of 700, 13.2 times fewer. FAST gives about 30 tokens per arm per second regardless of the frequency: that's how much information there is in the motion itself. With bins, the models on the 20 and 50 Hz tasks made no progress at all; with FAST, they learned.</p>
+      <p>π0-FAST is the same π0, but it outputs actions as FAST tokens, autoregressively, without the expert. On π0's full data mixture, it matched π0, including on laundry folding, and its training took 5 times fewer GPU hours. The price is inference. According to the FAST paper, π0 typically produces a one-second chunk within 100 ms on an RTX 4090 (the measurement from the π0 paper given above is 73 ms), while π0-FAST takes about 750 ms. It has to decode 30–60 action tokens one at a time, and this is done by the whole language model inside PaliGemma, the 2B-parameter Gemma that makes up most of its 3B, whereas in π0 only the 300M expert runs during the 10 flow steps. On the static tasks in the paper this didn't hurt, but the authors see slow inference as the limitation to overcome for fast, dynamic tasks.</p>
+      <p>So π0 and π0-FAST handle complex tasks. Which ones exactly, and which of them had the model seen before fine-tuning?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="results">
+  <div class="wrap">
+    <div class="lab-badge"><i>🧩</i> Interactive</div>
+    <h2>π0's tasks: what the model saw in pre-training</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>In the lab, pre-training helped with a task similar to the pre-training tasks. The π0 paper tested more than 20 tasks, and the authors themselves divide them by how familiar they are to the model. Some were in the pre-training mixture in full, others resemble something in it, and the rest aren't there at all: new objects, new motions, a robot in a new role.</p>
+      <p>Sort the tasks from the paper into three groups. Drag a card, or tap it and then a group.</p>
+    </div>
+    <div class="card pad task-sort" id="taskSort"></div>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>The paper gives the numbers in plots, and in the text the authors describe them in words. On tasks fine-tuned with 1, 5 and 10 hours of recordings, π0 generally did better than the other methods. The strongest prior methods turned out to be ACT and Diffusion Policy, trained from scratch on the task recordings alone; the open pre-trained OpenVLA and Octo were noticeably weaker after fine-tuning. On the microwave task, π0 after 5 hours of recordings was on par with the baselines, and after 1 hour it was noticeably better. Pre-training helps more on tasks similar to the pre-training tasks, and on some tasks it doubles the result.</p>
+      <p>The hardest tasks (folding laundry from a bin, assembling a box, bussing a lunch table, packing eggs) take 5 to 20 minutes. The full π0 with pre-training and post-training scored more than half of the maximum on all of them. Models without pre-training or without post-training did worse, and the authors couldn't solve these tasks with other methods at all. π0 also learned to follow commands better than π0-small: intermediate commands from a human and from a high-level VLM raised its score, while π0-small gained almost nothing from the VLM's hints.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="today">
+  <div class="prose">
+    <div class="kicker"><span class="num">4</span> Today</div>
+    <h2>50 Hz chunks became the norm</h2>
+    <p>The code of π0 is open: the π0 and π0.5 implementation is in the openpi repository on GitHub, the very one where the noise sits at \(t = 1\), as the note in lesson 1.8 says. The “vision-language model plus flow-matching action expert” design caught on. π0.5 (2025) kept the 300M expert and the 10 flow steps, and added training on heterogeneous data and subtasks that the model states in words itself; that's the subject of lesson 3.8. In π0.7 (2026), the expert grew to 860M parameters with a 5B model, the chunk is still 50 actions, and the number of flow steps dropped to 5. Robots that get commands 50 times per second are business as usual for these models.</p>
+    <p>Tokens didn't go away either: FAST showed that after compression they train fast and match chunks in quality, as long as the robot isn't in a hurry. And in lesson 1.8, the flow-matching head of GR00T N1 built a chunk of 16 actions in 4 flow steps.</p>
+    <p>But in π0, a single model both thinks and moves the arms, and it runs at a single rate. A large vision-language model is slow, while an arm needs fresh commands every few milliseconds. What if the model were split into two parts running at different rates: a slow one that understands the scene and a fast one that guides the arm? That's the subject of lesson 3.7: Helix, GR00T N1 and Gemini Robotics.</p>
+  </div>
+</section>
+
+<section class="section" id="quiz">
+  <div class="prose">
+    <div class="kicker"><span class="num">5</span> Check yourself</div>
+    <h2>Eight common misconceptions</h2>
+    <div class="quiz" id="quizBox"></div>
+    <p class="score" id="quizScore" style="margin-top:14px"></p>
+  </div>
+</section>
+
+<section class="section alt" id="finale">
+  <div class="prose">
+    <div class="kicker"><span class="num">6</span> Takeaways</div>
+    <h2>Lesson takeaways</h2>
+    <ol class="takeaways">
+      <li><span>Action tokens are expensive and coarse: one action takes several passes of a large model, 1–6 actions per second. On high-frequency data, neighboring tokens are almost identical, and the model learns to simply repeat them.</span></li>
+      <li><span>π0 is <strong>the 3B-parameter PaliGemma and a 300M action expert</strong> in one transformer: the robot tokens have their own weights, but attention is shared. The block mask lets the images and text be computed once and kept in the cache.</span></li>
+      <li><span>The expert predicts a velocity field and in 10 Euler steps moves noise into a <strong>chunk of 50 actions</strong> of up to 18 numbers each: that's flow matching. Inference on an RTX 4090 takes 73 ms; the robot executes 25 actions and gets a new chunk every 0.5 s, so commands go out 50 times per second.</span></li>
+      <li><span>In the narrow groove, the straight segments of token commands cut the bend: driven fast, they hit the wall; driven slowly, they run out of time. A chunk guides the peg along a curve.</span></li>
+      <li><span>A two-stage recipe: <strong>pre-training</strong> on more than 10,000 hours from 7 robot configurations in 68 tasks plus open datasets, then <strong>post-training</strong> on 5 to 100-plus hours of curated recordings of the task. Diverse data provides corrections, clean data provides quality.</span></li>
+      <li><span><strong>FAST</strong> compresses a chunk with the cosine transform, rounding and BPE: one second of T-shirt folding is 53 tokens instead of 700. π0-FAST trains 5 times faster than π0 but spends about 750 ms on a chunk, while π0 fits into 100 ms.</span></li>
+    </ol>
+    <h3 style="margin-top:40px">Open questions</h3>
+    <details class="card pad open-q"><summary>The robot executes a chunk blind for half a second. What if the scene changes in the meantime?</summary><p>In π0, chunks are executed open-loop: the authors tried averaging neighboring chunks, the temporal ensembling from lesson 1.7, and it made the results worse. You could execute fewer actions and call the model more often, but each inference costs 73 ms. The lab shows a second consequence too: at the seam between chunks the velocity jumps, because the new chunk doesn't have to continue the old one. Stitching together chunks that are built while the previous one is executing was covered in lesson 1.7: that's Real-Time Chunking by the same authors.</p></details>
+    <details class="card pad open-q"><summary>Why not make the action expert as large as the VLM?</summary><p>The expert passes over the action tokens at each of the 10 flow steps, while the VLM passes over the images and text once. A large expert would multiply the most expensive part of inference by 10. That's why the expert in π0 is half as wide and its inner layer a quarter the size. In π0.7, the expert grew to 860M parameters, but the number of flow steps was halved, to 5: the expert's growth was paid for with flow steps.</p></details>
+    <h3 style="margin-top:34px">Paper guide</h3>
+    <p><a href="https://arxiv.org/abs/2410.24164" target="_blank" rel="noopener">K. Black et al., “π0: A Vision-Language-Action Flow Model for General Robot Control”, Physical Intelligence, 2024</a>.</p>
+    <ul class="links">
+      <li><strong>Read closely</strong><span>Section IV and Appendix B: the two experts, the block mask, the time τ input and why τ is sampled closer to the noise. Section V-A: the composition of the data mixture and the n^0.43 weights. Appendix D and Table I: what the 73 ms are made of.</span></li>
+      <li><strong>Safe to skip</strong><span>Appendix E with the scoring rules for each task and Appendix A with the authors' contributions.</span></li>
+      <li><strong>Question to keep in mind</strong><span>Why is the robot's state put in a separate block of the mask rather than together with the actions? What would have to be recomputed at each of the 10 flow steps if it saw the noisy actions?</span></li>
+    </ul>
+    <p style="margin-top:18px"><a href="https://arxiv.org/abs/2501.09747" target="_blank" rel="noopener">K. Pertsch, K. Stachowicz et al., “FAST: Efficient Action Tokenization for Vision-Language-Action Models”, 2025</a>: compressing the chunk with the cosine transform and BPE, and π0-FAST.</p>
+    <h3 style="margin-top:34px">Resources</h3>
+    <ul class="links">
+      <li><a href="https://www.physicalintelligence.company/blog/pi0" target="_blank" rel="noopener">π0 blog post</a><span>Videos of laundry folding, box assembly and table bussing</span></li>
+      <li><a href="https://github.com/Physical-Intelligence/openpi" target="_blank" rel="noopener">openpi</a><span>Code for π0 and π0.5</span></li>
+      <li><a href="https://pi.website/research/fast" target="_blank" rel="noopener">FAST</a><span>Project page</span></li>
+      <li><a href="https://huggingface.co/physical-intelligence/fast" target="_blank" rel="noopener">FAST+ tokenizer</a><span>A universal action tokenizer in three lines of code</span></li>
+      <li><a href="https://arxiv.org/abs/2407.07726" target="_blank" rel="noopener">PaliGemma</a><span>The vision-language model π0 is built on</span></li>
+    </ul>
+    <!--if:3-7-dvukhurovnevye-arkhitektury.html--><div class="callout insight" style="margin-top:34px"><span class="ico">➡️</span><div><p><strong>Next: 3.7 “Dual-system architectures: Helix, GR00T, Gemini Robotics”.</strong> In π0, one model both understands the scene and guides the arms. In the next lesson, the model is split into two parts running at different rates: a slow, large model thinks, and a fast, small one moves. <a href="3-7-dvukhurovnevye-arkhitektury.html">Lesson 3.7 →</a></p></div></div><!--/if-->
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Lesson 3.6 of the “Modern Robotics and Physical AI” course. The lab models train in your browser; the numbers from the π0 and FAST papers are given as stated in their text.
+</footer>
+<div class="tooltip" id="tooltip" role="tooltip"></div>
+<script>
+/*@@JS@@*/
+</script>
+</body>
+</html>
