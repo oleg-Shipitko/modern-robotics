@@ -117,7 +117,7 @@
   "id": "freq-ladder",
   "t": "Control hierarchy",
   "d": "The hierarchy of control loops: the lower the level, the faster it reacts — from a few hertz for the model that understands the command to tens of kilohertz for the current loop.",
-  "a": "control hierarch(?:y|ies)|frequency ladder|ladder of (?:control )?frequencies"
+  "a": "control hierarch(?:y|ies)|frequency ladder|ladder of (?:control )?frequencies|rate ladder|ladder of rates"
  },
  {
   "id": "sim2real",

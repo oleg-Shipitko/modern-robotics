@@ -160,7 +160,10 @@ function emptyMsg(c, k, W, H, lines, P) { lines.forEach((t, i) => lbl(c, k, t, W
     let d = A.ease(u) * tot, i = 0; while (i < n - 1 && d > L[i]) { d -= L[i]; i++; }
     const s = L[i] ? Math.min(1, d / L[i]) : 0, x = A.lerp(pts[i][0], pts[i + 1][0], s), y = A.lerp(pts[i][1], pts[i + 1][1], s);
     A.circle(c, x, y, 5, col, null);
-    if (text) A.lab(c, k, text, x, y - 13, { px: 10.5, weight: 700, color: col, haloColor: P.surf });
+    if (text) {   // у края канваса подпись сдвигается внутрь, пакет остаётся на пути
+      const W = c.canvas.width / c.getTransform().a; HeroKit.font(c, k, 10.5, 700); const hw = c.measureText(text).width / 2 + 4;
+      A.lab(c, k, text, Math.min(Math.max(x, hw), W - hw), y - 13, { px: 10.5, weight: 700, color: col, haloColor: P.surf });
+    }
   }
   function scene(c, k, A, P, b, u) { // стол, два бака, рука и предметы; u — время цикла
     A.rect(c, b[0], b[1], b[2], b[3], 10, rgba(P.ink3, 0.06), P.line, 1.2);
@@ -306,7 +309,8 @@ const LabDelay = (() => {
       c.strokeStyle = P.hy; c.lineWidth = 1.8; c.setLineDash([5, 4]); c.beginPath(); c.moveTo(xa, Y.hand - 7); c.bezierCurveTo(xa, Y.frame + 30, xb, Y.frame + 40, xb, Y.frame + 8); c.stroke(); c.setLineDash([]);
       c.beginPath(); c.arc(xa, Y.hand, 4, 0, 7); c.fillStyle = P.ink; c.fill();
       const txt = st.fast ? `где чашка: ${ms(Math.min(2 * E.T1, tc % E.T1 + E.T1))} мс · что брать: ${ms(tc - s.obs)} мс` : `данным ${ms(tc - s.obs)} мс`;
-      lbl(c, k, txt, Math.min(Math.max(xa, x0 + 90 * Math.min(k, 1.6)), x1 - 90 * Math.min(k, 1.6)), Y.hand + 10 + 8 * k, { px: 10.5, weight: 700, color: st.fast ? P.e2e : P.hy, haloColor: P.bg });
+      HeroKit.font(c, k, 10.5, 700); const hw = c.measureText(txt).width / 2 + 6;   // подпись целиком внутри шкалы
+      lbl(c, k, txt, 2 * hw > x1 - x0 ? (x0 + x1) / 2 : Math.min(Math.max(xa, x0 + hw), x1 - hw), Y.hand + 10 + 8 * k, { px: 10.5, weight: 700, color: st.fast ? P.e2e : P.hy, haloColor: P.bg });
     }
   }
   function drawPlot() {
