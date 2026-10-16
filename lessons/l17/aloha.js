@@ -290,3 +290,188 @@
     },
   });
 })();
+
+/* =====================================================================
+   Схема 'cvae': как устроен CVAE в ACT. Верхний ряд — обучение: две
+   демонстрации одной задачи с разной манерой (оператор 1 объезжает вазу
+   слева, оператор 2 справа). Энкодер CVAE видит суставы и пачку оператора и
+   выдаёт среднее и разброс распределения z; из него берут z. Декодер — сама
+   политика — по кадрам, суставам и z восстанавливает пачку; L1 сравнивает её
+   с пачкой оператора, β·KL штрафует за отличие распределения z от N(0, 1).
+   Нижний ряд — на роботе: пачки оператора нет, энкодер выброшен, z = 0,
+   декодер выдаёт одну и ту же пачку — сторону, где демонстраций больше.
+   ===================================================================== */
+(() => {
+  const K = HeroKit;
+  const T = 17;
+  const A1 = 0.2, A2 = 5.2, B0 = 10.2;               // начала: демонстрация 1, демонстрация 2, работа на роботе
+  const ST = { path: [0, 0.8], into: [0.8, 1.6], bell: [1.6, 2.4], dec: [2.4, 3.1], out: [3.1, 4.1] };
+  const MU = 0.9, SIG = 0.55;                          // среднее и разброс z у демонстрации (по модулю)
+  /** Подпись ужимается до ширины maxW; массив строк — подпись в несколько строк с общим размером, центр по y. */
+  function fitLab(c, k, A, text, x, y, maxW, o) {
+    o = Object.assign({ px: 11 }, o); let px = o.px;
+    const lines = Array.isArray(text) ? text : [text];
+    K.font(c, k, px, o.weight, o.mono);
+    const w = Math.max(...lines.map((s) => c.measureText(s).width));
+    if (w > maxW) px = Math.max(7, px * maxW / w);
+    const lh = px * k * 1.25, y0 = y - (lines.length - 1) * lh / 2;
+    lines.forEach((s, i) => A.lab(c, k, s, x, y0 + i * lh, Object.assign({}, o, { px })));
+  }
+  /** Путь робота снизу вверх в окне сцены: side −1 — объезд слева, +1 — справа, 0 — прямо. */
+  function pathPts(S, side, n) {
+    const pts = [], cx = S.x + S.w / 2, amp = S.w * 0.27;
+    for (let i = 0; i <= n; i++) { const s = i / n; pts.push([cx + side * amp * Math.sin(Math.PI * s), S.y + S.h - 12 - s * (S.h - 24)]); }
+    return pts;
+  }
+  function scene(c, k, A, P, S, o) {
+    const { rect, circle, lab } = A, cx = S.x + S.w / 2, cy = S.y + S.h / 2;
+    rect(c, S.x, S.y, S.w, S.h, 8, P.surf, P.grid, 1);
+    c.save(); c.beginPath(); c.arc(cx, cy, S.vr, 0, Math.PI * 2); c.closePath();
+    c.fillStyle = A.alpha(P.ink3, 0.18); c.fill(); K.hatch(c, cx - S.vr, cy - S.vr, cx + S.vr, cy + S.vr, P.ink3, 5, 1); c.restore();
+    c.beginPath(); c.arc(cx, cy, S.vr, 0, Math.PI * 2); c.strokeStyle = P.ink3; c.lineWidth = 1.2; c.stroke();
+    if (o && o.vaseLab) lab(c, k, 'ваза', cx, cy, { px: 9.5, weight: 650, color: P.ink2, halo: false });
+    circle(c, cx, S.y + S.h - 9, 4.2, P.ink2);      // робот внизу
+  }
+  function drawPath(c, A, pts, prog, col, lw, dash) {
+    const n = Math.max(1, Math.round((pts.length - 1) * prog));
+    if (prog <= 0) return;
+    A.line(c, pts.slice(0, n + 1), col, lw, dash);
+    if (!dash) for (let i = 0; i <= n; i += 3) A.circle(c, pts[i][0], pts[i][1], 2, col);
+  }
+  /** Блок сети; o.cross — доля нарисованного красного креста (блок выброшен), подписи остаются поверх креста. */
+  function box(c, k, A, P, B, title, sub, o) {
+    o = o || {};
+    A.rect(c, B.x, B.y, B.w, B.h, 9, o.fill || P.surf, o.edge || P.ink2, o.lw || 1.6);
+    if (o.cross > 0) {
+      const d = o.cross, col = A.alpha(P.bad, 0.7);
+      A.line(c, [[B.x + 6, B.y + 6], [B.x + 6 + (B.w - 12) * d, B.y + 6 + (B.h - 12) * d]], col, 2);
+      A.line(c, [[B.x + B.w - 6, B.y + 6], [B.x + B.w - 6 - (B.w - 12) * d, B.y + 6 + (B.h - 12) * d]], col, 2);
+    }
+    const halo = o.cross > 0 ? { halo: true, haloColor: P.surf } : { halo: false };
+    fitLab(c, k, A, title, B.x + B.w / 2, B.y + B.h / 2 - (sub ? 7 : 0), B.w - 10, Object.assign({ px: 11.5, weight: 750, color: o.ink || P.ink }, halo));
+    if (sub) fitLab(c, k, A, sub, B.x + B.w / 2, B.y + B.h / 2 + 10, B.w - 10, Object.assign({ px: 9.5, weight: 600, color: o.ink2 || P.ink3 }, halo));
+  }
+  /** Колокол нормального распределения в окне Bx: центр m, разброс s (в единицах z от −2,5 до 2,5). */
+  function bell(c, A, Bx, m, s, col, lw, dash, alpha) {
+    const pts = [], x = (z) => Bx.x + 8 + (z + 2.5) / 5 * (Bx.w - 16), base = Bx.y + Bx.h - 14, hMax = Bx.h - 34;
+    for (let i = 0; i <= 60; i++) { const z = -2.5 + 5 * i / 60, g = Math.exp(-0.5 * ((z - m) / s) ** 2) * (0.55 / s); pts.push([x(z), base - Math.min(1.25, g) * hMax / 1.25]); }
+    const ga = c.globalAlpha;
+    c.globalAlpha = ga * (alpha == null ? 1 : alpha); A.line(c, pts, col, lw, dash); c.globalAlpha = ga;
+    return { x, base };
+  }
+  function flowDots(c, A, p0, p1, prog, col) {
+    if (prog <= 0 || prog >= 1) return;
+    for (let i = 0; i < 3; i++) { const f = (prog * 1.6 + i / 3) % 1; A.circle(c, A.lerp(p0[0], p1[0], f), A.lerp(p0[1], p1[1], f), 2.6, col); }
+  }
+  function draw(c, k, t, P, A, G) {
+    const { seg, ease, lab, line, arrow, alpha } = A, u = ((t % T) + T) % T;
+    const colZ = P.spr, colOp = P.mot, colOut = P.out;
+    const inB = u >= B0 - 0.2;
+    const demo = u < A2 ? 0 : 1, a0 = demo ? A2 : A1, v = u - a0;     // какая демонстрация в верхнем ряду
+    const side = demo ? 1 : -1;
+    const ph = (r, base) => seg(base, r[0], r[1]);
+    const lines = (arr, one) => (one ? arr.join(' ') : arr);
+    // ---------- верхний ряд: обучение ----------
+    const R = G.A, dimA = inB ? 0.35 : 1;
+    c.globalAlpha = dimA;
+    fitLab(c, k, A, 'При обучении', R.title[0], R.title[1], G.maxW, { px: 12.5, weight: 800, color: P.ink, halo: false, align: 'left' });
+    fitLab(c, k, A, 'у каждой демонстрации своя манера', R.sub[0], R.sub[1], G.maxW, { px: 10.5, weight: 600, color: P.ink3, halo: false, align: 'left' });
+    const vA = inB ? 99 : v;
+    const pPath = ease(ph(ST.path, vA)), pInto = ph(ST.into, vA), pBell = ease(ph(ST.bell, vA)), pDec = ph(ST.dec, vA), pOut = ease(ph(ST.out, vA));
+    scene(c, k, A, P, R.demo, { vaseLab: true });
+    const op = pathPts(R.demo, side, 30); drawPath(c, A, op, pPath, colOp, 2.4);
+    fitLab(c, k, A, demo ? 'оператор 2 объезжает справа' : 'оператор 1 объезжает слева', R.demoLab[0], R.demoLab[1], R.demo.w + 8, { px: 10.5, weight: 700, color: colOp, halo: false });
+    // в энкодер: пачка оператора и суставы
+    arrow(c, R.toEnc[0], R.toEnc[1], R.toEnc[2], R.toEnc[3], pInto > 0 ? P.ink2 : P.line, 1.6, 6);
+    flowDots(c, A, [R.toEnc[0], R.toEnc[1]], [R.toEnc[2], R.toEnc[3]], pInto, colOp);
+    fitLab(c, k, A, ['пачка оператора', '+ суставы'], R.toEncLab[0], R.toEncLab[1], R.toEncLab[2], { px: 9.5, weight: 650, color: P.ink2, halo: false, align: R.toEncLab[3] || 'center' });
+    box(c, k, A, P, R.enc, 'Энкодер CVAE', 'картинок не видит', { edge: colZ });
+    arrow(c, R.toBell[0], R.toBell[1], R.toBell[2], R.toBell[3], pBell > 0 ? colZ : P.line, 1.6, 6);
+    // распределение z: стандартное N(0, 1) пунктиром и распределение этой демонстрации
+    A.rect(c, R.bell.x, R.bell.y, R.bell.w, R.bell.h, 8, P.surf, P.grid, 1);
+    fitLab(c, k, A, 'z — 32 числа о манере', R.bell.x + R.bell.w / 2, R.bell.y + 11, R.bell.w - 8, { px: 9.5, weight: 700, color: colZ, halo: false });
+    const ax = bell(c, A, R.bell, 0, 1, P.ink3, 1.2, [3, 3]);
+    line(c, [[R.bell.x + 6, ax.base], [R.bell.x + R.bell.w - 6, ax.base]], P.line, 1);
+    if (pBell > 0) {
+      const m = side * MU * pBell, s = A.lerp(1, SIG, pBell);
+      bell(c, A, R.bell, m, s, colZ, 2.2);
+      if (pBell >= 1) { const zx = ax.x(side * MU + 0.12 * side); A.circle(c, zx, ax.base, 4, colZ); lab(c, k, 'z', zx, ax.base - 10, { px: 10, weight: 800, color: colZ, haloColor: P.surf }); }
+    }
+    fitLab(c, k, A, 'β·KL — плата за отличие от N(0, 1)', R.klLab[0], R.klLab[1], R.klLab[2], { px: 9.5, weight: 650, color: P.ink3, halo: false });
+    // в декодер: z, кадры камер, суставы
+    arrow(c, R.toDec[0], R.toDec[1], R.toDec[2], R.toDec[3], pDec > 0 ? colZ : P.line, 1.6, 6);
+    flowDots(c, A, [R.toDec[0], R.toDec[1]], [R.toDec[2], R.toDec[3]], pDec, colZ);
+    for (let i = 0; i < 4; i++) A.rect(c, R.cams[0] + i * 15, R.cams[1], 12, 9, 2, alpha(colOut, 0.75), null);
+    fitLab(c, k, A, '4 камеры и суставы', R.camsLab[0], R.camsLab[1], R.camsLab[2], { px: 9.5, weight: 650, color: colOut, halo: false, align: R.camsLab[3] || 'center' });
+    box(c, k, A, P, R.dec, 'Декодер = политика', 'выдаёт пачку из 100 действий');
+    arrow(c, R.toOut[0], R.toOut[1], R.toOut[2], R.toOut[3], pOut > 0 ? colOut : P.line, 1.6, 6);
+    scene(c, k, A, P, R.out);
+    const opOut = pathPts(R.out, side, 30);
+    if (pOut > 0) drawPath(c, A, opOut, 1, alpha(colOp, 0.55), 1.4, [3, 3]);
+    drawPath(c, A, opOut.map(([x, y], i) => [x + 1.2 * Math.sin(i * 1.7), y]), pOut, colOut, 2.4);
+    fitLab(c, k, A, lines(pOut >= 1 ? ['L1: пачка совпала', 'с пачкой оператора'] : ['L1: сравнение', 'с пачкой оператора'], R.outLab[3]), R.outLab[0], R.outLab[1], R.outLab[2], { px: 10, weight: 700, color: pOut >= 1 ? P.good : P.ink3, halo: false });
+    c.globalAlpha = 1;
+    // ---------- нижний ряд: на роботе ----------
+    const Rb = G.B, dimB = inB ? 1 : 0.35, w = u - B0;
+    const pCross = ease(seg(w, 0, 0.6)), pZero = ease(seg(w, 0.6, 1.4)), pDecB = seg(w, 1.4, 2.1), pOutB = ease(seg(w, 2.1, 3.2));
+    line(c, [[G.sep[0], G.sep[1]], [G.sep[2], G.sep[1]]], P.grid, 1);
+    c.globalAlpha = dimB;
+    fitLab(c, k, A, 'На роботе', Rb.title[0], Rb.title[1], G.maxW, { px: 12.5, weight: 800, color: P.ink, halo: false, align: 'left' });
+    fitLab(c, k, A, 'пачки оператора нет, энкодер не нужен', Rb.sub[0], Rb.sub[1], G.maxW, { px: 10.5, weight: 600, color: P.ink3, halo: false, align: 'left' });
+    if (Rb.scene) { scene(c, k, A, P, Rb.scene, { vaseLab: true }); fitLab(c, k, A, 'новая сцена', Rb.sceneLab[0], Rb.sceneLab[1], Rb.scene.w + 20, { px: 10, weight: 650, color: P.ink2, halo: false }); }
+    box(c, k, A, P, Rb.enc, 'Энкодер CVAE', 'выброшен', { edge: P.line, ink: P.ink3, lw: 1.2, cross: inB ? pCross : 0 });
+    A.rect(c, Rb.bell.x, Rb.bell.y, Rb.bell.w, Rb.bell.h, 8, P.surf, P.grid, 1);
+    fitLab(c, k, A, 'z = 0: центр N(0, 1)', Rb.bell.x + Rb.bell.w / 2, Rb.bell.y + 11, Rb.bell.w - 8, { px: 9.5, weight: 700, color: colZ, halo: false });
+    const axB = bell(c, A, Rb.bell, 0, 1, P.ink3, 1.4);
+    line(c, [[Rb.bell.x + 6, axB.base], [Rb.bell.x + Rb.bell.w - 6, axB.base]], P.line, 1);
+    if (!inB || pZero > 0) {
+      const zx = axB.x(0); c.globalAlpha = dimB * (inB ? pZero : 1); A.circle(c, zx, axB.base, 4.2, colZ);
+      if (Rb.bell.h >= 90) lab(c, k, 'z = 0', zx, axB.base - 11, { px: 10, weight: 800, color: colZ, haloColor: P.surf });
+      c.globalAlpha = dimB;
+    }
+    arrow(c, Rb.toDec[0], Rb.toDec[1], Rb.toDec[2], Rb.toDec[3], inB && pDecB > 0 ? colZ : P.line, 1.6, 6);
+    if (inB) flowDots(c, A, [Rb.toDec[0], Rb.toDec[1]], [Rb.toDec[2], Rb.toDec[3]], pDecB, colZ);
+    for (let i = 0; i < 4; i++) A.rect(c, Rb.cams[0] + i * 15, Rb.cams[1], 12, 9, 2, alpha(colOut, 0.75), null);
+    fitLab(c, k, A, '4 камеры и суставы', Rb.camsLab[0], Rb.camsLab[1], Rb.camsLab[2], { px: 9.5, weight: 650, color: colOut, halo: false, align: Rb.camsLab[3] || 'center' });
+    box(c, k, A, P, Rb.dec, 'Декодер = политика', 'та же сеть');
+    arrow(c, Rb.toOut[0], Rb.toOut[1], Rb.toOut[2], Rb.toOut[3], inB && pOutB > 0 ? colOut : P.line, 1.6, 6);
+    scene(c, k, A, P, Rb.out);
+    drawPath(c, A, pathPts(Rb.out, -1, 30), inB ? pOutB : 1, colOut, 2.4);
+    fitLab(c, k, A, lines(['одна и та же пачка в каждом прогоне:', 'сторона, где демонстраций больше'], Rb.outLab[3]), Rb.outLab[0], Rb.outLab[1], Rb.outLab[2], { px: 10, weight: 700, color: P.ink2, halo: false });
+    c.globalAlpha = 1;
+  }
+  Anim.add('cvae', {
+    W: 720, H: 452, start: 4.6, narrowAt: 620,
+    draw(c, k, t, P, A) {
+      draw(c, k, t, P, A, {
+        maxW: 340, sep: [10, 238, 710],
+        A: { title: [14, 16], sub: [14, 33], demo: { x: 14, y: 52, w: 118, h: 150, vr: 14 }, demoLab: [73, 216],
+          toEnc: [136, 127, 211, 127], toEncLab: [174, 105, 74], enc: { x: 214, y: 98, w: 110, h: 58 },
+          toBell: [326, 127, 341, 127], bell: { x: 344, y: 64, w: 118, h: 126 }, klLab: [403, 204, 150],
+          toDec: [464, 127, 481, 127], cams: [490, 70], camsLab: [518, 60, 110], dec: { x: 484, y: 98, w: 104, h: 58 },
+          toOut: [590, 127, 605, 127], out: { x: 608, y: 52, w: 98, h: 150, vr: 12 }, outLab: [657, 218, 110] },
+        B: { title: [14, 258], sub: [14, 275], scene: { x: 14, y: 292, w: 118, h: 132, vr: 14 }, sceneLab: [73, 438],
+          enc: { x: 214, y: 330, w: 110, h: 58 }, bell: { x: 344, y: 296, w: 118, h: 126 },
+          toDec: [464, 359, 481, 359], cams: [490, 302], camsLab: [518, 292, 110], dec: { x: 484, y: 330, w: 104, h: 58 },
+          toOut: [590, 359, 605, 359], out: { x: 608, y: 292, w: 98, h: 132, vr: 12 }, outLab: [470, 440, 470, true] },
+      });
+    },
+    narrow: {
+      W: 360, H: 930,
+      draw(c, k, t, P, A) {
+        draw(c, k, t, P, A, {
+          maxW: 330, sep: [10, 588, 350],
+          A: { title: [14, 16], sub: [14, 33], demo: { x: 100, y: 48, w: 160, h: 120, vr: 13 }, demoLab: [180, 182],
+            toEnc: [180, 192, 180, 214], toEncLab: [190, 203, 160, 'left'], enc: { x: 110, y: 216, w: 140, h: 52 },
+            toBell: [180, 270, 180, 286], bell: { x: 90, y: 288, w: 180, h: 96 }, klLab: [180, 396, 300],
+            toDec: [180, 406, 180, 426], cams: [24, 436], camsLab: [52, 426, 100], dec: { x: 110, y: 428, w: 140, h: 52 },
+            toOut: [180, 482, 180, 498], out: { x: 100, y: 500, w: 160, h: 66, vr: 9 }, outLab: [180, 578, 330, true] },
+          B: { title: [14, 606], sub: [14, 623], scene: null,
+            enc: { x: 14, y: 659, w: 110, h: 50 }, bell: { x: 134, y: 636, w: 212, h: 96 },
+            toDec: [256, 734, 256, 754], cams: [106, 776], camsLab: [134, 766, 100], dec: { x: 186, y: 756, w: 140, h: 48 },
+            toOut: [256, 806, 256, 822], out: { x: 196, y: 824, w: 120, h: 72, vr: 10 }, outLab: [180, 913, 330] },
+        });
+      },
+    },
+  });
+})();

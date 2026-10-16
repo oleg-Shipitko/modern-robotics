@@ -83,9 +83,9 @@ async function mouseDrag(p, a, b) {
   await p.S('Input.dispatchMouseEvent', { type: 'mouseReleased', x: b.x, y: b.y, button: 'left', clickCount: 1 }); await sleep(120);
 }
 /** Схема «один проход декодера»: в кадрах t подписи не выходят за края канваса и не налезают друг на друга. */
-async function passLabels(p, frames) {
+async function schemeLabels(p, kind, frames) {
   return JSON.parse(await p.eval(`(() => {
-    const cv = document.querySelector('canvas[data-anim=pass]'), orig = CanvasRenderingContext2D.prototype.fillText, bad = [];
+    const cv = document.querySelector('canvas[data-anim=${kind}]'), orig = CanvasRenderingContext2D.prototype.fillText, bad = [];
     const [W, H] = cv.style.aspectRatio.split('/').map(Number);
     let boxes = null;
     CanvasRenderingContext2D.prototype.fillText = function (txt, x, y) {
@@ -341,11 +341,16 @@ async function desktop() {
   await p.click('#themeBtn'); await sleep(400);
   for (const [n, s] of [['err', '#errors .lab'], ['lab', '#chunks .lab'], ['arch', '#arch .lab'], ['cvae', '#cvae .lab'], ['te', '#te .lab'], ['delay', '#delay .lab'], ['aloha', '#aloha .wrap']]) await p.shotEl(out(`l17-${n}-dark.png`), s, 6);
   const an = JSON.parse(await p.eval(`JSON.stringify([...document.querySelectorAll('canvas[data-anim]')].map((cv) => { Anim.seek(cv, 1.1); const a = cv.toDataURL(); Anim.seek(cv, 3.7); const b = cv.toDataURL(); return { k: cv.dataset.anim, moves: a !== b, w: cv.width }; }))`));
-  check(an.length === 2 && an[0].k === 'aloha' && an[0].moves, 'схема телеоперации ALOHA идёт');
-  check(an.length === 2 && an[1].k === 'pass' && an[1].moves, 'схема «один проход декодера» идёт');
+  check(an.length === 3 && an[0].k === 'aloha' && an[0].moves, 'схема телеоперации ALOHA идёт');
+  check(an.length === 3 && an[1].k === 'pass' && an[1].moves, 'схема «один проход декодера» идёт');
+  check(an.length === 3 && an[2].k === 'cvae' && an[2].moves, 'схема CVAE идёт');
   await center(p, 'canvas[data-anim=pass]');
-  const pl = await passLabels(p, [1.1, 3.7, 4.9, 8.6, 12.5]);
+  const pl = await schemeLabels(p, 'pass', [1.1, 3.7, 4.9, 8.6, 12.5]);
   check(pl.layout === 'w' && pl.bad.length === 0, `схема прохода, ширина ${pl.W}×${pl.H}: подписи в канвасе и не налезают` + (pl.bad.length ? ': ' + pl.bad.slice(0, 4).join('; ') : ''));
+  await center(p, 'canvas[data-anim=cvae]');
+  const cl = await schemeLabels(p, 'cvae', [1.1, 3.6, 7.0, 9.6, 11.5, 14.5]);
+  check(cl.layout === 'w' && cl.bad.length === 0, `схема CVAE, ширина ${cl.W}×${cl.H}: подписи в канвасе и не налезают` + (cl.bad.length ? ': ' + cl.bad.slice(0, 4).join('; ') : ''));
+  await p.eval(`Anim.seek(document.querySelector('canvas[data-anim=cvae]'), 14.5)`); await p.shotEl(out('l17-cvae-scheme-dark.png'), '#cvae .scheme-fig', 6);
   await p.shotEl(out('l17-pass-dark.png'), '#arch .scheme-fig', 6);
   check(p.logs.length === 0, 'консоль десктопа: ' + (p.logs.join(' | ') || 'чисто'));
   await B.close();
@@ -367,9 +372,13 @@ async function phone() {
   const laneH = await m.eval('(() => { const r = document.querySelector("#chunkCv").getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height)]; })()');
   check(laneH[1] / 3 >= 50, `телефон: сцена лабы ${laneH[0]}×${laneH[1]} px, дорожка ${Math.round(laneH[1] / 3)} px`);
   await center(m, 'canvas[data-anim=pass]');
-  const mpl = await passLabels(m, [1.1, 3.7, 4.9, 8.6, 12.5]);
+  const mpl = await schemeLabels(m, 'pass', [1.1, 3.7, 4.9, 8.6, 12.5]);
   check(mpl.layout === 'n' && mpl.bad.length === 0, `телефон: схема прохода в узкой раскладке ${mpl.W}×${mpl.H}, подписи в канвасе и не налезают` + (mpl.bad.length ? ': ' + mpl.bad.slice(0, 4).join('; ') : ''));
   await m.eval(`Anim.seek(document.querySelector('canvas[data-anim=pass]'), 3.7)`); await m.shotEl(out('l17-m-pass-3.png'), '#arch .scheme-fig', 4);
+  await center(m, 'canvas[data-anim=cvae]');
+  const mcl = await schemeLabels(m, 'cvae', [1.1, 3.6, 7.0, 9.6, 11.5, 14.5]);
+  check(mcl.layout === 'n' && mcl.bad.length === 0, `телефон: схема CVAE в узкой раскладке ${mcl.W}×${mcl.H}, подписи в канвасе и не налезают` + (mcl.bad.length ? ': ' + mcl.bad.slice(0, 4).join('; ') : ''));
+  await m.eval(`Anim.seek(document.querySelector('canvas[data-anim=cvae]'), 14.5)`); await m.shotEl(out('l17-m-cvae-scheme.png'), '#cvae .scheme-fig', 4);
   await m.eval(`Anim.seek(document.querySelector('canvas[data-anim=pass]'), 8.6)`); await m.shotEl(out('l17-m-pass.png'), '#arch .scheme-fig', 4);
   await m.shotEl(out('l17-m-arch.png'), '#arch .lab', 4);
   await center(m, '#cvMis'); await bet(m, '#cvMis', 'Б'); await go(m, '#cvMis', 'cvae');
