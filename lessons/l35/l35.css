@@ -97,6 +97,7 @@
   .vla-tbl .vr { grid-template-columns: minmax(0, 1.2fr) repeat(4, minmax(0, 1fr)); gap: 3px; padding: 4px 3px; }
   .vla-tbl .vc b { font-size: 10.5px; padding: 0 3px; }
   .vla-tbl .vm { font-size: 11px; }
+  .vla-tbl .vn { overflow-wrap: anywhere; hyphens: auto; -webkit-hyphens: auto; }
   .vla-tbl .vn small { display: none; }
   .t-detail table { font-size: 11px; }
   .rank-row { grid-template-columns: 54px minmax(0, 1fr) 44px 60px; font-size: 12px; }
