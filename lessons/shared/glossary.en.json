@@ -710,7 +710,7 @@
  {
   "id": "positive-transfer",
   "t": "Positive transfer",
-  "d": "A model trained on data from many robots or tasks works better on a specific robot than a model trained on that robot’s data alone. The opposite is negative transfer: other people’s data gets in the way.",
+  "d": "A model trained on data from many robots or tasks works better on a specific robot than a model trained on that robot’s data alone. The opposite is negative transfer: data from other robots gets in the way.",
   "a": "positive transfer"
  },
  {
@@ -722,7 +722,7 @@
  {
   "id": "denormalize",
   "t": "Action de-normalization",
-  "d": "Translating the model’s output back from the shared normalized format into the units of a specific robot: bins, millimeters, velocities. The same token string is read by every robot in its own way.",
+  "d": "Translating the model’s output back from the shared normalized format into the units of a specific robot: grid cells, millimeters, velocities. The same token string is read by every robot in its own way.",
   "a": "de-?normaliz(?:ation|ed?|es|ing)"
  },
  {
