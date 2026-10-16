@@ -294,11 +294,11 @@
 /* =====================================================================
    Схема 'cvae': как устроен CVAE в ACT. Верхний ряд — обучение: две
    демонстрации одной задачи с разной манерой (оператор 1 объезжает вазу
-   слева, оператор 2 справа). Энкодер CVAE видит суставы и пачку оператора и
+   слева, оператор 2 справа). Энкодер CVAE видит суставы и траекторию оператора и
    выдаёт среднее и разброс распределения z; из него берут z. Декодер — сама
    политика — по кадрам, суставам и z восстанавливает пачку; L1 сравнивает её
-   с пачкой оператора, β·KL штрафует за отличие распределения z от N(0, 1).
-   Нижний ряд — на роботе: пачки оператора нет, энкодер выброшен, z = 0,
+   с траекторией оператора, β·KL штрафует за отличие распределения z от N(0, 1).
+   Нижний ряд — на роботе: траектории оператора нет, энкодер выброшен, z = 0,
    декодер выдаёт одну и ту же пачку — сторону, где демонстраций больше.
    ===================================================================== */
 (() => {
@@ -310,7 +310,7 @@
   /** Подпись ужимается до ширины maxW; массив строк — подпись в несколько строк с общим размером, центр по y. */
   function fitLab(c, k, A, text, x, y, maxW, o) {
     o = Object.assign({ px: 11 }, o); let px = o.px;
-    const lines = Array.isArray(text) ? text : [text];
+    const lines = Array.isArray(text) ? text : String(text).split('\n');
     K.font(c, k, px, o.weight, o.mono);
     const w = Math.max(...lines.map((s) => c.measureText(s).width));
     if (w > maxW) px = Math.max(7, px * maxW / w);
@@ -370,7 +370,7 @@
     const demo = u < A2 ? 0 : 1, a0 = demo ? A2 : A1, v = u - a0;     // какая демонстрация в верхнем ряду
     const side = demo ? 1 : -1;
     const ph = (r, base) => seg(base, r[0], r[1]);
-    const lines = (arr, one) => (one ? arr.join(' ') : arr);
+    const lines = (x, one) => (!one ? x : Array.isArray(x) ? x.join(' ') : x.replace(/\n/g, ' '));
     // ---------- верхний ряд: обучение ----------
     const R = G.A, dimA = inB ? 0.35 : 1;
     c.globalAlpha = dimA;
@@ -381,10 +381,10 @@
     scene(c, k, A, P, R.demo, { vaseLab: true });
     const op = pathPts(R.demo, side, 30); drawPath(c, A, op, pPath, colOp, 2.4);
     fitLab(c, k, A, demo ? 'оператор 2 объезжает справа' : 'оператор 1 объезжает слева', R.demoLab[0], R.demoLab[1], R.demo.w + 8, { px: 10.5, weight: 700, color: colOp, halo: false });
-    // в энкодер: пачка оператора и суставы
+    // в энкодер: траектория оператора и суставы
     arrow(c, R.toEnc[0], R.toEnc[1], R.toEnc[2], R.toEnc[3], pInto > 0 ? P.ink2 : P.line, 1.6, 6);
     flowDots(c, A, [R.toEnc[0], R.toEnc[1]], [R.toEnc[2], R.toEnc[3]], pInto, colOp);
-    fitLab(c, k, A, ['пачка оператора', '+ суставы'], R.toEncLab[0], R.toEncLab[1], R.toEncLab[2], { px: 9.5, weight: 650, color: P.ink2, halo: false, align: R.toEncLab[3] || 'center' });
+    fitLab(c, k, A, R.toEncLab[4] ? 'траектория оператора\n+ суставы' : 'траектория\nоператора\n+ суставы', R.toEncLab[0], R.toEncLab[1], R.toEncLab[2], { px: 9.5, weight: 650, color: P.ink2, halo: false, align: R.toEncLab[3] || 'center' });
     box(c, k, A, P, R.enc, 'Энкодер CVAE', 'картинок не видит', { edge: colZ });
     arrow(c, R.toBell[0], R.toBell[1], R.toBell[2], R.toBell[3], pBell > 0 ? colZ : P.line, 1.6, 6);
     // распределение z: стандартное N(0, 1) пунктиром и распределение этой демонстрации
@@ -409,7 +409,7 @@
     const opOut = pathPts(R.out, side, 30);
     if (pOut > 0) drawPath(c, A, opOut, 1, alpha(colOp, 0.55), 1.4, [3, 3]);
     drawPath(c, A, opOut.map(([x, y], i) => [x + 1.2 * Math.sin(i * 1.7), y]), pOut, colOut, 2.4);
-    fitLab(c, k, A, lines(pOut >= 1 ? ['L1: пачка совпала', 'с пачкой оператора'] : ['L1: сравнение', 'с пачкой оператора'], R.outLab[3]), R.outLab[0], R.outLab[1], R.outLab[2], { px: 10, weight: 700, color: pOut >= 1 ? P.good : P.ink3, halo: false });
+    fitLab(c, k, A, lines(pOut >= 1 ? 'L1: пачка совпала\nс траекторией оператора' : 'L1: сравнение\nс траекторией оператора', R.outLab[3]), R.outLab[0], R.outLab[1], R.outLab[2], { px: 10, weight: 700, color: pOut >= 1 ? P.good : P.ink3, halo: false });
     c.globalAlpha = 1;
     // ---------- нижний ряд: на роботе ----------
     const Rb = G.B, dimB = inB ? 1 : 0.35, w = u - B0;
@@ -417,7 +417,7 @@
     line(c, [[G.sep[0], G.sep[1]], [G.sep[2], G.sep[1]]], P.grid, 1);
     c.globalAlpha = dimB;
     fitLab(c, k, A, 'На роботе', Rb.title[0], Rb.title[1], G.maxW, { px: 12.5, weight: 800, color: P.ink, halo: false, align: 'left' });
-    fitLab(c, k, A, 'пачки оператора нет, энкодер не нужен', Rb.sub[0], Rb.sub[1], G.maxW, { px: 10.5, weight: 600, color: P.ink3, halo: false, align: 'left' });
+    fitLab(c, k, A, 'траектории оператора нет, энкодер не нужен', Rb.sub[0], Rb.sub[1], G.maxW, { px: 10.5, weight: 600, color: P.ink3, halo: false, align: 'left' });
     if (Rb.scene) { scene(c, k, A, P, Rb.scene, { vaseLab: true }); fitLab(c, k, A, 'новая сцена', Rb.sceneLab[0], Rb.sceneLab[1], Rb.scene.w + 20, { px: 10, weight: 650, color: P.ink2, halo: false }); }
     box(c, k, A, P, Rb.enc, 'Энкодер CVAE', 'выброшен', { edge: P.line, ink: P.ink3, lw: 1.2, cross: inB ? pCross : 0 });
     A.rect(c, Rb.bell.x, Rb.bell.y, Rb.bell.w, Rb.bell.h, 8, P.surf, P.grid, 1);
@@ -446,7 +446,7 @@
       draw(c, k, t, P, A, {
         maxW: 340, sep: [10, 238, 710],
         A: { title: [14, 16], sub: [14, 33], demo: { x: 14, y: 52, w: 118, h: 150, vr: 14 }, demoLab: [73, 216],
-          toEnc: [136, 127, 211, 127], toEncLab: [174, 105, 74], enc: { x: 214, y: 98, w: 110, h: 58 },
+          toEnc: [136, 127, 211, 127], toEncLab: [174, 103, 74], enc: { x: 214, y: 98, w: 110, h: 58 },
           toBell: [326, 127, 341, 127], bell: { x: 344, y: 64, w: 118, h: 126 }, klLab: [403, 204, 150],
           toDec: [464, 127, 481, 127], cams: [490, 70], camsLab: [518, 60, 110], dec: { x: 484, y: 98, w: 104, h: 58 },
           toOut: [590, 127, 605, 127], out: { x: 608, y: 52, w: 98, h: 150, vr: 12 }, outLab: [657, 218, 110] },
@@ -462,7 +462,7 @@
         draw(c, k, t, P, A, {
           maxW: 330, sep: [10, 588, 350],
           A: { title: [14, 16], sub: [14, 33], demo: { x: 100, y: 48, w: 160, h: 120, vr: 13 }, demoLab: [180, 182],
-            toEnc: [180, 192, 180, 214], toEncLab: [190, 203, 160, 'left'], enc: { x: 110, y: 216, w: 140, h: 52 },
+            toEnc: [180, 192, 180, 214], toEncLab: [190, 203, 160, 'left', true], enc: { x: 110, y: 216, w: 140, h: 52 },
             toBell: [180, 270, 180, 286], bell: { x: 90, y: 288, w: 180, h: 96 }, klLab: [180, 396, 300],
             toDec: [180, 406, 180, 426], cams: [24, 436], camsLab: [52, 426, 100], dec: { x: 110, y: 428, w: 140, h: 52 },
             toOut: [180, 482, 180, 498], out: { x: 100, y: 500, w: 160, h: 66, vr: 9 }, outLab: [180, 578, 330, true] },

@@ -34,6 +34,18 @@
       ]
     },
     {
+      "v": "2.13",
+      "date": "2026-10-16",
+      "title": "A clearer lesson 1.7",
+      "items": [
+        "The CVAE is explained more simply: a hint about the operator's style that the encoder prepares from the operator's trajectory during training; on the robot the hint is always the same, z = 0.",
+        "After the lab there is a clear conclusion: what ACT's strength is, when it fits and when you need a generative policy.",
+        "Before the comparison of inference modes, a short reminder of how each one works: synchronous and asynchronous inference, Real-Time Chunking and temporal ensembling.",
+        "The questions at the end of the lesson test understanding rather than knowledge of numbers.",
+        "In the program on the home page, part checks no longer carry a “check” tag: the ✓ mark is enough."
+      ]
+    },
+    {
       "v": "2.12",
       "date": "2026-10-16",
       "title": "A clearer course: terms, links between lessons, explanations in the main text",
