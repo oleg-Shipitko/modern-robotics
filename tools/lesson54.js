@@ -165,7 +165,7 @@ const clickCell = (p, cv, i, j) => p.eval(`(() => {
     const fin = await text(p, '#finale .takeaways');
     check(['100% удачных', 'до 45%', '78% без рандомизации и 99% с ней', '0,55 с против 0,49 с', '0,88 с против 0,72 с', '4800-му шагу против 10 800', 'до 75 мс', 'на 63%', '67–89%'].every((x) => sp(fin).includes(sp(x))), 'итоги урока называют числа лабораторий и статей');
     const after = await text(p, '#probeAfter');
-    check(after.includes('25–45 мс'), 'вывод после карты миров: задержки настоящих рук 25–45 мс');
+    check(after.includes('25–45 мс'), 'инференс после карты миров: задержки настоящих рук 25–45 мс');
 
     // ---------- квиз, глоссарий, формулы, консоль ----------
     await p.eval(`document.querySelectorAll('#quizBox .q-card').forEach((c) => c.querySelector('.q-opt').click()); true`);

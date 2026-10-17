@@ -37,7 +37,7 @@ const animMoves = (p, kind, t1, t2) => p.eval(`(() => { const cv = document.quer
   const a7 = E.ages({ f: 7, cloud: 0, v: 0.15 });
   check(Math.round(a7.slow.min * 1000) === 143 && Math.round(a7.slow.max * 1000) === 286 && ru(a7.miss.min * 100, 1) === '2,1' && ru(a7.miss.max * 100, 1) === '4,3', '7 Гц: данным 143–286 мс, промах 2,1–4,3 см при 15 см/с (раздел «Под капотом» лаборатории 1)');
   const a10 = E.ages({ f: 10, cloud: 0, v: 0.15 });
-  check(Math.round(a10.slow.min * 1000) === 100 && ru(a10.miss.min * 100, 1) === '1,5' && ru(a10.miss.max * 100, 1) === '3,0', '10 Гц: данным от 100 мс, промах 1,5–3 см (вывод лаборатории 1 и подсказка миссии 2)');
+  check(Math.round(a10.slow.min * 1000) === 100 && ru(a10.miss.min * 100, 1) === '1,5' && ru(a10.miss.max * 100, 1) === '3,0', '10 Гц: данным от 100 мс, промах 1,5–3 см (инференс лаборатории 1 и подсказка миссии 2)');
   const tl = E.timeline({ f: 7, cloud: 0.16 }, 1.5), seen = tl.age.slice(700).filter((x) => x != null);
   check(Math.abs(Math.max(...seen) - E.ages({ f: 7, cloud: 0.16 }).slow.max) < 0.0015 && Math.abs(Math.min(...seen) - E.ages({ f: 7, cloud: 0.16 }).slow.min) < 0.0015, 'шкала времени по миллисекундам совпадает с формулой T + L … 2T + L');
   const c7 = E.pair({ f: 7, cloud: 0, v: 0.15, scen: 'move' });

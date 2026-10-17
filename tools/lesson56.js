@@ -141,7 +141,7 @@ const idle = (p, lab) => p.waitFor(`!window.__l56.${lab}.st.busy`, 240000);
     r = await viaUI(p, '#dMis', 2);
     const m3 = r.out.match(/обещала ([\d,]+), а вышло (-[\d,]+).*?CQL обещает ([\d,]+) при (-[\d,]+).*?IQL обещает ([\d,]+) и получает ([\d,]+)/);
     check(r.ok && /ставка сыграла/i.test(r.out) && m3 && m3[1] === '93,0' && m3[2] === '-3,92' && m3[3] === '11,2' && m3[4] === '-0,45' && m3[5] === '0,60' && m3[6] === '0,66', `миссия 3: наивная ${m3 && m3[1]} против ${m3 && m3[2]}, CQL ${m3 && m3[3]}, IQL ${m3 && m3[5]} против ${m3 && m3[6]}`);
-    check(['93,0', '-3,92', '11,2', '-0,45', '18 из 20 за 10,9 секунды', '+1,98', '+0,51 и +0,45', '14 поездок из 20'].every((x) => da.includes(x)), 'вывод после лаборатории 1 называет те же числа');
+    check(['93,0', '-3,92', '11,2', '-0,45', '18 из 20 за 10,9 секунды', '+1,98', '+0,51 и +0,45', '14 поездок из 20'].every((x) => da.includes(x)), 'инференс после лаборатории 1 называет те же числа');
     await show(p, 'duel', '#duel .lab', 'l56-duel-promise.png');
     await nextMission(p, '#dMis');
     check(await visible(p, '#wrapDSides') && await visible(p, '#wrapDView'), 'свободный режим: выбор панелей и вида виден');
@@ -169,7 +169,7 @@ const idle = (p, lab) => p.waitFor(`!window.__l56.${lab}.st.busy`, 240000);
     await nextMission(p, '#rMis');
     check(await visible(p, '#wrapRMethod') && await visible(p, '#wrapRAlpha'), 'свободный режим: выбор Q-функции и α виден');
     const pa = await text(p, '#probeAfter');
-    check(['12,5', '5 таких решений из 375', 'α = 0,03', 'при α = 0,1 — в 5 поездках из 20', 'α = 0,3 — уже в 15'].every((x) => pa.includes(x)), 'вывод после лаборатории 2 называет те же числа');
+    check(['12,5', '5 таких решений из 375', 'α = 0,03', 'при α = 0,1 — в 5 поездках из 20', 'α = 0,3 — уже в 15'].every((x) => pa.includes(x)), 'инференс после лаборатории 2 называет те же числа');
     // утверждение текста: при α от 1 и выше в точке щупа CQL выбирает самое частое действие (проверка в движке)
     const hiRef = J(await p.eval(`(() => { const E = L56, d = window.__l56.Store.data('mix'), s = d.trips.find((e) => e.op === 'careful').traj[10], cnt = E.localCounts(d.trips, s), ref = cnt.indexOf(Math.max(...cnt)), x = E.observe(s); return JSON.stringify([1, 3, 10].map((a) => { const m = a === 1 ? window.__l56.Store.get('mix', 'cql', 1).M : E.run('cql', d.T, { seed: E.CFG.SEED, CQL_ALPHA: a }); return E.act(m, x) === ref; })); })()`));
     check(hiRef.every(Boolean), 'при α = 1, 3 и 10 CQL в точке щупа выбирает самое частое действие: ' + hiRef.join(','));
@@ -190,7 +190,7 @@ const idle = (p, lab) => p.waitFor(`!window.__l56.${lab}.st.busy`, 240000);
     await nextMission(p, '#sMis');
     check(await visible(p, '#wrapSSet'), 'свободный режим: выбор набора виден');
     const sa = await text(p, '#setsAfter');
-    check(['20 поездок из 20 за 15,1 секунды', 'в 17 поездках из 100', '20 поездок из 20 за 8,2 секунды', '+4,02', '12,3 секунды'].every((x) => sa.includes(x)), 'вывод после лаборатории 3 называет те же числа');
+    check(['20 поездок из 20 за 15,1 секунды', 'в 17 поездках из 100', '20 поездок из 20 за 8,2 секунды', '+4,02', '12,3 секунды'].every((x) => sa.includes(x)), 'инференс после лаборатории 3 называет те же числа');
 
     // ---------- тексты совпадают с расчётом ----------
     const fin = await text(p, '#finale .takeaways');

@@ -26,7 +26,7 @@
     const v = o.v == null ? 0.15 : o.v;
     return { T, L, c, first: c + L, slow, fast, pos, react: { min: c + L, max: c + L + T }, miss: { min: v * pos.min, max: v * pos.max }, cmdHz: 1 / T1, modelHz: o.f };
   }
-  /** Шкала времени на окне [0, W] с: выводы медленной модели, такты быстрой, возраст данных по миллисекундам. */
+  /** Шкала времени на окне [0, W] с: запуски медленной модели, такты быстрой, возраст данных по миллисекундам. */
   function timeline(o, W) {
     W = W || 1; const T = 1 / o.f, L = o.cloud || 0, slow = [];
     for (let k = 0; k * T < W + 1e-9; k++) slow.push({ k, obs: k * T, done: k * T + T, arrive: k * T + T + L });
@@ -74,7 +74,7 @@
     const nSteps = Math.round(TMAX / DT);
     for (let i = 0; i <= nSteps; i++) {
       const t = i * DT, p = Arm.fk(q), h = { x: p.x, y: p.y };
-      // медленная модель: новый вывод пришёл
+      // медленная модель: новый инференс пришёл
       while (si + 1 < slow.length && slow[si + 1].arrive <= t + 1e-9) {
         si++; const s = slow[si], id = cmdAt(s.obs, o);
         lat = { id, obs: s.obs, n: si + 1 };

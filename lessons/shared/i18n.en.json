@@ -25,7 +25,6 @@
  "<b>${ok ? 'Верно.' : 'Не совсем.'}</b> ${q.e} ${link(q)}": "<b>${ok ? 'Correct.' : 'Not quite.'}</b> ${q.e} ${link(q)}",
  "Начать порядок заново": "Reset the order",
  "Верный порядок: ": "Correct order: ",
- "Нажимай варианты по порядку: первый, второй и так далее.": "Tap the options in order: first, second, and so on.",
  "Отвечено ${n} из ${N}, верно ${right}. Итог появится, когда ответишь на все задания.": "Answered ${n} of ${N}, ${right} correct. Your score appears once you have answered every task.",
  "Итог: ${right} из ${N}. ${right >= N - 2 ? cfg.passText : 'Ниже — разделы уроков, которые стоит повторить.'}": "Score: ${right} of ${N}. ${right >= N - 2 ? cfg.passText : 'Below are the lesson sections worth revisiting.'}",
  "<div class=\"chk-tr\"><span>${l} ${LESSON[l][0]}</span><b>${by[l][0]} из ${by[l][1]}</b></div>": "<div class=\"chk-tr\"><span>${l} ${LESSON[l][0]}</span><b>${by[l][0]} of ${by[l][1]}</b></div>",
@@ -118,5 +117,6 @@
  "шкаф": "cabinet",
  "тумба": "dresser",
  "плита и мойка": "stove and sink",
- "кресло": "armchair"
+ "кресло": "armchair",
+ "Нажимай варианты по порядку: первый, второй и так далее. Чтобы убрать вариант из порядка, нажми на него ещё раз.": "Tap the options in order: first, second, and so on. To take an option out of the order, tap it again."
 }

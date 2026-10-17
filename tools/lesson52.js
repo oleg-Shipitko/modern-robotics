@@ -130,8 +130,8 @@ const show = async (p, id, sel, file, pad) => { await p.eval(`document.getElemen
     const c2 = J(await p.eval(`(() => { const C = window.__l52.Corr, s = C.st.runs[C.KEY.small].sum; return JSON.stringify({ s, k: KLD(s.klMed) }); })()`));
     check(r.ok && /ставка сыграла/i.test(r.out) && Math.round(c2.s.last10 * 100) === 48 && c2.k === '0,0025' && r.out.includes('примерно в 4 раза меньше'), `миссия 2: малый шаг — ${Math.round(c2.s.last10 * 100)}%, медиана KL ${c2.k}`);
     const after = await text(p, '#corridorAfter'), fin = await text(p, '#finale');
-    check(after.includes('ни одной поездки до кухни из 400') && after.includes(`медиана KL за обновление — ${c1.ncK} против ${c1.ppoK}`) && after.includes(`самый большой скачок — ${c1.ncMax}`) && after.includes(`${c1.ppo.okAll} поездок до кухни из 400`) && after.includes('десяти обновлениях — 99%'), 'вывод после лаборатории 1 совпадает с обучением');
-    check(after.includes(`медиана KL за обновление у него ${c2.k}`) && after.includes('почти вчетверо меньше') && after.includes('лишь в 48% поездок'), 'вывод про малый шаг совпадает с обучением');
+    check(after.includes('ни одной поездки до кухни из 400') && after.includes(`медиана KL за обновление — ${c1.ncK} против ${c1.ppoK}`) && after.includes(`самый большой скачок — ${c1.ncMax}`) && after.includes(`${c1.ppo.okAll} поездок до кухни из 400`) && after.includes('десяти обновлениях — 99%'), 'инференс после лаборатории 1 совпадает с обучением');
+    check(after.includes(`медиана KL за обновление у него ${c2.k}`) && after.includes('почти вчетверо меньше') && after.includes('лишь в 48% поездок'), 'инференс про малый шаг совпадает с обучением');
     check(fin.includes(`${c1.ncK} против ${c1.ppoK}`) && fin.includes('PPO — 99% в последних 10 обновлениях') && fin.includes('48% против 99%'), 'итоги урока называют числа лаборатории 1');
     await nextMission(p, '#pMis');
     check(await visible(p, '#wrapPView'), 'миссия 3: переключатель графика виден');
@@ -176,7 +176,7 @@ const show = async (p, id, sel, file, pad) => { await p.eval(`document.getElemen
     const st3 = J(await p.eval(`JSON.stringify(window.__l52.Steps.api.state())`));
     check(r.ok && /ставка сыграла/i.test(r.out) && st3.total === 147456000 && r.out.includes('147 456 000') && r.out.includes('34,1 суток') && r.out.includes('лишь 12 минут') && r.out.includes('2400 раз'), `миссия 1: ${st3.total} шагов, ${st3.days.toFixed(1)} суток`);
     const sa = await text(p, '#stepsAfter');
-    check(sa.includes('всего 12 минут') && sa.includes('147 миллионов шагов') && Math.round(st3.perRobotSec / 60) === 12, 'вывод после калькулятора совпадает с расчётом');
+    check(sa.includes('всего 12 минут') && sa.includes('147 миллионов шагов') && Math.round(st3.perRobotSec / 60) === 12, 'инференс после калькулятора совпадает с расчётом');
     await nextMission(p, '#sMis');
     await setRange(p, '#sRobots', 7); await setRange(p, '#sSteps', 0); await sleep(100);
     r = await live(p, '#sMis');

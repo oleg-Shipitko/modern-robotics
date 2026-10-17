@@ -53,7 +53,10 @@ window.PartCheck = function (cfg) {
     const btns = shuffle(q.items.length).map((ii) => {
       const b = h('button', { type: 'button', class: 'chk-opt' }, h('span', { class: 'chk-n' }), q.items[ii]);
       b.addEventListener('click', () => {
-        if (res[k] !== null || picked.includes(ii)) return;
+        if (res[k] !== null) return;
+        // повторное нажатие убирает вариант из порядка, номера остальных сдвигаются
+        const at = picked.indexOf(ii);
+        if (at >= 0) { picked.splice(at, 1); btns.forEach((x) => { const j = picked.indexOf(+x.dataset.ii); x.classList.toggle('picked', j >= 0); x.querySelector('.chk-n').textContent = j >= 0 ? j + 1 : ''; }); return; }
         picked.push(ii); b.classList.add('picked'); b.querySelector('.chk-n').textContent = picked.length;
         if (picked.length === q.items.length) {
           const ok = picked.every((v, i) => v === i);
@@ -65,7 +68,7 @@ window.PartCheck = function (cfg) {
       b.dataset.ii = ii; list.append(b); return b;
     });
     reset.addEventListener('click', () => { picked.length = 0; btns.forEach((x) => { x.classList.remove('picked'); x.querySelector('.chk-n').textContent = ''; }); });
-    box.append(h('p', { class: 'chk-hint' }, 'Нажимай варианты по порядку: первый, второй и так далее.'), list, reset);
+    box.append(h('p', { class: 'chk-hint' }, 'Нажимай варианты по порядку: первый, второй и так далее. Чтобы убрать вариант из порядка, нажми на него ещё раз.'), list, reset);
     return box;
   }
 

@@ -236,7 +236,7 @@
  "Да, токенов почти не прибавляется": "Yes, it adds hardly any tokens",
  "Нет: ECoT пишет около 350 токенов на шаг вместо 7, поэтому план и подзадачу пересчитывают раз в 5 шагов": "No: ECoT writes about 350 tokens per step instead of 7, so the plan and the subtask are recomputed once every 5 steps",
  "Нет: оно требует второго робота": "No: it requires a second robot",
- "Успех OpenVLA вырос на 28 пунктов, но вывод заметно замедлился. У π0.5 подзадача — короткое рассуждение, и верхний уровень работает реже нижнего.": "OpenVLA's success rose by 28 points, but inference slowed down noticeably. In π0.5, the subtask is a short piece of reasoning, and the high level runs less often than the low level.",
+ "Успех OpenVLA вырос на 28 пунктов, но инференс заметно замедлился. У π0.5 подзадача — короткое рассуждение, и верхний уровень работает реже нижнего.": "OpenVLA's success rose by 28 points, but inference slowed down noticeably. In π0.5, the subtask is a short piece of reasoning, and the high level runs less often than the low level.",
  "π*0.6 учится на опыте, выбрасывая неудачные попытки?": "Does π*0.6 learn from experience by throwing out failed attempts?",
  "Да, остаются только успешные эпизоды": "Yes, only successful episodes are kept",
  "Нет: модель учится на всех данных, а во вход пишут «Advantage: positive» или «negative»; при работе ставят positive": "No: the model learns from all the data, with “Advantage: positive” or “negative” written into its input; at deployment, it's set to positive",

@@ -75,7 +75,7 @@ const text = (p, sel) => p.eval(`document.querySelector('${sel}').textContent.re
   const k3 = J(await p.eval(`JSON.stringify(window.__l43.Kitchens.api.state())`));
   check(k3.right != null && k3.right < 0.05, `свободный режим: в кухне 16 (тёмная полосатая скатерть) ошибается даже модель из 24 кухонь — ${pc(k3.right)}%`);
   const lt = await text(p, '#kitchens');
-  check(/кубик синий, зелёный или фиолетовый/.test(lt), 'вывод после лаборатории 1 согласован с разбором ошибок');
+  check(/кубик синий, зелёный или фиолетовый/.test(lt), 'инференс после лаборатории 1 согласован с разбором ошибок');
 
   // ---------- лаборатория 2: отбор ----------
   console.log('лаборатория 2');

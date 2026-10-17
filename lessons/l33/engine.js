@@ -231,7 +231,7 @@
   const softmaxV = (lg) => { let mx = -1e9; for (const v of lg) if (v > mx) mx = v; const p = new Float64Array(lg.length); let z = 0; for (let i = 0; i < lg.length; i++) { p[i] = exp(lg[i] - mx); z += p[i]; } for (let i = 0; i < p.length; i++) p[i] /= z; return p; };
   /** Обратный проход. targets — токены по слотам (null — слот не учится), groups — словарь каждого слота:
    *  потеря считается только среди токенов своей задачи (слова для подписи, токены действия для команды роботу),
-   *  как ограничение вывода в RT-2. Возвращает потерю. */
+   *  как ограничение ответа в RT-2. Возвращает потерю. */
   function backward(m, f, targets, groups) {
     const { pt, prompt, h1, h, q, a, c, logits } = f, dc = new Float64Array(D); let loss = 0;
     for (let sl = 0; sl < NSLOT; sl++) {
@@ -301,7 +301,7 @@
     }
     return m;
   }
-  /** Argmax внутри группы словаря (ограничение вывода, как в RT-2: при команде роботу — только токены действия). */
+  /** Argmax внутри группы словаря (ограничение ответа, как в RT-2: при команде роботу — только токены действия). */
   function pickFrom(lg, group) { let best = null, bv = -1e18; for (const t of group) { const v = lg[TI[t]]; if (v > bv) { bv = v; best = t; } } return best; }
   /** Команда «возьми <цвет> кубик» → токены действия, клетка и внимание. */
   function act(m, img, color) {

@@ -1,5 +1,11 @@
 [
  {
+  "id": "inference",
+  "t": "Inference",
+  "d": "Running an already trained model: it outputs an answer for a new observation, and its weights don't change. The opposite of training. Inference time is how long the model takes to compute one answer, such as a chunk of actions.",
+  "a": "inference"
+ },
+ {
   "id": "moravec",
   "t": "Moravec’s paradox",
   "d": "What people do effortlessly — seeing, grasping, walking — turns out to be the hardest for machines, while chess and arithmetic come easily to a computer.",

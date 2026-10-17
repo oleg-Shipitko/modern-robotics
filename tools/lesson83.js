@@ -106,7 +106,7 @@ const allEq = (arr, v) => !!arr && arr.length > 0 && arr.every((x) => x === Stri
     await nextMission(p, '#lMis');
     check(await visible(p, '#wrapLP') && await visible(p, '#wrapLN'), 'свободный режим: все ручки видны');
     const la = await dataN(p, '#latteAfter');
-    check(allEq(la.base, base.good) && allEq(la.retry, retry.good) && allEq(la.saved, retry.saved) && allEq(la.silent, retry.silent), 'вывод после лаборатории 1 называет числа движка: ' + JSON.stringify(la));
+    check(allEq(la.base, base.good) && allEq(la.retry, retry.good) && allEq(la.saved, retry.saved) && allEq(la.silent, retry.silent), 'инференс после лаборатории 1 называет числа движка: ' + JSON.stringify(la));
     check((await text(p, '#lSeedBase')) === String(base.good), 'под капотом: число латте нашего набора');
     { const a = [], b = []; for (let sd = 1; sd <= 40; sd++) { a.push(E.orders({ p: 0.95, n: 8, seed: sd }).cnt.good); b.push(E.orders({ p: 0.95, n: 8, d: 0.9, R: 2, seed: sd }).cnt.good); }
       const t = await text(p, '#lSeeds'); check(t.includes(`от ${Math.min(...a)} до ${Math.max(...a)} латте`) && t.includes(`от ${Math.min(...b)} до ${Math.max(...b)}`), `под капотом: разброс по 40 зёрнам ${Math.min(...a)}–${Math.max(...a)} и ${Math.min(...b)}–${Math.max(...b)}`); }
@@ -140,7 +140,7 @@ const allEq = (arr, v) => !!arr && arr.length > 0 && arr.every((x) => x === Stri
     check(dragged.ti > 10, 'порог тянется мышью по гистограмме: ' + dragged.ti);
     await setRange(p, '#tT', 10); await seg(p, '#tDet', 'both');
     const ta = await dataN(p, '#thresholdAfter');
-    check(allEq(ta.sensA, s5.alarms) && allEq(ta.sensF, s5.falseAlarms) && allEq(ta.sensS, s5.spoiled) && allEq(ta.lowT, r1(lowTi / 20, 2)) && ta.lowA[0].replace(/\s/g, '') === String(low.alarms) && allEq(ta.lowM, '30 секунд') && allEq(ta.bothS, b5.spoiled) && allEq(ta.bothA, b5.alarms) && allEq(ta.bothF, b5.falseAlarms) && allEq(ta.fails, b5.fails), 'вывод после лаборатории 2 называет числа движка: ' + JSON.stringify(ta));
+    check(allEq(ta.sensA, s5.alarms) && allEq(ta.sensF, s5.falseAlarms) && allEq(ta.sensS, s5.spoiled) && allEq(ta.lowT, r1(lowTi / 20, 2)) && ta.lowA[0].replace(/\s/g, '') === String(low.alarms) && allEq(ta.lowM, '30 секунд') && allEq(ta.bothS, b5.spoiled) && allEq(ta.bothA, b5.alarms) && allEq(ta.bothF, b5.falseAlarms) && allEq(ta.fails, b5.fails), 'инференс после лаборатории 2 называет числа движка: ' + JSON.stringify(ta));
     check((await text(p, '#tCounts')) === `${kinds.gross + kinds.subtle} отказов: ${kinds.gross} грубых и ${kinds.subtle} тонкий`, 'под капотом: число отказов дня');
     { const R = { sS: [], bS: [], bA: [], low: [], lowA: [] }; let both = 0, moreF = 0;
       for (let sd = 1; sd <= 20; sd++) { const DD = E.day({ seed: sd }), s = E.judge(DD, 0.5, 'sens'), b = E.judge(DD, 0.5, 'both'); R.sS.push(s.spoiled); R.bS.push(b.spoiled); R.bA.push(b.alarms); if (b.spoiled <= 3 && b.alarms <= 60) both++; if (b.falseAlarms > s.falseAlarms) moreF++;
@@ -171,7 +171,7 @@ const allEq = (arr, v) => !!arr && arr.length > 0 && arr.every((x) => x === Stri
     { const a = [], b = []; for (let sd = 1; sd <= 20; sd++) { a.push(E.passed(E.series(0.95, 40, 3000, sd), 20)); b.push(E.passed(E.series(0.99, 40, 3000, sd), 300)); }
       const t = await text(p, '#runSeeds'); check(t.includes(`от ${Math.min(...a)} до ${Math.max(...a)} раза из 40`) && t.includes(`от ${Math.min(...b)} до ${Math.max(...b)} раз`), `под капотом лаборатории 3: разброс по 20 зёрнам ${Math.min(...a)}–${Math.max(...a)} и ${Math.min(...b)}–${Math.max(...b)}`); }
     const ra = await dataN(p, '#runsAfter');
-    check(allEq(ra.m1, m1) && allEq(ra.m2, m2), 'вывод после лаборатории 3 называет числа движка: ' + JSON.stringify(ra));
+    check(allEq(ra.m1, m1) && allEq(ra.m2, m2), 'инференс после лаборатории 3 называет числа движка: ' + JSON.stringify(ra));
     const ub = [E.upperBound(20), E.upperBound(100), E.upperBound(1000), E.needRuns(0.01), E.needRuns(0.001), E.passProb(0.9995, 2995)];
     check(ub[0] < 0.14 && ub[0] > 0.135 && ub[1] < 0.03 && ub[2] < 0.003 && ub[3] === 299 && ub[4] === 2995 && Math.round(ub[5] * 100) === 22, 'правило трёх в тексте: 20 → меньше 14%, 100 → выше 97%, 1000 → меньше 0,3%, 299 и 2995, 22%');
 

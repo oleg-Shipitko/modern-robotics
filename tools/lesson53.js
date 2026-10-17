@@ -110,7 +110,7 @@ const clickWait = async (p, sel, idle) => { await p.click(sel); await sleep(80);
     const raceDeep = await text(p, '#race .deep'), raceAfter = await text(p, '#raceAfter');
     check(['375–500', '0–45%', '1125–1875', '2,25–3,75', '23,5 раза', 'от 0,65 до 1,34', '2,4–3,0', '2625–4125', '1375–2375', 'на четырёх зёрнах из восьми'].every((x) => raceDeep.includes(x)), '«Под капотом» лаборатории 1: разброс по восьми зёрнам совпадает с INTEGRATION.md');
     const alpha750 = await p.eval(`(() => { const c = window.__l53.Race.st.sac[1].curve; return c[c.length - 1].alpha; })()`);
-    check(Math.abs(alpha750 - 0.04) < 0.005 && raceAfter.includes('примерно до 0,04'), `вывод после лаборатории 1: температура к 750-му шагу ${alpha750.toFixed(3)} ≈ 0,04`);
+    check(Math.abs(alpha750 - 0.04) < 0.005 && raceAfter.includes('примерно до 0,04'), `инференс после лаборатории 1: температура к 750-му шагу ${alpha750.toFixed(3)} ≈ 0,04`);
 
     // ---------- лаборатория 2: температура ----------
     console.log('лаборатория 2');
@@ -133,7 +133,7 @@ const clickWait = async (p, sel, idle) => { await p.click(sel); await sleep(80);
     check(r.ok && t3 && t3[1] === '0,2' && t3[2] === '10' && t3[3] === '40' && t3[4] === '50', `миссия 3 засчитана сама: α = ${t3 && t3[1]} — ${t3 && t3[2]}% / ${t3 && t3[3]}% / мимо ${t3 && t3[4]}%`);
     await p.shotEl(out('l53-alpha-mid.png'), '#alpha .lab', 6);
     const aAfter = await text(p, '#alphaAfter'), sacTxt = await text(p, '#sac .prose');
-    check(t3 && aAfter.includes(`${t3[2]}% к полке 1, ${t3[3]}% к полке 2`) && t3[4] === '50' && aAfter.includes('половина кончается мимо обеих') && /урок[ае] 1\.3/.test(aAfter), 'вывод после лаборатории 2: числа α = 0,2 и связь с мультимодальностью из 1.3');
+    check(t3 && aAfter.includes(`${t3[2]}% к полке 1, ${t3[3]}% к полке 2`) && t3[4] === '50' && aAfter.includes('половина кончается мимо обеих') && /урок[ае] 1\.3/.test(aAfter), 'инференс после лаборатории 2: числа α = 0,2 и связь с мультимодальностью из 1.3');
     check(sacTxt.includes('одна гауссиана') && sacTxt.includes('вершина у неё одна') && sacTxt.includes('мультимодальность действий из урока 1.3'), 'раздел SAC: одна вершина гауссианы объяснена в основном тексте');
     const q01 = await p.eval(`JSON.stringify(window.__l53.Temp.st.runs['0.1'])`).then(J), q03 = await p.eval(`JSON.stringify(window.__l53.Temp.st.runs['0.3'])`).then(J);
     check(q01.A < 0.05 || q01.B < 0.05, `α = 0,1: ещё одна полка (${Math.round(q01.A * 100)}/${Math.round(q01.B * 100)}); α = 0,3: у полок ${Math.round((q03.A + q03.B) * 100)}%`);

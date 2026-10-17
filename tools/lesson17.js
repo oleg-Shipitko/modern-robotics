@@ -192,7 +192,7 @@ async function archLab(p) {
   await tap('lin7', 'joint');
   check(/ждёт 7, приходит 14/.test(await p.eval('document.querySelector("#archFlow [data-slot=joint]").textContent')), 'архитектура: 7 → 512 на суставах — «ждёт 7, приходит 14»');
   await tap('cvae', 'zinf');
-  check(/на выводе нет действий/.test(await p.eval('document.querySelector("#archFlow [data-slot=zinf]").textContent')), 'архитектура: энкодер CVAE на выводе — ошибка');
+  check(/на инференсе нет действий/.test(await p.eval('document.querySelector("#archFlow [data-slot=zinf]").textContent')), 'архитектура: энкодер CVAE на инференсе — ошибка');
   // правильная сборка: часть мышью (перетаскивание), часть нажатиями
   await center(p, '#archFlow');
   const drag = async (id, slot) => { await p.eval(`document.querySelector('#archFlow [data-slot=${slot}]').scrollIntoView({ block: 'center', behavior: 'instant' })`); await sleep(120); const a = await box(p, `#archPal [data-id=${id}]`), b = await box(p, `#archFlow [data-slot=${slot}]`); await mouseDrag(p, a, b); };

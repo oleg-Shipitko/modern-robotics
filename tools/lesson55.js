@@ -137,7 +137,7 @@ const dragFc = (p, m, v) => p.eval(`(() => {
     await p.eval(`document.querySelector('#tFloor button[data-v="tile"]').click(); true`); await sleep(400);
     check(/^Плитка, поездка 1: /.test(await text(p, '#tOut')), 'свободный режим: плитка — ' + (await text(p, '#tOut')).slice(0, 90));
     const trioAfter = await text(p, '#trioAfter'), trioDeep = await text(p, '#trioSeeds');
-    check(/консервативное/.test(trioAfter), 'вывод после лаборатории 1 ссылается на RMA');
+    check(/консервативное/.test(trioAfter), 'инференс после лаборатории 1 ссылается на RMA');
     check(['зёрнах 1–8', '0,05–0,82 с', '90–100%', '6,35–6,95 с', '4,97–5,13 с'].every((x) => trioDeep.includes(x)), '«Под капотом» лаборатории 1: разброс по восьми зёрнам совпадает с INTEGRATION.md');
 
     // ---------- лаборатория 2 ----------
@@ -195,7 +195,7 @@ const dragFc = (p, m, v) => p.eval(`(() => {
     const fl1 = await p.eval(`JSON.stringify(window.__l55.Adapt.st.floor)`);
     check(fl0 !== fl1, `свободный режим: нажатие на гостиную меняет её пол (${fl0} → ${fl1})`);
     const adaptAfter = await text(p, '#adaptAfter'), adaptDeep = await text(p, '#adaptSeeds');
-    check(/2 секунды/.test(adaptAfter) && ['1–9 шагов', '0,85–0,91', '0,46–0,49', 'от 0,47 до 0,85'].every((x) => adaptDeep.includes(x)), 'вывод и «Под капотом» лаборатории 3: разброс по восьми зёрнам');
+    check(/2 секунды/.test(adaptAfter) && ['1–9 шагов', '0,85–0,91', '0,46–0,49', 'от 0,47 до 0,85'].every((x) => adaptDeep.includes(x)), 'инференс и «Под капотом» лаборатории 3: разброс по восьми зёрнам');
 
     // ---------- тексты совпадают с расчётом ----------
     const tk = await text(p, '#takeaways');

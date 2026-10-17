@@ -140,7 +140,7 @@ async function seedRun(seed) {
   const coCapTxt = coCap[0] === coCap[1] ? `${coCap[0]} из 48 на всех зёрнах` : `${coCap[0]}–${coCap[1]} из 48`;
   check(txt4.includes(`в ${coP[0]}–${coP[1]} сценах`) && txt4.includes(`— в ${ftP[0]}–${ftP[1]};`) && txt4.includes(`${coCapTxt} против ${ftCap[0]}–${ftCap[1]}`), `разбор 4: диапазоны по трём зёрнам ${coP.join('–')}, ${ftP.join('–')}, ${coCapTxt} против ${ftCap.join('–')}`);
   check(txt4.includes('на зерне В совместная даже уступает') === (sc.co.purple < sc.ft.purple), `разбор 4: про зерно В сказано верно (совместная ${sc.co.purple}, дообученная ${sc.ft.purple})`);
-  // вывод после лаборатории: забывание видно на подписях, выигрыша в действиях нет, на зерне В совместная уступает
+  // инференс после лаборатории: забывание видно на подписях, выигрыша в действиях нет, на зерне В совместная уступает
   const after = await p.eval(`document.querySelector('#lab > .wrap > .prose:last-child').textContent`);
   check(/повторилась на столе не целиком/.test(after) && after.includes('на зерне В совместная даже уступает') === (sc.co.purple < sc.ft.purple), 'текст после лаборатории: таблица 6 повторилась не целиком, про зерно В сказано верно');
   check(all.every((x) => x.co.cap > x.ft.cap + 5 && x.scratch.purple <= 8), 'на всех трёх зёрнах: совместная сохраняет подписи лучше дообученной, модель с нуля не берёт фиолетовый');

@@ -265,7 +265,7 @@ async function desktop() {
   await p.eval('document.querySelectorAll(".q-card").forEach((c) => c.querySelector(".q-opt").click())'); await sleep(80);
   check(/Итог: \d из 8/.test(await p.eval('document.querySelector("#quizScore").textContent')), 'квиз: ' + (await p.eval('document.querySelector("#quizScore").textContent')));
   const qTexts = await p.eval('[...document.querySelectorAll(".q-card h4")].map((e) => e.textContent)');
-  check(qTexts.length === 8 && !qTexts.some((t) => /π0|GR00T|RT-1|OpenVLA|Helix|ACT\b|46,9/.test(t)) && qTexts.some((t) => /скорости, а не как положения/.test(t)) && qTexts.some((t) => /регрессия с пачками проигрывает/.test(t)) && qTexts.some((t) => /столько же шагов денойзинга/.test(t)), 'квиз: 8 вопросов, в формулировках нет моделей из будущих уроков и числа 46,9; есть вопросы про положения/скорости, регрессию и шаги вывода');
+  check(qTexts.length === 8 && !qTexts.some((t) => /π0|GR00T|RT-1|OpenVLA|Helix|ACT\b|46,9/.test(t)) && qTexts.some((t) => /скорости, а не как положения/.test(t)) && qTexts.some((t) => /регрессия с пачками проигрывает/.test(t)) && qTexts.some((t) => /столько же шагов денойзинга/.test(t)), 'квиз: 8 вопросов, в формулировках нет моделей из будущих уроков и числа 46,9; есть вопросы про положения/скорости, регрессию и шаги инференса');
   await p.shotEl(out('l15-quiz.png'), '#quiz', 4);
   await p.shotEl(out('l15-finale.png'), '#finale', 4);
   // те же отсылки вперёд после прохождения миссий: в DOM появились разборы миссий

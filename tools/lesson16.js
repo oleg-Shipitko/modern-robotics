@@ -1,6 +1,6 @@
 // Проверка урока 1.6: сначала цифры и пороги движка в Node, потом все миссии
 // и задачи в браузере — перетаскивание через CDP, ставки, запуски, маска,
-// две головы, свободный режим; порядок слов, калькулятор, вывод π0,
+// две головы, свободный режим; порядок слов, калькулятор, инференс π0,
 // сортировка, квиз, тёмная тема и телефон 390 px. Снимки — в shots/l16-*.png.
 const { launch, sleep } = require('./cdp');
 const path = require('path');
@@ -29,7 +29,7 @@ function nodeNumbers() {
   const r4 = { p14: four('p14'), p16: four('p16'), p32: four('p32'), g64: four('g64'), tl8: four('tl8') };
   check(r4.p14 === 1123 && r4.p16 === 883 && r4.p32 === 295 && r4.g64 === 355 && r4.tl8 === 131, `π0 с четырьмя камерами: патч 14 → ${r4.p14}, патч 16 → ${r4.p16} (больше 867), патч 32 → ${r4.p32}, до 64 → ${r4.g64}, до 8 → ${r4.tl8}`);
   check(f((1123 / 867) ** 2, 2) === '1.68', `четвёртая камера без сжатия: член внимания × ${f((1123 / 867) ** 2)}`);
-  // вывод π0
+  // инференс π0
   const t0 = T.Pi0.time(), t1 = T.Pi0.time({ noCache: true }), t2 = T.Pi0.time({ remote: true });
   check(t0.total === 73 && t0.firstFlow === 46 && Math.round(t1.total) === 361 && t2.total === 86, `π0: ${t0.total} мс, первый шаг flow на ${t0.firstFlow} мс; без кэша ${f(t1.total, 0)} мс (×${f(t1.total / t0.total, 1)}); вне робота ${t2.total} мс`);
   // токены картинки
@@ -252,25 +252,25 @@ async function cost(p, shots) {
 
 async function kv(p, shots) {
   await center(p, '#piBar');
-  check(await p.eval('document.querySelector("#piNoCache").disabled'), 'вывод π0: до ставки «без кэша» недоступен');
+  check(await p.eval('document.querySelector("#piNoCache").disabled'), 'инференс π0: до ставки «без кэша» недоступен');
   const ob = await box(p, '#piBar .pi-blk.obs');
   await click(p, ob.x, ob.y);
-  check(await p.eval('window.__l16.Pi.st.cursor') === 14 && (await crit(p, '#piTask')).startsWith('no'), 'вывод π0: нажатие на блок прохода по наблюдению — курсор на его начале, 14 мс; критерий ещё нет');
+  check(await p.eval('window.__l16.Pi.st.cursor') === 14 && (await crit(p, '#piTask')).startsWith('no'), 'инференс π0: нажатие на блок прохода по наблюдению — курсор на его начале, 14 мс; критерий ещё нет');
   const fb = await box(p, '#piBar .pi-blk.flow');
   await click(p, fb.x, fb.y);
   const mk = await p.eval('(() => { const m = document.querySelector("#piBar .pi-mark"), f = document.querySelector("#piBar .pi-blk.flow"); return Math.abs(m.offsetLeft + 2 - f.offsetLeft); })()');
-  check(await p.eval('window.__l16.Pi.st.cursor') === 46 && /первый шаг flow/.test(await p.eval('document.querySelector("#piCursor").textContent')) && mk <= 1, `вывод π0: нажатие на блок «10 шагов flow» — курсор на 46 мс, метка у края блока (${mk} px): ` + await p.eval('document.querySelector("#piCursor").textContent'));
+  check(await p.eval('window.__l16.Pi.st.cursor') === 46 && /первый шаг flow/.test(await p.eval('document.querySelector("#piCursor").textContent')) && mk <= 1, `инференс π0: нажатие на блок «10 шагов flow» — курсор на 46 мс, метка у края блока (${mk} px): ` + await p.eval('document.querySelector("#piCursor").textContent'));
   await center(p, '#piTape');
   const tp = await p.eval('(() => { const f = window.__l16.Pi.tapePt(25), r = document.querySelector("#piTape").getBoundingClientRect(); return { x: r.left + f.fx * r.width, y: r.top + f.fy * r.height }; })()');
   await click(p, tp.x, tp.y);
-  check(await p.eval('window.__l16.Pi.st.tick') === 25 && /новую пачку/.test(await p.eval('document.querySelector("#piTick").textContent')), 'вывод π0: тик 25 на ленте — ' + await p.eval('document.querySelector("#piTick").textContent'));
+  check(await p.eval('window.__l16.Pi.st.tick') === 25 && /новую пачку/.test(await p.eval('document.querySelector("#piTick").textContent')), 'инференс π0: тик 25 на ленте — ' + await p.eval('document.querySelector("#piTick").textContent'));
   if (shots) await p.shotEl(out('l16-kv.png'), '#kv .pi-card', 6);
   await bet(p, '#piHead', 'Станет раз в пять');
   await p.eval(`(() => { const e = document.querySelector('#piNoCache'); e.checked = true; e.dispatchEvent(new Event('change', { bubbles: true })); })()`); await sleep(60);
-  check(await p.eval('document.querySelector("#piTotal").textContent') === '361 мс' && await p.eval('window.__l16.Pi.task.done') && await p.eval('document.querySelector("#piHead .bet-right") !== null'), 'вывод π0: без кэша 361 мс, ставка сыграла, задача решена — ' + (await outText(p, '#piTask')).slice(0, 60));
+  check(await p.eval('document.querySelector("#piTotal").textContent') === '361 мс' && await p.eval('window.__l16.Pi.task.done') && await p.eval('document.querySelector("#piHead .bet-right") !== null'), 'инференс π0: без кэша 361 мс, ставка сыграла, задача решена — ' + (await outText(p, '#piTask')).slice(0, 60));
   if (shots) await p.shotEl(out('l16-kv-nocache.png'), '#kv .pi-card', 6);
   await p.eval(`(() => { const e = document.querySelector('#piRemote'); e.checked = true; e.dispatchEvent(new Event('change', { bubbles: true })); const n = document.querySelector('#piNoCache'); n.checked = false; n.dispatchEvent(new Event('change', { bubbles: true })); })()`); await sleep(60);
-  check(await p.eval('document.querySelector("#piTotal").textContent') === '86 мс', 'вывод π0: вне робота — 86 мс');
+  check(await p.eval('document.querySelector("#piTotal").textContent') === '86 мс', 'инференс π0: вне робота — 86 мс');
   await p.eval(`(() => { const e = document.querySelector('#piRemote'); e.checked = false; e.dispatchEvent(new Event('change', { bubbles: true })); })()`);
 }
 
