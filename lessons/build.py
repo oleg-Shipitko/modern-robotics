@@ -51,7 +51,7 @@ LESSONS = {
         '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'l18/engine.js', 'shared/anim.js', 'l18/ui-l18.js'],
     }),
     'l21': ('2-1-transporter-i-cliport.html', ['l01/lesson.css', 'shared/lab.css', 'l21/l21.css'], {
-        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'l21/engine.js', 'l21/ui-l21.js'],
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'l21/engine.js', 'shared/anim.js', 'l21/ui-l21.js'],
     }),
     'l22': ('2-2-peract.html', ['l01/lesson.css', 'shared/lab.css', 'l22/l22.css'], {
         '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'l22/engine.js', 'shared/anim.js', 'l22/flow.js', 'l22/ui-l22.js'],

@@ -548,7 +548,7 @@
  {
   "id": "contrastive",
   "t": "Contrastive learning",
-  "d": "Training on pairs: vectors of matching pairs are pulled together, non-matching ones pushed apart. That is how CLIP gets images and captions into one space.",
+  "d": "Training on pairs: the similarity of the vectors of matching pairs (an image and its caption) is pushed up, and of non-matching pairs pushed down. That is how CLIP gets images and captions into one space.",
   "a": "contrastive (?:learning|objectives?|loss(?:es)?|training)"
  },
  {

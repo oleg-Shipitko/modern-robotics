@@ -176,7 +176,7 @@ const LabClip = (() => {
     setQuery,
   };
   const missions = [
-    { short: 'Обучи', title: 'Обучи мини-CLIP', text: 'Сеть ещё не обучена: векторы картинок и подписей случайны, и матрица пёстрая. Запусти обучение. На каждом шаге модель видит 16 пар «картинка — подпись», сближает векторы верных пар и разводит неверные.',
+    { short: 'Обучи', title: 'Обучи мини-CLIP', text: 'Сеть ещё не обучена: векторы картинок и подписей случайны, поэтому и сходство случайное. Диагональ матрицы не выделяется, и почти каждая подпись ближе всего к чужой картинке — красная точка. Запусти обучение. На каждом шаге модель берёт пакет из 16 пар «картинка — подпись», сближает векторы верных пар и разводит векторы неверных.',
       bet: { q: 'что станет с диагональю матрицы?', options: ['Станет самой яркой: каждая подпись ближе всего к своей картинке', 'Вся матрица станет одинаково яркой', 'Ничего не изменится: шестисот шагов мало'], answer: () => 0 },
       action: { label: 'Обучить', run: (X) => X.train() },
       criteria: [{ label: 'Каждая подпись нашла свою картинку: 8 из 8', test: (r) => r.hits === 8 }],
@@ -542,4 +542,211 @@ function initQuiz() {
     window.__l21 = { mis, SPEED, Store, LabClip, LabPick, LabPlace, LabCliport, L21 }; window.__lessonReady = true;
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+})();
+
+/* =====================================================================
+   Схема 'contrast' (раздел 1): контрастное обучение на пакете из четырёх пар
+   «картинка — подпись». Векторы — стрелки на плоскости (у CLIP в векторе сотни
+   чисел): точка — конец стрелки картинки, кольцо — конец стрелки подписи.
+   Матрица 4 × 4 — сходство (косинус угла) каждой подписи с каждой картинкой.
+   Шаги обучения поворачивают стрелки: сходство верных пар (диагональ) растёт,
+   неверных — падает. Путь стрелок посчитан градиентным спуском по той же
+   симметричной контрастной цели, что у мини-CLIP, только векторы двигаются
+   напрямую, без сетей. Рисует shared/anim.js; без него схемы нет, а остальной
+   урок работает.
+   ===================================================================== */
+(() => {
+  if (typeof Anim === 'undefined') {                       // shared/anim.js не подключён: пустую рамку схемы не показываем
+    document.querySelectorAll('canvas[data-anim=contrast]').forEach((cv) => { const f = cv.closest('figure'); if (f) f.hidden = true; });
+    return;
+  }
+  const K = HeroKit, E = L21, TAU = Math.PI * 2;
+  const ITEMS = [['red', 'cube'], ['blue', 'ball'], ['green', 'bowl'], ['yellow', 'can']], N = ITEMS.length;
+  const GOOD = { r: 0, c: 0 }, BAD = { r: 1, c: 2 };       // клетки [подпись, картинка]: верная пара и подпись «синий мяч» с картинкой зелёной миски
+  /* путь стрелок: углы картинок u и подписей v по шагам спуска, от случайного начала до обученного состояния */
+  const PATH = (() => {
+    const tau = 0.25, lr = 0.004, steps = 3000, rad = Math.PI / 180, out = [];
+    // начало подобрано так, чтобы сходство верной пары «красный кубик» только росло, а у подписи «синий мяч» с картинкой
+    // зелёной миски только падало; до обучения ни одна подпись не ближе всего к своей картинке
+    const u = [240, 40, 140, 340].map((d) => d * rad), v = [5, 115, 80, 210].map((d) => d * rad);
+    for (let s = 0; s <= steps; s++) {
+      if (s % 10 === 0) out.push({ u: u.slice(), v: v.slice() });
+      const L = u.map((a) => v.map((b) => Math.cos(a - b) / tau)), G = u.map(() => new Array(N).fill(0));
+      for (let i = 0; i < N; i++) { const mx = Math.max(...L[i]); let z = 0; for (let j = 0; j < N; j++) z += Math.exp(L[i][j] - mx); for (let j = 0; j < N; j++) G[i][j] += (Math.exp(L[i][j] - mx) / z - (i === j ? 1 : 0)) / (2 * N); }
+      for (let j = 0; j < N; j++) { let mx = -1e9; for (let i = 0; i < N; i++) mx = Math.max(mx, L[i][j]); let z = 0; for (let i = 0; i < N; i++) z += Math.exp(L[i][j] - mx); for (let i = 0; i < N; i++) G[i][j] += (Math.exp(L[i][j] - mx) / z - (i === j ? 1 : 0)) / (2 * N); }
+      const gu = new Array(N).fill(0), gv = new Array(N).fill(0);
+      for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) { const d = -Math.sin(u[i] - v[j]) / tau * G[i][j]; gu[i] += d; gv[j] -= d; }
+      for (let i = 0; i < N; i++) { u[i] -= lr * gu[i]; v[i] -= lr * gv[i]; }
+    }
+    // длина пути от начала: по ней движение идёт с ровной скоростью
+    const len = [0]; for (let i = 1; i < out.length; i++) { let d = 0; for (let j = 0; j < N; j++) d += Math.abs(out[i].u[j] - out[i - 1].u[j]) + Math.abs(out[i].v[j] - out[i - 1].v[j]); len.push(len[i - 1] + d); }
+    const total = len[len.length - 1];
+    return (p) => {
+      const d = Math.max(0, Math.min(1, p)) * total; let i = 1; while (i < len.length - 1 && len[i] < d) i++;
+      const f = len[i] > len[i - 1] ? (d - len[i - 1]) / (len[i] - len[i - 1]) : 0, a = out[i - 1], b = out[i];
+      return { u: a.u.map((x, j) => x + (b.u[j] - x) * f), v: a.v.map((x, j) => x + (b.v[j] - x) * f) };
+    };
+  })();
+  const T = 16, PH = { batch: [0.1, 1.0], enc: [1.1, 2.3], sim: [2.3, 3.3], train: [3.6, 10.6], fade: [14.9, 15.8] };
+  let icons = null;                                        // картинки предметов, как в лаборатории: 16 × 16 пикселей
+  const icon = (i) => { if (!icons) { const r = E.rng(41); icons = ITEMS.map(([c, s]) => bitmap(E.icon(c, s, r), E.IS, E.IS)); } return icons[i]; };
+  const fmt1 = (v) => (Math.abs(v) < 0.05 ? 0 : v).toLocaleString('ru-RU', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).replace('-', '−');
+  /** Подпись ужимается до ширины maxW; массив — несколько строк с общим размером, y — середина блока. */
+  function fit(c, k, text, x, y, maxW, o) {
+    o = Object.assign({ px: 11, weight: 600, halo: false }, o || {});
+    const lines = Array.isArray(text) ? text : [text]; let px = o.px;
+    K.font(c, k, px, o.weight, o.mono);
+    const w = Math.max(...lines.map((s) => c.measureText(s).width));
+    if (maxW && w > maxW) px = Math.max(7, px * maxW / w);
+    const lh = px * k * 1.28, y0 = y - (lines.length - 1) * lh / 2;
+    lines.forEach((s, i) => K.label(c, k, s, x, y0 + i * lh, Object.assign({}, o, { px })));
+  }
+  function iconAt(c, P, A, i, x, y, sz) {
+    A.rect(c, x - sz / 2 - 2, y - sz / 2 - 2, sz + 4, sz + 4, 5, P.surf, P.grid, 1);
+    c.imageSmoothingEnabled = false; c.drawImage(icon(i), x - sz / 2, y - sz / 2, sz, sz); c.imageSmoothingEnabled = true;
+  }
+  function flowDots(c, A, x1, y1, x2, y2, prog, col) {
+    if (prog <= 0 || prog >= 1) return;
+    for (let i = 0; i < 3; i++) { const f = (prog * 1.6 + i / 3) % 1; A.circle(c, A.lerp(x1, x2, f), A.lerp(y1, y2, f), 2.6, col); }
+  }
+  /** Дуга угла между направлениями a и b (математические углы, против часовой) — по короткой стороне.
+   *  dir > 0 — наконечники от концов к середине (векторы сближают), dir < 0 — от середины наружу (разводят). */
+  function angArc(c, A, cx, cy, r, a, b, col, dir) {
+    let d = ((b - a) % TAU + TAU) % TAU; if (d > Math.PI) d -= TAU;
+    const at = (f) => [cx + r * Math.cos(a + d * f), cy - r * Math.sin(a + d * f)], pts = [];
+    for (let i = 0; i <= 24; i++) pts.push(at(i / 24));
+    A.line(c, pts, col, 2.4);
+    if (!dir || r * Math.abs(d) < 30) return;                // короткой дуге наконечники не нужны
+    const f = Math.min(0.3, 11 / (r * Math.abs(d)));
+    for (const [e, inner] of [[0, f], [1, 1 - f]]) { const [x0, y0] = at(e), [x1, y1] = at(inner); if (dir > 0) A.arrow(c, x0, y0, x1, y1, col, 2.4, 7); else A.arrow(c, x1, y1, x0, y0, col, 2.4, 7); }
+  }
+  function draw(c, k, t, P, A, G) {
+    const { seg, ease } = A, u = ((t % T) + T) % T;
+    const pB = seg(u, ...PH.batch), pE = seg(u, ...PH.enc), pS = seg(u, ...PH.sim), pT = seg(u, ...PH.train);
+    const fade = 1 - seg(u, ...PH.fade), ang = PATH(ease(pT));
+    const col = ITEMS.map(([cc]) => rgbCss(cc)), cap = ITEMS.map(([cc, ss]) => E.phrase(cc, ss));
+    const sim = (r, cc) => Math.cos(ang.u[cc] - ang.v[r]);    // подпись r, картинка cc
+    const nm = (x) => `«${x}»`;
+    c.globalAlpha = fade;
+    // ---------- пакет ----------
+    const B = G.batch;
+    fit(c, k, 'Пакет из 4 пар', B.title[0], B.title[1], B.maxW, { px: 12.5, weight: 750, color: P.ink, align: 'left' });
+    fit(c, k, 'у CLIP — 32 768 пар за шаг', B.sub[0], B.sub[1], B.maxW, { px: 10.5, color: P.ink3, align: 'left' });
+    ITEMS.forEach((_, i) => {
+      const [x, y] = B.rows[i], a = seg(pB, i * 0.18, i * 0.18 + 0.45);
+      if (a <= 0) return;
+      c.globalAlpha = fade * a;
+      iconAt(c, P, A, i, x, y, B.icon);
+      fit(c, k, cap[i], x + B.icon / 2 + 8, y, B.capW, { px: 11, weight: 650, color: P.ink, align: 'left' });
+      c.globalAlpha = fade;
+    });
+    // ---------- стрелка: две сети дают векторы ----------
+    const [ax1, ay1, ax2, ay2] = G.a1, training = u >= PH.train[0] && u < PH.train[1];
+    A.arrow(c, ax1, ay1, ax2, ay2, pE > 0 ? P.ink2 : P.line, 1.6, 7);
+    flowDots(c, A, ax1, ay1, ax2, ay2, training ? (u * 0.9) % 1 : pE, P.mot);
+    fit(c, k, G.a1Lab.text, G.a1Lab.x, G.a1Lab.y, G.a1Lab.w, { px: 10, weight: 650, color: P.ink2, align: G.a1Lab.align || 'center' });
+    // ---------- векторы ----------
+    const V = G.vec, R = V.R;
+    fit(c, k, 'Векторы', V.title[0], V.title[1], V.titleW, { px: 12.5, weight: 750, color: P.ink, align: V.title[2] });
+    fit(c, k, 'стрелки на плоскости', V.sub[0], V.sub[1], V.titleW, { px: 10.5, color: P.ink3, align: V.sub[2] });
+    A.circle(c, V.cx, V.cy, R, P.surf, P.grid, 1);
+    A.line(c, [[V.cx - R, V.cy], [V.cx + R, V.cy]], P.grid, 1); A.line(c, [[V.cx, V.cy - R], [V.cx, V.cy + R]], P.grid, 1);
+    if (pE > 0) {
+      const gr = (i) => ease(seg(pE, i * 0.12, i * 0.12 + 0.55)), tip = (a, g) => [V.cx + Math.cos(a) * R * 0.86 * g, V.cy - Math.sin(a) * R * 0.86 * g];
+      if (pE >= 1) {                                       // углы двух выделенных пар
+        angArc(c, A, V.cx, V.cy, R * 0.42, ang.u[GOOD.c], ang.v[GOOD.r], P.good, training ? 1 : 0);
+        angArc(c, A, V.cx, V.cy, R * 0.66, ang.u[BAD.c], ang.v[BAD.r], P.bad, training ? -1 : 0);
+      }
+      for (let i = 0; i < N; i++) { const g = gr(i); if (g <= 0) continue; const [x, y] = tip(ang.v[i], g); A.line(c, [[V.cx, V.cy], [x, y]], col[i], 1.8, [4, 3]); A.circle(c, x, y, 6.5, P.surf, col[i], 2.2); }
+      for (let i = 0; i < N; i++) { const g = gr(i); if (g <= 0) continue; const [x, y] = tip(ang.u[i], g); A.line(c, [[V.cx, V.cy], [x, y]], col[i], 2.6); A.circle(c, x, y, 4, col[i]); }
+      A.circle(c, V.cx, V.cy, 2.6, P.ink2);
+    }
+    // легенда: точка — картинка, кольцо — подпись
+    { const [lx, ly] = V.legend, gap = V.legendGap;
+      A.line(c, [[lx, ly], [lx + 18, ly]], P.ink2, 2.4); A.circle(c, lx + 20, ly, 3.6, P.ink2);
+      fit(c, k, 'картинка', lx + 30, ly, gap - 36, { px: 10.5, color: P.ink2, align: 'left' });
+      A.line(c, [[lx + gap, ly], [lx + gap + 16, ly]], P.ink2, 1.6, [4, 3]); A.circle(c, lx + gap + 21, ly, 5, P.surf, P.ink2, 1.8);
+      fit(c, k, 'подпись', lx + gap + 32, ly, 80, { px: 10.5, color: P.ink2, align: 'left' }); }
+    // ---------- стрелка: сходство всех пар ----------
+    const [bx1, by1, bx2, by2] = G.a2;
+    A.arrow(c, bx1, by1, bx2, by2, pS > 0 ? P.ink2 : P.line, 1.6, 7);
+    flowDots(c, A, bx1, by1, bx2, by2, training ? (u * 0.9 + 0.5) % 1 : pS, P.mot);
+    fit(c, k, G.a2Lab.text, G.a2Lab.x, G.a2Lab.y, G.a2Lab.w, { px: 10, weight: 650, color: P.ink2, align: G.a2Lab.align || 'center' });
+    // ---------- матрица сходства ----------
+    const M = G.mat, s = M.s;
+    fit(c, k, 'Матрица сходства', M.title[0], M.title[1], M.titleW, { px: 12.5, weight: 750, color: P.ink, align: M.title[2] });
+    fit(c, k, 'строки — подписи, столбцы — картинки', M.sub[0], M.sub[1], M.titleW, { px: 10.5, color: P.ink3, align: M.sub[2] });
+    for (let j = 0; j < N; j++) iconAt(c, P, A, j, M.x0 + (j + 0.5) * s, M.headY, M.icon);
+    for (let r = 0; r < N; r++) fit(c, k, cap[r], M.x0 - 8, M.y0 + (r + 0.5) * s, M.labW, { px: 10, weight: 650, color: P.ink2, align: 'right' });
+    for (let r = 0; r < N; r++) for (let cc = 0; cc < N; cc++) {
+      const x = M.x0 + cc * s, y = M.y0 + r * s;
+      A.rect(c, x + 2, y + 2, s - 4, s - 4, 4, P.surf, P.grid, 1);
+      if (pS <= 0) continue;
+      const v = sim(r, cc), a = Math.max(0, Math.min(1, (v + 0.2) / 1.2)), on = seg(pS, (r * N + cc) / 22, (r * N + cc) / 22 + 0.3);
+      c.globalAlpha = fade * on * (0.08 + 0.9 * a); A.rect(c, x + 2, y + 2, s - 4, s - 4, 4, P.mot, null); c.globalAlpha = fade * on;
+      fit(c, k, fmt1(v), x + s / 2, y + s / 2, s - 6, { px: 10, weight: 700, mono: true, color: a > 0.62 ? '#fff' : P.ink2 });
+      c.globalAlpha = fade;
+    }
+    for (let r = 0; r < N; r++) { const x = M.x0 + r * s, y = M.y0 + r * s; A.rect(c, x + 1, y + 1, s - 2, s - 2, 5, null, P.ink, 1.4); }
+    if (pS >= 1) {
+      for (const [h, cl] of [[GOOD, P.good], [BAD, P.bad]]) A.rect(c, M.x0 + h.c * s, M.y0 + h.r * s, s, s, 6, null, cl, 2.6);
+    }
+    fit(c, k, G.note.text, G.note.x, G.note.y, G.note.w, { px: 10, color: P.ink3, align: G.note.align || 'center' });
+    // ---------- что происходит ----------
+    const st = u < PH.enc[0] ? ['Пакет — пары, которые берут', 'за один шаг обучения']
+      : u < PH.train[0] ? ['До обучения: стрелки смотрят', 'куда попало, сходство случайное']
+      : u < PH.train[1] ? ['Обучение: векторы верных пар сближают,', 'векторы неверных — разводят']
+      : ['После обучения: каждая подпись', 'ближе всего к своей картинке'];
+    fit(c, k, st, G.state.x, G.state.y, G.state.w, { px: 11.5, weight: 700, color: P.ink, align: 'left' });
+    // полоса шагов обучения
+    const Bar = G.bar;
+    fit(c, k, 'шаги обучения', Bar.x, Bar.y, Bar.labW, { px: 10, color: P.ink3, align: 'left' });
+    A.rect(c, Bar.x + Bar.labW + 6, Bar.y - 4, Bar.w, 8, 4, P.surf2, P.grid, 1);
+    if (pT > 0) A.rect(c, Bar.x + Bar.labW + 6, Bar.y - 4, Math.max(8, Bar.w * pT), 8, 4, P.mot, null);
+    // две выделенные пары: угол и сходство сейчас
+    if (pS > 0) {
+      const H = G.hl, arrowOf = (d) => (pT <= 0 ? '' : d > 0 ? ' ↑' : ' ↓'), lh = 10.5 * k * 1.28;
+      let y = H.y0;
+      [[P.good, `верная пара ${nm(cap[GOOD.r])}: сходство ${fmt1(sim(GOOD.r, GOOD.c))}${arrowOf(1)}`, null],
+       [P.bad, `подпись ${nm(cap[BAD.r])} и картинка`, `${nm(cap[BAD.c])}: ${fmt1(sim(BAD.r, BAD.c))}${arrowOf(-1)}`]].forEach(([cl, a, b]) => {
+        const lines = b == null ? [a] : H.two ? [a, b] : [a + ' ' + b];
+        A.line(c, [[H.x, y], [H.x + 16, y]], cl, 2.6);
+        fit(c, k, lines, H.x + 24, y + (lines.length - 1) * lh / 2, H.w - 24, { px: 10.5, weight: 650, color: P.ink, align: 'left' });
+        y += H.dy + (lines.length - 1) * lh;
+      });
+    }
+    c.globalAlpha = 1;
+  }
+  Anim.add('contrast', {
+    W: 720, H: 344, start: 6.5, narrowAt: 680,
+    draw(c, k, t, P, A) {
+      draw(c, k, t, P, A, {
+        batch: { title: [14, 18], sub: [14, 35], maxW: 160, rows: [[30, 70], [30, 114], [30, 158], [30, 202]], icon: 26, capW: 96 },
+        a1: [150, 136, 214, 136], a1Lab: { text: ['две сети', 'дают векторы'], x: 185, y: 112, w: 76 },
+        vec: { cx: 312, cy: 142, R: 88, title: [312, 18, 'center'], sub: [312, 35, 'center'], titleW: 170, legend: [228, 252], legendGap: 98 },
+        a2: [408, 142, 470, 142], a2Lab: { text: ['сходство', 'всех пар'], x: 439, y: 118, w: 60 },
+        mat: { x0: 568, y0: 84, s: 34, headY: 64, icon: 20, labW: 84, title: [592, 18, 'center'], sub: [592, 35, 'center'], titleW: 224 },
+        note: { text: ['диагональ — 4 верные пары,', '12 клеток вне её — неверные'], x: 636, y: 244, w: 200 },
+        state: { x: 14, y: 284, w: 290 },
+        bar: { x: 14, y: 320, labW: 90, w: 186 },
+        hl: { x: 316, y0: 284, dy: 26, w: 392 },
+      });
+    },
+    narrow: {
+      W: 360, H: 884,
+      draw(c, k, t, P, A) {
+        draw(c, k, t, P, A, {
+          batch: { title: [14, 16], sub: [14, 33], maxW: 330, rows: [[30, 64], [196, 64], [30, 104], [196, 104]], icon: 26, capW: 120 },
+          a1: [180, 128, 180, 162], a1Lab: { text: 'две сети дают векторы', x: 192, y: 145, w: 160, align: 'left' },
+          vec: { cx: 180, cy: 290, R: 92, title: [14, 180, 'left'], sub: [14, 197, 'left'], titleW: 150, legend: [88, 410], legendGap: 104 },
+          a2: [180, 424, 180, 456], a2Lab: { text: 'сходство всех пар', x: 192, y: 440, w: 160, align: 'left' },
+          mat: { x0: 178, y0: 534, s: 42, headY: 512, icon: 24, labW: 150, title: [14, 474, 'left'], sub: [14, 491, 'left'], titleW: 330 },
+          note: { text: ['диагональ — 4 верные пары,', '12 клеток вне её — неверные'], x: 14, y: 726, w: 332, align: 'left' },
+          state: { x: 14, y: 770, w: 332 },
+          bar: { x: 14, y: 806, labW: 100, w: 220 },
+          hl: { x: 14, y0: 832, dy: 26, w: 332, two: true },
+        });
+      },
+    },
+  });
 })();
