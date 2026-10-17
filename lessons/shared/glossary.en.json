@@ -432,6 +432,12 @@
   "a": "denoising steps?"
  },
  {
+  "id": "flow-steps",
+  "t": "Flow steps",
+  "d": "How many times a flow matching network outputs a velocity and the point is moved along it: one flow step is one network pass and the move x ← x + h·v. Robots usually take 4 to 10.",
+  "a": "flow steps?"
+ },
+ {
   "id": "token",
   "t": "Token",
   "d": "A unit of transformer input: a piece of an image, a word of the command, a state or an action, turned into a vector.",

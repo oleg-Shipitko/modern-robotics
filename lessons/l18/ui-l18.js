@@ -6,7 +6,8 @@
    3) диффузия и flow рядом: ползунок шагов и кривая качества;
    4) reflow: пересечения пар, выпрямление до одного шага, цена;
    5) пачка из 50 действий в стиле π0: шаги Эйлера, задержка и бюджет.
-   Ниже — задача на сортировку (shared/cards.js) и квиз. Движок — l18/engine.js.
+   Ниже — три анимированные схемы раздела 1, задача на сортировку
+   (shared/cards.js) и квиз. Движок — l18/engine.js.
    ===================================================================== */
 'use strict';
 
@@ -298,8 +299,8 @@ const LabB = (() => {
   }
   const api = { reset() { setT(15); st.parts = true; $('#bParts').checked = true; draw(); }, state, train, setT };
   const missions = [
-    { short: 'Обучение', title: 'Обучи поле скоростей', text: 'Сеть начинает со случайных весов. Нажми кнопку и смотри, как стрелки складываются в поле, а кривая ошибки опускается. Пунктир — ошибка идеального поля, посчитанного по точной формуле.',
-      bet: { q: 'до какого значения опустится ошибка обучения?', options: ['Почти до нуля', 'Остановится около двух', 'Будет только расти'], answer: () => 1 },
+    { short: 'Обучение', title: 'Обучи поле скоростей', text: 'Сеть начинает со случайных весов, и ошибка в начале около 3 — как у ответа «всегда ноль». Нажми кнопку и смотри, как стрелки складываются в поле, а кривая ошибки опускается. Пунктир — ошибка идеального поля, посчитанного по точной формуле.',
+      bet: { q: 'до какого значения опустится ошибка обучения?', options: ['Почти до нуля', 'До пунктира, около 1,9', 'Останется около 3'], answer: () => 1 },
       action: { label: 'Обучить сеть', run: (X) => X.train() },
       explain: (r) => `Ошибка остановилась около ${fmt(r.loss, 2)}, а у идеального поля она ${fmt(r.floor, 2)}. Ниже не опуститься никакой сети, и причина та же, что в лаборатории 1: через одну точку x_t проходят прямые к разным пятнам, и цель x₁ − x₀ для неё случайна. Сеть выучивает среднее этих целей, а разброс вокруг среднего остаётся ошибкой. Поэтому по кривой обучения трудно судить, хорошо ли модель рисует: смотреть нужно на сэмплы.` },
     { short: 'Разворот', title: 'Найди момент разворота', text: 'В лаборатории 1 поле в начале пути вело к среднему данных, а здесь среднее — центр кольца. Двигай время t, начиная с нуля. Серые стрелки тянут к центру, оранжевые — от центра, чёрные точки — облако шума, которое сеть довела до момента t. Найди момент, когда стрелки внутри кольца впервые развернутся наружу.', controls: ['t', 'parts'],
@@ -398,7 +399,7 @@ const LabC = (() => {
       explain: (s) => `Flow-модели хватает ${nWord(s.N, 'шага', 'шагов', 'шагов')}: ${pc(s.f.on)} точек в пятнах. Шагом меньше — ${pc(s.fPrev.on)}. Посмотри на диффузию при тех же ${s.N}: ${pc(s.d.on)}.` },
     { short: 'Шаги диффузии', title: 'А сколько нужно диффузии', text: 'Теперь найди наименьшее число шагов, при котором форму держит диффузия. Порог тот же: 72% точек в пятнах и все восемь пятен.', controls: ['n'],
       criteria: crit('dd'), hint: 'Двигайся вправо от того места, где справилась flow-модель.',
-      explain: (s) => `Диффузии понадобилось ${nWord(s.N, 'шаг', 'шага', 'шагов')}, вдвое больше, чем flow. При этом flow и диффузия — одно семейство: шаг DDIM — тот же шаг Эйлера, только по другому расписанию и с другой целью обучения. Разницу дают две вещи. Первая — расписание: у DDPM к середине пути от данных остаётся меньше трети амплитуды, и равномерная сетка тратит много шагов почти на чистый шум. Вторая — что предсказывает сеть: оценка данных из предсказанного шума при сильном шуме усиливает ошибки сети. Подробности — в блоке «Под капотом».` },
+      explain: (s) => `Диффузии понадобилось ${nWord(s.N, 'шаг', 'шага', 'шагов')}, вдвое больше, чем flow. При этом flow и диффузия — одно семейство: шаг DDIM — тот же шаг Эйлера, только по другому расписанию и с другой целью обучения. Разницу дают две вещи. Первая — расписание: у DDPM к середине пути от данных остаётся меньше трети амплитуды, и равномерная сетка тратит много шагов почти на чистый шум. Вторая — что предсказывает сеть: оценку данных из предсказанного шума получают делением на долю сигнала, в начале пути это усиливает ошибку сети, и крупный шаг переносит её в новую точку. Подробно — в тексте под лабораторией.` },
     { short: 'Один шаг', title: 'Один шаг', text: 'Последний опыт с двумя моделями: пройдём весь путь от шума до данных одним шагом.',
       bet: { q: 'что нарисует flow-модель за один шаг?', options: ['Восемь размытых пятен', 'Одно пятно в центре', 'Пустое кольцо'], answer: () => 1 },
       action: { label: 'Один шаг', run: (X) => X.oneStep() },
@@ -499,7 +500,7 @@ const LabD = (() => {
       fail: (r) => (r.pairsOn < 0.75 ? `Пары плохие: за ${nWord(r.ps, 'шаг', 'шага', 'шагов')} исходная модель сама кладёт в пятна только ${pc(r.pairsOn)} точек, и выпрямленная сеть выучила размытую картинку. Потрать на пары больше шагов.` : `Почти: ${pc(r.q1)}. Потрать на пары больше шагов, чтобы они стали точнее.`),
       hint: 'Сравни с лабораторией 3: сколько шагов нужно исходной модели, чтобы держать форму?',
       explain: (r) => `За один шаг выпрямленная модель кладёт в пятна ${pc(r.q1)} точек, а исходная — 0%. Пары исходная модель строила за ${nWord(r.ps, 'шаг', 'шага', 'шагов')}: это разовая цена при обучении, на роботе её не платят. Пути выпрямленной модели стали почти прямыми, поэтому один шаг срезает мало.` },
-    { short: 'Цена', title: 'Сколько стоит выпрямление', text: 'Сколько шагов вывода экономит reflow? Двигай число шагов исходной модели и найди, сколько шагов ей нужно, чтобы догнать выпрямленную с её одним шагом.', controls: ['n'],
+    { short: 'Цена', title: 'Сколько стоит выпрямление', text: 'Сколько шагов инференса экономит reflow? Двигай число шагов исходной модели и найди, сколько шагов ей нужно, чтобы догнать выпрямленную с её одним шагом.', controls: ['n'],
       onEnter: () => setMode('gen'),
       criteria: [{ label: 'Исходная модель кладёт в пятна не меньше точек, чем выпрямленная за 1 шаг', test: (r, s) => s.ready && s.q.on >= s.target }, { label: 'Шагом меньше она ещё отставала', test: (r, s) => s.ready && !!s.qPrev && s.qPrev.on < s.target }],
       hint: 'Если миссия «Один шаг» пройдена с другим числом шагов на пары, ответ тоже другой: это нормально.',
@@ -607,7 +608,7 @@ const LabE = (() => {
       onEnter: (X) => { st.budget = true; X.setSrv(false); X.setN(16); },
       criteria: [{ label: 'Модель считается на сервере', test: (r, s) => s.srv }, { label: 'Робот стоит не больше 15% времени', test: (r, s) => s.srv && s.idle <= BUDGET }, { label: 'Все 20 пачек проходят не ближе 2 см от чайника', test: (r, s) => s.ok === 20 }],
       hint: 'Пунктир на полоске задержки — граница 15%. Сначала найди, где кончается бюджет, потом проверь объезд.',
-      explain: (s) => `Подходит от 4 до 10 шагов Эйлера. На 10 шагах вывод на сервере занимает ${fmt(FM.latency(10, true), 0)} мс, простой — ${pc(FM.idle(FM.latency(10, true)))}: столько тратит π0 вне робота. На 11 шагах простой уже ${pc(FM.idle(FM.latency(11, true)))}. В асинхронном режиме из урока 1.7 робот не стоит, но задержка не исчезает: пока считается новая пачка, действия уходят по старой.` },
+      explain: (s) => `Подходит от 4 до 10 шагов Эйлера. На 10 шагах инференс на сервере занимает ${fmt(FM.latency(10, true), 0)} мс, простой — ${pc(FM.idle(FM.latency(10, true)))}: столько тратит π0 вне робота. На 11 шагах простой уже ${pc(FM.idle(FM.latency(11, true)))}. В асинхронном режиме из урока 1.7 робот не стоит, но задержка не исчезает: пока считается новая пачка, действия уходят по старой.` },
     { short: 'Свободно', title: 'Свободный режим', text: 'Меняй число шагов Эйлера и место расчёта модели. Посмотри, как пачка превращается из шума в движение: при каждом изменении числа шагов сцена проигрывает все шаги.', final: true, onEnter: () => { st.budget = true; draw(); } },
   ];
   function init() {
@@ -622,25 +623,377 @@ const LabE = (() => {
   return { init, api, st, gen };
 })();
 
-/* ---------- Задача: кто сколько шагов делает ---------- */
+/* =====================================================================
+   Схемы раздела 1: путь от шума к данным и крупный шаг (fm-bend), прямые
+   обучения и поле скоростей (fm-pairs), обучение и генерация целиком рядом
+   с шагом денойзинга Diffusion Policy (fm-loop). Рисует общий модуль схем
+   shared/anim.js.
+   ===================================================================== */
+(() => {
+  const K = HeroKit, TAU = Math.PI * 2;
+  const clamp = (x, a, b) => Math.max(a, Math.min(b, x)), seg = (u, a, b) => clamp((u - a) / (b - a), 0, 1);
+  const ease = (x) => (1 - Math.cos(Math.PI * clamp(x, 0, 1))) / 2, lerp = (a, b, s) => a + (b - a) * s;
+  /** Цвет с прозрачностью: hex или rgb() из CSS-переменной. */
+  function alpha(col, a) {
+    const s = String(col).trim(); let m = /^#([0-9a-f]{6})$/i.exec(s);
+    if (m) { const n = parseInt(m[1], 16); return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`; }
+    m = /^rgba?\(([^)]+)\)$/.exec(s);
+    if (m) { const p = m[1].split(',').map((x) => x.trim()); return `rgba(${p[0]},${p[1]},${p[2]},${a})`; }
+    return s;
+  }
+  function circle(c, x, y, r, fill, stroke, lw) { c.beginPath(); c.arc(x, y, r, 0, TAU); if (fill) { c.fillStyle = fill; c.fill(); } if (stroke) { c.strokeStyle = stroke; c.lineWidth = lw || 2; c.stroke(); } }
+  function rrect(c, x, y, w, h, r, fill, stroke, lw) { c.beginPath(); c.roundRect(x, y, w, h, r); if (fill) { c.fillStyle = fill; c.fill(); } if (stroke) { c.strokeStyle = stroke; c.lineWidth = lw || 1.5; c.stroke(); } }
+  function poly(c, pts, col, lw, dash) {
+    if (pts.length < 2) return; c.beginPath(); c.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) c.lineTo(pts[i][0], pts[i][1]);
+    c.strokeStyle = col; c.lineWidth = lw || 2; c.lineCap = 'round'; c.lineJoin = 'round'; c.setLineDash(dash || []); c.stroke(); c.setLineDash([]);
+  }
+  function head(c, x2, y2, a, col, hd) { c.beginPath(); c.moveTo(x2, y2); c.lineTo(x2 - hd * Math.cos(a - 0.45), y2 - hd * Math.sin(a - 0.45)); c.lineTo(x2 - hd * Math.cos(a + 0.45), y2 - hd * Math.sin(a + 0.45)); c.closePath(); c.fillStyle = col; c.fill(); }
+  /** Стрелка с треугольным наконечником. */
+  function arw(c, x1, y1, x2, y2, col, lw, hd) {
+    const L = Math.hypot(x2 - x1, y2 - y1); if (L < 1) return; const a = Math.atan2(y2 - y1, x2 - x1); hd = Math.min(hd || 8, L * 0.7);
+    poly(c, [[x1, y1], [x2 - Math.cos(a) * hd * 0.6, y2 - Math.sin(a) * hd * 0.6]], col, lw || 2); head(c, x2, y2, a, col, hd);
+  }
+  /** Ломаная со стрелкой на конце. */
+  function route(c, pts, col, lw, dash, hd) {
+    const n = pts.length, [x1, y1] = pts[n - 2], [x2, y2] = pts[n - 1], a = Math.atan2(y2 - y1, x2 - x1); hd = hd || 7;
+    poly(c, pts.slice(0, n - 1).concat([[x2 - Math.cos(a) * hd * 0.6, y2 - Math.sin(a) * hd * 0.6]]), col, lw || 1.6, dash); head(c, x2, y2, a, col, hd);
+  }
+  /** Точка на ломаной: доля пути s от 0 до 1. */
+  function along(pts, s) {
+    let L = 0; const seglen = []; for (let i = 1; i < pts.length; i++) { const d = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); seglen.push(d); L += d; }
+    let d = clamp(s, 0, 1) * L; for (let i = 0; i < seglen.length; i++) { if (d <= seglen[i] || i === seglen.length - 1) { const f = seglen[i] ? clamp(d / seglen[i], 0, 1) : 0; return [lerp(pts[i][0], pts[i + 1][0], f), lerp(pts[i][1], pts[i + 1][1], f)]; } d -= seglen[i]; }
+    return pts[pts.length - 1];
+  }
+  /** Три точки бегут по ломаной, пока 0 < prog < 1. */
+  function flow(c, pts, prog, col) { if (prog <= 0 || prog >= 1) return; for (let i = 0; i < 3; i++) { const [x, y] = along(pts, (prog * 1.4 + i / 3) % 1); circle(c, x, y, 2.8, col); } }
+  /** Подпись в одну или несколько строк (массив) с общим размером, ужатая до ширины maxW; y — середина блока. */
+  function txt(c, k, text, x, y, maxW, o) {
+    o = Object.assign({ px: 11, weight: 600, halo: false }, o || {});
+    const lines = Array.isArray(text) ? text : [text]; let px = o.px;
+    K.font(c, k, px, o.weight, o.mono);
+    const w = Math.max(...lines.map((s) => c.measureText(s).width));
+    if (maxW && w > maxW) px = Math.max(7, px * maxW / w);
+    const lh = px * k * 1.3, y0 = y - (lines.length - 1) * lh / 2;
+    lines.forEach((s, i) => K.label(c, k, s, x, y0 + i * lh, Object.assign({}, o, { px })));
+  }
+  const onPlane = (P, o) => Object.assign({ halo: true, haloColor: P.surf }, o);
+
+  /* ---------- мир схем 1 и 2: два пятна и облако шума, как в лаборатории 1 ---------- */
+  const C2 = [{ m: [-1.2, 1.0], s: 0.22, w: 1 }, { m: [1.2, 1.0], s: 0.22, w: 1 }], R2 = 2.5 * 0.22;
+  const DATA = FM.gmmSample(C2, 160, 5).filter((v, i, a) => { const j = i - (i % 2), x = a[j], y = a[j + 1]; return C2.some((cp) => Math.hypot(x - cp.m[0], y - cp.m[1]) < R2); }); // на схеме — только точки внутри пунктирных кругов
+  const NZ = FM.noise(36, 3), WX = [-2.05, 2.05], WY = [-0.98, 1.88];
+  /** Плоскость в прямоугольнике B: масштаб и перевод мировых координат в точки канваса. */
+  function plane(B) {
+    const s = Math.min(B.w / (WX[1] - WX[0]), B.h / (WY[1] - WY[0])), w = s * (WX[1] - WX[0]), h = s * (WY[1] - WY[0]);
+    const x0 = B.x + (B.w - w) / 2, y0 = B.y + (B.h - h) / 2;
+    return { s, x0, y0, w, h, map: (x, y) => [x0 + (x - WX[0]) * s, y0 + (WY[1] - y) * s] };
+  }
+  /** Фон плоскости: сетка, облако шума, два пятна данных и их подписи. */
+  function world(c, k, P, Q) {
+    rrect(c, Q.x0, Q.y0, Q.w, Q.h, 8, P.surf, P.grid, 1);
+    c.save(); c.beginPath(); c.roundRect(Q.x0, Q.y0, Q.w, Q.h, 8); c.clip();
+    c.strokeStyle = P.grid; c.lineWidth = 1; c.beginPath();
+    for (let x = -2; x <= 2.01; x += 0.5) { const [px] = Q.map(x, 0); c.moveTo(px, Q.y0); c.lineTo(px, Q.y0 + Q.h); }
+    for (let y = -0.5; y <= 1.51; y += 0.5) { const [, py] = Q.map(0, y); c.moveTo(Q.x0, py); c.lineTo(Q.x0 + Q.w, py); }
+    c.stroke();
+    for (let i = 0; i < NZ.length; i += 2) { if (NZ[i + 1] > 1.45) continue; const [x, y] = Q.map(NZ[i], NZ[i + 1]); circle(c, x, y, 2.4, null, alpha(P.ink3, 0.55), 1.1); } // выше 1,45 — подписи пятен
+    c.fillStyle = alpha(P.ink3, 0.7); for (let i = 0; i < DATA.length; i += 2) { const [x, y] = Q.map(DATA[i], DATA[i + 1]); c.fillRect(x - 1.3, y - 1.3, 2.6, 2.6); }
+    c.setLineDash([4, 4]); for (const cp of C2) { const [x, y] = Q.map(cp.m[0], cp.m[1]); circle(c, x, y, R2 * Q.s, null, P.ink3, 1.1); } c.setLineDash([]);
+    c.restore();
+    C2.forEach((cp, i) => { const [x, y] = Q.map(cp.m[0], cp.m[1] + R2); txt(c, k, i ? 'правое пятно' : 'левое пятно', x, y - 13, null, onPlane(P, { px: 10.5, color: P.ink2 })); });
+  }
+  /** Колонка пояснений: заголовок и строки; строка яркая, когда её этап уже начался. */
+  function rows(c, k, P, G, items, act) {
+    txt(c, k, G.title, G.x, G.titleY, G.w, { px: 12.5, weight: 750, color: P.ink, align: 'left' });
+    items.forEach((r, i) => {
+      const y = G.y0 + i * G.dy, x = G.x;
+      c.globalAlpha = act[i] ? 1 : 0.35;
+      if (r.sw === 'nodes') { poly(c, [[x, y], [x + 24, y]], r.col, 2.4); circle(c, x + 1, y, 2.8, r.col); circle(c, x + 23, y, 2.8, r.col); }
+      else if (r.sw === 'arrow') arw(c, x, y, x + 25, y, r.col, r.lw || 2.4, 8);
+      else poly(c, [[x, y], [x + 25, y]], r.col, r.lw || 3);
+      txt(c, k, r.head, x + 34, y, G.w - 34, { px: 11.5, weight: 750, color: P.ink, align: 'left' });
+      txt(c, k, r.sub, x, y + G.subDy, G.w, { px: 10.5, weight: 600, color: P.ink2, align: 'left' });
+      c.globalAlpha = 1;
+    });
+    if (G.note) txt(c, k, G.note.text, G.x, G.note.y, G.w, { px: 10, weight: 600, color: P.ink3, align: 'left' });
+  }
+
+  /* ---------- fm-bend: путь от шума к данным изогнут, крупный шаг срезает поворот ---------- */
+  const S0 = [0.9, -0.6], MEAN = [0, 1], PATH = FM.gmmPath(C2, S0[0], S0[1], 200), P4 = FM.gmmPath(C2, S0[0], S0[1], 4);
+  const VEL = PATH.map((q, i) => FM.gmmField(C2, q[0], q[1], Math.min(i, 199) / 200));
+  const TA = 13, PA = { small: [0.6, 4.4], big: [5.0, 6.4], four: [7.0, 9.8] };
+  function drawBend(c, k, t, P, G) {
+    const u = ((t % TA) + TA) % TA, Q = plane(G.plane), m = (q) => Q.map(q[0], q[1]);
+    world(c, k, P, Q);
+    const pS = seg(u, PA.small[0], PA.small[1]), pB = ease(seg(u, PA.big[0], PA.big[1])), pF = seg(u, PA.four[0], PA.four[1]);
+    const [mx, my] = m(MEAN);
+    c.strokeStyle = P.ink2; c.lineWidth = 1.6; c.beginPath(); c.moveTo(mx - 5, my); c.lineTo(mx + 5, my); c.moveTo(mx, my - 5); c.lineTo(mx, my + 5); c.stroke();
+    txt(c, k, 'среднее данных', mx, my - 14, null, onPlane(P, { px: 10, color: P.ink2 }));
+    if (pS > 0) {
+      const n = Math.max(1, Math.round(pS * 200));
+      poly(c, PATH.slice(0, n + 1).map(m), P.mot, 3);
+      const [x, y] = m(PATH[n]);
+      if (pS < 1) { const v = VEL[n], L = Math.hypot(v[0], v[1]); arw(c, x, y, x + v[0] / L * 0.5 * Q.s, y - v[1] / L * 0.5 * Q.s, P.mot, 2.2, 8); circle(c, x, y, 4.6, P.mot); }
+      else circle(c, x, y, 4, P.mot);
+    }
+    if (pB > 0) {
+      const [x0, y0] = m(S0);
+      arw(c, x0, y0, lerp(x0, mx, pB), lerp(y0, my, pB), P.bad, 2.6, 10);
+      if (pB >= 1) { K.cross(c, mx, my, 6, P.bad, 2.4); txt(c, k, 'мимо данных', mx - 9, my + 15, null, onPlane(P, { px: 10.5, weight: 700, color: P.bad, align: 'right' })); }
+    }
+    if (pF > 0) {
+      for (let i = 0; i < 4; i++) {
+        const s = clamp(pF * 4 - i, 0, 1); if (s <= 0) break;
+        const [ax, ay] = m(P4[i]), [bx, by] = m(P4[i + 1]); arw(c, ax, ay, lerp(ax, bx, s), lerp(ay, by, s), P.spr, 2.4, 8); if (i) circle(c, ax, ay, 3, P.spr);
+      }
+      if (pF >= 1) { const [x, y] = m(P4[4]); circle(c, x, y, 3.4, P.spr); }
+    }
+    const [sx, sy] = m(S0); circle(c, sx, sy, 7, P.surf, P.ink, 2.4);
+    txt(c, k, 'точка шума', sx, sy + 17, null, onPlane(P, { px: 10.5, weight: 700, color: P.ink }));
+    rows(c, k, P, Object.assign({ title: 'Путь от шума к данным изогнут' }, G.leg), [
+      { sw: 'line', col: P.mot, head: 'Мелкие шаги', sub: ['идут по изгибу: сначала к середине', 'между пятнами, потом к правому пятну'] },
+      { sw: 'arrow', col: P.bad, head: 'Один крупный шаг', sub: ['идёт по направлению в начальной точке,', 'срезает поворот и приходит мимо данных'] },
+      { sw: 'nodes', col: P.spr, head: 'Четыре шага', sub: ['каждый шаг заново узнаёт направление;', 'ломаная почти повторяет изгиб'] },
+    ], [pS > 0, pB > 0, pF > 0]);
+  }
+  Anim.add('fm-bend', {
+    W: 720, H: 340, start: 11, narrowAt: 680,
+    draw(c, k, t, P) { drawBend(c, k, t, P, { plane: { x: 12, y: 12, w: 440, h: 316 }, leg: { x: 474, w: 236, titleY: 34, y0: 80, dy: 76, subDy: 25, note: { y: 306, text: ['Оранжевая стрелка на пути — направление,', 'которое сеть знает в текущей точке'] } } }); },
+    narrow: {
+      W: 360, H: 508,
+      draw(c, k, t, P) { drawBend(c, k, t, P, { plane: { x: 8, y: 8, w: 344, h: 246 }, leg: { x: 12, w: 336, titleY: 274, y0: 306, dy: 58, subDy: 24, note: { y: 486, text: ['Оранжевая стрелка на пути — направление,', 'которое сеть знает в текущей точке'] } } }); },
+    },
+  });
+
+  /* ---------- fm-pairs: прямые обучения и как из них складывается поле скоростей ---------- */
+  const PX0 = [-0.95, -0.5], PX1 = [1.22, 1.08], LENS = [0, 0.5], LR = 0.3;
+  const PAIRS = (() => { const r = FM.rng(17), out = []; for (let i = 0; i < 300; i++) { const cm = C2[i % 2].m; out.push([FM.randn(r), FM.randn(r), cm[0] + FM.randn(r) * 0.22, cm[1] + FM.randn(r) * 0.22]); } return out; })();
+  const THRU = PAIRS.slice(0, 160).filter(([a, b, cx, cy]) => Math.hypot(0.5 * (a + cx) - LENS[0], 0.5 * (b + cy) - LENS[1]) < LR), SHOW = PAIRS.slice(0, 36);
+  const GRIDF = (() => { const g = []; for (let j = 0; j < 5; j++) for (let i = 0; i < 8; i++) g.push([-1.75 + 0.5 * i, -0.62 + 0.45 * j]); return g; })();
+  const TB = 15.5, PB = { line: [0.3, 0.8], run: [0.9, 3.7], many: [4.1, 4.8], move: [5.0, 6.8], lens: [7.1, 7.9], avg: [8.1, 8.9], field: [10.3, 11.1], sweep: [11.8, 14.2] };
+  function drawPairs(c, k, t, P, G) {
+    const u = ((t % TB) + TB) % TB, Q = plane(G.plane), m = (x, y) => Q.map(x, y), S = Q.s;
+    world(c, k, P, Q);
+    const pLine = ease(seg(u, ...PB.line)), pRun = seg(u, ...PB.run), pMany = ease(seg(u, ...PB.many)), pMove = seg(u, ...PB.move);
+    const pLens = ease(seg(u, ...PB.lens)), pAvg = ease(seg(u, ...PB.avg)), pField = ease(seg(u, ...PB.field)), pSweep = seg(u, ...PB.sweep);
+    const keep = 1 - pField, tPair = u < PB.many[0] ? pRun : 0.5 * pMove, tShow = pField > 0 ? 0.5 + 0.47 * pSweep : u < PB.many[0] ? pRun : 0.5 * pMove;
+    c.save(); c.beginPath(); c.roundRect(Q.x0, Q.y0, Q.w, Q.h, 8); c.clip();
+    // много пар: прямые и точки x_t на них в момент t
+    if (pMany > 0 && keep > 0) {
+      c.globalAlpha = pMany * keep * lerp(1, 0.3, pLens);
+      for (const [a, b, cx, cy] of SHOW) poly(c, [m(a, b), m(cx, cy)], alpha(P.ink3, 0.6), 1);
+      if (pMove > 0) for (const [a, b, cx, cy] of SHOW) { const [x, y] = m(lerp(a, cx, 0.5 * pMove), lerp(b, cy, 0.5 * pMove)); circle(c, x, y, 2.4, P.mot); }
+      c.globalAlpha = 1;
+    }
+    // одна пара: шум x0, точка данных x1, точка x_t бежит по прямой с постоянной скоростью
+    const pairOn = pLine * (1 - pLens);
+    if (pairOn > 0) {
+      c.globalAlpha = pairOn;
+      const [ax, ay] = m(PX0[0], PX0[1]), [bx, by] = m(PX1[0], PX1[1]), L = Math.hypot(bx - ax, by - ay), ux = (bx - ax) / L, uy = (by - ay) / L;
+      poly(c, [[ax, ay], [lerp(ax, bx, pLine), lerp(ay, by, pLine)]], P.ink2, 1.6, [5, 4]);
+      circle(c, ax, ay, 6, P.surf, P.ink, 2.2); circle(c, bx, by, 4.4, P.ink);
+      txt(c, k, 'x₀ — шум', ax, ay + 17, null, onPlane(P, { px: 10.5, weight: 700, color: P.ink }));
+      txt(c, k, 'x₁ — данные', bx, by + 17, null, onPlane(P, { px: 10.5, weight: 700, color: P.ink }));
+      if (u >= PB.run[0]) {
+        const px = lerp(ax, bx, tPair), py = lerp(ay, by, tPair);
+        arw(c, px, py, px + ux * 0.55 * S, py + uy * 0.55 * S, P.mot, 2.4, 9); circle(c, px, py, 4.6, P.mot);
+        txt(c, k, 'x_t', px - 12, py - 12, null, onPlane(P, { px: 11, weight: 750, color: P.mot }));
+        txt(c, k, 'скорость x₁ − x₀', lerp(ax, bx, 0.5) + 10, lerp(ay, by, 0.5) + 16, null, onPlane(P, { px: 10.5, weight: 700, color: P.mot, align: 'left' }));
+      }
+      c.globalAlpha = 1;
+    }
+    // круг в момент t = 0,5: прямые через одну точку и их средняя скорость
+    if (pLens > 0 && keep > 0) {
+      c.globalAlpha = pLens * keep;
+      for (const [a, b, cx, cy] of THRU) poly(c, [m(a, b), m(cx, cy)], alpha(P.ink2, 0.45), 1.1);
+      c.restore(); c.save();
+      const [lx, ly] = m(LENS[0], LENS[1]); let sx = 0, sy = 0, sl = 0;
+      circle(c, lx, ly, LR * S, alpha(P.surf, 0.75), P.ink, 2);
+      for (const [a, b, cx, cy] of THRU) { const dx = cx - a, dy = cy - b, L = Math.hypot(dx, dy); sx += dx; sy += dy; sl += L; arw(c, lx, ly, lx + dx / L * G.lens, ly - dy / L * G.lens, alpha(P.ink2, 0.8), 1.2, 5); }
+      if (pAvg > 0) { const ML = Math.hypot(sx, sy), len = G.lens * ML / sl * pAvg, ex = lx + sx / ML * len, ey = ly - sy / ML * len; arw(c, lx, ly, ex, ey, P.surf, 7.5, 14); arw(c, lx, ly, ex, ey, P.mot, 4.5, 12); }
+      if (pAvg > 0) txt(c, k, 'сеть учит среднюю скорость', lx, ly - LR * S - 11, null, onPlane(P, { px: 10.5, weight: 700, color: P.mot }));
+      c.globalAlpha = 1;
+    }
+    c.restore();
+    // поле скоростей: средняя стрелка в каждой точке в момент t
+    if (pField > 0) {
+      c.globalAlpha = pField; const v = [0, 0];
+      for (const [x, y] of GRIDF) { FM.gmmField(C2, x, y, tShow, v); const L = Math.hypot(v[0], v[1]) || 1e-9, len = clamp(0.17 * L, 0.12, 0.4) * S, [px, py] = m(x, y); arw(c, px, py, px + v[0] / L * len, py - v[1] / L * len, P.mot, 1.6, 6); }
+      c.globalAlpha = 1;
+    }
+    if (pLine > 0) txt(c, k, `t = ${fmt(pLens > 0 && pField === 0 ? 0.5 : tShow, 2)}`, Q.map(0, 0)[0], Q.y0 + 15, null, onPlane(P, { px: 11, weight: 700, color: P.ink, mono: true }));
+    rows(c, k, P, Object.assign({ title: 'Как из прямых получается поле скоростей' }, G.leg), [
+      { sw: 'arrow', col: P.mot, head: 'Одна пара', sub: ['точка x_t идёт по прямой от шума x₀', 'к данным x₁ с постоянной скоростью x₁ − x₀'] },
+      { sw: 'line', col: P.ink3, lw: 1.6, head: 'Много пар', sub: ['у каждой пары своя прямая; в момент t', 'все точки x_t прошли одну долю пути'] },
+      { sw: 'arrow', col: P.mot, lw: 4, head: 'Прямые пересекаются', sub: ['через одну точку идут прямые к разным', 'пятнам; сеть учит их среднюю скорость'] },
+      { sw: 'arrow', col: P.mot, lw: 1.6, head: 'Поле скоростей', sub: ['средняя стрелка в каждой точке;', 'в каждый момент t — свои стрелки'] },
+    ], [pLine > 0, pMany > 0, pLens > 0, pField > 0]);
+  }
+  Anim.add('fm-pairs', {
+    W: 720, H: 340, start: 9.4, narrowAt: 680,
+    draw(c, k, t, P) { drawPairs(c, k, t, P, { plane: { x: 12, y: 12, w: 440, h: 316 }, lens: 54, leg: { x: 474, w: 236, titleY: 30, y0: 70, dy: 70, subDy: 24 } }); },
+    narrow: {
+      W: 360, H: 520,
+      draw(c, k, t, P) { drawPairs(c, k, t, P, { plane: { x: 8, y: 8, w: 344, h: 246 }, lens: 44, leg: { x: 12, w: 336, titleY: 274, y0: 306, dy: 56, subDy: 23 } }); },
+    },
+  });
+
+  /* ---------- fm-loop: обучение и генерация целиком, рядом — шаг денойзинга Diffusion Policy ---------- */
+  const TC = 18, PC = { A: [0.2, 4.8], B: [5.0, 10.6], C: [10.8, 16.4] }, NSTEP = 4;
+  /** Блок: рамка и строки текста (первая — жирная). */
+  function block(c, k, P, B, lines, o) {
+    o = o || {};
+    rrect(c, B.x, B.y, B.w, B.h, B.r || 9, o.fill || P.surf, o.edge || P.ink2, o.lw || 1.5);
+    const n = lines.length, lh = o.lh || 15, y0 = B.y + B.h / 2 - (n - 1) * lh / 2;
+    lines.forEach((s, i) => txt(c, k, s, B.x + B.w / 2, y0 + i * lh, B.w - 10, { px: i ? 10.5 : 11.5, weight: i ? 600 : 750, color: i ? P.ink2 : (o.ink || P.ink) }));
+  }
+  const mid = (B, side) => (side === 'l' ? [B.x, B.y + B.h / 2] : side === 'r' ? [B.x + B.w, B.y + B.h / 2] : side === 't' ? [B.x + B.w / 2, B.y] : [B.x + B.w / 2, B.y + B.h]);
+  /** Один ряд генерации (flow или Diffusion Policy): шум → сеть → выход сети → шаг → снова в сеть; NSTEP раз, потом пачка. */
+  function genRow(c, k, P, R, u0, u, txtR, active) {
+    const w = u - u0, j = clamp(Math.floor(w / 1.2), 0, NSTEP - 1), f = w - 1.2 * j, done = w >= 1.2 * NSTEP, run = active && w >= 0 && !done;
+    const step = w < 0 ? 0 : done ? NSTEP : j + 1, on = (cond) => (cond ? P.ink2 : P.line);
+    const inNet = run && f < 0.3, toOut = run && f >= 0.3 && f < 0.6, toStep = run && f >= 0.6 && f < 0.9, inStep = run && f >= 0.9;
+    // стрелки
+    const aIn = [mid(R.noise, 'r'), mid(R.net, 'l')], aOut = R.outArrow, aStep = R.stepArrow, loop = R.loop, aRes = R.resArrow;
+    route(c, aIn, on(w >= 0), 1.6); route(c, aOut, on(w >= 0.3), 1.6); route(c, aStep, on(w >= 0.6), 1.6);
+    route(c, loop, on(w >= 1.2), 1.6, [5, 4]); route(c, aRes, on(done), 1.6);
+    if (run) {
+      if (inNet) flow(c, j === 0 ? aIn : loop, f / 0.3, P.mot);
+      if (toOut) flow(c, aOut, (f - 0.3) / 0.3, P.mot);
+      if (toStep) flow(c, aStep, (f - 0.6) / 0.3, P.mot);
+    }
+    if (active && done && w < 1.2 * NSTEP + 0.6) flow(c, aRes, (w - 1.2 * NSTEP) / 0.6, P.mot);
+    // блоки
+    block(c, k, P, R.noise, [txtR.noise], { edge: P.ink3, lw: 1.2 });
+    block(c, k, P, R.net, txtR.net, { edge: P.out, lw: run && (toOut || inNet) ? 2.6 : 1.6 });
+    block(c, k, P, R.mid, [txtR.mid], { edge: P.ink3, lw: 1.2 });
+    block(c, k, P, R.step, txtR.step, { edge: txtR.stepEdge(P), lw: inStep ? 2.6 : 1.6, lh: R.stepLh });
+    block(c, k, P, R.res, [txtR.res], { edge: P.ink3, lw: 1.2 });
+    txt(c, k, R.loopLab[3] ? txtR.loopShort : txtR.loop, R.loopLab[0], R.loopLab[1], R.loopLab[2], { px: 10, weight: 650, color: P.ink3, align: R.loopLab[3] || 'center' });
+    if (step) txt(c, k, txtR.count(step), R.count[0], R.count[1], null, { px: 10.5, weight: 700, color: P.ink, mono: true, align: 'right' });
+  }
+  const FLOWROW = { noise: 'шум x', net: ['сеть v', 'вход: x и t'], mid: 'скорость v', step: ['сдвиг', 'x ← x + h·v'], res: 'пачка', loop: 'следующий шаг flow: t ← t + h', loopShort: 'следующий шаг', stepEdge: (P) => P.mot };
+  const DPROW = { noise: 'шум x', net: ['сеть ε', 'вход: x и шаг k'], mid: 'шум ε(x, k)', step: ['формула расписания', 'оценка данных из x и ε,', 'смесь с ε для шага k − 1'], res: 'пачка', loop: 'следующий шаг денойзинга: k ← k − 1', loopShort: 'следующий шаг', stepEdge: (P) => P.ink2 };
+  function drawLoop(c, k, t, P, G) {
+    const u = ((t % TC) + TC) % TC, all = u >= PC.C[1], dim = (row) => (all || (u >= PC[row][0] - 0.1 && u < PC[row][1] + 0.1) ? 1 : 0.4);
+    // ---------- обучение ----------
+    const A = G.A, wA = u - PC.A[0], actA = !all && u < PC.A[1];
+    c.globalAlpha = dim('A');
+    txt(c, k, 'Обучение: регрессия на прямых', A.title[0], A.title[1], G.maxW, { px: 12.5, weight: 800, color: P.ink, align: 'left' });
+    txt(c, k, A.subText, A.sub[0], A.sub[1], G.maxW, { px: 10.5, weight: 600, color: P.ink3, align: 'left' });
+    const ins = [A.x0, A.x1, A.t], on = (cond) => (cond ? P.ink2 : P.line);
+    ins.forEach((B, i) => route(c, A.inArrows[i], on(wA >= 0), 1.6));
+    route(c, A.toNet, on(wA >= 0.8), 1.6); route(c, A.toLoss, on(wA >= 1.5), 1.6); route(c, A.target, on(wA >= 1.5), 1.6);
+    route(c, A.back, wA >= 2.8 ? P.out : P.line, 1.6, [5, 4]);
+    if (actA) {
+      if (wA < 0.8) ins.forEach((B, i) => flow(c, A.inArrows[i], wA / 0.8, P.mot));
+      else if (wA < 1.5) flow(c, A.toNet, (wA - 0.8) / 0.7, P.mot);
+      else if (wA < 2.3) { flow(c, A.toLoss, (wA - 1.5) / 0.8, P.mot); flow(c, A.target, (wA - 1.5) / 0.8, P.ink2); }
+      else if (wA >= 2.8 && wA < 3.7) flow(c, A.back, (wA - 2.8) / 0.9, P.out);
+    }
+    block(c, k, P, A.x0, ['шум x₀'], { edge: P.ink3, lw: 1.2 }); block(c, k, P, A.x1, ['данные x₁'], { edge: P.ink3, lw: 1.2 }); block(c, k, P, A.t, ['момент t'], { edge: P.ink3, lw: 1.2 });
+    rrect(c, A.mix.x, A.mix.y, A.mix.w, A.mix.h, 9, P.surf, P.ink2, actA && wA >= 0.6 && wA < 1.0 ? 2.6 : 1.5);
+    txt(c, k, 'точка на прямой', A.mix.x + A.mix.w / 2, A.mix.y + A.mixY[0], A.mix.w - 10, { px: 11.5, weight: 750, color: P.ink });
+    txt(c, k, 'x_t = (1 − t)·x₀ + t·x₁', A.mix.x + A.mix.w / 2, A.mix.y + A.mixY[1], A.mix.w - 10, { px: 10.5, weight: 600, color: P.ink2 });
+    poly(c, [[A.mix.x + 8, A.mix.y + A.mixY[2]], [A.mix.x + A.mix.w - 8, A.mix.y + A.mixY[2]]], P.grid, 1);
+    txt(c, k, 'цель: x₁ − x₀', A.mix.x + A.mix.w / 2, A.mix.y + A.mixY[3], A.mix.w - 10, { px: 10.5, weight: 700, color: P.ink2 });
+    block(c, k, P, A.net, ['сеть v', 'один проход'], { edge: P.out, lw: actA && wA >= 1.2 && wA < 1.7 ? 2.6 : 1.6 });
+    block(c, k, P, A.loss, ['ошибка', '‖v(x_t, t) − (x₁ − x₀)‖²'], { edge: P.mot, lw: actA && wA >= 2.2 && wA < 2.9 ? 2.6 : 1.6 });
+    if (A.vLab) txt(c, k, A.vLab[3], A.vLab[0], A.vLab[1], A.vLab[2], { px: 10, weight: 650, color: P.ink3 });
+    if (A.tLab) txt(c, k, 'цель x₁ − x₀', A.tLab[0], A.tLab[1], A.tLab[2], { px: 10, weight: 650, color: P.ink3 });
+    txt(c, k, 'Adam поправляет веса сети', A.backLab[0], A.backLab[1], A.backLab[2], { px: 10, weight: 650, color: wA >= 2.8 ? P.out : P.ink3 });
+    c.globalAlpha = 1;
+    poly(c, [[G.sep1[0], G.sep1[1]], [G.sep1[2], G.sep1[1]]], P.grid, 1);
+    // ---------- генерация flow ----------
+    const B = G.B; c.globalAlpha = dim('B');
+    txt(c, k, 'Генерация: шаги flow', B.title[0], B.title[1], G.maxW, { px: 12.5, weight: 800, color: P.ink, align: 'left' });
+    txt(c, k, 'каждый шаг — один проход сети и один сдвиг', B.sub[0], B.sub[1], G.maxW, { px: 10.5, weight: 600, color: P.ink3, align: 'left' });
+    genRow(c, k, P, B, PC.B[0], u, Object.assign({ count: G.countText }, FLOWROW), !all && u >= PC.B[0] - 0.1 && u < PC.B[1]);
+    c.globalAlpha = 1;
+    poly(c, [[G.sep2[0], G.sep2[1]], [G.sep2[2], G.sep2[1]]], P.grid, 1);
+    // ---------- Diffusion Policy ----------
+    const D = G.C; c.globalAlpha = dim('C');
+    txt(c, k, G.dpTitle, D.title[0], D.title[1], G.maxW, { px: 12.5, weight: 800, color: P.ink, align: 'left' });
+    txt(c, k, G.dpSub, D.sub[0], D.sub[1], G.maxW, { px: 10.5, weight: 600, color: P.ink3, align: 'left' });
+    genRow(c, k, P, D, PC.C[0], u, Object.assign({ count: G.countText }, DPROW), !all && u >= PC.C[0] - 0.1 && u < PC.C[1]);
+    c.globalAlpha = 1;
+  }
+  /** Геометрия ряда генерации по рамкам блоков: стрелки идут между серединами сторон. */
+  function rowGeom(R, horizontal) {
+    const g = Object.assign({}, R);
+    g.outArrow = [mid(R.net, 'r'), mid(R.mid, 'l')];
+    if (horizontal) {
+      g.stepArrow = [mid(R.mid, 'r'), mid(R.step, 'l')];
+      g.resArrow = [mid(R.step, 'r'), mid(R.res, 'l')];
+      const [bx, by] = mid(R.step, 'b'), [nx, ny] = mid(R.net, 'b'), yl = Math.max(by, ny) + 13;
+      g.loop = [[bx, by], [bx, yl], [nx, yl], [nx, ny]];
+    } else {
+      const [mx2, my2] = mid(R.mid, 'b'); g.stepArrow = [[mx2, my2], [mx2, R.step.y]];
+      g.resArrow = [mid(R.step, 'l'), mid(R.res, 'r')];
+      const lx = R.net.x + 26; g.loop = [[lx, R.step.y], [lx, R.net.y + R.net.h]];
+    }
+    return g;
+  }
+  const countW = (n) => `шаг ${n} из ${NSTEP} · проходов сети: ${n}`, countN = (n) => `шаг ${n} из ${NSTEP}`;
+  const WIDE = {
+    maxW: 440, sep1: [10, 152, 710], sep2: [10, 290, 710], countText: countW,
+    dpTitle: 'Diffusion Policy из урока 1.5: шаги денойзинга', dpSub: 'тоже один проход сети на шаг, но сеть выдаёт шум',
+    A: { title: [14, 20], sub: [14, 37], subText: 'один шаг обучения; пары и моменты t каждый раз новые',
+      x0: { x: 14, y: 56, w: 104, h: 24 }, x1: { x: 14, y: 86, w: 104, h: 24 }, t: { x: 14, y: 116, w: 104, h: 24 },
+      mix: { x: 150, y: 54, w: 190, h: 86 }, mixY: [17, 36, 52, 69],
+      net: { x: 374, y: 58, w: 96, h: 46 }, loss: { x: 590, y: 58, w: 118, h: 76 },
+      inArrows: [[[118, 68], [150, 76]], [[118, 98], [150, 98]], [[118, 128], [150, 120]]],
+      toNet: [[340, 81], [374, 81]], toLoss: [[470, 81], [590, 81]], target: [[340, 123], [590, 123]],
+      back: [[649, 58], [649, 47], [422, 47], [422, 58]],
+      vLab: [530, 71, 112, 'скорость v(x_t, t)'], tLab: [530, 113, 110], backLab: [536, 37, 220] },
+    B: rowGeom({ title: [14, 172], sub: [14, 189], count: [706, 172],
+      noise: { x: 14, y: 214, w: 100, h: 28 }, net: { x: 150, y: 208, w: 112, h: 40 }, mid: { x: 298, y: 214, w: 104, h: 28 },
+      step: { x: 438, y: 208, w: 148, h: 40 }, res: { x: 618, y: 214, w: 90, h: 28 }, stepLh: 15, loopLab: [358, 275, 300] }, true),
+    C: rowGeom({ title: [14, 310], sub: [14, 327], count: [706, 310],
+      noise: { x: 14, y: 352, w: 100, h: 28 }, net: { x: 150, y: 346, w: 112, h: 40 }, mid: { x: 298, y: 352, w: 104, h: 28 },
+      step: { x: 438, y: 340, w: 148, h: 52 }, res: { x: 618, y: 352, w: 90, h: 28 }, stepLh: 14, loopLab: [358, 419, 300] }, true),
+  };
+  const NARROW = {
+    maxW: 336, sep1: [10, 300, 350], sep2: [10, 470, 350], countText: countN,
+    dpTitle: 'Diffusion Policy, урок 1.5', dpSub: 'шаги денойзинга: сеть выдаёт шум',
+    A: { title: [12, 16], sub: [12, 39], subText: ['один шаг обучения; пары и моменты t', 'каждый раз новые'],
+      x0: { x: 12, y: 60, w: 104, h: 24 }, x1: { x: 128, y: 60, w: 104, h: 24 }, t: { x: 244, y: 60, w: 104, h: 24 },
+      mix: { x: 12, y: 102, w: 336, h: 72 }, mixY: [14, 31, 45, 59],
+      net: { x: 12, y: 196, w: 140, h: 44 }, loss: { x: 196, y: 196, w: 152, h: 62 },
+      inArrows: [[[64, 84], [64, 102]], [[180, 84], [180, 102]], [[296, 84], [296, 102]]],
+      toNet: [[82, 174], [82, 196]], toLoss: [[152, 218], [196, 218]], target: [[272, 174], [272, 196]],
+      back: [[272, 258], [272, 270], [82, 270], [82, 240]],
+      vLab: [174, 208, 40, 'v'], tLab: null, backLab: [180, 283, 300] },
+    B: rowGeom({ title: [12, 318], sub: [12, 335], count: [348, 318],
+      noise: { x: 12, y: 360, w: 84, h: 28 }, net: { x: 118, y: 354, w: 112, h: 40 }, mid: { x: 252, y: 360, w: 96, h: 28 },
+      step: { x: 118, y: 416, w: 230, h: 40 }, res: { x: 12, y: 422, w: 84, h: 28 }, stepLh: 15, loopLab: [152, 405, 90, 'left'] }, false),
+    C: rowGeom({ title: [12, 488], sub: [12, 505], count: [348, 488],
+      noise: { x: 12, y: 530, w: 84, h: 28 }, net: { x: 118, y: 524, w: 112, h: 40 }, mid: { x: 252, y: 530, w: 96, h: 28 },
+      step: { x: 118, y: 586, w: 230, h: 52 }, res: { x: 12, y: 598, w: 84, h: 28 }, stepLh: 14, loopLab: [152, 575, 90, 'left'] }, false),
+  };
+  Anim.add('fm-loop', {
+    W: 720, H: 432, start: 17, narrowAt: 680,
+    draw(c, k, t, P) { drawLoop(c, k, t, P, WIDE); },
+    narrow: { W: 360, H: 652, draw(c, k, t, P) { drawLoop(c, k, t, P, NARROW); } },
+  });
+})();
+
+/* ---------- Задача: четыре способа построить пачку ---------- */
 function initSort() {
   $('#stepSort').classList.add('step-sort');
   return Cards.sort('#stepSort', {
-    targets: [{ id: 's1', label: '1 шаг' }, { id: 's45', label: '4–5 шагов' }, { id: 's10', label: '10 шагов' }, { id: 's16', label: '16 и больше' }],
+    targets: [{ id: 'dp', label: 'Диффузия · 1.4–1.5' }, { id: 'act', label: 'ACT · 1.7' }, { id: 'fm', label: 'Flow matching' }, { id: 'rf', label: 'Flow matching + reflow' }],
     items: [
-      { id: 'flowp', label: 'FlowPolicy · consistency flow matching', target: 's1', why: 'Один шаг: 19,9 мс против 145,7 мс у DP3.' },
-      { id: 'mp1', label: 'MP1 · MeanFlow', target: 's1', why: 'Один шаг, 6,8 мс на RTX 4090.' },
-      { id: 'groot', label: 'GR00T N1 · flow matching', target: 's45', why: '4 шага flow: пачка из 16 действий за 63,9 мс на L40.' },
-      { id: 'pi07', label: 'π0.7 · flow matching', target: 's45', why: '5 шагов flow на пачку из 50 действий.' },
-      { id: 'rdt', label: 'RDT-1B · DPM-Solver++', target: 's45', why: '5 шагов DPM-Solver++ вместо 100.' },
-      { id: 'pi0', label: 'π0 · flow matching', target: 's10', why: '10 шагов Эйлера с δ = 0,1; 73 мс на RTX 4090.' },
-      { id: 'pi05', label: 'π0.5 · flow matching', target: 's10', why: '10 шагов после того, как модель допишет текст подзадачи.' },
-      { id: 'smol', label: 'SmolVLA · flow matching', target: 's10', why: '10 шагов, эксперт действий около 100 млн параметров.' },
-      { id: 'umi', label: 'UMI · DDIM', target: 's16', why: '16 шагов DDIM.' },
-      { id: 'octo', label: 'Octo · DDPM', target: 's16', why: '20 шагов DDPM.' },
-      { id: 'aloha', label: 'ALOHA Unleashed · DDIM', target: 's16', why: '50 шагов, 43 мс на RTX 4090.' },
+      { id: 'dpEps', label: 'Сеть предсказывает шум, а шаг считают по формуле расписания', target: 'dp', why: 'Так шагает DDIM в уроках 1.4 и 1.5: из предсказанного шума — оценка данных, потом её смешивают с тем же шумом.' },
+      { id: 'dpDiv', label: 'Оценку данных получает делением на долю сигнала, и на крупном шаге ошибка сети растёт', target: 'dp', why: 'В лаборатории 3 диффузия за один шаг разбросала точки по всей сцене: в начале пути доля сигнала около 0,006.' },
+      { id: 'actOne', label: 'Вся пачка за один проход сети, без шума на входе', target: 'act', why: 'Декодер ACT выдаёт все действия пачки сразу, по запросу на каждое (урок 1.7).' },
+      { id: 'actZ', label: 'На роботе z = 0, и в одной и той же ситуации пачка всегда одна', target: 'act', why: 'Энкодер CVAE работает только при обучении, поэтому выбирать между манерами ACT не умеет.' },
+      { id: 'fmPair', label: 'Учится скорости на прямой между случайным шумом и случайной точкой данных', target: 'fm', why: 'Это обычный flow matching: пары случайные, обучение — регрессия.' },
+      { id: 'fmCurve', label: 'Каждая обучающая пара — прямая, а пути генерации всё равно кривые', target: 'fm', why: 'Прямые разных пар пересекаются, поле — их среднее, поэтому первый шаг из шума ведёт в среднее данных (лаборатории 1, 3 и 5).' },
+      { id: 'rfPair', label: 'Учится на парах «шум — точка, куда его привела обученная модель»', target: 'rf', why: 'Пары reflow строит сама модель, и их прямые почти не пересекаются.' },
+      { id: 'rfCost', label: 'Одного шага почти хватает, но нужно ещё одно обучение', target: 'rf', why: 'В лаборатории 4 выпрямленная модель за один шаг клала в пятна около двух третей точек, а платить пришлось парами и ещё одним обучением.' },
     ],
-    after: 'У больших политик головы на flow matching делают 4–10 шагов. Диффузионные политики с DDPM и DDIM в этой выборке — от 16 до 50. Один шаг дают новые цели обучения вроде consistency и MeanFlow, но в больших политиках они пока не стандарт.',
+    after: 'ACT быстрее всех, но выбирать между манерами не умеет. Диффузия и flow matching выбирают манеру по начальному шуму, но делают по несколько проходов сети на пачку. Reflow сокращает число шагов flow почти до одного, а платят за это ещё одним обучением.',
   });
 }
 
@@ -668,14 +1021,14 @@ function renderQuiz(boxSel, Q, scoreSel) {
 }
 function initQuiz() {
   renderQuiz('#quizBox', [
-    { q: 'Flow matching — совсем другое семейство моделей, чем диффузия?', o: ['Да, общего с диффузией у него нет', 'Нет: при гауссовом шуме это та же модель с другим расписанием и другой целью, а шаг DDIM — шаг Эйлера', 'Да: flow matching обходится без шума'], a: 1, e: 'Gao и соавторы показывают, что сэмплер DDIM совпадает с методом Эйлера, а модели отличаются расписанием шума, тем, что предсказывает сеть, и весами ошибки. В лаборатории 3 диффузии понадобилось больше шагов именно поэтому.' },
-    { q: 'Обучающие пути flow matching — прямые. Значит, хватает одного шага Эйлера?', o: ['Да, прямую проходят одним шагом', 'Нет: прямые только пути отдельных пар, поле — их среднее, и пути генерации кривые; один шаг ведёт в среднее данных', 'Нет, метод Эйлера для flow matching не годится'], a: 1, e: 'В лабораториях 1 и 3 один шаг собирал весь шум в одну точку. Авторы MeanFlow пишут о том же: даже при прямых условных путях общее поле обычно даёт кривые траектории.' },
-    { q: 'Ошибка обучения flow matching должна упасть почти до нуля?', o: ['Да, иначе сеть недоучена', 'Нет: цель x₁ − x₀ для одной точки x_t случайна, и даже идеальное поле оставляет большую ошибку', 'Нет, она растёт по ходу обучения'], a: 1, e: 'В лаборатории 2 ошибка остановилась около 1,93, а у идеального поля, посчитанного по точной формуле, она 1,87.' },
-    { q: 'Чтобы обучить flow matching, на каждом шаге обучения решают дифференциальное уравнение?', o: ['Да, как в нейронных ОДУ', 'Нет: обучение — регрессия по точкам на прямых между шумом и данными; уравнение решают только при генерации', 'Нет, уравнения в методе нет вовсе'], a: 1, e: 'Lipman и соавторы называют свой метод simulation-free: шаг обучения — точка на прямой и одна цель. Уравнение появляется при генерации и при построении пар для reflow.' },
-    { q: 'Reflow достаётся бесплатно?', o: ['Да, это просто другой сэмплер', 'Нет: пары нужно сгенерировать моделью за много шагов и обучить сеть ещё раз; на большом числе шагов качество немного падает', 'Нет, ему нужны новые демонстрации от людей'], a: 1, e: 'У Liu и соавторов на CIFAR-10 FID на точном решателе вырос с 2,58 до 3,36 после первого reflow. InstaFlow потратила 199 GPU-дней на A100, чтобы выпрямить Stable Diffusion и дистиллировать её в один шаг.' },
-    { q: 'Что занимает большую часть задержки π0?', o: ['Десять шагов flow matching', 'Проход по картинкам и тексту: 46 из 73 мс, а все 10 шагов эксперта — 27 мс', 'Передача данных по сети'], a: 1, e: 'Наблюдение считается один раз и лежит в кэше, а эксперт действий маленький. Поэтому сокращение числа шагов экономит меньше, чем кажется.' },
-    { q: 'В статье π0 τ = 0 — шум. В коде openpi так же?', o: ['Да', 'Нет: в коде t = 1 — шум, генерация идёт от 1 к 0 с шагом −0,1', 'В коде нет понятия времени'], a: 1, e: 'Авторы openpi прямо пишут в комментарии, что конвенция противоположна статье. SD3 и MeanFlow тоже ставят шум в t = 1, а Lipman, Liu и наш курс — в t = 0.' },
-    { q: 'Пути оптимального транспорта у Lipman — это когда шум и данные спаривают оптимальным транспортом внутри мини-пакета?', o: ['Да', 'Нет: это условный путь — прямая от гауссианы шума к одной точке данных; спаривание внутри мини-пакета позже предложили Tong и соавторы и Pooladian и соавторы', 'Это другое название reflow'], a: 1, e: 'Lipman и соавторы оговаривают, что условный поток оптимален, но общее поле от этого не становится решением задачи транспорта. Спаривание внутри мини-пакета (OT-CFM) выпрямляет пути и помогает при малом числе шагов.' },
+    { q: 'Flow matching — совсем другое семейство моделей, чем диффузия?', o: ['Да: flow matching обходится без шума', 'Нет: шаг DDIM — тот же шаг Эйлера, разные расписание и выход сети', 'Нет, это просто другое имя DDPM'], a: 1, e: 'При гауссовом шуме это одно семейство: сэмплер DDIM совпадает с методом Эйлера, а модели отличаются расписанием шума и тем, что предсказывает сеть. Поэтому в лаборатории 3 диффузии понадобилось больше шагов.' },
+    { q: 'Обучающие пути flow matching — прямые. Значит, хватает одного шага Эйлера?', o: ['Да: прямую проходят одним шагом', 'Нет: поле — среднее пересекающихся прямых, и пути генерации кривые', 'Нет, метод Эйлера для flow matching не годится'], a: 1, e: 'Прямые только отдельные пары. Через одну точку идут прямые к разным данным, поле — их среднее, и один шаг из шума ведёт в среднее данных: в лабораториях 1 и 3 он собирал весь шум в одну точку.' },
+    { q: 'Ошибка обучения flow matching должна упасть почти до нуля?', o: ['Да, иначе сеть недоучена', 'Нет: цель x₁ − x₀ для одной точки x_t случайна, и разброс остаётся', 'Нет, она растёт по ходу обучения'], a: 1, e: 'Через одну точку проходят прямые к разным пятнам и от разных точек шума. Сеть выучивает среднее их скоростей, а разброс вокруг среднего остаётся ошибкой даже у идеального поля — это пунктир в лаборатории 2.' },
+    { q: 'Сеть flow matching, как и сеть Diffusion Policy, предсказывает шум?', o: ['Да, а скорость потом считают из шума', 'Нет: она сразу выдаёт скорость, и шаг — сдвиг по ней', 'Нет, она сразу выдаёт готовую пачку'], a: 1, e: 'В Diffusion Policy сеть выдаёт шум, и новую пачку считают по формуле расписания. Flow-сеть выдаёт скорость, и шаг flow — это x + h·v: один проход сети и один сдвиг.' },
+    { q: 'Reflow достаётся бесплатно?', o: ['Да, это просто другой сэмплер', 'Нет: нужны пары от исходной модели и ещё одно обучение', 'Нет, ему нужны новые демонстрации от людей'], a: 1, e: 'Пары строит исходная модель за много шагов, а выпрямленную сеть обучают ещё раз. Ошибки исходной модели переходят в пары, поэтому на большом числе шагов выпрямленная модель рисует чуть хуже — в лаборатории 4 это видно при 100 шагах.' },
+    { q: 'Пары reflow — это шум и ближайшая к нему точка данных?', o: ['Да, так прямые выходят короче', 'Нет: это шум и точка, куда его привела обученная модель', 'Нет, это две случайные точки данных'], a: 1, e: 'Reflow проводит из каждой точки шума генерацию обученной моделью и берёт начало и конец пути. Пути модели не пересекаются, поэтому прямые таких пар почти не пересекаются и сети почти нечего усреднять.' },
+    { q: 'π0 делает 10 шагов flow. Если сократить их до одного, задержка упадёт в 10 раз?', o: ['Да, задержка пропорциональна числу шагов', 'Нет: шаги эксперта дешёвые, основное время — проход по наблюдению', 'Нет, она вырастет'], a: 1, e: 'Картинки и текст считаются один раз за пачку и лежат в кэше, а шаги делает маленький эксперт действий. В лаборатории 5 один шаг вместо десяти сэкономил около трети задержки.' },
+    { q: 'ACT выдаёт пачку за один проход. Значит, flow matching роботам не нужен?', o: ['Да: один проход всегда лучше нескольких', 'Нет: ACT не выбирает между манерами, а flow matching выбирает, как диффузия', 'Нет, ACT не умеет выдавать пачки'], a: 1, e: 'На роботе ACT подаёт z = 0, и в одной ситуации пачка всегда одна. Flow matching, как диффузия, выбирает манеру по начальному шуму и при этом обходится немногими шагами.' },
   ], '#quizScore');
 }
 

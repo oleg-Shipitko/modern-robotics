@@ -1,6 +1,7 @@
 // Проверка урока 1.8: сначала цифры движка в Node (их же пишем в текстах),
 // потом все миссии в браузере — перетаскивание через CDP, ставки, обучение,
-// ползунки, свободный режим; задача на сортировку, квиз, тёмная тема и телефон 390 px.
+// ползунки, свободный режим; три анимированные схемы раздела 1 (кадры через Anim.seek,
+// подписи в канвасе и не налезают), задача на сортировку, квиз, тёмная тема и телефон 390 px.
 // Снимки — в shots/l18-*.png.
 const { launch, sleep } = require('./cdp');
 const path = require('path');
@@ -81,6 +82,51 @@ async function go(p, root, key) {
   await p.eval(`document.querySelector(${sel(root, '.g-go')}).click()`);
   await sleep(200); await p.waitFor(`!window.__l18.mis.${key}.busy`, 180000); await sleep(120);
 }
+/** Схема: в кадрах t подписи не выходят за края канваса и не налезают друг на друга (как в tools/lesson17.js). */
+async function schemeLabels(p, kind, frames) {
+  return JSON.parse(await p.eval(`(() => {
+    const cv = document.querySelector('canvas[data-anim="${kind}"]'), orig = CanvasRenderingContext2D.prototype.fillText, bad = [];
+    const [W, H] = cv.style.aspectRatio.split('/').map(Number);
+    let boxes = null;
+    CanvasRenderingContext2D.prototype.fillText = function (txt, x, y) {
+      if (boxes && this.canvas === cv) {
+        const m = this.measureText(txt), fs = parseFloat(/([\\d.]+)px/.exec(this.font)[1]), a = this.textAlign;
+        const x0 = a === 'center' ? x - m.width / 2 : a === 'right' ? x - m.width : x;
+        boxes.push({ t: String(txt), x0, x1: x0 + m.width, y0: y - fs / 2, y1: y + fs / 2 });
+      }
+      return orig.apply(this, arguments);
+    };
+    for (const t of ${JSON.stringify(frames)}) {
+      boxes = []; Anim.seek(cv, t); const b = boxes; boxes = null;
+      b.forEach((q) => { if (q.x0 < 1 || q.x1 > W - 1 || q.y0 < 0 || q.y1 > H) bad.push('t = ' + t + ': за краем «' + q.t + '»'); });
+      for (let i = 0; i < b.length; i++) for (let j = i + 1; j < b.length; j++) {
+        const ox = Math.min(b[i].x1, b[j].x1) - Math.max(b[i].x0, b[j].x0), oy = Math.min(b[i].y1, b[j].y1) - Math.max(b[i].y0, b[j].y0);
+        if (ox > 1 && oy > 1) bad.push('t = ' + t + ': «' + b[i].t + '» на «' + b[j].t + '»');
+      }
+    }
+    CanvasRenderingContext2D.prototype.fillText = orig;
+    return JSON.stringify({ layout: cv.dataset.layout, W, H, bad });
+  })()`));
+}
+const SCHEMES = { 'fm-bend': [0.3, 2.5, 5.8, 8.5, 11], 'fm-pairs': [0.6, 2.4, 6.0, 9.4, 11.6, 13.5], 'fm-loop': [1.4, 2.0, 4.0, 6.6, 9.9, 12.7, 17] };
+/** Три схемы раздела 1: зарегистрированы, движутся, подписи на месте; снимки двух кадров каждой. */
+async function schemes(p, tag, layout) {
+  const an = JSON.parse(await p.eval(`JSON.stringify([...document.querySelectorAll('canvas[data-anim]')].map((cv) => { Anim.seek(cv, 1.1); const a = cv.toDataURL(); Anim.seek(cv, 3.7); const b = cv.toDataURL(); return { k: cv.dataset.anim, moves: a !== b, inIdea: !!cv.closest('#idea') }; }))`));
+  check(an.length === 3 && an.map((x) => x.k).join(',') === 'fm-bend,fm-pairs,fm-loop' && an.every((x) => x.moves && x.inIdea), `${tag}: три схемы в разделе 1 и все движутся — ` + an.map((x) => x.k + (x.moves ? '' : ' (стоит)')).join(', '));
+  for (const [kind, frames] of Object.entries(SCHEMES)) {
+    await center(p, `canvas[data-anim="${kind}"]`);
+    const r = await schemeLabels(p, kind, frames);
+    check(r.layout === layout && r.bad.length === 0, `${tag}: схема ${kind}, раскладка ${r.layout} ${r.W}×${r.H}: подписи в канвасе и не налезают` + (r.bad.length ? ': ' + r.bad.slice(0, 4).join('; ') : ''));
+    for (const fr of [frames[1], frames[frames.length - 1]]) {
+      await p.eval(`Anim.seek(document.querySelector('canvas[data-anim="${kind}"]'), ${fr})`);
+      await p.shotEl(out(`l18-${tag === 'десктоп' ? 'd' : 'm'}-${kind}-${fr}.png`), `canvas[data-anim="${kind}"]`, 4);
+    }
+  }
+}
+/** Миссия «Разворот»: сцена поля и ползунок времени помещаются на экран вместе, если сцена у верхнего края. */
+async function sliderFits(p) {
+  return JSON.parse(await p.eval(`(() => { const top = document.querySelector('.topbar').getBoundingClientRect().height, cv = document.querySelector('#bCv'); window.scrollTo({ top: cv.getBoundingClientRect().top + scrollY - top - 8, behavior: 'instant' }); const a = cv.getBoundingClientRect(), s = document.querySelector('#wrapBT').getBoundingClientRect(); return JSON.stringify({ cv: Math.round(a.height), gap: Math.round(s.bottom - a.top), vh: innerHeight - top, ok: !document.querySelector('#wrapBT').hidden && a.top >= top - 1 && s.bottom <= innerHeight }); })()`));
+}
 async function setRange(p, id, v) { await p.eval(`(() => { const e = document.querySelector('#${id}'); e.value = ${JSON.stringify(String(v))}; e.dispatchEvent(new Event('input', { bubbles: true })); e.dispatchEvent(new Event('change', { bubbles: true })); })()`); await sleep(60); }
 async function setCheck(p, id, v) { await p.eval(`(() => { const e = document.querySelector('#${id}'); e.checked = ${!!v}; e.dispatchEvent(new Event('change', { bubbles: true })); })()`); await sleep(60); }
 async function center(p, s) { await p.eval(`document.querySelector(${JSON.stringify(s)}).scrollIntoView({ block: 'center', behavior: 'instant' })`); await sleep(150); }
@@ -119,6 +165,13 @@ async function desktop() {
   };
   await fwdRefs('при загрузке');
   await p.shot(out('l18-hero.png'));
+  const hero = await p.eval('document.querySelector(".hero .lead").textContent');
+  check(/ACT из урока 1\.7/.test(hero) && /шагами flow: на каждом шаге сеть делает один проход/.test(hero) && /reflow/.test(hero) && !/десятки шагов/.test(hero), 'вступление: ACT из урока 1.7, что такое шаг flow, reflow простыми словами, без «десятков шагов»');
+  const idea = await p.eval('document.querySelector("#idea").textContent');
+  check(/двух пятнах, то есть двух плотных скоплениях точек/.test(idea) && /называют шагом flow/.test(idea) && /Diffusion Policy тоже тратит на шаг денойзинга один проход сети/.test(idea), 'раздел 1: что такое пятна, шаг flow и сравнение с Diffusion Policy в основном тексте');
+  check(/делит остаток на долю сигнала/.test(await p.eval('document.querySelector("#steps").textContent')) && !/по расписанию DDPM/.test(await p.eval('document.querySelector("#steps .lab-intro").textContent')), 'лаборатория 3: деление на долю сигнала объяснено, без «сэмплером DDIM по расписанию DDPM»');
+  check(/Reflow составляет их с помощью уже обученной модели/.test(await p.eval('document.querySelector("#reflow").textContent')), 'reflow: как выбираются пары — простыми словами');
+  await schemes(p, 'десктоп', 'w');
 
   // --- лаборатория 1: два пятна
   await center(p, '#aMis');
@@ -147,13 +200,16 @@ async function desktop() {
   // --- лаборатория 2: обучение поля
   await center(p, '#bMis');
   check(await p.eval('document.querySelector("#wrapBT").hidden && document.querySelector("#wrapBParts").hidden'), 'Л2 М1: ручек нет');
-  await bet(p, '#bMis', 'Остановится');
+  check(/около 3/.test(await p.eval('document.querySelector("#train .lab-intro").textContent')), 'Л2: перед ставкой сказано, откуда ошибка около 3 и что такое пунктир');
+  await bet(p, '#bMis', 'До пунктира');
   const t0 = Date.now(); await go(p, '#bMis', 'b'); const tb = Date.now() - t0;
   const b1 = await p.eval('window.__l18.mis.b.ctx.results[0]');
   check(await done(p, 'b') && f1(b1.loss, 2) === '1.93' && f1(b1.floor, 2) === '1.87', `Л2 М1: обучение ${tb} мс, ошибка ${f1(b1.loss, 3)}, граница ${f1(b1.floor, 3)}`);
   await p.shotEl(out('l18-b-trained.png'), '#train .lab', 6);
   await next(p, '#bMis');
   check(await p.eval('!document.querySelector("#wrapBT").hidden'), 'Л2 М2: появился ползунок времени');
+  const sf = await sliderFits(p);
+  check(sf.ok, `Л2 М2: сцена поля (${sf.cv} px) и ползунок времени помещаются на экран вместе: ${sf.gap} из ${sf.vh} px`);
   await setRange(p, 'bT', 12);
   check(!(await done(p, 'b')), 'Л2 М2: t = 0,6 — уже наружу, но это не первый момент: ' + (await crit(p, '#bMis')));
   await setRange(p, 'bT', 10);
@@ -246,12 +302,16 @@ async function desktop() {
   await next(p, '#eMis');
 
   // --- задача и квиз
-  const items = { flowp: 's1', mp1: 's1', groot: 's45', pi07: 's45', rdt: 's45', pi0: 's10', pi05: 's10', smol: 's10', umi: 's16', octo: 's16', aloha: 's16' };
+  const items = { dpEps: 'dp', dpDiv: 'dp', actOne: 'act', actZ: 'act', fmPair: 'fm', fmCurve: 'fm', rfPair: 'rf', rfCost: 'rf' };
+  check(await p.eval('document.querySelectorAll("#stepSort .c-card").length === 8 && document.querySelectorAll("#stepSort .c-zone").length === 4'), 'задача «Четыре способа построить пачку»: 8 карточек, 4 корзины');
   for (const [id, z] of Object.entries(items)) await p.eval(`window.__l18.mis.sort.place(${JSON.stringify(id)}, ${JSON.stringify(z)})`);
   await p.eval('window.__l18.mis.sort.check()'); await sleep(100);
-  check(/^11 из 11/.test(await p.eval('document.querySelector("#stepSort .c-out").textContent')), 'задача: ' + (await p.eval('document.querySelector("#stepSort .c-out").textContent')).slice(0, 60));
+  check(/^8 из 8/.test(await p.eval('document.querySelector("#stepSort .c-out").textContent')), 'задача: ' + (await p.eval('document.querySelector("#stepSort .c-out").textContent')).slice(0, 60));
   await p.shotEl(out('l18-sort.png'), '#stepSort', 6);
-  await p.eval('document.querySelectorAll("#quizBox .q-card").forEach((c) => { const b = [...c.querySelectorAll(".q-opt")].find((x) => x.textContent.startsWith("Нет:") || x.textContent.startsWith("Проход")); b.click(); })');
+  const qz = await p.eval('[...document.querySelectorAll("#quizBox .q-card h4")].map((h) => h.textContent).join(" | ")');
+  check(!/openpi|оптимального транспорта|дифференциальное уравнение/.test(qz) && /ACT/.test(qz) && /Пары reflow/.test(qz), 'квиз: вопросы на понимание — без конвенции openpi, путей оптимального транспорта и ОДУ; есть ACT и пары reflow');
+  check(await p.eval('[...document.querySelectorAll("#quizBox .q-card")].every((c) => [...c.querySelectorAll(".q-opt")].filter((x) => x.textContent.startsWith("Нет:")).length === 1)'), 'квиз: в каждом вопросе один ответ «Нет: …»');
+  await p.eval('document.querySelectorAll("#quizBox .q-card").forEach((c) => { const b = [...c.querySelectorAll(".q-opt")].find((x) => x.textContent.startsWith("Нет:")); b.click(); })');
   await fwdRefs('после миссий и квиза');
   check(/^Итог: 8 из 8/.test(await p.eval('document.querySelector("#quizScore").textContent')), 'квиз: ' + await p.eval('document.querySelector("#quizScore").textContent'));
   await p.shotEl(out('l18-quiz.png'), '#quiz .quiz', 6);
@@ -267,6 +327,7 @@ async function desktop() {
   await p.shotEl(out('l18-e-dark.png'), '#robot .lab', 6);
   await p.shotEl(out('l18-b-dark.png'), '#train .lab', 6);
   await p.shotEl(out('l18-a-dark.png'), '#idea .lab', 6);
+  for (const kind of Object.keys(SCHEMES)) { await p.eval(`Anim.seek(document.querySelector('canvas[data-anim="${kind}"]'), ${SCHEMES[kind][SCHEMES[kind].length - 1]})`); await p.shotEl(out(`l18-${kind}-dark.png`), `canvas[data-anim="${kind}"]`, 4); }
   console.log('  логи десктопа:', p.logs.join(' | ') || 'нет');
   check(!p.logs.some((l) => /exception|error/i.test(l)), 'консоль десктопа без ошибок');
   await B.close();
@@ -279,12 +340,16 @@ async function phone() {
   console.log('Телефон 390');
   check(await m.eval('document.documentElement.scrollWidth') <= 390, 'телефон: ширина ' + await m.eval('document.documentElement.scrollWidth') + ' из 390');
   await m.shot(out('l18-m-hero.png'));
+  await schemes(m, 'телефон', 'n');
   await center(m, '#aCv');
   await dragA(m, [0.9, -0.6], [-0.8, -0.5]);
   check(await done(m, 'a'), 'телефон Л1 М1: зонд перетащен пальцем в левое пятно');
   await m.shotEl(out('l18-m-a.png'), '#idea .lab', 4);
-  await center(m, '#bMis'); await bet(m, '#bMis', 'Остановится'); await go(m, '#bMis', 'b');
+  await center(m, '#bMis'); await bet(m, '#bMis', 'До пунктира'); await go(m, '#bMis', 'b');
   check(await done(m, 'b'), 'телефон Л2 М1: сеть обучилась');
+  await next(m, '#bMis');
+  const msf = await sliderFits(m);
+  check(msf.ok, `телефон Л2 М2: сцена поля (${msf.cv} px) и ползунок времени на экране вместе: ${msf.gap} из ${msf.vh} px`);
   await m.shotEl(out('l18-m-b.png'), '#train .lab', 4);
   await center(m, '#cMis'); await bet(m, '#cMis', 'У flow'); await go(m, '#cMis', 'c');
   check(await done(m, 'c'), 'телефон Л3 М1: обе модели обучены');

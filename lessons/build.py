@@ -48,7 +48,7 @@ LESSONS = {
         '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'l17/engine.js', 'shared/anim.js', 'l17/aloha.js', 'l17/ui-l17.js'],
     }),
     'l18': ('1-8-flow-matching.html', ['l01/lesson.css', 'shared/lab.css', 'l18/l18.css'], {
-        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'l18/engine.js', 'l18/ui-l18.js'],
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'l18/engine.js', 'shared/anim.js', 'l18/ui-l18.js'],
     }),
     'l21': ('2-1-transporter-i-cliport.html', ['l01/lesson.css', 'shared/lab.css', 'l21/l21.css'], {
         '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'l21/engine.js', 'l21/ui-l21.js'],

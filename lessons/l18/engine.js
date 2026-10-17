@@ -317,9 +317,9 @@
 
   /* ---------- задержка π0 (Black et al., 2024; RTX 4090, три камеры) ---------- */
   const PI0 = { enc: 14, prefix: 32, flow10: 27, net: 13, hz: 50, chunk: 50, exec: 25 };
-  /** Задержка вывода, мс: энкодеры + префикс + N шагов эксперта действий (27 мс на 10 шагов) + сеть, если модель вне робота. */
+  /** Задержка инференса, мс: энкодеры + префикс + N шагов эксперта действий (27 мс на 10 шагов) + сеть, если модель вне робота. */
   function latency(N, offboard) { return PI0.enc + PI0.prefix + PI0.flow10 * N / 10 + (offboard ? PI0.net : 0); }
-  /** Доля времени, когда робот стоит: синхронный режим, после каждых exec действий — пауза на вывод. */
+  /** Доля времени, когда робот стоит: синхронный режим, после каждых exec действий — пауза на инференс. */
   function idle(L, exec) { const run = (exec || PI0.exec) * 1000 / PI0.hz; return L / (run + L); }
 
   const API = { rng, randn, noise, gmmSample, gmmField, gmmPath, RING, ringComps, ring, ringQuality, lossFloor, mlp, clone, trainer, NF, tfeat, FX, DIN, HID, feat, net2, predictor, trainFM, eulerGen, sampleFM, fieldGrid, ringFocus, T, ABAR, trainDDPM, ddimTimes, ddimGen, sampleDDIM, makePairs, pairsGen, segX, crossings, CH, chunkX, demos, chunkField, sampleChunk, chunkCheck, PI0, latency, idle };

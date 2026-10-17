@@ -2,7 +2,7 @@
 #aCv, #eCv { width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--line); display: block; touch-action: pan-y; }
 #aCv { aspect-ratio: 520 / 400; }
 #eCv { aspect-ratio: 560 / 280; }
-#bCv { touch-action: pan-y; }
+#bCv { touch-action: pan-y; max-width: 500px; margin: 0 auto; }
 .plot-cv { width: 100%; height: auto; aspect-ratio: 520 / 120; border-radius: 10px; border: 1px solid var(--line); display: block; margin-top: 10px; }
 .plot-cap { margin: 6px 0 0; }
 #cChart { aspect-ratio: 520 / 150; }
@@ -83,3 +83,10 @@
 }
 /* подписи под сценами */
 .cv-note { margin: 8px 0 0; font-size: 14px; line-height: 1.5; color: var(--ink-3); }
+
+/* анимированные схемы раздела 1 (shared/anim.js или его замена в ui-l18.js) */
+.scheme-fig { margin: 0 0 22px; padding: 14px 16px 12px; max-width: 820px; }
+.scheme-fig canvas { display: block; width: 100%; height: auto; }
+.scheme-fig figcaption { margin-top: 8px; }
+.scheme-fig canvas[data-layout="n"] { max-width: 460px; margin: 0 auto; }
+@media (max-width: 520px) { .scheme-fig { padding: 10px 10px 8px; } }
