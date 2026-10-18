@@ -302,6 +302,7 @@
       <figcaption class="muted-s">On the left is the policy, on the right the time axis in drive steps and the sideways shift. Each policy call (the frame lights up) produces 8 orange dots on the axis: an action chunk 8 steps ahead. Ada (the circle with eyes) executes them one at a time; the dashed line is a seam, where one chunk ends and the policy is called for the next one. Click the diagram to pause it.</figcaption>
     </figure>
     <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <p>A chunk changes the very question the policy answers. Without chunks it decides at every step where to move right now, and one such decision hardly changes the motion. With a chunk it decides which <strong>maneuver</strong> to make over the next steps, for example going around the kettle on the left, and outputs it whole. The unit of decision is no longer an action but a maneuver.</p>
       <p>The mixture of Gaussians in the lab above was already outputting chunks: a plan 24 steps long, with the side picked once every 32 steps, so there wasn't a single seam before the kettle, which is at step 18. Let's shorten the chunk. Inside a chunk the side doesn't change, but at every seam the mixture picks again and may choose the other side. On the scene Ada's path is colored by the chosen side, and the dots on it are seams.</p>
     </div>
     <div class="lab-badge"><i>🔬</i> Lab 3</div>

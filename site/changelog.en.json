@@ -23,6 +23,15 @@
       ]
     },
     {
+      "v": "3.2",
+      "date": "2026-10-19",
+      "title": "Clearer bridges between lessons, a chunk as a maneuver",
+      "items": [
+        "The bridges at the end of lessons are rewritten to be clearer: what we can already do after the lesson, where that hits a limit, and which problem the next lesson solves.",
+        "Lessons 1.3 and 1.7 explain that with a chunk the unit of decision becomes a maneuver rather than a single action, and where the ACT authors got this idea."
+      ]
+    },
+    {
       "v": "3.1",
       "date": "2026-10-18",
       "title": "A clearer lesson 1.8 and bridges between lessons",
