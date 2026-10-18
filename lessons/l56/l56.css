@@ -61,8 +61,6 @@
 .m-live .m-crit li.no i { border-color: var(--line-2); color: var(--ink-3); background: var(--surface-2); }
 .m-live .m-crit li.no i::before { content: '·'; }
 
-/* мост в урок 5.7 */
-.callout.bridge p { margin: 0; }
 
 @media (max-width: 760px) {
   .num-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }

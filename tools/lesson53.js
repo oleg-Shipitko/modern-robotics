@@ -40,9 +40,9 @@ const clickWait = async (p, sel, idle) => { await p.click(sel); await sleep(80);
     const hero = await p.eval(`document.getElementById('heroMis').textContent`);
     check(/^9 миссий с целью$/.test(hero), 'число миссий в шапке: ' + hero);
     check((await p.eval(`document.querySelectorAll('#recall .rc-q').length`)) === 3, 'разминка по уроку 5.2: три вопроса');
-    check(await p.eval(`!!document.querySelector('.bridge a[href="5-4-perenos-iz-simulyatsii.html"]')`), 'в мосте ссылка на урок 5.4 (выходит в тот же день)');
-    const bridge = await text(p, '#finale .bridge');
-    check(/5\.4/.test(bridge) && /симуляц/.test(bridge) && /4\.5/.test(bridge), 'в итогах — абзац-мост в 5.4 со ссылкой назад на 4.5');
+    check(await p.eval(`!!document.querySelector('.bridge-note a[href="5-4-perenos-iz-simulyatsii.html"]')`), 'в мосте ссылка на урок 5.4 (выходит в тот же день)');
+    const bridge = await text(p, '#finale .bridge-note');
+    check(/5\.4/.test(bridge) && /симуляц/.test(bridge) && /рандомизация динамики/.test(bridge), 'в итогах — мост в 5.4 «Перенос из симуляции»');
     await p.eval("window.__l53.SPEED.k = 20; document.querySelector('.topbar').style.visibility = 'hidden'; true");
 
     // ---------- схемы ----------

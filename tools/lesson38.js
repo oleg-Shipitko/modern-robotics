@@ -46,7 +46,7 @@ const text = (p, sel) => p.eval(`document.querySelector('${sel}').textContent.re
   check(/^7 миссий с целью$/.test(hero), 'число миссий в шапке: ' + hero);
   check((await p.eval(`document.querySelectorAll('#recall .rc-q').length`)) === 3, 'разминка по уроку 3.7: три вопроса');
   check(await p.eval(`!!document.querySelector('a[href="proverka-chasti-3.html"]')`), 'ссылка на проверку части 3 на месте');
-  check(await p.eval(`!document.querySelector('a[href="4-1-masshtab-dannykh.html"]') && /часть 4/.test(document.getElementById('finale').textContent)`), 'урок 4.1 ещё не вышел: ссылки нет, мост в часть 4 — текстом');
+  check(await p.eval(`!document.querySelector('a[href="4-1-masshtab-dannykh.html"]') && /Урок 4\\.1 · Масштаб данных/.test(document.querySelector('#finale .bridge-note').textContent)`), 'урок 4.1 ещё не вышел: ссылки нет, мост в урок 4.1 — текстом');
   check((await p.eval(`document.querySelectorAll('.ada-note').length`)) === 1 && /Ада — домашний гуманоид на колёсной базе/.test(await text(p, '.ada-note')), 'сноска об Аде одна, текст по новому правилу');
   await p.eval('window.__l38.SPEED.k = 20; true');
 

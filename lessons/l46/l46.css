@@ -100,8 +100,6 @@
 .fl-r .fl-a i.lost::after { transform: rotate(-45deg); }
 .fleet.n32 .fl-r .fl-a { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
-/* мост в часть 5 */
-.callout.bridge p { margin: 0; }
 
 @media (max-width: 760px) {
   .src-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }

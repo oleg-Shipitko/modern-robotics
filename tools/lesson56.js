@@ -104,9 +104,9 @@ const idle = (p, lab) => p.waitFor(`!window.__l56.${lab}.st.busy`, 240000);
     const hero = await p.eval(`document.getElementById('heroMis').textContent`);
     check(/^9 миссий с целью$/.test(hero), 'число миссий в шапке: ' + hero);
     check((await p.eval(`document.querySelectorAll('#recall .rc-q').length`)) === 3, 'разминка по уроку 5.5: три вопроса');
-    check(await p.eval(`!document.querySelector('a[href^="5-7"]')`), 'ссылки на ещё не написанный урок 5.7 нет');
-    const bridge = await text(p, '#finale .bridge');
-    check(/5\.7/.test(bridge) && /HIL-SERL/.test(bridge) && /3\.8/.test(bridge), 'в итогах — абзац-мост в 5.7 со ссылкой назад на 3.8');
+    check(await p.eval(`!!document.querySelector('#finale .bridge-note a[href="5-7-rl-na-realnykh-robotakh.html"]')`), 'в мосте ссылка на урок 5.7 (выходит в тот же день)');
+    const bridge = await text(p, '#finale .bridge-note');
+    check(/5\.7/.test(bridge) && /RL на реальных роботах/.test(bridge) && /подстраховывает/.test(bridge), 'в итогах — мост в 5.7 «RL на реальных роботах»');
     check((await p.eval(`L56.CFG.SEED`)) === 1 && (await p.eval(`L56.CFG.STEPS`)) === 4000, 'зерно 1, 4000 шагов обучения');
     await p.eval(`document.querySelector('.topbar').style.visibility = 'hidden'; true`);
 

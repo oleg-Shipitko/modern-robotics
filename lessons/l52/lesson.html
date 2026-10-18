@@ -354,7 +354,7 @@
       <li><a href="https://leggedrobotics.github.io/legged_gym/" target="_blank" rel="noopener">legged_gym</a><span>Код Rudin et al.: среды ANYmal и других роботов и обучение PPO в Isaac Gym</span></li>
       <li><a href="http://incompleteideas.net/book/RLbook2020.pdf" target="_blank" rel="noopener">Sutton и Barto, PDF</a><span>Свободная версия учебника; градиент политики — глава 13</span></li>
     </ul>
-    <div class="callout insight bridge" style="margin-top:34px"><span class="ico">🧭</span><div><p><strong>Дальше: 5.3 Off-policy и SAC.</strong> PPO учится только на свежих данных своей политики: каждую порцию опыта он проходит несколько эпох и выбрасывает. В коридоре Ада проехала ради этого 400 поездок, ANYmal в симуляторе — 147 миллионов шагов. На настоящем роботе столько опыта не набрать. В следующем уроке — методы off-policy: они хранят опыт в буфере и учатся на старых поездках снова и снова, а SAC добавляет к награде бонус за разнообразие действий и учит ходьбу на настоящем роботе за часы. Преимущество и ценность из урока 5.1 и этого урока понадобятся и там.<!--if:5-3-sac.html--> <a href="5-3-sac.html">Урок 5.3 →</a><!--/if--></p></div></div>
+    <div class="bridge-note"><p>PPO после каждого обновления выбрасывает собранный опыт, и даже простым задачам нужны миллионы шагов.</p><p class="bridge-to"><!--if:5-3-sac.html--><a href="5-3-sac.html"><!--/if-->Урок 5.3 · Off-policy и SAC: как учиться на старом опыте снова и снова<!--if:5-3-sac.html--></a><!--/if--></p></div>
   </div>
 </section>
 

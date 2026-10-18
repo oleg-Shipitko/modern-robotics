@@ -105,7 +105,8 @@
       <p>The direction of the gripper scale here is the lesson's assumption: 0 means the jaws are closed, 255 means they are fully open. The paper doesn't specify the direction.</p>
     </div></details>
     <div class="prose" style="margin:22px 0 0;max-width:820px">
-      <p>The format is settled: the action has become a phrase made of tokens, and it can be given to the model in the same form as the answer to a question about an image. But fine-tuning changes the weights of the whole model. If you train it on action strings alone, won't it lose what it was chosen for in the first place, its knowledge of the world from web data?</p>
+      <p>The format is settled: the action has become a phrase made of tokens, and it can be given to the model in the same form as the answer to a question about an image.</p>
+      <div class="bridge-note down"><p>But fine-tuning changes the weights of the whole model: trained on action strings alone, it can forget what it knew about the world from web data.</p><p class="bridge-to">Co-fine-tuning: how to keep that knowledge</p></div>
     </div>
   </div>
 </section>
@@ -274,7 +275,7 @@
       <li><a href="https://arxiv.org/abs/2406.09246" target="_blank" rel="noopener">OpenVLA</a><span>An open 7B-parameter VLA with the same action encoding</span></li>
       <li><a href="https://arxiv.org/abs/2501.09747" target="_blank" rel="noopener">FAST</a><span>Action tokenization with the discrete cosine transform</span></li>
     </ul>
-    <!--if:3-4-open-x-embodiment.html--><div class="callout insight" style="margin-top:34px"><span class="ico">➡️</span><div><p><strong>Next: Open X-Embodiment.</strong> RT-2 learned from the data of one robot in one kitchen, and web data helped it generalize. In lesson 3.4 the data comes from 22 robots in different labs, in a common format, and the question is put differently: does one arm benefit from the experience of another? <a href="3-4-open-x-embodiment.html">Lesson 3.4 →</a></p></div></div><!--/if-->
+    <div class="bridge-note"><p>RT-2 was trained on data from one company's robots, while most labs have their own robot and only a few recordings.</p><p class="bridge-to"><!--if:3-4-open-x-embodiment.html--><a href="3-4-open-x-embodiment.html"><!--/if-->Lesson 3.4 · Open X-Embodiment: does data from other robots help<!--if:3-4-open-x-embodiment.html--></a><!--/if--></p></div>
   </div>
 </section>
 

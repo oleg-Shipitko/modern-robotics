@@ -158,7 +158,7 @@ async function desktop() {
   // в пределах 160 символов; остальные упоминания свободны. Проверяем при загрузке и после миссий и квиза.
   check(/π0 — большой политике из урока 1\.6/.test(await p.eval('document.querySelector("#robot").textContent')), 'π0 в разделе «Робот» отсылает к уроку 1.6');
   const fwdRefs = async (when) => {
-    const body = await p.eval('(() => { const m = document.querySelector("main").cloneNode(true); m.querySelectorAll("#recall, #glData, .katex, #finale .links, #finale .links + *, #finale .callout, #stepSort").forEach((e) => e.remove()); return m.textContent; })()');
+    const body = await p.eval('(() => { const m = document.querySelector("main").cloneNode(true); m.querySelectorAll("#recall, #glData, .katex, #finale .links, #finale .links + *, #finale .callout, #finale .bridge-note, #stepSort").forEach((e) => e.remove()); return m.textContent; })()');
     const names = ['RT-1', 'RT-2', 'OpenVLA', 'Octo', 'GR00T', 'Helix', 'CLIPort', 'Transporter', 'PerAct', 'SayCan', 'VoxPoser', 'SmolVLA', 'Gemini Robotics', 'π0.5', 'π0.7', 'UMI', 'FAST'];
     const bare = names.filter((w) => { const i = body.indexOf(w); return i >= 0 && !/урок[а-я]* \d\.\d/.test(body.slice(i, i + 160)); });
     check(bare.length === 0, `первое упоминание модели из будущего урока идёт с номером урока (${when})` + (bare.length ? ': ' + bare.join(', ') : ''));

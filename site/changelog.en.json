@@ -25,12 +25,13 @@
     {
       "v": "3.1",
       "date": "2026-10-18",
-      "title": "A clearer lesson 1.8",
+      "title": "A clearer lesson 1.8 and bridges between lessons",
       "items": [
         "Lesson 1.8 is rewritten to be clearer: what the straight paths from noise to data and a flow step are, how these lines add up to a velocity field, why reflow is needed and how its pairs are chosen; a link to ACT from lesson 1.7.",
         "Lesson 1.8 has three new animated diagrams: a curved path where a large step cuts the corner; how the lines add up to a velocity field; flow matching training and generation next to Diffusion Policy's denoising steps.",
         "Lesson 1.8 has a new task, “Four ways to build a chunk”, and a quiz that tests understanding; the time slider sits right under the scene.",
-        "A clearer lesson 2.1: the introduction says what we will cover; CLIP's contrastive learning is explained in plain words (a batch of pairs, vectors, similarity) and shown on a new animated diagram; a link to tokens from lesson 1.6. Transition questions between sections are highlighted.",
+        "A clearer lesson 2.1: the introduction says what we will cover; CLIP's contrastive learning is explained in plain words (a batch of pairs, vectors, similarity) and shown on a new animated diagram; a link to tokens from lesson 1.6.",
+        "Lessons end with a short bridge instead of the “Next” paragraph: what the lesson's method runs into and which next lesson solves it, with a link. Together they show how the course moves from one method to the next. Three more bridges sit inside lessons 0.1, 2.1 and 3.3, where the next section solves the problem of the previous one.",
         "New glossary terms: inference and flow steps.",
         "In the part checks, an option in an ordering task can be taken back by tapping it again; the Part 1 check question about the number of generation steps now tests understanding."
       ]

@@ -99,8 +99,8 @@ const dragFc = (p, m, v) => p.eval(`(() => {
     const hero = await p.eval(`document.getElementById('heroMis').textContent`);
     check(/^9 миссий с целью$/.test(hero), 'число миссий в шапке: ' + hero);
     check((await p.eval(`document.querySelectorAll('#recall .rc-q').length`)) === 3, 'разминка по уроку 5.4: три вопроса');
-    const bridge = await text(p, '#finale .bridge');
-    check(/5\.6/.test(bridge) && /Offline RL/.test(bridge) && /симулятор/.test(bridge), 'в итогах — абзац-мост в 5.6');
+    const bridge = await text(p, '#finale .bridge-note');
+    check(/5\.6/.test(bridge) && /Offline RL/.test(bridge) && /симулятор/.test(bridge), 'в итогах — мост в 5.6');
     await p.eval("window.__l55.SPEED.k = 20; document.querySelector('.topbar').style.visibility = 'hidden'; true");
 
     // ---------- схемы ----------

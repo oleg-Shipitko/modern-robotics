@@ -348,7 +348,7 @@ def glossarize(page, key):
         return page
     pats = sorted(((g, re.compile(r'(?<![\w-])(?:' + g['a'].replace(' ', r'(?:\s|&nbsp;)+') + r')(?![\w-])', re.I))
                    for g in GLOSSARY if (not g.get('only') or key in g['only']) and key not in g.get('except', [])), key=lambda x: -len(x[0]['a']))
-    used, out, section_ok, prose, skip, katex = {}, [], False, 0, 0, 0
+    used, out, section_ok, prose, skip, katex, bto = {}, [], False, 0, 0, 0, False
     for part in re.split(r'(<[^>]+>)', page[a:b]):
         if part.startswith('<'):
             m = re.match(r'<(/?)([a-zA-Z0-9]+)', part)
@@ -360,6 +360,8 @@ def glossarize(page, key):
                     katex += -1 if (close and tag == 'span') else 1 if (tag == 'span' and not part.endswith('/>')) else 0
                 elif tag == 'span' and not close and 'katex' in part:
                     katex = 1
+                elif tag == 'p' and (bto if close else 'bridge-to' in part):  # строка моста «→ Урок…» — как заголовок
+                    bto = not close; skip += -1 if close else 1
                 elif tag in ('p', 'li'):
                     prose += -1 if close else 1
                 elif tag in SKIP_TAGS:

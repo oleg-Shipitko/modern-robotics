@@ -102,7 +102,7 @@ const has = (s, list) => list.filter((x) => !s.includes(x));
     const rec = J(await p.eval(`document.getElementById('recallData').textContent`)), l03 = fs.readFileSync(path.resolve(__dirname, '../lessons/l03/lesson.html'), 'utf8');
     const secOk = rec.q.every((q) => { const m = l03.match(new RegExp(`<section[^>]*id="${q.sec}"[^>]*>[\\s\\S]*?<h2>([^<]*)</h2>`)); return m && m[1].trim() === q.secTitle; });
     check(rec.href === '0-3-kinematika-i-upravlenie.html' && secOk, 'разминка: разделы и заголовки — настоящие в уроке 0.3');
-    check(await p.eval(`!!document.querySelector('#finale .bridge a[href="8-2-bezopasnost.html"]')`) && /8\.2/.test(await text(p, '#finale .bridge')), 'мост в урок 8.2 со ссылкой');
+    check(await p.eval(`!!document.querySelector('#finale .bridge-note a[href="8-2-bezopasnost.html"]')`) && /8\.2/.test(await text(p, '#finale .bridge-note')), 'мост в урок 8.2 со ссылкой');
     check((await p.eval(`L81.CFG.SEED`)) === 1, 'зерно лабораторий — 1');
     await p.eval(`window.__l81.SPEED.k = 6; document.querySelector('.topbar').style.visibility = 'hidden'; true`);
 

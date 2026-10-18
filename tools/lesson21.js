@@ -1,5 +1,5 @@
 // Урок 2.1 «Transporter и CLIPort»: лаборатории дают обещанные в тексте исходы, консоль чиста, телефон без горизонтальной прокрутки.
-// Схема контрастного обучения (shared/anim.js) — подписи в канвасе на всех кадрах; вопросы-переходы — в конце разделов.
+// Схема контрастного обучения (shared/anim.js) — подписи в канвасе на всех кадрах; мосты — один внутри урока (↓) и один в конце (→).
 // Снимки — shots/l21-*.png. Урок собирается на дату выпуска: MR_ASOF=2026-10-10 python3 lessons/build.py l21.
 const path = require('path');
 const fs = require('fs');
@@ -51,10 +51,11 @@ const NO_ANIM = 'схемы нет: в build.py для l21 нужен shared/ani
   check((await p.eval(`document.querySelectorAll('#recall .rc-q, #recall [data-recall] *').length`)) > 0, 'разминка по уроку 1.8 на месте');
   const lead = await p.eval(`document.querySelector('#top .lead').textContent`);
   check(/^В части 1 мы разбирали/.test(lead) && /В уроке разберём/.test(lead) && !/Политики части 1/.test(lead), 'вступление: что разбирали в части 1 и что разберём в уроке');
-  // вопросы-переходы: последний абзац раздела, вопрос, на который отвечает следующий раздел
-  const bq = J(await p.eval(`JSON.stringify([...document.querySelectorAll('p.bridge-q')].map((q) => ({ t: q.textContent.trim(), last: !q.nextElementSibling, prose: !!q.closest('.prose'), sec: q.closest('section').id })))`));
-  check(bq.length === 4 && bq.every((q) => q.last && q.prose && /\?$/.test(q.t)) && bq.map((q) => q.sec).join() === 'words,maps,place,cliport',
-    'вопросы-переходы: ' + bq.map((q) => `${q.sec} «${q.t}»`).join('; '));
+  // мосты: внутри урока один — от CLIP к картам действий (↓, последним в разделе), в конце урока — к уроку 2.2 (→, со ссылкой)
+  const bn = J(await p.eval(`JSON.stringify([...document.querySelectorAll('.bridge-note')].map((b) => ({ t: b.textContent.trim(), down: b.classList.contains('down'), last: !b.nextElementSibling, sec: b.closest('section').id, a: b.querySelector('a') && b.querySelector('a').getAttribute('href') })))`));
+  check(bn.length === 2 && bn.every((b) => b.last) && bn[0].down && bn[0].sec === 'words' && /^CLIP отвечает только на вопрос «что»/.test(bn[0].t) && /Действие — клетка на картинке: как/.test(bn[0].t) && !bn[0].a
+    && !bn[1].down && bn[1].sec === 'finale' && /Урок 2\.2 · PerAct/.test(bn[1].t) && bn[1].a === '2-2-peract.html', 'мосты: ' + bn.map((b) => `${b.sec}${b.down ? ' ↓' : ' →'} «${b.t}»`).join('; '));
+  check(!(await p.eval(`!!document.querySelector('.bridge-q')`)) && !(await p.eval(`[...document.querySelectorAll('#finale .callout strong')].some((e) => /^Дальше/.test(e.textContent))`)), 'старых вопросов-переходов и плашки «Дальше» нет');
   // схема контрастного обучения: кадры с подписями в канвасе; верная пара сходится, неверная расходится
   await p.eval(`(() => { const cv = document.querySelector('canvas[data-anim=contrast]'); if (cv) cv.scrollIntoView({ block: 'center' }); return true; })()`); await sleep(300);
   const sc = await schemeLabels(p, 'contrast', SCHEME_T);
@@ -64,7 +65,8 @@ const NO_ANIM = 'схемы нет: в build.py для l21 нужен shared/ani
     check(g0 < 0 && g1 >= 0.95 && b0 >= 0.8 && b1 <= 0.2, `схема: верная пара ${g0} → ${g1}, неверная ${b0} → ${b1}`);
     for (const t of [3.0, 8.0, 11.2]) { await p.eval(`(() => { const cv = document.querySelector('canvas[data-anim=contrast]'); Anim.seek(cv, ${t}); cv.classList.remove('paused'); return true; })()`); await p.shotEl(out(`l21-contrast-${t}.png`), '#words .scheme-fig', 6); }
   }
-  await p.shotEl(out('l21-bridge.png'), '#words p.bridge-q', 12);
+  await p.shotEl(out('l21-bridge.png'), '#words .bridge-note', 12);
+  await p.shotEl(out('l21-bridge-end.png'), '#finale .bridge-note', 12);
   // отсылки вперёд: первое упоминание модели из будущего урока в основном тексте (без разминки, глоссария, формул,
   // раздела «Сегодня» и итога) и в исходниках интерактивов идёт с номером урока «урок N.M» не дальше 160 символов; остальные упоминания свободны
   const fwdNames = ['RT-1', 'RT-2', 'Open X-Embodiment', 'Octo', 'OpenVLA', 'SmolVLA', 'π0', 'PaliGemma', 'Helix', 'GR00T', 'Gemini', 'PaLM-E', 'PerAct', 'VoxPoser', 'SayCan', 'Code as Policies', 'Inner Monologue'];
@@ -124,7 +126,8 @@ const NO_ANIM = 'схемы нет: в build.py для l21 нужен shared/ani
   await p.eval(`document.documentElement.dataset.theme = 'dark'; window.dispatchEvent(new Event('resize')); true`); await sleep(500);
   await p.eval(`document.getElementById('words').scrollIntoView({ behavior: 'instant' }); true`); await sleep(300); await p.shotEl(out('l21-clip-dark.png'), '#words .lab', 6);
   if (!sc.none) { await p.eval(`(() => { const cv = document.querySelector('canvas[data-anim=contrast]'); Anim.seek(cv, 8); cv.classList.remove('paused'); return true; })()`); await p.shotEl(out('l21-contrast-dark.png'), '#words .scheme-fig', 6); }
-  await p.shotEl(out('l21-bridge-dark.png'), '#words p.bridge-q', 12);
+  await p.shotEl(out('l21-bridge-dark.png'), '#words .bridge-note', 12);
+  await p.shotEl(out('l21-bridge-end-dark.png'), '#finale .bridge-note', 12);
   console.log('телефон');
   const m = await B.page(url, { width: 390, height: 844, dpr: 2, mobile: true, light: true });
   await m.waitFor('window.__lessonReady === true', 30000); await sleep(600);
@@ -138,7 +141,7 @@ const NO_ANIM = 'схемы нет: в build.py для l21 нужен shared/ani
   const msc = await schemeLabels(m, 'contrast', SCHEME_T);
   check(!msc.none && msc.layout === 'n' && msc.bad.length === 0, msc.none ? 'телефон: ' + NO_ANIM : `телефон: схема в узкой раскладке ${msc.W}×${msc.H}, подписи в канвасе и не налезают` + (msc.bad.length ? ': ' + msc.bad.slice(0, 4).join('; ') : ''));
   if (!msc.none) { await m.eval(`(() => { const cv = document.querySelector('canvas[data-anim=contrast]'); Anim.seek(cv, 8); cv.classList.remove('paused'); return true; })()`); await m.shotEl(out('l21-m-contrast.png'), '#words .scheme-fig', 4); }
-  await m.shotEl(out('l21-m-bridge.png'), '#maps p.bridge-q', 12);
+  await m.shotEl(out('l21-m-bridge.png'), '#finale .bridge-note', 12);
   await m.eval(`document.getElementById('maps').scrollIntoView({ behavior: 'instant' }); true`); await sleep(300); await m.shotEl(out('l21-m-pick.png'), '#maps .lab', 4);
   check(!m.logs.length, 'консоль телефона: ' + (m.logs.join(' | ') || 'чисто'));
   await B.close();

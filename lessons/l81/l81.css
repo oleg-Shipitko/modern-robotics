@@ -84,8 +84,6 @@ label.opt { display: inline-flex; gap: 7px; align-items: center; font-size: 14px
 .m-live .m-crit li.no i { border-color: var(--line-2); color: var(--ink-3); background: var(--surface-2); }
 .m-live .m-crit li.no i::before { content: '·'; }
 
-/* мост в урок 8.2 */
-.callout.bridge p { margin: 0; }
 
 @media (max-width: 560px) {
   .duo { grid-template-columns: minmax(0, 1fr); gap: 8px; }

@@ -230,9 +230,15 @@ input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; border-radius
 .callout strong { color: var(--ink); }
 .callout.insight { background: linear-gradient(180deg, rgba(250,178,25,.10), rgba(250,178,25,.04)); border-color: rgba(250,178,25,.35); }
 .callout.thesis { background: linear-gradient(120deg, var(--classic-soft), var(--hybrid-soft) 50%, var(--e2e-soft)); border-color: var(--line-2); font-size: 19px; color: var(--ink); }
-/* Вопрос-переход: последний абзац раздела — вопрос, на который отвечает следующий раздел */
-.prose p.bridge-q { margin: 1.2em 0 0; padding: 11px 16px 11px 44px; position: relative; border-radius: 12px; background: var(--hybrid-soft); color: var(--ink); font-weight: 650; }
-.prose p.bridge-q::before { content: '↓'; position: absolute; left: 17px; top: 10px; font-weight: 800; color: var(--hybrid); }
+/* Мост: во что упирается метод и какой урок (→) или раздел ниже (↓) это решает; в конце урока — вместо «Дальше» */
+.bridge-note { margin: 34px 0 0; padding: 14px 18px; border-radius: 12px; background: var(--hybrid-soft); font-size: 16.5px; line-height: 1.55; }
+.prose .bridge-note p, .bridge-note p { margin: 0; color: var(--ink-2); }
+.prose .bridge-note p.bridge-to, .bridge-note p.bridge-to { margin-top: 8px; padding-left: 26px; position: relative; color: var(--ink); font-weight: 650; }
+.bridge-note p.bridge-to::before { content: '→'; position: absolute; left: 1px; top: 0; font-weight: 800; color: var(--hybrid); }
+.bridge-note.down p.bridge-to::before { content: '↓'; left: 3px; }
+.bridge-note p.bridge-to a { color: inherit; text-decoration-color: var(--hybrid); }
+.callout + .bridge-note { margin-top: 22px; }
+.prose > .bridge-note.down { margin: 1.2em 0 0; }
 .callout.note { background: var(--surface-2); }
 .callout.ada-intro { grid-template-columns: 112px 1fr; gap: 22px; align-items: center; max-width: 900px; margin: 0 0 30px; padding: 18px 22px; }
 .ada-intro .ada-fig { width: 112px; height: auto; display: block; }

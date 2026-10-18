@@ -69,7 +69,7 @@ let Bglob = null;
   check(/^9 миссий с целью$/.test(hero), 'число миссий в шапке: ' + hero);
   check((await p.eval(`document.querySelectorAll('#recall .rc-q').length`)) === 3, 'разминка по уроку 4.6: три вопроса');
   check(await p.eval(`!!document.querySelector('#finale a[href="5-2-ppo.html"]')`), 'ссылка на урок 5.2 есть (5.2 выходит в тот же день, блок <!--if--> оставлен)');
-  check(/Policy gradient|градиент политики/.test(await text(p, '#finale .bridge')) && /5\.2/.test(await text(p, '#finale .bridge')), 'в итогах — абзац-мост в урок 5.2');
+  check(/Policy gradient|градиент политики/.test(await text(p, '#finale .bridge-note')) && /5\.2/.test(await text(p, '#finale .bridge-note')), 'в итогах — мост в урок 5.2');
   await p.eval('window.__l51.SPEED.k = 20; true');
 
   // ---------- схемы ----------

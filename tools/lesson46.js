@@ -36,7 +36,7 @@ const visible = (p, sel) => p.eval(`(() => { const e = document.querySelector('$
   check(/^6 миссий с целью$/.test(hero), 'число миссий в шапке: ' + hero);
   check((await p.eval(`document.querySelectorAll('#recall .rc-q').length`)) === 3, 'разминка по уроку 4.5: три вопроса');
   check(await p.eval(`!!document.querySelector('a[href="proverka-chasti-4.html"]')`), 'ссылка на проверку части 4 на месте (выходит вместе с уроком 24.10)');
-  check(/часть 5|части 5/.test(await text(p, '#finale .bridge')), 'в итогах — абзац-мост в часть 5');
+  check(/Урок 5\.1 · Обучение с подкреплением/.test(await text(p, '#finale .bridge-note')) && (await p.eval(`document.querySelector('#finale .prose').lastElementChild.classList.contains('bridge-note')`)), 'в итогах — мост в урок 5.1, последним, после проверки части 4');
   await p.eval('window.__l46.SPEED.k = 20; true');
 
   // ---------- схемы ----------

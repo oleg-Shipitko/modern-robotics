@@ -315,7 +315,7 @@
       <li><a href="https://openai.com/blog/solving-rubiks-cube/" target="_blank" rel="noopener">Solving Rubik’s Cube with a Robot Hand</a><span>Пост OpenAI с видео ADR и помех</span></li>
       <li><a href="https://leggedrobotics.github.io/legged_gym/" target="_blank" rel="noopener">legged_gym</a><span>Открытый код Rudin et al.: параллельное обучение ходьбы с рандомизацией и учебным планом</span></li>
     </ul>
-    <div class="callout insight bridge" style="margin-top:34px"><span class="ico">🧭</span><div><p><strong>Что дальше.</strong> Рандомизация учит политику, которая работает в среднем по всем мирам: не зная, какой мир ей достался, она выбирает одно осторожное поведение на все. А в симуляторе известно всё — масса чашки, трение, задержка, рельеф; Peng и соавторы уже подавали эти параметры критику. Если бы политика знала, в каком мире она сейчас, или быстро понимала это по истории своих движений, ей не пришлось бы осторожничать везде. Как учить с подсказками, которых у робота не будет, — тема урока 5.5 «Обучение с привилегированной информацией».<!--if:5-5-privilegirovannyy-uchitel.html--> <a href="5-5-privilegirovannyy-uchitel.html">Урок 5.5 →</a><!--/if--></p></div></div>
+    <div class="bridge-note"><p>Рандомизация делает политику надёжной, но осторожной: она не знает, в каком мире оказалась. А симулятор знает о своём мире всё — массу, трение, рельеф.</p><p class="bridge-to"><!--if:5-5-privilegirovannyy-uchitel.html--><a href="5-5-privilegirovannyy-uchitel.html"><!--/if-->Урок 5.5 · Обучение с привилегированной информацией: как передать это знание политике, у которой есть только датчики<!--if:5-5-privilegirovannyy-uchitel.html--></a><!--/if--></p></div>
   </div>
 </section>
 

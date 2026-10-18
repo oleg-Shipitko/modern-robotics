@@ -46,8 +46,8 @@ const clickCell = (p, cv, i, j) => p.eval(`(() => {
     check(/^9 миссий с целью$/.test(hero), 'число миссий в шапке: ' + hero);
     check((await p.eval(`document.querySelectorAll('#recall .rc-q').length`)) === 3, 'разминка по уроку 5.3: три вопроса');
     check(await p.eval(`!!document.querySelector('a[href^="5-5"]')`), 'ссылка на урок 5.5 на месте (часть 5 выходит целиком 31.10)');
-    const bridge = await text(p, '#finale .bridge');
-    check(/5\.5/.test(bridge) && /привилегированной информацией/.test(bridge) && /в каком мире/.test(bridge), 'в итогах — абзац-мост в 5.5 «Обучение с привилегированной информацией»');
+    const bridge = await text(p, '#finale .bridge-note');
+    check(/5\.5/.test(bridge) && /привилегированной информацией/.test(bridge) && /в каком мире/.test(bridge), 'в итогах — мост в 5.5 «Обучение с привилегированной информацией»');
     await p.eval("window.__l54.SPEED.k = 20; document.querySelector('.topbar').style.visibility = 'hidden'; true");
 
     // ---------- схемы ----------

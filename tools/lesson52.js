@@ -81,8 +81,8 @@ const show = async (p, id, sel, file, pad) => { await p.eval(`document.getElemen
     const hero = await p.eval(`document.getElementById('heroMis').textContent`);
     check(/^11 миссий с целью$/.test(hero), 'число миссий в шапке: ' + hero);
     check((await p.eval(`document.querySelectorAll('#recall .rc-q').length`)) === 3, 'разминка по уроку 5.1: три вопроса');
-    const bridge = await text(p, '#finale .bridge');
-    check(/5\.3/.test(bridge) && /off-policy/i.test(bridge) && (await p.eval(`!!document.querySelector('#finale .bridge a[href="5-3-sac.html"]')`)), 'в итогах — мост в урок 5.3 со ссылкой (5.3 выходит в тот же день)');
+    const bridge = await text(p, '#finale .bridge-note');
+    check(/5\.3/.test(bridge) && /off-policy/i.test(bridge) && (await p.eval(`!!document.querySelector('#finale .bridge-note a[href="5-3-sac.html"]')`)), 'в итогах — мост в урок 5.3 со ссылкой (5.3 выходит в тот же день)');
     check((await p.eval(`L52.CFG.SEED`)) === 5 && (await p.eval(`L52.CFG.ITERS`)) === 50, 'зерно 5, 50 обновлений');
 
     // ---------- схемы ----------
