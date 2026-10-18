@@ -1,1 +1,99 @@
-/tmp/mr-i18n/stubs/privacy.en.src.html
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy policy — Modern Robotics and Physical AI</title>
+<meta name="description" content="What data the Modern Robotics and Physical AI course site collects: no cookies and no personal data, only anonymous totals per lesson.">
+<script>(function(){try{var t=localStorage.getItem('mr-theme');if(t)document.documentElement.dataset.theme=t;else if(matchMedia('(prefers-color-scheme: dark)').matches)document.documentElement.dataset.theme='dark';}catch(e){}})();</script>
+<link rel="stylesheet" href="assets/fonts/fonts.css">
+<link rel="canonical" href="{{SITE_URL}}/privacy.html">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="stylesheet" href="assets/site.css">
+<style>
+.pp-page { padding: 44px 0 70px; }
+.pp-page .wrap { max-width: 780px; }
+.pp-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px 18px; margin-bottom: 8px; }
+.pp-head a { color: var(--ink-2); font-size: 15px; }
+.pp-lead { color: var(--ink-2); font-size: 18px; line-height: 1.6; margin: 0 0 30px; }
+.pp-page h2 { font-size: 21px; margin: 34px 0 10px; }
+.pp-page p, .pp-page li { color: var(--ink-2); font-size: 16.5px; line-height: 1.65; }
+.pp-page p { margin: 0 0 12px; }
+.pp-page ul { margin: 0 0 12px; padding-left: 22px; display: grid; gap: 4px; }
+.pp-page a { color: var(--ink); }
+.pp-owner { padding: 18px 22px; margin: 0 0 8px; }
+.pp-owner p { margin: 0; }
+.pp-owner p + p { margin-top: 6px; }
+.pp-ed { color: var(--ink-3); font-size: 15px; margin: 34px 0 0; }
+.pp-formal { margin: 48px 0 0; padding: 30px 0 0; border-top: 1px solid var(--line-2); }
+.pp-formal > h2 { font-size: 25px; margin: 0 0 8px; }
+.pp-formal h3 { font-size: 18px; margin: 26px 0 8px; }
+.pp-formal p { font-size: 16px; }
+.pp-formal .n { font-variant-numeric: tabular-nums; color: var(--ink-3); margin-right: 4px; }
+</style>
+</head>
+<body>
+<main class="pp-page"><div class="wrap">
+  <div class="pp-head"><div class="kicker">Privacy</div><a href="index.html">← Home</a></div>
+  <h1>Privacy policy</h1>
+  <p class="pp-lead">The modernrobotics.ru site does not collect readers' personal data: no names, no email addresses, no IP addresses, no browser identifiers. There is no registration and there are no cookies. Below, in plain words: what the site does count, what is stored in your browser and where the data lives. At the end is <a href="#formal">the same in brief, in the terms of Russian Federal Law No. 152-FZ</a>. The Russian version of this policy is the authoritative one; this is a translation.</p>
+
+  <h2>Who runs the site</h2>
+  <div class="card pp-owner">
+    <p>The site is run by Oleg Shipitko, the author of the course. It is a personal non-commercial project.</p>
+    <p>You can report errors and inaccuracies in <a href="{{REPO}}/issues">GitHub issues</a>.</p>
+  </div>
+
+  <h2>Cookies and third-party counters</h2>
+  <p>The site sets no cookies. The pages have no Yandex Metrica, no Google Analytics, no ads, no social media pixels and no embedded widgets from other services. Fonts, formulas and all the labs are loaded from the site itself and run in your browser.</p>
+
+  <h2>What is stored in your browser</h2>
+  <p>A few marks are kept in your browser's local storage (localStorage). They are not sent to the server:</p>
+  <ul>
+    <li>the chosen theme, light or dark;</li>
+    <li>progress: which lessons you have started and finished;</li>
+    <li>a mark that a lesson has already been rated, so you are not asked again;</li>
+    <li>a mark that a “thanks” has already been sent from this browser.</li>
+  </ul>
+  <p>You can reset progress with the “Reset progress” button in the course program on the home page. All marks are removed together with the site data for modernrobotics.ru in your browser settings.</p>
+
+  <h2>Anonymous statistics</h2>
+  <p>To understand which lessons and tasks need improving, a page sends short events to the course server:</p>
+  <ul>
+    <li>the page was opened on a phone or a computer;</li>
+    <li>where the visit came from: only the type of source, for example Telegram, Yandex or Google search, GitHub, without the page address;</li>
+    <li>which sections were read;</li>
+    <li>whether the tab was on screen for 2, 10 or 30 minutes;</li>
+    <li>which missions and tasks were opened and completed, and how many quiz answers were correct.</li>
+  </ul>
+  <p>The server adds one to the “day, page, event” counter and stores only these totals. Events are not linked to each other or to a person or a browser: there are no identifiers, and the server does not read IP addresses. If Do Not Track is enabled in your browser, no events are sent.</p>
+
+  <h2>Feedback at the end of a lesson</h2>
+  <p>The “Was the lesson clear?” rating is added to the lesson's totals. Optional text of up to 1,000 characters is stored together with the day, the lesson and the rating, without a name or contact details. Email addresses and phone numbers are removed from the text in the browser, before it is sent, and again on the server. That is why feedback cannot be answered: if you need a reply, open <a href="{{REPO}}/issues">an issue on GitHub</a>.</p>
+
+  <h2>The “Say thanks” button</h2>
+  <p>A click adds one to the shared counter. The browser keeps a mark so that one thanks is not counted twice.</p>
+
+  <h2>Where the data is stored</h2>
+  <p>The site pages, statistics totals, feedback texts and the “thanks” counter are stored in Yandex Cloud in Russia. Request logs with IP addresses are not kept. Only the author of the course sees the feedback texts and totals. The data is not shared with third parties and is not used for advertising.</p>
+
+  <h2>Links to other sites</h2>
+  <p>The lessons link to papers, code and videos on other sites: arXiv, GitHub, YouTube and others. Their own rules apply there. The video by the ALOHA authors in lesson 1.7 is loaded from their site only after you click the cover image.</p>
+
+  <section class="pp-formal" id="formal">
+  <h2>Processing of personal data</h2>
+  <p><span class="n">1.</span>The owner of the modernrobotics.ru site (the Site) is Oleg Shipitko, a private individual. The Site is a non-commercial educational project: it does not sell goods or services and does not require registration.</p>
+  <p><span class="n">2.</span>The owner of the Site does not collect or process visitors' personal data within the meaning of Russian Federal Law No. 152-FZ of 27 July 2006 “On Personal Data”. The Site has no forms for entering a name, an email address or a phone number. The Site sets no cookies, uses no third-party analytics or advertising services, does not read or store visitors' IP addresses and does not assign them identifiers.</p>
+  <p><span class="n">3.</span>The information the Site receives — daily event totals, lesson ratings and feedback texts — is anonymous: it cannot be used to identify a visitor. Email addresses and phone numbers are removed from feedback text before it is sent and again on the server. This information does not relate to an identified or identifiable person and is not personal data.</p>
+  <p><span class="n">4.</span>The information is stored in Yandex Cloud in Russia, is not shared with third parties and is not used for advertising.</p>
+  <p><span class="n">5.</span>If the Site starts processing personal data, an operator's policy in accordance with Article 18.1 of Law No. 152-FZ will be published before that.</p>
+  </section>
+
+  <p class="pp-ed">Version of 8 October 2026.</p>
+</div></main>
+<footer class="foot"><div class="wrap">
+  <span>© 2026 Oleg Shipitko</span><span>Texts — CC BY-NC 4.0</span><span>Code — MIT</span><a href="lessons/glossariy.html">Glossary</a><a href="changelog.html">What's new</a><a href="{{REPO}}">Source code</a><a href="index.html#about">About the author</a>
+</div></footer>
+</body>
+</html>

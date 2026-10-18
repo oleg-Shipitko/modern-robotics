@@ -1,1 +1,42 @@
-/tmp/mr-i18n/stubs/changelog.en.src.html
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What's new — Modern Robotics and Physical AI</title>
+<meta name="description" content="What has changed in the Modern Robotics and Physical AI course: versions, dates and a list of changes.">
+<script>(function(){try{var t=localStorage.getItem('mr-theme');if(t)document.documentElement.dataset.theme=t;else if(matchMedia('(prefers-color-scheme: dark)').matches)document.documentElement.dataset.theme='dark';}catch(e){}})();</script>
+<link rel="stylesheet" href="assets/fonts/fonts.css">
+<link rel="canonical" href="{{SITE_URL}}/changelog.html">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="stylesheet" href="assets/site.css">
+<style>
+.cl-page { padding: 44px 0 70px; }
+.cl-page .wrap { max-width: 820px; }
+.cl-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px 18px; margin-bottom: 8px; }
+.cl-head a { color: var(--ink-2); font-size: 15px; }
+.cl-lead { color: var(--ink-2); font-size: 17px; line-height: 1.6; margin: 0 0 26px; }
+.cl-list { display: grid; gap: 14px; }
+.cl-v { padding: 18px 22px 16px; }
+.cl-v .top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; margin-bottom: 8px; }
+.cl-v .ver { font-family: var(--mono); font-weight: 650; font-size: 14px; padding: 2px 9px; border-radius: 999px; background: var(--bg-2); color: var(--ink-2); }
+.cl-v .date { color: var(--ink-3); font-size: 14.5px; }
+.cl-v h2 { margin: 0; font-size: 19px; }
+.cl-v ul { margin: 0; padding-left: 20px; color: var(--ink-2); font-size: 16px; line-height: 1.6; display: grid; gap: 5px; }
+.cl-soon { color: var(--ink-3); font-size: 15px; margin: 22px 0 0; }
+</style>
+</head>
+<body>
+<main class="cl-page"><div class="wrap">
+  <div class="cl-head"><div class="kicker">What's new</div><a href="index.html#program">← Home</a></div>
+  <h1>What has changed in the course</h1>
+  <p class="cl-lead">The course is improved as it is released: new parts come out, and lessons get fixes based on readers' feedback. Below are the versions and changes with dates. The first number of a version is the last released part; the second grows with every update between releases.</p>
+  <div class="cl-list">{{CHANGELOG_HTML}}</div>
+  <p class="cl-soon">New parts come out on Saturdays at 9:00 Moscow time; announcements are posted in the <a href="{{CHANNEL}}">“Продакт роботов” Telegram channel</a> (in Russian). You can <a href="{{REPO}}/issues">report an error or inaccuracy on GitHub</a>.</p>
+</div></main>
+<footer class="foot"><div class="wrap">
+  <span>© 2026 Oleg Shipitko</span><span>Texts — CC BY-NC 4.0</span><span>Code — MIT</span><a href="lessons/glossariy.html">Glossary</a><a href="{{REPO}}">Source code</a><a href="privacy.html">Privacy policy</a><a href="index.html#about">About the author</a>
+</div></footer>
+</body>
+</html>

@@ -1,1 +1,390 @@
-/tmp/mr-i18n/stubs/index.en.src.html
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Modern Robotics and Physical AI — a free online course</title>
+<meta name="description" content="A free online course on modern robotics: from classical control and behavior cloning to VLA models and humanoids. Hands-on labs that run in your browser.">
+<script>(function(){try{var t=localStorage.getItem('mr-theme');if(t)document.documentElement.dataset.theme=t;else if(matchMedia('(prefers-color-scheme: dark)').matches)document.documentElement.dataset.theme='dark';}catch(e){}})();</script>
+<link rel="stylesheet" href="assets/fonts/fonts.css">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Modern Robotics and Physical AI">
+<meta property="og:title" content="Modern Robotics and Physical AI — a free online course">
+<meta property="og:description" content="From classical control and behavior cloning to VLA models and humanoids. Hands-on labs right in your browser.">
+<meta property="og:url" content="{{SITE_URL}}/">
+<meta property="og:image" content="{{SITE_URL}}/assets/og.png">
+<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" href="{{SITE_URL}}/">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="stylesheet" href="assets/site.css">
+<link rel="stylesheet" href="assets/thanks.css">
+<link rel="stylesheet" href="assets/hero/hero.css">
+<style>
+/* ---------- Hero ---------- */
+.hero { padding: 64px 0 76px; position: relative; overflow: hidden; }
+.hero::before { content: ""; position: absolute; inset: -30% -10% auto; height: 120%; pointer-events: none; background: radial-gradient(38% 50% at 15% 30%, rgba(42,120,214,.10), transparent 70%), radial-gradient(38% 50% at 85% 25%, rgba(235,104,52,.11), transparent 70%), radial-gradient(30% 40% at 55% 70%, rgba(74,58,167,.08), transparent 70%); }
+.hero .wrap { position: relative; display: grid; grid-template-columns: 1.05fr 1fr; gap: 44px; align-items: center; }
+.hero .wrap > * { min-width: 0; }
+@media (max-width: 400px) { .hero .lead { font-size: 19px; } .chips span { font-size: 13px; } }
+.hero h1 { font-size: clamp(44px, 6.2vw, 78px); font-weight: 820; letter-spacing: -0.04em; line-height: 1.02; margin-bottom: 20px; }
+.hero h1 em { font-style: normal; background: linear-gradient(90deg, var(--classic), var(--hybrid) 55%, var(--e2e)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.hero .lead { font-size: 21.5px; }
+.cta { display: flex; flex-wrap: wrap; gap: 12px; margin: 26px 0 22px; }
+/* ---------- How a lesson works ---------- */
+.feature { padding: 22px 22px 20px; }
+.feature .ic { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; background: var(--surface-2); border: 1px solid var(--line); margin-bottom: 14px; }
+.feature .ic svg { width: 23px; height: 23px; }
+.feature p { font-size: 15.5px; margin: 0; }
+
+/* ---------- Program ---------- */
+.legend { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 14.5px; color: var(--ink-2); margin: 6px 0 22px; }
+.parts { display: grid; gap: 12px; }
+.part { padding: 0; overflow: hidden; }
+.part summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: 56px 1fr auto; gap: 16px; align-items: center; padding: 16px 20px; }
+.part summary::-webkit-details-marker { display: none; }
+.part .num { width: 48px; height: 48px; border-radius: 14px; display: grid; place-items: center; font-weight: 800; font-size: 19px; background: var(--ink); color: var(--bg); }
+.part .t { font-size: 19.5px; font-weight: 720; letter-spacing: -0.015em; line-height: 1.25; }
+.part .q { font-size: 14.5px; color: var(--ink-3); margin-top: 3px; }
+.part .count { font-size: 13.5px; font-weight: 650; color: var(--ink-3); text-align: right; white-space: nowrap; }
+.part .chev { display: inline-block; transition: transform .2s; margin-left: 8px; }
+.part[open] .chev { transform: rotate(90deg); }
+.lessons { list-style: none; margin: 0; padding: 0 20px 18px 92px; display: grid; gap: 6px; }
+.lessons li { display: grid; grid-template-columns: 44px 1fr auto; gap: 10px; align-items: baseline; font-size: 16px; padding: 7px 0; border-top: 1px solid var(--line); }
+.lessons .n { color: var(--ink-3); font-variant-numeric: tabular-nums; font-weight: 600; font-size: 14.5px; }
+.lessons .tag { font-size: 12.5px; font-weight: 650; padding: 2px 9px; border-radius: 999px; white-space: nowrap; }
+.tag.core { background: var(--hybrid-soft); color: var(--hybrid); }
+.tag.deep { background: var(--bg-2); color: var(--ink-3); }
+.tag.primer { background: rgba(250,178,25,.16); color: #8a5a00; }
+.lessons a { color: var(--ink); font-weight: 650; }
+:root[data-theme="dark"] .tag.primer { color: #fab219; }
+.soon { display: grid; justify-items: center; gap: 10px; margin: 26px 0 8px; text-align: center; }
+.soon-line { width: 100%; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 16px; }
+.soon-line::before, .soon-line::after { content: ""; height: 1px; background: var(--line-2); }
+.soon-pill { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); padding: 6px 15px; border-radius: 999px; border: 1px solid var(--line-2); background: var(--surface); }
+.soon-pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--hybrid); }
+.soon-note { margin: 0; max-width: 760px; font-size: 15.5px; color: var(--ink-3); }
+.soon-note a { color: var(--ink-2); }
+.part.later { background: transparent; box-shadow: none; }
+/* progress in this browser (lessons/shared/progress.js writes it, the home page reads it) */
+.cta-progress { margin: -10px 0 18px; font-size: 15px; color: var(--ink-3); }
+.lsn-st { display: inline-grid; place-items: center; width: 19px; height: 19px; margin-right: 8px; border-radius: 50%; vertical-align: -4px; }
+.lsn-st.done { background: color-mix(in srgb, var(--good) 14%, var(--surface)); color: var(--good); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--good) 55%, transparent); }
+.lsn-st.done svg { width: 11px; height: 11px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.lsn-st.started { background: conic-gradient(var(--ink-3) 0 50%, transparent 0); box-shadow: inset 0 0 0 1.5px var(--ink-3); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.progress-reset { margin: -10px 0 18px; font-size: 14px; color: var(--ink-3); }
+.program-links { margin: -10px 0 18px; font-size: 15px; color: var(--ink-3); }
+.program-links a { color: var(--ink-2); }
+.progress-reset button { padding: 0; border: 0; background: none; color: var(--ink-2); font: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.part.later .num { background: transparent; color: var(--ink-3); border: 1.5px dashed var(--line-2); }
+.part.later .t { color: var(--ink-2); }
+
+/* ---------- Audience and outcomes ---------- */
+.aud { padding: 24px 24px 20px; }
+.aud ul { margin: 0; padding-left: 1.1em; color: var(--ink-2); font-size: 16.5px; }
+.aud li { margin: .3em 0; }
+.outcome { padding: 20px 22px; display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: start; }
+.outcome svg { width: 26px; height: 26px; color: var(--hybrid); margin-top: 2px; }
+.outcome p { margin: 4px 0 0; font-size: 15.5px; }
+
+/* ---------- Author ---------- */
+html { scroll-padding-top: 76px; scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+.nav-links a.on { background: var(--bg-2); color: var(--ink); }
+.about-sec .wrap { display: grid; grid-template-columns: auto 1fr; gap: 36px; align-items: center; }
+.about-sec .photo { width: 196px; height: 196px; border-radius: 50%; object-fit: cover; border: 1px solid var(--line-2); background: var(--bg-2); }
+.about-name { font-size: clamp(34px, 4.6vw, 52px); font-weight: 820; letter-spacing: -0.03em; margin: 0 0 6px; }
+.about-sec .role { font-size: 20px; color: var(--ink-3); font-weight: 600; margin-bottom: 18px; }
+.about-sec .contacts { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
+.about-sec .thanks { margin-top: 26px; }
+.about-sec .disclaimer { margin-top: 24px; padding: 14px 18px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line); font-size: 15px; color: var(--ink-3); }
+
+/* ---------- FAQ ---------- */
+.faq { display: grid; gap: 10px; max-width: 860px; }
+.faq details { padding: 0; }
+.faq summary { list-style: none; cursor: pointer; padding: 17px 20px; font-weight: 680; font-size: 17.5px; display: flex; justify-content: space-between; gap: 14px; }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after { content: "+"; font-weight: 500; color: var(--ink-3); font-size: 22px; line-height: 1; }
+.faq details[open] summary::after { content: "−"; }
+.faq .a { padding: 0 20px 18px; font-size: 16.5px; color: var(--ink-2); }
+@media (max-width: 960px) { .hero .wrap { grid-template-columns: 1fr; } .lessons { padding-left: 20px; } .part summary { grid-template-columns: 48px 1fr; } .part .count { grid-column: 2; text-align: left; } .about-sec .wrap { grid-template-columns: 1fr; gap: 22px; } .about-sec .photo { width: 140px; height: 140px; } }
+</style>
+</head>
+<body>
+<!--SPRITE-->
+<header class="nav"><div class="nav-in">
+  <a class="logo" href="index.html">Modern Robotics and Physical AI</a>
+  <nav class="nav-links" aria-label="Sections">
+    <a href="#how">Format</a><a href="#program">Program</a><a href="#who">Who it is for</a><a href="#about">Author</a><a href="lessons/glossariy.html">Glossary</a>
+  </nav>
+  <a class="icon-btn" href="{{REPO}}" title="Source code on GitHub" aria-label="Source code on GitHub"><svg><use href="#i-github"/></svg></a>
+  <button class="icon-btn" id="themeBtn" type="button" aria-label="Toggle theme"><svg><use href="#i-moon"/></svg></button>
+</div></header>
+
+<main>
+<section class="hero"><div class="wrap">
+  <div>
+    <div class="kicker">Free online course · 2026</div>
+    <h1>Modern Robotics <em>and Physical AI</em></h1>
+    <p class="lead">A course on how modern robots work: from classical control and behavior cloning to VLA models and humanoids. Every topic comes with labs in your browser, where small neural networks train in a few seconds.</p>
+    <div class="cta">
+      <a class="btn primary" id="ctaMain" href="lessons/0-1-dve-paradigmy.html"><svg><use href="#i-play"/></svg><span>Start the course</span></a>
+      <a class="btn" href="#program">Course program<svg><use href="#i-arrow"/></svg></a>
+    </div>
+    <p class="cta-progress" id="ctaProgress" hidden></p>
+    <div class="chips">
+      <span><svg><use href="#i-free"/></svg>Free, no sign-up</span>
+      <span><svg><use href="#i-lab"/></svg>Labs in your browser</span>
+      <span><svg><use href="#i-phone"/></svg>Works on a phone</span>
+    </div>
+  </div>
+  <div class="card demo" id="heroDemo">
+    <div class="demo-tabs" role="tablist" aria-label="Course interactives"></div>
+    <div class="demo-head"><span class="demo-title"></span><span class="hint"><svg><use href="#i-hand"/></svg><span class="hint-t"></span></span></div>
+    <div class="demo-body"></div>
+    <div class="demo-ctrl"></div>
+    <div class="demo-status"></div>
+  </div>
+</div></section>
+
+<section class="section alt" id="how"><div class="wrap">
+  <div class="kicker">Format</div>
+  <h2>How a lesson works</h2>
+  <p class="lead">A lesson takes 30–45 minutes and covers one idea. It starts with a problem the previous methods failed to solve, then works through the idea and the key paper, and then lets you test it all hands-on.</p>
+  <div class="grid-4" style="margin-top:26px">
+    <div class="card feature"><div class="ic"><svg style="color:var(--classic)"><use href="#i-bulb"/></svg></div><h3>Theory on two levels</h3><p>The main text builds on intuition and diagrams. Formulas, dimensions and code live in collapsible blocks.</p></div>
+    <div class="card feature"><div class="ic"><svg style="color:var(--e2e)"><use href="#i-lab"/></svg></div><h3>Hands-on labs</h3><p>Experiments with small models right on the page. Before each run you make a prediction, afterwards you compare it with the result.</p></div>
+    <div class="card feature"><div class="ic"><svg style="color:var(--hybrid)"><use href="#i-paper"/></svg></div><h3>Working with papers</h3><p>Each lesson builds on one or two key papers. A reading guide tells you what to read closely and what you can skip.</p></div>
+    <div class="card feature"><div class="ic"><svg style="color:var(--good)"><use href="#i-ok"/></svg></div><h3>Checking your understanding</h3><p>A quiz with explained answers and open questions with reference solutions.</p></div>
+  </div>
+</div></section>
+
+<section class="section" id="program"><div class="wrap">
+  <div class="kicker">Program</div>
+  <h2>Program</h2>
+  <p class="lead">9 parts, 54 lessons. The parts follow a logical order: each one answers the limitations of the approaches in the previous one.</p>
+  
+  <p class="program-links">Terms from the lessons with short definitions are collected in the <a href="lessons/glossariy.html">course glossary</a>. What has changed in the lessons is on the <a href="changelog.html">“What’s new”</a> page.</p>
+  <p class="progress-reset" id="progressReset" hidden>The “completed” and “started” marks are stored only in this browser. <button type="button">Reset progress</button></p>
+  <div class="parts" id="parts" data-channel="{{CHANNEL}}"></div>
+</div></section>
+
+<section class="section alt" id="who"><div class="wrap">
+  <div class="kicker">Who it is for</div>
+  <h2>Who this course is for</h2>
+  <p class="lead">The course is written for engineers with experience in one of two fields. You need Python and the basics of machine learning. Transformers, diffusion models and the basics of control theory are covered inside the course.</p>
+  <div class="grid-2" style="margin-top:24px">
+    <div class="card aud"><h3><span class="dot" style="background:var(--e2e)"></span>ML engineers moving into robotics</h3><ul><li>kinematics, control and planning, as much as you need to work with learned models</li><li>what makes robotics data special and how it is collected</li><li>the problems where classical methods still beat neural networks</li></ul></div>
+    <div class="card aud"><h3><span class="dot" style="background:var(--classic)"></span>Roboticists picking up machine learning</h3><ul><li>a step-by-step path from behavior cloning to VLAs and world models</li><li>how π0, GR00T and Gemini Robotics are built</li><li>ways to combine learned models with the classical stack</li></ul></div>
+  </div>
+  <h3 style="margin:44px 0 16px">What you will be able to do</h3>
+  <div class="grid-2">
+    <div class="card outcome"><svg><use href="#i-paper"/></svg><div><b>Read new papers</b><p>Break down the architecture, data and limitations of new robot learning papers.</p></div></div>
+    <div class="card outcome"><svg><use href="#i-compass"/></svg><div><b>Design systems</b><p>Choose between learned, classical and hybrid solutions and justify the choice.</p></div></div>
+    <div class="card outcome"><svg><use href="#i-data"/></svg><div><b>Plan data collection</b><p>Estimate how much teleoperation, simulation and human video you need and how to set up a data flywheel.</p></div></div>
+    <div class="card outcome"><svg><use href="#i-eye"/></svg><div><b>Judge what is on the market</b><p>Tell a demo from a finished product and understand the strategies of the companies.</p></div></div>
+  </div>
+</div></section>
+
+<section class="section about-sec" id="about"><div class="wrap">
+  <img class="photo" src="assets/img/author.jpg" alt="Oleg Shipitko" width="196" height="196" loading="lazy">
+  <div>
+    <div class="kicker">Course author</div>
+    <h2 class="about-name">Oleg Shipitko</h2>
+    <div class="role">CEO, Yandex Robotics</div>
+    <p class="lead" style="margin:0 0 18px">I have worked in robotics for over ten years. This course is what I wish I could have read myself when neural networks came to robots.</p>
+    <div class="contacts">
+      <a class="btn" href="{{CHANNEL}}" target="_blank" rel="noopener"><svg><use href="#i-telegram"/></svg>Telegram channel (in Russian)</a>
+      <a class="btn" href="{{LINKEDIN}}" target="_blank" rel="noopener"><svg><use href="#i-linkedin"/></svg>LinkedIn</a>
+      <a class="btn" href="{{GITHUB}}" target="_blank" rel="noopener"><svg><use href="#i-github"/></svg>GitHub</a>
+    </div>
+    <div class="thanks" data-thanks data-channel="{{CHANNEL}}"><span class="thanks-text">The course is free. If it has been useful, say thanks — that is how I know people are reading it.</span></div>
+    <div class="disclaimer">The course is my personal project. The opinions in it are mine and do not necessarily reflect the position of my employer.</div>
+  </div>
+</div></section>
+
+<section class="section" id="contributors"><div class="wrap">
+  <div class="kicker">Acknowledgements</div>
+  <h2>Readers make the course better</h2>
+  <p class="lead" style="max-width:760px">Readers’ comments and suggestions make their way into the lessons. Thank you to everyone who writes: in the channel, in the feedback at the end of lessons, and on GitHub.</p>
+  <ul class="contrib">
+    <li><a href="https://t.me/SergeyDutov" target="_blank" rel="noopener">@SergeyDutov</a></li>
+    <li><a href="https://t.me/ilyazakharau" target="_blank" rel="noopener">@ilyazakharau</a></li>
+  </ul>
+</div></section>
+
+<section class="section alt"><div class="wrap">
+  <div class="kicker">FAQ</div>
+  <h2>Questions and answers</h2>
+  <div class="faq">
+    <details class="card"><summary>Is the course paid?</summary><div class="a">No. All materials are free and require no sign-up; your progress is saved in the browser. Texts are released under CC BY-NC 4.0, code under the MIT license.</div></details>
+    <details class="card"><summary>Do I need a robot?</summary><div class="a">No. All labs run in the browser.</div></details>
+    <details class="card"><summary>What background do I need?</summary><div class="a">Python and the basics of machine learning. Formulas and code live in separate blocks and are not required to follow the main text.</div></details>
+    <details class="card"><summary>How long does the course take?</summary><div class="a">A lesson takes 30–45 minutes. The course has 54 lessons in nine parts, and all lessons are equally important.</div></details>
+    <details class="card"><summary>When will the remaining lessons come out?</summary><div class="a">A new part is released in full every Saturday at 9:00 Moscow time. Released lessons are marked in the program; announcements are posted in the Telegram channel «Продакт роботов» (in Russian).</div></details>
+    <details class="card"><summary>Can I use the materials for teaching?</summary><div class="a">Yes, with attribution and for non-commercial purposes. The lab code can be used without restrictions under the MIT license.</div></details>
+    <details class="card"><summary>Does the course collect data about readers?</summary><div class="a">No. The site counts only anonymous totals: how many times a lesson was opened, how far people read, how many missions they completed and how they answered the quiz. The feedback at the end of a lesson is stored without a name or contact details. There are no cookies and no data about readers. The totals and feedback show which lessons and tasks need more work. Details are in the <a href="privacy.html">privacy policy</a>.</div></details>
+  </div>
+</div></section>
+</main>
+
+<footer class="foot"><div class="wrap">
+  <span>© 2026 Oleg Shipitko</span><span>Texts — CC BY-NC 4.0</span><span>Code — MIT</span><a href="lessons/glossariy.html">Glossary</a><a href="changelog.html">Version {{VERSION}}, {{VERSION_DATE}}</a><a href="{{REPO}}">Source code</a><a href="privacy.html">Privacy policy</a><a href="#about">Author</a><a href="#contributors">Acknowledgements</a>
+</div></footer>
+
+<script src="assets/hero/kit.js"></script>
+<script src="assets/hero/modes.js"></script>
+<script src="assets/hero/cspace.js"></script>
+<script src="assets/hero/walk.js"></script>
+<script>window.MR_THANKS_API = {{THANKS_API_JSON}};</script>
+<script src="assets/thanks.js"></script>
+<script>window.MR_STATS_API = {{STATS_API_JSON}};</script>
+<script src="assets/stats.js"></script>
+<script>
+'use strict';
+/* ---------- Theme ---------- */
+(function () {
+  const btn = document.getElementById('themeBtn');
+  const sync = () => { btn.querySelector('use').setAttribute('href', document.documentElement.dataset.theme === 'dark' ? '#i-sun' : '#i-moon'); };
+  btn.addEventListener('click', () => { const t = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.theme = t; try { localStorage.setItem('mr-theme', t); } catch (e) {} sync(); });
+  sync();
+})();
+
+/* ---------- Menu: highlight the section on screen ---------- */
+(function () {
+  const links = [...document.querySelectorAll('.nav-links a[href^="#"]')], secs = links.map((a) => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+  const onScroll = () => { let cur = null; for (const s of secs) if (s.getBoundingClientRect().top < 140) cur = s.id;
+    if (window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 4) { const last = secs[secs.length - 1]; if (last.getBoundingClientRect().top < window.innerHeight) cur = last.id; } links.forEach((a) => a.classList.toggle('on', a.getAttribute('href') === '#' + cur)); };
+  window.addEventListener('scroll', onScroll, { passive: true }); onScroll();
+})();
+
+/* ---------- Program ---------- */
+const READY = {{READY_JSON}}; // published lessons — the list in site/config.json, PUBLISHED
+const READY_RU = {{READY_RU_JSON}}; // published lessons that exist only in Russian so far — linked to the Russian page
+const PARTS = [
+  { t: 'Introduction: the classical stack and its limits', q: 'How robots work without learning, and where that approach stops working', L: [['0.1', 'Two paradigms: rules and data', 'core'], ['0.2', 'Robot anatomy: actuators and sensors', 'core'], ['0.3', 'Kinematics and control', 'core', 1], ['0.4', 'State estimation and planning', 'deep', 1], ['П0', 'Part 0 check', 'check']] },
+  { t: 'Learning from demonstrations', q: 'How to get behavior from demonstrations, and the problems that come with it', L: [['1.1', 'Behavior Cloning', 'core'], ['1.2', 'DAgger and learning from interventions', 'core'], ['1.3', 'Action multimodality', 'core'], ['1.4', 'Diffusion models', 'core', 1], ['1.5', 'Diffusion Policy', 'core'], ['1.6', 'The Transformer', 'core', 1], ['1.7', 'ACT: action chunking', 'core'], ['1.8', 'Flow matching', 'deep'], ['П1', 'Part 1 check', 'check']] },
+  { t: 'Spatial representations, language and planning', q: 'How to tie robot actions to scene geometry and natural language', L: [['2.1', 'Transporter and CLIPort', 'core'], ['2.2', 'PerAct: 3D representations and language', 'deep'], ['2.3', 'LLM planners and VoxPoser', 'core'], ['П2', 'Part 2 check', 'check']] },
+  { t: 'Foundation models for robots', q: 'How to bring the scaling of language models into robot control', L: [['3.1', 'RT-1', 'core'], ['3.2', 'Vision-language models', 'core', 1], ['3.3', 'RT-2', 'core'], ['3.4', 'Open X-Embodiment', 'deep'], ['3.5', 'Open VLAs: Octo, OpenVLA', 'deep'], ['3.6', 'π0', 'core'], ['3.7', 'Dual-system architectures: Helix, GR00T, Gemini Robotics', 'core'], ['3.8', 'Generalization and reasoning: from π0.5 to π0.7', 'core'], ['П3', 'Part 3 check', 'check']] },
+  { t: 'Data for training robots', q: 'Where to get data at the scale modern models need', L: [['4.1', 'The scale of data in robotics', 'core'], ['4.2', 'Teleoperation and data collection devices', 'deep'], ['4.3', 'Robot datasets', 'deep'], ['4.4', 'Learning from human video', 'core'], ['4.5', 'Simulation and synthetic data', 'deep'], ['4.6', 'The data pyramid and the flywheel', 'core']] },
+  { t: 'Reinforcement learning', q: 'How to surpass the demonstrations and learn from your own experience', L: [['5.1', 'RL basics: reward, value, advantage', 'core'], ['5.2', 'Policy gradient and PPO', 'core'], ['5.3', 'Off-policy and SAC', 'deep'], ['5.4', 'Sim-to-real transfer: randomization', 'core'], ['5.5', 'Learning with privileged information', 'deep'], ['5.6', 'Offline RL', 'deep'], ['5.7', 'RL on real robots and VLA fine-tuning', 'core']] },
+  { t: 'Humanoid robots', q: 'How to control a human-like body as a whole', L: [['6.1', 'RL-based locomotion', 'core'], ['6.2', 'Imitating human motion', 'deep'], ['6.3', 'Whole-body control', 'core'], ['6.4', 'Loco-manipulation', 'deep'], ['6.5', 'Humanoid hardware', 'deep'], ['6.6', 'A survey of humanoid platforms', 'deep']] },
+  { t: 'World models', q: 'Can policies be trained and tested inside a learned model of the environment', L: [['7.1', 'World Models and Dreamer', 'core'], ['7.2', 'JEPA and V-JEPA 2', 'deep'], ['7.3', 'Generative world models', 'deep'], ['7.4', 'World Action Models', 'core'], ['7.5', 'World models for policy evaluation and data generation', 'deep']] },
+  { t: 'From prototype to product', q: 'How to build a reliable system and judge whether it is ready for work', L: [['8.1', 'Classical methods in the control loop', 'core'], ['8.2', 'Safety', 'core'], ['8.3', 'Reliability', 'core'], ['8.4', 'Evaluation', 'core'], ['8.5', 'Latency and real-time operation', 'deep'], ['8.6', 'The market: companies and strategies', 'core'], ['8.7', 'The economics of deployment', 'deep']] },
+];
+(function () {
+  const box = document.getElementById('parts');
+  const PROGRESS = (() => { try { return JSON.parse(localStorage.getItem('mr-progress') || '{}') || {}; } catch (e) { return {}; } })();
+  const slugOf = (file) => file.split('/').pop().replace(/\.html$/, '');
+  const prog = (n) => (READY[n] && PROGRESS[slugOf(READY[n])]) || null;
+  const CHECK = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 6.2 5 8.6 9.6 3.6"/></svg>';
+  let last = -1; // the last part that has published lessons
+  PARTS.forEach((p, i) => { if (p.L.some((l) => READY[l[0]])) last = i; });
+  function soon(from) {
+    const to = PARTS.length - 1, el = document.createElement('div'); el.className = 'soon';
+    el.innerHTML = '<div class="soon-line"><span class="soon-pill">Coming soon</span></div><p class="soon-note"></p>';
+    const note = el.querySelector('.soon-note');
+    note.textContent = (from === to ? `Part ${to} is in the works.` : `Parts ${from}–${to} are in the works.`) + ' A new part comes out every Saturday at\u00a09:00 Moscow time; announcements are posted in the Telegram channel ';
+    const a = document.createElement('a'); a.href = box.dataset.channel; a.target = '_blank'; a.rel = 'noopener'; a.textContent = '«Продакт роботов»';
+    note.append(a, ' (in Russian).');
+    return el;
+  }
+  PARTS.forEach((p, i) => {
+    if (i === last + 1) box.append(soon(i));
+    const nLessons = p.L.filter((l) => l[2] !== 'check').length;
+    const d = document.createElement('details'); d.className = 'card part' + (i > last ? ' later' : ''); d.open = i <= last;
+    const s = document.createElement('summary');
+    const passed = p.L.filter((l) => l[2] !== 'check' && prog(l[0]) && prog(l[0]).f).length;
+    s.innerHTML = `<span class="num">${i}</span><span><div class="t"></div><div class="q"></div></span><span class="count">${nLessons} ${nLessons === 1 ? 'lesson' : 'lessons'}${passed ? ` · completed ${passed}` : ''}<span class="chev">›</span></span>`;
+    s.querySelector('.t').textContent = p.t; s.querySelector('.q').textContent = p.q;
+    const ul = document.createElement('ul'); ul.className = 'lessons';
+    p.L.forEach(([n, title, kind, primer]) => {
+      const li = document.createElement('li');
+      li.innerHTML = `<span class="n">${kind === 'check' ? '✓' : n}</span><span></span><span></span>`;
+      if (READY[n]) {
+        const pr = prog(n);
+        if (pr) li.children[1].insertAdjacentHTML('beforeend', pr.f ? `<span class="lsn-st done" title="Completed">${CHECK}</span><span class="sr">Completed. </span>` : '<span class="lsn-st started" title="Started"></span><span class="sr">Started. </span>');
+        const a = document.createElement('a'); a.href = READY[n]; a.textContent = title; li.children[1].append(a);
+      } else if (READY_RU[n]) {
+        const a = document.createElement('a'); a.href = READY_RU[n]; a.hreflang = 'ru'; a.textContent = title; li.children[1].append(a);
+        li.children[1].insertAdjacentHTML('beforeend', ' <span class="tag ru-only" title="Not translated yet: opens the Russian version">in Russian</span>');
+      } else li.children[1].textContent = title;
+      ul.append(li);
+    });
+    d.append(s, ul); box.append(d);
+  });
+
+  // Hero: continue the started lesson from its farthest section, or open the next one not yet completed
+  const order = PARTS.flatMap((p) => p.L).filter((l) => READY[l[0]] && l[2] !== 'check');
+  const started = order.filter((l) => prog(l[0]));
+  if (!started.length) return;
+  const done = order.filter((l) => (prog(l[0]) || {}).f);
+  const btn = document.getElementById('ctaMain'), note = document.getElementById('ctaProgress');
+  const cur = started.filter((l) => !prog(l[0]).f).sort((a, b) => prog(b[0]).t - prog(a[0]).t)[0];
+  const next = order.find((l) => !(prog(l[0]) && prog(l[0]).f));
+  const passed = `Lessons completed: ${done.length} of ${order.length}`;
+  if (cur) {
+    const pr = prog(cur[0]);
+    btn.href = READY[cur[0]] + (pr.sec && pr.sec !== 'top' ? '#' + pr.sec : '');
+    btn.querySelector('span').textContent = `Continue lesson ${cur[0]}`;
+    note.textContent = `${passed}. You are on ${cur[0]}, “${cur[1]}”.`;
+  } else if (next) {
+    btn.href = READY[next[0]];
+    btn.querySelector('span').textContent = `Next lesson: ${next[0]}`;
+    note.textContent = `${passed}. Next up: ${next[0]}, “${next[1]}”.`;
+  } else {
+    btn.href = box.dataset.channel; btn.target = '_blank'; btn.rel = 'noopener';
+    btn.querySelector('span').textContent = 'New lessons: in the channel';
+    note.textContent = `All ${order.length} published lessons completed.`;
+  }
+  note.hidden = false;
+  const reset = document.getElementById('progressReset');
+  reset.hidden = false;
+  reset.querySelector('button').addEventListener('click', () => {
+    if (!confirm('Clear the lesson progress stored in this browser?')) return;
+    try { localStorage.removeItem('mr-progress'); } catch (e) { /* nothing to clear */ }
+    location.reload();
+  });
+})();
+
+/* ---------- Hero interactive: three tabs ---------- */
+(function () {
+  const order = ['modes', 'cspace', 'walk'];
+  const card = document.getElementById('heroDemo'), tabs = card.querySelector('.demo-tabs');
+  const body = card.querySelector('.demo-body'), ctrl = card.querySelector('.demo-ctrl'), status = card.querySelector('.demo-status');
+  let cur = null, curKey = null;
+  function show(key, focus) {
+    const D = HeroDemos[key] || HeroDemos[order[0]];
+    if (D.key === curKey) return;
+    if (cur) cur.destroy();
+    curKey = D.key;
+    body.className = 'demo-body'; body.innerHTML = ''; ctrl.innerHTML = ''; status.innerHTML = '';
+    body.id = 'heroPanel'; body.setAttribute('role', 'tabpanel');
+    card.querySelector('.demo-title').textContent = D.title;
+    card.querySelector('.hint-t').textContent = D.hint;
+    cur = D.mount({ body, ctrl, status });
+    tabs.querySelectorAll('[role="tab"]').forEach((b) => { const on = b.dataset.k === D.key; b.setAttribute('aria-selected', String(on)); b.tabIndex = on ? 0 : -1; if (on && focus) b.focus(); });
+  }
+  order.forEach((k) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.dataset.k = k; b.setAttribute('role', 'tab'); b.setAttribute('aria-controls', 'heroPanel');
+    b.textContent = HeroDemos[k].tab;
+    b.addEventListener('click', () => show(k));
+    tabs.append(b);
+  });
+  tabs.addEventListener('keydown', (e) => {
+    const i = order.indexOf(curKey);
+    if (e.key === 'ArrowRight') { e.preventDefault(); show(order[(i + 1) % order.length], true); }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); show(order[(i + order.length - 1) % order.length], true); }
+  });
+  let start = order[0]; try { start = new URLSearchParams(location.search).get('hero') || start; } catch (e) { /* no parameters */ }
+  show(start);
+  window.__hero = () => cur;
+  window.__heroShow = show;
+})();
+</script>
+</body>
+</html>
