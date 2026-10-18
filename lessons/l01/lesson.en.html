@@ -485,7 +485,7 @@ v = pid(path.next - hand)</pre>
     <div class="callout note"><span class="ico">🔩</span><div><p>Even in the most end-to-end systems, classical controllers usually run at the bottom level. The network outputs target joint positions dozens of times per second, and the motor control loop tracks them at hundreds and thousands of hertz.</p></div></div>
     <div class="prose" style="margin:22px 0 0;max-width:820px">
       <p>Real systems combine both approaches, but the boundary is shifting toward data. With each generation the learned part grows: first neural networks took over perception, then planning, now motion control too.</p>
-      <div class="bridge-note down"><p>Data has plenty of weaknesses: even a simple task needs hundreds of examples, and a network can be confidently wrong without giving any signal. Yet the industry is betting on it.</p><p class="bridge-to">Why the course follows the data path from here</p></div>
+      <div class="bridge-note down"><p>We have compared both approaches: rules stop working in the open world, while a network needs hundreds of examples even for a simple task and can be confidently wrong without giving any signal. Yet the industry is betting on data.</p><p class="bridge-to">Why the course follows the data path from here</p></div>
     </div>
   </div>
 </section>

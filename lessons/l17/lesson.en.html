@@ -462,7 +462,7 @@
       <li><a href="https://aloha-unleashed.github.io" target="_blank" rel="noopener">ALOHA Unleashed</a><span>Shoelaces and a shirt: diffusion on 26,000 demonstrations</span></li>
       <li><a href="https://bid-robot.github.io" target="_blank" rel="noopener">Bidirectional Decoding</a><span>Picking a chunk by consistency with the previous one, ICLR 2025</span></li>
     </ul>
-    <div class="bridge-note"><p>ACT outputs a chunk in a single pass but can't choose between manners. Diffusion Policy chooses a manner but builds the chunk in 10–16 steps.</p><p class="bridge-to"><!--if:1-8-flow-matching.html--><a href="1-8-flow-matching.html"><!--/if-->Lesson 1.8 · Flow matching: how to keep the choice of manner and cut the number of steps<!--if:1-8-flow-matching.html--></a><!--/if--></p></div>
+    <div class="bridge-note"><p>ACT outputs a chunk in one pass, but the manner hint is set to zero when the robot runs, so ACT outputs the same manner every time. Diffusion Policy chooses between manners, but spends 10–16 network passes on a chunk.</p><p class="bridge-to"><!--if:1-8-flow-matching.html--><a href="1-8-flow-matching.html"><!--/if-->Lesson 1.8 · Flow matching: how to keep the choice of manner and build a chunk in 4–10 steps<!--if:1-8-flow-matching.html--></a><!--/if--></p></div>
   </div>
 </section>
 

@@ -53,7 +53,7 @@ const NO_ANIM = 'схемы нет: в build.py для l21 нужен shared/ani
   check(/^В части 1 мы разбирали/.test(lead) && /В уроке разберём/.test(lead) && !/Политики части 1/.test(lead), 'вступление: что разбирали в части 1 и что разберём в уроке');
   // мосты: внутри урока один — от CLIP к картам действий (↓, последним в разделе), в конце урока — к уроку 2.2 (→, со ссылкой)
   const bn = J(await p.eval(`JSON.stringify([...document.querySelectorAll('.bridge-note')].map((b) => ({ t: b.textContent.trim(), down: b.classList.contains('down'), last: !b.nextElementSibling, sec: b.closest('section').id, a: b.querySelector('a') && b.querySelector('a').getAttribute('href') })))`));
-  check(bn.length === 2 && bn.every((b) => b.last) && bn[0].down && bn[0].sec === 'words' && /^CLIP отвечает только на вопрос «что»/.test(bn[0].t) && /Действие — клетка на картинке: как/.test(bn[0].t) && !bn[0].a
+  check(bn.length === 2 && bn.every((b) => b.last) && bn[0].down && bn[0].sec === 'words' && /^CLIP связывает слова с картинками/.test(bn[0].t) && /Действие — клетка на картинке: как/.test(bn[0].t) && !bn[0].a
     && !bn[1].down && bn[1].sec === 'finale' && /Урок 2\.2 · PerAct/.test(bn[1].t) && bn[1].a === '2-2-peract.html', 'мосты: ' + bn.map((b) => `${b.sec}${b.down ? ' ↓' : ' →'} «${b.t}»`).join('; '));
   check(!(await p.eval(`!!document.querySelector('.bridge-q')`)) && !(await p.eval(`[...document.querySelectorAll('#finale .callout strong')].some((e) => /^Дальше/.test(e.textContent))`)), 'старых вопросов-переходов и плашки «Дальше» нет');
   // схема контрастного обучения: кадры с подписями в канвасе; верная пара сходится, неверная расходится

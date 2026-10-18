@@ -293,7 +293,7 @@
       <li><a href="https://hil-serl.github.io/" target="_blank" rel="noopener">HIL-SERL</a><span>J. Luo et al., Science Robotics 2025</span></li>
       <li><a href="https://www.youtube.com/watch?v=V00npNnWzSU" target="_blank" rel="noopener">DAgger in Super Tux Kart</a><span>Video by the authors of the original paper</span></li>
     </ul>
-    <div class="bridge-note"><p>DAgger adds examples where the policy drifts. But if the operator goes around an obstacle sometimes on the left and sometimes on the right, the policy drives straight into it, and new examples don't help.</p><p class="bridge-to"><!--if:1-3-multimodalnost-deystviy.html--><a href="1-3-multimodalnost-deystviy.html"><!--/if-->Lesson 1.3 · Action multimodality: why two correct examples give a wrong answer<!--if:1-3-multimodalnost-deystviy.html--></a><!--/if--></p></div>
+    <div class="bridge-note"><p>DAgger and interventions solve distribution shift: examples appear where the policy drifts. But if the operator goes around an obstacle sometimes on the left and sometimes on the right, the policy outputs the mean of the two detours and drives straight into the obstacle, and new examples won't fix that.</p><p class="bridge-to"><!--if:1-3-multimodalnost-deystviy.html--><a href="1-3-multimodalnost-deystviy.html"><!--/if-->Lesson 1.3 · Action multimodality: why two correct examples give a wrong answer and which models pick one of them<!--if:1-3-multimodalnost-deystviy.html--></a><!--/if--></p></div>
   </div>
 </section>
 
