@@ -65,7 +65,7 @@
       <p>To carry out the command “put the blue cube in the bowl”, the robot has to connect the words with what it sees. The classical route is an object detector. It's a network that finds objects from a predefined list of classes in an image, such as “cup”, “bowl” and “cube”, and draws a box labeled with the class name around each one. It's trained on images in which people outlined and labeled every object by hand. A detector can't name anything outside its list: to tell a blue cube from a purple one or to recognize a new object, it needs new labeled images and has to be retrained.</p>
       <p>Words and images already came up in lesson 1.6: a transformer turns both into tokens — the frame is cut into patches, the command into words, and each piece becomes a vector. But we didn't look at how to tie a word vector to an image vector so that “cube” in the command points to the cube in the frame. That's what we'll take apart here, using CLIP as the example.</p>
       <p><strong>CLIP</strong> (Radford et al., OpenAI, 2021) learns from 400 million image–caption pairs from the internet. It has two encoder networks: one turns an image into a vector, an embedding, the other does the same for a caption, and the two vectors have the same length. A vector is a list of numbers — CLIP's have hundreds — and it's convenient to picture it as an arrow: in the diagram below a vector has two numbers, so the arrows lie on a plane. The <strong>similarity</strong> of two vectors shows whether the arrows point the same way. The vectors are scaled to length 1 and multiplied with a dot product, the same way attention in lesson 1.6 compared a query with the keys. For vectors of length 1 the dot product is the cosine of the angle between the arrows: 1 if they point the same way, 0 at a right angle, −1 if they point in opposite directions.</p>
-      <p>The training task is to guess which caption goes with which image. The networks are trained on <strong>batches</strong>: a batch is the set of pairs taken for one training step, and CLIP's batch holds 32,768 of them. For a batch of N pairs, the similarity of every image with every caption is computed, which gives an N × N table, the similarity matrix. Its diagonal holds the N correct pairs: each image with its own caption. In the other N² − N cells an image is paired with someone else's caption.</p>
+      <p>The network learns to guess which caption belongs to which image. The networks are trained on <strong>batches</strong>: a batch is the set of pairs taken for one training step, and CLIP's batch holds 32,768 of them. For a batch of N pairs, the similarity of every image with every caption is computed, which gives an N × N table, the similarity matrix. Its diagonal holds the N correct pairs: each image with its own caption. In the other N² − N cells an image is paired with someone else's caption.</p>
       <p>A training step slightly changes the weights of both networks so that the similarity on the diagonal goes up and in the other cells goes down. The arrows of an image and its caption turn toward each other — that's how the vectors of correct pairs are pulled together. The arrows of an image and the other captions turn away from each other — that's how the vectors of wrong pairs are pushed apart. This is <strong>contrastive learning</strong>: the model learns by contrasting the correct pairs with the wrong ones.</p>
     </div>
     <figure class="card scheme-fig">
@@ -74,14 +74,14 @@
     </figure>
     <div class="prose" style="margin:0 0 22px;max-width:820px">
       <p>After training, words and images live in one space. To find an object, it's enough to describe it in words: the image whose vector is closest to the text vector wins. This way CLIP, without a single labeled ImageNet image, classifies 76.2% of ImageNet images correctly — as well as a ResNet-50 trained on its 1.28 million labeled images.</p>
-      <p>Let's check this in miniature. The objects are four shapes in six colors, and the captions are “color + shape”. One combination is missing from training entirely: the model will never see a purple cube.</p>
+      <p>Let's check this in miniature. The lab has objects of four shapes and six colors, and each caption is two words, a color and a shape, such as “red cube”. One combination is missing from training entirely: the model will never see a purple cube.</p>
     </div>
     <div class="lab-badge"><i>🔬</i> Lab 1</div>
     <div class="lab">
       <div class="card scene-card">
         <canvas id="cMat" width="440" height="380" role="img" aria-label="Similarity matrix: eight images and eight captions; the cell color is the similarity of the vectors"></canvas>
         <div class="cv-legend" id="cMatLegend"></div>
-        <p class="muted-s plot-cap">Rows are captions, columns are images. The brighter the cell, the closer the caption and image vectors. The diagonal is outlined: these are the correct pairs.</p>
+        <p class="muted-s plot-cap">The rows of the matrix are captions and the columns are images. The brighter the cell, the closer the caption and image vectors. The diagonal is outlined: it holds the correct pairs.</p>
         <div class="readout" id="cOut"></div>
         <h4 class="sub-h">Search by description</h4>
         <div class="ctl-row">
@@ -97,8 +97,8 @@
     <details class="deep"><summary>Under the hood: the contrastive objective and our small model</summary><div class="body">
       <p>Let a batch hold \(N\) pairs, let \(u_i\) be the normalized vector of the \(i\)-th image, \(v_j\) the normalized vector of the \(j\)-th caption, and \(\tau\) the temperature. Similarity is the dot product, and the objective is two cross-entropies: for each image, pick out its caption among \(N\), and for each caption, its image:</p>
       <div class="formula">\[\begin{gathered} \ell_{ij} = \frac{u_i \cdot v_j}{\tau}, \\ \mathcal L = -\frac{1}{2N}\sum_{i}\Bigl(\log \frac{e^{\ell_{ii}}}{\sum_j e^{\ell_{ij}}} + \log \frac{e^{\ell_{ii}}}{\sum_j e^{\ell_{ji}}}\Bigr). \end{gathered}\]</div>
-      <p>In CLIP the image encoder is a ResNet or a ViT, and the text encoder is a transformer. A batch is 32,768 pairs; the temperature is learned, starting from 0.07.</p>
-      <p>Here an image is 16 × 16 pixels, and it's encoded by a network with one hidden layer: 768 → 48 → 16. A caption is the sum of the vectors of two words, a color and a shape, 16 numbers per word. The vectors are normalized, \(\tau = 0.1\). A batch is 16 different pairs, each image with a random shift, size and noise; 600 Adam steps. The matrix in the scene shows eight pairs the model hasn't seen in this exact form: the images are drawn anew.</p>
+      <p>In CLIP the image encoder is a ResNet or a ViT, and the text encoder is a transformer. CLIP's batch holds 32,768 pairs; the temperature is learned along with the networks, starting from 0.07.</p>
+      <p>In the lab an image is 16 × 16 pixels, and a network with one hidden layer encodes it: 768 → 48 → 16. A caption vector is the sum of the vectors of two words, a color and a shape, with 16 numbers per word. The vectors are normalized, \(\tau = 0.1\). A batch holds 16 different pairs, and each image is randomly shifted, rescaled and given noise; training takes 600 Adam steps. The matrix in the scene shows eight pairs the model hasn't seen in this exact form: their images are drawn anew.</p>
     </div></details>
     <div class="prose" style="margin:22px 0 0;max-width:820px">
       <p>The model never saw a purple cube, yet it found one. A caption vector is the sum of word vectors, and the network learned to encode the color and the shape of an image separately: it saw purple on the ball, the bowl and the can, and cubes in five other colors. For CLIP, scale does the same job: 400 million pairs contain almost any combination of attributes. That is exactly what a robot needs — to understand words that are not in its demonstrations.</p>
@@ -117,13 +117,13 @@
       <p>The map is computed by a fully convolutional network: the same weights slide over the whole image. Move the cube, and the peak of the map moves with it. This is <strong>translation equivariance</strong>: there's no need to learn every position of the cube separately.</p>
       <p>The map is trained as a classifier: every cell of the table is a separate class, and the correct answer is the cell where the operator picked in the demonstration. A softmax is computed over the scores of all cells: it turns them into probabilities that sum to 1. Training raises the probability of the correct cell at the expense of the others. So the map is a probability distribution over places on the table. If the operator picked one cube in some demonstrations and the other in the rest, the probability is split between them: the map has two peaks rather than one in the middle.</p>
       <p class="ada-note"><svg class="ada-ico" viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="10" width="48" height="42" rx="18" fill="#f4efe6" stroke="#3d3c38" stroke-width="3"/><rect x="15" y="19" width="34" height="22" rx="10" fill="#1f2430"/><ellipse cx="25" cy="30" rx="4" ry="5.5" fill="#eb6834"/><ellipse cx="39" cy="30" rx="4" ry="5.5" fill="#eb6834"/></svg><span>Ada is the home humanoid robot the course labs are built around. More about her in <a href="0-1-dve-paradigmy.html#ada">lesson 0.1</a>.</span></p>
-      <p>Let's try it on Ada's table. A demonstration is a scene in which the operator picks up the red cube. We'll train two models: a map — a single 5 × 5 filter that slides over the 24 × 24 table grid — and coordinate regression — a network that outputs two numbers from the whole image, as in Part 1. The test is 30 new scenes in which the objects lie elsewhere.</p>
+      <p>Let's try it on Ada's table. In a demonstration, the operator picks up the red cube. We'll train two models on the demonstrations. The first is a map: a single 5 × 5 filter slides over the 24 × 24 table grid and scores every cell. The second is coordinate regression: a network looks at the whole image and outputs two numbers, like the Part 1 policies. Then we'll test both models on 30 new scenes in which the objects lie elsewhere.</p>
     </div>
     <div class="lab">
       <div class="card scene-card">
         <canvas id="pCv" width="440" height="440" class="sq-cv" role="img" aria-label="The table from above: cubes, a bowl and a ball; on top, the “where to pick” map and the point chosen by coordinate regression"></canvas>
         <div class="cv-legend" id="pLegend"></div>
-        <p class="cv-note">Top-down view of the table: squares are cubes, the ring is a bowl, the disk is a ball.</p>
+        <p class="cv-note">The table is shown from above: squares are cubes, the ring is a bowl, the disk is a ball.</p>
         <div class="pmap-row">
           <canvas id="pMap" width="144" height="144" role="img" aria-label="The whole “where to pick” map: the same table, 24 by 24 cells"></canvas>
           <p><b>The whole “where to pick” map.</b> The same table from above, 24 × 24 cells: the darker the cell, the higher the “pick here” score. The large scene shows only its peak.</p>
@@ -142,11 +142,11 @@
     <details class="deep"><summary>Under the hood: the map, softmax over cells and equivariance</summary><div class="body">
       <p>The network outputs a score \(Q(u, v)\) for every cell \((u, v)\). The probability of picking in a cell is a softmax over all cells, and the training objective is the cross-entropy with the cell where the operator picked:</p>
       <div class="formula">\[\begin{gathered} p(u, v) = \frac{e^{Q(u, v)}}{\sum_{u', v'} e^{Q(u', v')}}, \qquad \mathcal L = -\log p(u^*, v^*), \\ f(g \circ o) = g \circ f(o). \end{gathered}\]</div>
-      <p>The last equation is equivariance: if \(g\) shifts the image \(o\), the map \(f(o)\) shifts the same way. In Transporter the map is computed by a deep fully convolutional network over a top-down view fused from three RGB-D cameras. Here it's a single 5 × 5 filter over three colors: 75 weights and a bias. Coordinate regression is a 1728 → 32 → 2 network over the whole grid, about 55 thousand weights, trained on mean squared error. Both models train right here, with 120 and 300 Adam steps.</p>
+      <p>The last equation is equivariance: if \(g\) shifts the image \(o\), the map \(f(o)\) shifts the same way. In Transporter the map is computed by a deep fully convolutional network over a top-down view fused from three RGB-D cameras. Here the map is computed by a single 5 × 5 filter over three colors: 75 weights and a bias. Coordinate regression is a 1728 → 32 → 2 network over the whole grid, about 55 thousand weights, trained on mean squared error. Both models train right here, with 120 and 300 Adam steps.</p>
     </div></details>
     <div class="prose" style="margin:22px 0 0;max-width:820px">
       <p>The map picked the red cube in new scenes after one demonstration, while regression kept missing even after twenty: it has to learn how every position of the cube turns into numbers. The Transporter paper shows the same at scale. On the block insertion task the map gets 100% from one demonstration, and a convolutional network with regression gets 8% even with a thousand demonstrations.</p>
-      <p>With two cubes the difference is even starker: the map has two peaks, and the robot picks one of them, while regression outputs the mean — a point between the cubes. This is the multimodality from lesson 1.3, only now you can see it in the image. Picking is only half the task. Where do you put the object down?</p>
+      <p>With two cubes the difference is even starker: the map has two peaks, and the robot picks one of them, while regression outputs the mean — a point between the cubes. This is the multimodality from lesson 1.3, only now you can see it in the image. Picking the object up is only half the task. Where do you put it down?</p>
     </div>
   </div>
 </section>
@@ -157,7 +157,7 @@
       <div class="kicker"><span class="num">2</span> Placing</div>
       <h2>Where to place: template matching</h2>
       <p>Placing a part into a socket means finding the position and rotation at which the part matches the slot. Transporter does it the way you look for a familiar fragment in a photo: it crops the features around the picked object and lays the crop over every cell of the scene. Wherever the match is best, that's where it places. To find the rotation, the crop is rotated through 36 angles in 10° steps, and a map is built for each angle.</p>
-      <p>Transporter learns the features of the crop and of the scene from demonstrations. Here they are given: +1 in the socket's slot, −1 in the walls around it. The part is an L-shaped corner of five squares. The brightness of the map is the share of the part that lands in the slot minus the share that lands on the walls.</p>
+      <p>The real Transporter learns the features of the crop and of the scene from demonstrations. In the interactive we set them by hand: the cells of the socket's slot get +1, and the cells of the walls around it get −1. The part is shaped like an L of five squares. For each position of the part we look at how much of it lands in the slot and how much lands on the walls. The more lands in the slot and the less on the walls, the brighter that spot is on the map. The brightest spot is where the part fits best.</p>
     </div>
     <div class="lab-badge"><i>🧩</i> Interactive</div>
     <div class="lab">
@@ -174,17 +174,17 @@
     <details class="deep"><summary>Under the hood: transport as feature correlation</summary><div class="body">
       <p>Let \(\psi\) be the features of the crop around the pick point and \(\varphi\) the features of the whole scene. The score for placing at pose \(\tau\) (a shift and a rotation) is their cross-correlation:</p>
       <div class="formula">\[\begin{gathered} Q_{\text{place}}(\tau) = \psi\bigl(o[T_{\text{pick}}]\bigr) * \varphi(o)[\tau], \\ T_{\text{place}} = \arg\max_\tau Q_{\text{place}}(\tau). \end{gathered}\]</div>
-      <p>\(\psi\) and \(\varphi\) are two fully convolutional networks, trained with the same cross-entropy over the poses where the operator placed the object. Rotation is searched explicitly: the input is rotated through \(k = 36\) angles, and the score becomes an H × W × 36 map. So the network doesn't learn rotation as a number; it compares rotated copies. In the scene the features are set by hand, the grid is 32 × 32, and the part covers 80 cells.</p>
+      <p>\(\psi\) and \(\varphi\) are two fully convolutional networks, trained with the same cross-entropy over the poses where the operator placed the object. Rotation is searched explicitly: the input is rotated through \(k = 36\) angles, and the score becomes an H × W × 36 map. So the network doesn't learn rotation as a number; it compares rotated copies. In the interactive the features are set by hand, the scene is a 32 × 32 grid, and the part covers 80 cells.</p>
     </div></details>
     <div class="prose" style="margin:26px 0 18px;max-width:820px">
       <h3>How many demonstrations you need</h3>
-      <p>Maps and template matching give Transporter a kind of generalization that networks outputting numbers lack. Below is the success rate on tasks from the paper as a function of the number of demonstrations. GT-State MLP gets the exact poses of all objects as input — what perception provides to a classical stack — and still learns more slowly.</p>
+      <p>Maps and template matching give Transporter a kind of generalization that networks outputting numbers lack. The chart below shows the share of successful attempts on tasks from the paper as a function of the number of demonstrations. GT-State MLP gets the exact poses of all objects as input — what perception provides to a classical stack — and still learns more slowly.</p>
     </div>
     <div class="card chart-card">
       <div class="ctl-row" style="margin:0 0 10px"><div class="seg" id="dTask" role="group" aria-label="Task"></div></div>
       <canvas id="dCv" width="640" height="260" class="plot-cv" role="img" aria-label="Success of three models with 1, 10, 100 and 1000 demonstrations"></canvas>
       <div class="cv-legend" id="dLegend"></div>
-      <p class="muted-s plot-cap">Horizontal axis: the number of demonstrations; vertical axis: the share of successful attempts. Data: Table 2 of the Transporter paper, 2020.</p>
+      <p class="muted-s plot-cap">Horizontal axis: the number of demonstrations; vertical axis: the share of successful attempts. The data come from Table 2 of the Transporter paper (2020).</p>
     </div>
     <div class="prose" style="margin:22px 0 0;max-width:820px">
       <p>Transporter picks and places by maps and learns from dozens of demonstrations. But it knows no words: if there are three cubes on the table, it will pick the one that was picked most often in the demonstrations. How do you add a command to the maps?</p>
@@ -197,9 +197,9 @@
     <div class="lab-badge"><i>🔬</i> Lab 3</div>
     <h2>CLIPort: CLIP picks what to grasp, Transporter picks where</h2>
     <div class="prose lab-intro" style="margin:0;max-width:820px">
-      <p>CLIP knows words but gives no location. Transporter gives a location but knows no words. <strong>CLIPort</strong> (Shridhar, Manuelli, Fox, 2021) joins them as two streams. The semantic stream is CLIP features tied to the text of the command: it answers what to pick. The spatial stream is the Transporter network: it answers where. The two streams merge into one map: where to pick and where to place.</p>
+      <p>CLIP knows words but gives no location. Transporter gives a location but knows no words. <strong>CLIPort</strong> (Shridhar, Manuelli, Fox, 2021) joins them as two streams. The semantic stream takes CLIP features tied to the text of the command and answers what to pick. The spatial stream is the Transporter network, and it answers where to pick and where to place. The two streams merge into one map: where to pick and where to place.</p>
       <p>The main thing CLIP brings is words that never appeared in the demonstrations. In the paper the colors are split: the robot is trained on yellow, brown, gray and cyan objects and tested on orange, purple, pink and white ones. One model for 10 tasks works no worse than a separate model for each, and on a real Franka arm a single model learned 9 tasks from just 179 image–action pairs.</p>
-      <p>Let's build CLIPort in miniature. “Where” is a pick filter that learns to pick up cubes. “What” is the similarity to the command text, computed by the mini-CLIP from Lab 1: for each cell it takes a window, a small square of the table around the cell, and compares it with the command. The result is their product. The robot's demonstrations only have commands with red, blue and green. For comparison, there's a model that learns words from these demonstrations alone: each word adds its own filter to the pick filter.</p>
+      <p>Let's build CLIPort in miniature. The “Where” map comes from a pick filter that learns to pick up cubes. The “What” map comes from the mini-CLIP from Lab 1: for each cell it takes a window, a small square of the table around the cell, and compares it with the text of the command. The “Final” map is the product of the two. The robot's demonstrations only contain commands with three colors: red, blue and green. For comparison, we take a model that learns words from these demonstrations alone: it adds a separate filter for each word to the pick filter.</p>
     </div>
     <div class="lab">
       <div class="card scene-card">
@@ -225,7 +225,7 @@
       <div class="card guide-card"><div id="kMis"></div></div>
     </div>
     <details class="deep"><summary>Under the hood: how the real CLIPort works and what we simplified</summary><div class="body">
-      <p>In CLIPort the semantic stream is CLIP's frozen image encoder (ResNet-50) and its text encoder. The text features are multiplied with the image features at several decoder levels, and at each level the semantic stream's features are added to the spatial stream's. CLIP gets only color: it was trained without depth, while the spatial stream sees RGB-D. Training uses the same cross-entropy over pick and place poses: 200 thousand steps on a single GPU over two days.</p>
+      <p>CLIPort's semantic stream consists of CLIP's frozen image encoder (ResNet-50) and its text encoder. The text features are multiplied with the image features at several decoder levels, and at each level the semantic stream's features are added to the spatial stream's. CLIP gets only color: it was trained without depth, while the spatial stream sees RGB-D. Training uses the same cross-entropy over pick and place poses: 200 thousand steps on a single GPU over two days.</p>
       <p>Our fusion is simpler: the probabilities of the two maps are multiplied, \(\log p = \log \operatorname{softmax}(Q_{\text{where}}) + \log \operatorname{softmax}(Q_{\text{what}} / \tau)\), \(\tau = 0.05\). The “what” map is the mini-CLIP similarity between the text vector and the vector of the 16 × 16 window around each cell. The “where” filter learns from nine demonstrations to pick the named cube, but it never sees the command. The “words from demos” model adds a word filter to the shared filter; a word that never appeared in the demonstrations has no such filter.</p>
     </div></details>
     <div class="prose" style="margin:22px 0 0;max-width:820px">
@@ -260,8 +260,8 @@
     <ol class="takeaways">
       <li><span>CLIP learns from 400 million image–caption pairs to guess which caption goes with which image. Words and images end up in <strong>one space</strong>, and you can find an object by its description, even by a combination of words that never appeared in training.</span></li>
       <li><span>Transporter outputs an action as a <strong>pixel map</strong> of the top-down view. The network is translation-equivariant, so one demonstration is enough for the map where even a thousand fall short for coordinate regression.</span></li>
-      <li><span>A map can have <strong>several peaks</strong>: two identical cubes are two ways to pick, not the average between them.</span></li>
-      <li><span>Placing is <strong>template matching</strong>: the crop around the picked object is compared with the scene at 36 rotations, and the object goes where the match is best.</span></li>
+      <li><span>A map can have <strong>several peaks</strong>: if there are two identical cubes on the table, the robot picks one of them, not a point between them.</span></li>
+      <li><span>Transporter finds where to place by <strong>template matching</strong>: it compares the crop around the picked object with the scene at 36 rotations and puts the object where the match is best.</span></li>
       <li><span>CLIPort combines <strong>“what” from CLIP and “where” from Transporter</strong>. One model learns many tasks and, thanks to CLIP, understands words that never appeared in the robot's demonstrations.</span></li>
     </ol>
     <h3 style="margin-top:40px">Open questions</h3>
