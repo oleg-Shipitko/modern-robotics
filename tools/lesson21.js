@@ -1,5 +1,7 @@
 // Урок 2.1 «Transporter и CLIPort»: лаборатории дают обещанные в тексте исходы, консоль чиста, телефон без горизонтальной прокрутки.
 // Схема контрастного обучения (shared/anim.js) — подписи в канвасе на всех кадрах; мосты — один внутри урока (↓) и один в конце (→).
+// Схемы устройства CLIP, Transporter и CLIPort — подписи в канвасе и не налезают, кадры разных этапов различаются, на компьютере и телефоне.
+// Лаборатория 3: карты «Где», «Что», «Итог» крупнее стола (компьютер — от 200 px, телефон — от 160 px или во всю ширину).
 // Снимки — shots/l21-*.png. Урок собирается на дату выпуска: MR_ASOF=2026-10-10 python3 lessons/build.py l21.
 const path = require('path');
 const fs = require('fs');
@@ -10,6 +12,9 @@ let bad = 0;
 const check = (ok, msg) => { if (!ok) bad++; console.log((ok ? '  ✓ ' : '  ✗ ') + msg); };
 const J = (s) => JSON.parse(s);
 const SCHEME_T = [0.8, 2.0, 3.0, 5.0, 8.0, 11.2, 15.2];
+// схемы устройства моделей: моменты разных этапов анимации (вход, сети, сравнение, итог)
+const ARCH = { 'clip-arch': [1.0, 3.5, 5.0, 6.6, 9.2, 12.4], transporter: [0.8, 2.2, 3.0, 4.0, 5.3, 8.5, 13.0], cliport: [0.8, 2.0, 3.5, 5.5, 8.6, 10.6, 12.6] };
+const ARCH_SHOT = { 'clip-arch': [3.5, 6.6, 12.4], transporter: [2.2, 5.3, 13.0], cliport: [2.0, 5.5, 12.6] };
 /** Схема контрастного обучения (shared/anim.js): на каждом кадре подписи внутри канваса и не налезают друг на друга;
  *  тексты кадров — для проверки сходства выделенных пар. Без anim.js в сборке схемы нет: none = true. */
 async function schemeLabels(p, kind, frames) {
@@ -26,8 +31,10 @@ async function schemeLabels(p, kind, frames) {
       }
       return orig.apply(this, arguments);
     };
+    const prints = new Set();
     for (const t of ${JSON.stringify(frames)}) {
       boxes = []; Anim.seek(cv, t); const b = boxes; boxes = null;
+      { const d = cv.toDataURL(); let hh = 0; for (let i = 0; i < d.length; i += 3) hh = (hh * 31 + d.charCodeAt(i)) >>> 0; prints.add(hh); }
       [W, H] = cv.style.aspectRatio.split('/').map(Number); texts[t] = b.map((q) => q.t);
       b.forEach((q) => { if (q.x0 < 1 || q.x1 > W - 1 || q.y0 < 0 || q.y1 > H) bad.push('t = ' + t + ': за краем «' + q.t + '»'); });
       for (let i = 0; i < b.length; i++) for (let j = i + 1; j < b.length; j++) {
@@ -36,12 +43,38 @@ async function schemeLabels(p, kind, frames) {
       }
     }
     CanvasRenderingContext2D.prototype.fillText = orig;
-    return JSON.stringify({ layout: cv.dataset.layout, W, H, bad, texts });
+    return JSON.stringify({ layout: cv.dataset.layout, W, H, bad, texts, distinct: prints.size });
   })()`));
 }
 /** Сходство выделенной пары в подписи кадра: «верная пара …: сходство 1,0 ↑» → 1. */
 const simOf = (texts, re) => { const s = (texts || []).find((x) => re.test(x)); const m = s && /(−?\d+,\d)\s*[↑↓]?$/.exec(s); return m ? +m[1].replace('−', '-').replace(',', '.') : NaN; };
 const NO_ANIM = 'схемы нет: в build.py для l21 нужен shared/anim.js перед l21/ui-l21.js';
+/** Схемы устройства CLIP, Transporter и CLIPort: подписи в канвасе и не налезают, кадры этапов различаются, содержание итоговых кадров. */
+async function archChecks(p, where, layout, shots) {
+  const NAMES = { 'clip-arch': 'схема CLIP', transporter: 'схема Transporter', cliport: 'схема CLIPort' };
+  for (const kind of Object.keys(ARCH)) {
+    await p.eval(`(() => { const cv = document.querySelector('canvas[data-anim=${kind}]'); if (cv) cv.scrollIntoView({ block: 'center' }); return true; })()`); await sleep(250);
+    const r = await schemeLabels(p, kind, ARCH[kind]);
+    if (r.none) { check(false, `${where}${NAMES[kind]}: ${NO_ANIM}`); continue; }
+    check(r.layout === layout && r.bad.length === 0, `${where}${NAMES[kind]} ${r.W}×${r.H}: подписи в канвасе и не налезают` + (r.bad.length ? ': ' + r.bad.slice(0, 4).join('; ') : ''));
+    check(r.distinct === ARCH[kind].length, `${where}${NAMES[kind]}: кадры ${ARCH[kind].length} этапов различаются (разных ${r.distinct})`);
+    const tx = (t) => r.texts[String(t)] || [];
+    if (kind === 'clip-arch') check(tx(12.4).includes('0,86 ✓') && tx(12.4).includes('0,20') && tx(12.4).includes('−0,10') && tx(6.6).some((q) => /^Числа на одних местах/.test(q)), `${where}схема CLIP: верная подпись самая похожая (0,86 против 0,20 и −0,10)`);
+    if (kind === 'transporter') check(tx(13).includes('лучший поворот 120°') && tx(5.3).includes('признаки сцены φ'), `${where}схема Transporter: перебор 36 поворотов находит 120°`);
+    if (kind === 'cliport') check(tx(5.5).filter((q) => q === '×').length === 3 && tx(5.5).join(' ').includes('боковые связи') && tx(12.6).includes('+'), `${where}схема CLIPort: умножение на трёх уровнях, боковые связи и сложение потоков`);
+    for (const t of shots[kind] || []) {
+      await p.eval(`(() => { const cv = document.querySelector('canvas[data-anim=${kind}]'); Anim.seek(cv, ${t}); cv.classList.remove('paused'); return true; })()`);
+      await p.shotEl(out(`l21-${where ? 'm-' : ''}${kind}-${t}.png`), `figure:has(> canvas[data-anim=${kind}])`, where ? 4 : 6);
+    }
+  }
+}
+/** Лаборатория 3: размеры стола и трёх карт, заголовки карт и знаки между ними. */
+async function mapsInfo(p) {
+  return J(await p.eval(`JSON.stringify({ w: ['kCv', 'kWhere', 'kWhat', 'kBoth'].map((id) => Math.round(document.getElementById(id).getBoundingClientRect().width)),
+    inner: Math.round(document.querySelector('#cliport .scene-card').clientWidth - 28),
+    caps: [...document.querySelectorAll('#kMaps figcaption')].map((e) => e.textContent.trim()),
+    ops: [...document.querySelectorAll('#kMaps .km-op')].map((e) => e.textContent.trim()) })`));
+}
 (async () => {
   const B = await launch({ w: 1300, h: 1000 });
   console.log('компьютер');
@@ -65,6 +98,7 @@ const NO_ANIM = 'схемы нет: в build.py для l21 нужен shared/ani
     check(g0 < 0 && g1 >= 0.95 && b0 >= 0.8 && b1 <= 0.2, `схема: верная пара ${g0} → ${g1}, неверная ${b0} → ${b1}`);
     for (const t of [3.0, 8.0, 11.2]) { await p.eval(`(() => { const cv = document.querySelector('canvas[data-anim=contrast]'); Anim.seek(cv, ${t}); cv.classList.remove('paused'); return true; })()`); await p.shotEl(out(`l21-contrast-${t}.png`), '#words .scheme-fig', 6); }
   }
+  await archChecks(p, '', 'w', ARCH_SHOT);
   await p.shotEl(out('l21-bridge.png'), '#words .bridge-note', 12);
   await p.shotEl(out('l21-bridge-end.png'), '#finale .bridge-note', 12);
   // отсылки вперёд: первое упоминание модели из будущего урока в основном тексте (без разминки, глоссария, формул,
@@ -115,6 +149,9 @@ const NO_ANIM = 'схемы нет: в build.py для l21 нужен shared/ani
   check(res['none:red'] < 0.85, 'без слов красный кубик — ' + Math.round(res['none:red'] * 20) + '/20');
   check(res['robot:red'] >= 0.9 && res['robot:purple'] <= 0.2, `слова из демонстраций: красный ${Math.round(res['robot:red'] * 20)}/20, фиолетовый ${Math.round(res['robot:purple'] * 20)}/20`);
   check(res['cliport:purple'] >= 0.9 && res['cliport:orange'] >= 0.9, `CLIPort на новых цветах: фиолетовый ${Math.round(res['cliport:purple'] * 20)}/20, оранжевый ${Math.round(res['cliport:orange'] * 20)}/20`);
+  const km = await mapsInfo(p);
+  check(km.w.slice(1).every((w) => w >= 200 && w > km.w[0]), `лаборатория 3: карты ${km.w.slice(1).join(', ')} px крупнее стола ${km.w[0]} px`);
+  check(/^Где:.*команды/.test(km.caps[0]) && /^Что:.*команд/.test(km.caps[1]) && /^Итог: где взять/.test(km.caps[2]) && km.ops.join(' ') === '× =', 'лаборатория 3: заголовки карт «' + km.caps.join('», «') + '» и знаки ' + km.ops.join(' '));
   await p.eval(`document.getElementById('cliport').scrollIntoView({ behavior: 'instant' }); true`); await sleep(400); await p.shotEl(out('l21-cliport.png'), '#cliport .lab', 6);
   // квиз
   await p.eval(`document.querySelectorAll('#quizBox .q-card').forEach((c) => c.querySelector('.q-opt').click()); true`);
@@ -126,6 +163,12 @@ const NO_ANIM = 'схемы нет: в build.py для l21 нужен shared/ani
   await p.eval(`document.documentElement.dataset.theme = 'dark'; window.dispatchEvent(new Event('resize')); true`); await sleep(500);
   await p.eval(`document.getElementById('words').scrollIntoView({ behavior: 'instant' }); true`); await sleep(300); await p.shotEl(out('l21-clip-dark.png'), '#words .lab', 6);
   if (!sc.none) { await p.eval(`(() => { const cv = document.querySelector('canvas[data-anim=contrast]'); Anim.seek(cv, 8); cv.classList.remove('paused'); return true; })()`); await p.shotEl(out('l21-contrast-dark.png'), '#words .scheme-fig', 6); }
+  for (const [kind, t] of [['clip-arch', 6.6], ['transporter', 13.0], ['cliport', 12.6]]) {
+    if (!(await p.eval(`!!document.querySelector('canvas[data-anim=${kind}]') && typeof Anim !== 'undefined'`))) continue;
+    await p.eval(`(() => { const cv = document.querySelector('canvas[data-anim=${kind}]'); cv.scrollIntoView({ block: 'center' }); Anim.seek(cv, ${t}); cv.classList.remove('paused'); return true; })()`); await sleep(200);
+    await p.shotEl(out(`l21-${kind}-dark.png`), `figure:has(> canvas[data-anim=${kind}])`, 6);
+  }
+  await p.eval(`document.getElementById('cliport').scrollIntoView({ behavior: 'instant' }); true`); await sleep(300); await p.shotEl(out('l21-cliport-dark.png'), '#cliport .lab', 6);
   await p.shotEl(out('l21-bridge-dark.png'), '#words .bridge-note', 12);
   await p.shotEl(out('l21-bridge-end-dark.png'), '#finale .bridge-note', 12);
   console.log('телефон');
@@ -141,6 +184,10 @@ const NO_ANIM = 'схемы нет: в build.py для l21 нужен shared/ani
   const msc = await schemeLabels(m, 'contrast', SCHEME_T);
   check(!msc.none && msc.layout === 'n' && msc.bad.length === 0, msc.none ? 'телефон: ' + NO_ANIM : `телефон: схема в узкой раскладке ${msc.W}×${msc.H}, подписи в канвасе и не налезают` + (msc.bad.length ? ': ' + msc.bad.slice(0, 4).join('; ') : ''));
   if (!msc.none) { await m.eval(`(() => { const cv = document.querySelector('canvas[data-anim=contrast]'); Anim.seek(cv, 8); cv.classList.remove('paused'); return true; })()`); await m.shotEl(out('l21-m-contrast.png'), '#words .scheme-fig', 4); }
+  await archChecks(m, 'телефон: ', 'n', { 'clip-arch': [6.6], transporter: [13.0], cliport: [12.6] });
+  const mk = await mapsInfo(m);
+  check(mk.w.slice(1).every((w) => w >= 160 || w >= mk.inner * 0.9), `телефон: карты лаборатории 3 ${mk.w.slice(1).join(', ')} px при ширине сцены ${mk.inner} px, стол ${mk.w[0]} px`);
+  await m.eval(`document.getElementById('cliport').scrollIntoView({ behavior: 'instant' }); true`); await sleep(400); await m.shotEl(out('l21-m-cliport.png'), '#cliport .scene-card', 4);
   await m.shotEl(out('l21-m-bridge.png'), '#finale .bridge-note', 12);
   await m.eval(`document.getElementById('maps').scrollIntoView({ behavior: 'instant' }); true`); await sleep(300); await m.shotEl(out('l21-m-pick.png'), '#maps .lab', 4);
   check(!m.logs.length, 'консоль телефона: ' + (m.logs.join(' | ') || 'чисто'));

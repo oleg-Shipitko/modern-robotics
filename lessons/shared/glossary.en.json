@@ -570,6 +570,12 @@
   "a": "CLIPort"
  },
  {
+  "id": "mlp",
+  "t": "MLP (multilayer perceptron)",
+  "d": "The simplest neural network: several fully connected layers, where each neuron receives all the outputs of the previous layer.",
+  "a": "(?-i:MLP)|multilayer perceptrons?"
+ },
+ {
   "id": "six-dof",
   "t": "6-DoF",
   "d": "A pose in 3D: three coordinates and three rotation angles. A 6-DoF action sets where the gripper ends up and how it is oriented.",
