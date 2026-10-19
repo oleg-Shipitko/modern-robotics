@@ -6,7 +6,7 @@
       свет (яркость и оттенок), предметы рядом с кубиком. Эпизод — та же
       кухня с предметами в новых местах.
    2) Мини-политика «где взять»: признаки клетки сетки 24 × 24 — окно
-      12 × 12 px вокруг её центра, сжатое до 6 × 6 (108 чисел), скрытый слой
+      12 × 12 px вокруг её центра, сжатое до 3 × 3 (27 чисел), скрытый слой
       ReLU и оценка клетки; softmax по 576 клеткам, перекрёстная энтропия
       по клетке, где взял оператор.
       Нелинейная версия карты из урока 2.1.
@@ -99,7 +99,7 @@
     for (let y = 0; y < TW; y++) for (let x = 0; x < TW; x++) { const o = (y * TW + x) * 3, gi = (Math.floor(y / PS) * PW + Math.floor(x / PS)) * 3; for (let c = 0; c < 3; c++) g[gi + c] += img[o + c] / (PS * PS); }
     return g;
   }
-  /** Признаки всех 576 клеток: окно 6 × 6 квадратиков вокруг центра клетки; за краем стола — серый 0,5; центрировано. */
+  /** Признаки всех 576 клеток: окно WN × WN квадратиков вокруг центра клетки (по умолчанию 3 × 3, 27 чисел); за краем стола — серый 0,5; центрировано. */
   function feats(ep) {
     if (ep.F) return ep.F;
     const F = new Float32Array(G * G * NF), g = ep.pooled || (ep.pooled = pooled(ep.img)), half = WN / 2, per = CELL / PS;
@@ -139,7 +139,7 @@
     m.t++; const b1 = 0.9, b2 = 0.999, c1 = 1 - Math.pow(b1, m.t), c2 = 1 - Math.pow(b2, m.t);
     m.P.forEach((P, q) => { const Gq = m.G[q], M = m.M[q], V = m.V[q]; for (let i = 0; i < P.length; i++) { const g = Gq[i] / bs; M[i] = b1 * M[i] + (1 - b1) * g; V[i] = b2 * V[i] + (1 - b2) * g * g; P[i] -= lr * (M[i] / c1) / (Math.sqrt(V[i] / c2) + 1e-8); Gq[i] = 0; } });
   }
-  /** Обучение: перекрёстная энтропия по клетке, где взял оператор; мини-пачки по 8 эпизодов. */
+  /** Обучение: перекрёстная энтропия по клетке, где взял оператор; мини-пакеты по 8 эпизодов. */
   function* train(demos, o) {
     o = o || {}; const m = modelInit(o.seed || 5), iters = o.iters || CFG.ITERS, lr = o.lr || 0.01, bs = Math.min(o.bs || 8, demos.length), r = rng(o.seed ? o.seed * 31 + 1 : 77);
     const hid = new Float64Array(G * G * NH), [W1, , w2] = m.P, [gW1, gb1, gw2, gb2] = m.G;
@@ -220,7 +220,7 @@
   // у AgiBot World сцены посчитаны по их собственной статье, определение другое (n — заметки для подсказок)
   const DATASETS = [
     { id: 'robonet', name: 'RoboNet', year: 2019, models: 7, traj: 162000, hours: null, scenes: 10, tasks: null, how: 'автономно, случайные движения', hz: null,
-      n: { models: 'Sawyer, Franka, WidowX, Kuka, Baxter и открытые данные Google Robot и Fetch; 4 института.', traj: '«roughly 162,000 trajectories», почти 15 млн кадров. Точек обзора камер — 113 (табл. 1 статьи).', scenes: 'По таблице I статьи DROID. Сам RoboNet пишет о 4 лабораториях и десятках фонов.', tasks: 'Задач нет: робот двигался случайно, данные учили модель предсказывать кадры.', how: 'Оператор только задаёт распределение действий: «Data collection is otherwise unattended».', hours: 'Часов в статье нет.' } },
+      n: { models: 'Sawyer, Franka, WidowX, Kuka, Baxter и открытые данные Google Robot и Fetch; 4 института.', traj: '«roughly 162,000 trajectories», почти 15 млн кадров. Точек обзора камер — 113 (табл. 1 статьи).', scenes: 'По таблице I статьи DROID. Сам RoboNet пишет о 4 институтах и десятках фонов.', tasks: 'Задач нет: робот двигался случайно, данные учили модель предсказывать кадры.', how: 'Оператор только задаёт распределение действий: «Data collection is otherwise unattended».', hours: 'Часов в статье нет.' } },
     { id: 'rt1', name: 'RT-1', year: 2022, models: 1, traj: 130000, hours: null, scenes: 2, tasks: 744, how: 'телеоперация, 17 месяцев', hz: 3,
       n: { models: '13 одинаковых мобильных манипуляторов Everyday Robots. Подробно — урок 3.1.', traj: '«∼130k episodes», все успешные.', scenes: 'По таблице I DROID: класс для сбора данных и кухня.', tasks: '744 инструкции; DROID считает по глаголам — у RT-1 их 2.', how: 'Два VR-пульта, оператор видит робота.', hours: 'Часов в статье нет.' } },
     { id: 'bridge', name: 'BridgeData V2', year: 2023, models: 1, traj: 60096, hours: null, scenes: 24, tasks: 13, how: 'VR-шлем Meta Quest 2 и скрипт', hz: 5,
