@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>4.2 Teleoperation and data collection devices — Modern Robotics and Physical AI</title>
+<meta name="description" content="Lesson 4.2 of the “Modern Robotics and Physical AI” course: how demonstrations for robots are recorded. The ALOHA and GELLO leader arms, the Open-TeleVision VR headset, DexCap gloves, the AirExo and HOMIE exoskeletons and the UMI hand-held gripper. Become the operator of Ada's arm with latency and different controllers, and work out what one usable demonstration costs.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<script>
+  (function () { try { var t = localStorage.getItem('mr-theme'); if (t) document.documentElement.dataset.theme = t; else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme = 'dark'; } catch (e) {} })();
+</script>
+<style>
+/*@@CSS@@*/
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html#program" title="To the course program"><div>Modern Robotics and Physical AI<small>Lesson 4.2 · Teleoperation and data collection devices</small></div></a>
+    <nav class="toc" aria-label="Lesson sections">
+      <a href="#hours">Cost</a>
+      <a href="#leader">Leader arm</a>
+      <a href="#vr">VR</a>
+      <a href="#tele">Operator</a>
+      <a href="#hands">Fingers</a>
+      <a href="#exo">Exoskeleton</a>
+      <a href="#umi">UMI</a>
+      <a href="#cost">Calculator</a>
+      <a href="#today">Today</a>
+      <a href="#quiz">Quiz</a>
+      <a href="#finale">Takeaways</a>
+    </nav>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Toggle theme">◐</button>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main>
+
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="kicker"><span class="num">4.2</span> Part 4 · Data for training robots</div>
+    <h1>Teleoperation <span class="amp">and data collection devices</span></h1>
+    <p class="lead">In lesson 4.1, it turned out that robots have no internet of their own: someone recorded every demonstration on purpose, and it took a person's time. How much such a recording costs and how good it is depends on what it is recorded with. A person can guide the robot with a small copy of its arm, see through its eyes in a headset, put on gloves or an exoskeleton, or do without the robot entirely: take a gripper with a camera in hand and do the task themselves. We'll look at five such methods on diagrams: what the person holds, what they see and what goes into the recording. Then you'll guide Ada's arm from a controller yourself, with and without latency, and see how the controller changes the data. At the end, you'll work out what one usable demonstration costs with a robot and without one.</p>
+    <div class="hero-meta"><span>≈ 45 minutes</span><span>a lab, two interactives and a quiz</span><span id="heroMis">missions with a goal</span></div>
+    <div class="hero-list">
+      <div><b>FIVE METHODS</b>See on the diagrams what the person holds, what they see and what gets recorded: a copy of the robot arm, a headset, gloves, an exoskeleton and a gripper in hand</div>
+      <div><b>OPERATOR</b>Move a cup with Ada's arm using three controllers and with latency, and compare your recordings side by side: duration, pauses, jitter</div>
+      <div><b>COST</b>Work out which method reaches 10,000 usable demonstrations first and what costs more in each: the robot or the person</div>
+      <div><b>ROBOT DURING RECORDING</b>Sort seven devices by whether a robot is needed during recording and how the operator sees it</div>
+    </div>
+    <p style="margin-top:28px"><a class="btn primary" href="#hours">Start the lesson ↓</a></p>
+  </div>
+</section>
+
+<section class="recall-sec" id="recall" aria-label="Warm-up on the previous lesson">
+  <div class="wrap"><div class="card recall" data-recall></div></div>
+  <script type="application/json" id="recallData">{"n": "4.1", "title": "The scale of data in robotics", "href": "4-1-masshtab-dannykh.html", "q": [{"q": "Where does the “100,000-year data gap” come from?", "o": ["A language model's corpus was converted into a person's reading time: a thought experiment by Kevin Black that Ken Goldberg repeated", "That's how many years a robot fleet needs to collect data for a single task", "It's an exact estimate over all robot datasets"], "a": 0, "e": "At 238 words per minute and 1.33 tokens per word, the 15T tokens of Llama 3 come to about 790 million hours, on the order of 90,000 years of reading, while the largest robot datasets hold on the order of a year of recording. The assumptions change the answer severalfold, but not by five orders of magnitude.", "sec": "gap", "secTitle": "The gap calculator: years of reading and years of recording"}, {"q": "In Lin et al., what falls as a power law with the number of environments and objects?", "o": ["The number of demonstrations a task needs", "The optimality gap: one minus the policy's score in new environments and with new objects", "The policy's training time"], "a": 1, "e": "On logarithmic axes, this is a straight line: each doubling of the number of environments multiplies the gap by the same number. There is no such dependence on the total number of demonstrations.", "sec": "laws", "secTitle": "Data scaling laws in imitation learning"}, {"q": "Each scene already has 8 demonstrations, and the budget allows doubling the data. Which pays off more?", "o": ["Twice as many demonstrations in the same scenes", "Twice as many scenes: there are already enough demonstrations per scene", "It makes no difference"], "a": 1, "e": "Past the threshold, demonstrations in the same scenes barely help: in the lab, 16 demonstrations per scene gave almost the same result as 8. Lin et al. recommend about 50 demonstrations per environment–object pair and as many different environments as possible.", "sec": "double", "secTitle": "Double the demonstrations or the scenes"}]}</script>
+</section>
+
+<section class="section alt" id="hours">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">1</span> Cost</div>
+      <h2>A demonstration costs a person-hour</h2>
+      <p>In lesson 4.1, language models learned from texts that people had written long before them, but robots have no such reserve: someone recorded every trajectory on purpose. π0 from lesson 3.6 was trained on more than 10,000 hours of recordings, and each such hour costs at least an hour of human work, usually more. In ALOHA, one demonstration took 8–14 seconds, 50 demonstrations gave 10–20 minutes of data, and recording them took 30–60 minutes: the scene had to be reset, and failed attempts had to be redone.</p>
+      <p>A lot depends on the device used for recording. The most direct way is <strong>teleoperation</strong>: a person controls the robot in real time, and the robot records what its cameras saw and what commands it received. The recording is made right away on the robot you need, but the robot is busy for the whole collection, and the operator has to understand what is happening to the robot. You can also take a different path and record the person, not the robot. The person does the task with their own hands, a device records their movements, and these are converted into robot commands later.</p>
+      <p>To compare the devices, we'll ask each one three questions: what the person holds or wears, what they see during recording and what goes into the recording. The recording contains the <strong>observation</strong> and the <strong>action</strong>. The observation is the camera frames and the robot's joint angles, and the action is the command that the policy will later learn to output from the observation.</p>
+      <p>On the diagrams below, orange marks the person and what they set, blue marks the robot and what is measured, and purple marks the mapping of human motion to robot commands. At the bottom of each diagram is a recording strip: ticks move into the demonstration file, and the denser they are, the more often the signal is recorded. The diagrams are simplified: they show the principle, not real dimensions. Click a diagram to pause it.</p>
+      <p>Let's start with the device from lesson 1.7. Why was ALOHA guided with a small copy of the arm and not with a joystick?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="leader">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">2</span> Leader arm</div>
+      <h2>The leader arm: a small copy of the robot</h2>
+      <p>Commanding an arm with six or seven joints is awkward. A joystick or a 3D mouse sets where and how fast to move the gripper, and the joint angles that give such a pose are computed by inverse kinematics from lesson 0.3. Near joint limits and in awkward poses, its solutions jump. The ALOHA authors put it plainly: “Off-the-shelf inverse kinematics (IK) fails frequently in this setting.”</p>
+      <p>That's why in ALOHA the operator moves two small WidowX arms, and the large ViperX arms repeat their angles joint for joint 50 times a second, so no inverse kinematics is needed. Such an arm is called the <strong>leader arm</strong>, and the robot's arm is called the follower. The leader arm has the same design as the follower, only smaller. Its weight keeps the operator from moving too fast, and the rubber bands that offload it make sessions longer than half an hour possible. The whole kit, robots included, costs less than $20,000. The ALOHA diagram with two pairs of arms is in lesson 1.7.</p>
+      <p>GELLO (Wu et al., UC Berkeley, 2023) carries the same idea over to any industrial manipulator. The copy of the arm is built to match the robot's kinematics at 1&nbsp;:&nbsp;2 scale from 3D-printed parts. DYNAMIXEL servos sit in the joints, and here they serve as angle sensors with an accuracy of 0.088°. The authors write that a motor isn't really needed: simple angle sensors would do too, and the servo's gearbox gives the handle some resistance when it is moved. Leader arms were made for the UR5, xArm7 and Franka Panda, and the parts for one cost less than $300. Near joint limits and in awkward poses, the operator feels the resistance of the handle, but not the force with which the robot presses on an object: GELLO has no force feedback.</p>
+    </div>
+    <figure class="card dev-fig">
+      <div class="dev-grid">
+        <canvas data-anim="gello" width="640" height="320" role="img" aria-label="The operator guides a small copy of the robot arm by its handle; the robot arm repeats its joint angles and carries a cup; at the bottom, the leader arm's angles, the robot's angles and the camera frames are recorded"></canvas>
+        <dl class="dev-dl">
+          <dt>What the person holds</dt><dd>The handle of a small copy of the robot arm. In ALOHA, the handle has a scissor mechanism for closing the gripper smoothly.</dd>
+          <dt>What they see</dt><dd>The robot itself: it stands next to them.</dd>
+          <dt>What gets recorded</dt><dd>The action is the leader arm's angles, and the observation is the robot arm's angles and the camera frames. In ALOHA, the angles are recorded 50 times a second, and the cameras capture 30 frames a second.</dd>
+          <dt>Cost</dt><dd>A GELLO leader arm costs less than $300, but it needs a robot. ALOHA, robots included, costs less than $20,000.</dd>
+        </dl>
+      </div>
+      <p class="cv-note">Side view. On the left, the seated operator guides the leader arm; on the right, the robot arm carries a cup. The numbers show the joint angles: orange for the leader arm and blue for the robot; the robot catches up with the leader arm with a slight lag. The orange dashed line over the robot shows the pose of the leader arm scaled up twice: it matches the robot arm. The gray dashed line shows where the operator is looking.</p>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>The GELLO authors checked how much the control method affects the result. Twelve participants without teleoperation training solved five tasks on two UR5 arms in three ways: with the GELLO leader arm, a Meta Quest 2 VR headset and a 3D mouse. They had to hang a hat, take a mask out of a case, hand over a banana, fold a towel and plug in a USB connector. The average success was 0.92, 0.72 and 0.63. Over all the tasks there were 1, 5 and 9 timeouts and 1, 5 and 5 self-collisions of the arms. With GELLO, the tasks were also completed faster.</p>
+      <p>But the copy repeats only the arm. A humanoid also has a head with cameras, hands with fingers and legs, and the operator should ideally see the scene through its eyes: then they see exactly what goes into the recording. How do you control all of this at once?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="vr">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">3</span> VR headset</div>
+      <h2>VR headset: the robot looks where the operator looks</h2>
+      <p>A leader arm won't do for a humanoid: it has two arms with hands and a head with cameras, and all of it has to be guided at the same time. A VR headset covers both needs. It tracks the person's head and hands and shows them the picture from the robot's cameras, so the operator sees the scene the way the robot will record it.</p>
+      <p>Open-TeleVision (Cheng, Li et al., UC San Diego and MIT, 2024) runs on the Apple Vision Pro headset but isn't tied to the headset model: a Meta Quest works too. The headset streams the poses of the head, wrists and fingers. The wrist poses are smoothed with a filter, and inverse kinematics converts them into the angles of the robot's arms. The fingers are transferred by <strong>retargeting</strong>: an optimization chooses the robot's finger angles so that seven vectors between keypoints of its hand match the same vectors of the human hand. The two-finger gripper of the second robot, Fourier GR-1, is closed by pinching the thumb and index finger together. The whole loop runs 60 times a second.</p>
+      <p>The key idea of the work is the active neck. On the head of the Unitree H1 humanoid, a ZED Mini stereo camera sits on a gimbal with two degrees of freedom, yaw and pitch; the gimbal is assembled from printed parts and XL330 motors. The robot's head turns after the operator's head, and stereo video at 480&nbsp;×&nbsp;640 per eye goes to the headset. The operator chooses where to look and sees depth. This works over the internet too: an operator in Boston controlled robots in San Diego, about 3,000 miles away.</p>
+    </div>
+    <figure class="card dev-fig">
+      <div class="dev-grid">
+        <canvas data-anim="vr" width="640" height="320" role="img" aria-label="The operator in a VR headset tilts their head and reaches out; the humanoid's head with cameras turns after it, and stereo video goes back to the headset; the hand pose is converted into the robot arm's angles, and the robot picks up a can"></canvas>
+        <dl class="dev-dl">
+          <dt>What the person holds</dt><dd>Nothing: the headset is on their head, the hands are free, and the headset tracks them itself.</dd>
+          <dt>What they see</dt><dd>Stereo video from the robot's head, 480&nbsp;×&nbsp;640 per eye. The robot's head turns after the operator's head.</dd>
+          <dt>What gets recorded</dt><dd>The stereo camera frames and the robot's joint angles. The action is the angles the robot received: for H1, that's 28 numbers, 7 per arm, 6 per hand and 2 for the neck.</dd>
+          <dt>Cost</dt><dd>Not given in the paper. You need a headset and the humanoid itself.</dd>
+        </dl>
+      </div>
+      <p class="cv-note">Side view. On the left is the operator in a headset; on the right is a humanoid with cameras on a turning neck, and in front of it is a table with a can. The orange arrows carry the pose of the operator's head and hand, the purple block maps the poses to robot angles, and the blue arrow carries stereo video back to the headset. The light blue sector shows the field of view of the robot's cameras. The two frames at the top show what the operator sees.</p>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>Stereo helps noticeably. Four participants solved four tasks while seeing either stereo video or the picture from a single camera in the headset. With stereo, every task succeeded in every trial; with one camera, unloading succeeded in 50% of trials and can insertion in 71%. With stereo, insertion took 58 s versus 85 s, and unloading 67 s versus 97 s. A policy trained without stereo picked up the can in 46% of cases, and one trained with stereo in 92%. Each task needed only 10–20 demonstrations.</p>
+      <p>But now a network, video and pose mapping stand between the person's hand and the robot's arm, and the operator's arm has neither the weight of a leader arm nor any support: it hangs in the air. The authors also list a limitation: the operator feels nothing with their hands. How do latency and such a controller change the demonstration itself? Let's check on Ada's arm.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="tele">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab</div>
+    <h2>The operator, latency and the controller</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p class="ada-note"><svg class="ada-ico" viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="10" width="48" height="42" rx="18" fill="#f4efe6" stroke="#3d3c38" stroke-width="3"/><rect x="15" y="19" width="34" height="22" rx="10" fill="#1f2430"/><ellipse cx="25" cy="30" rx="4" ry="5.5" fill="#eb6834"/><ellipse cx="39" cy="30" rx="4" ry="5.5" fill="#eb6834"/></svg><span>Ada is a home humanoid on a wheeled base; the course labs are built around her. More about her in <a href="0-1-dve-paradigmy.html#ada">lesson 0.1</a>.</span></p>
+      <p>You are the operator. Ada has to move a cup from the table to a shelf. We see the scene from the side, and the controller sits under the scene, as with a real operator: you should watch Ada's arm, not your own hand. The gripper closes by itself if you hold it at the cup for 0.3 s, and it opens when the cup is on the shelf. Recording starts with the first movement: 50 times a second, as in ALOHA, it stores the angles of Ada's arm and the controller's command.</p>
+      <p>The controller comes in three kinds. The <strong>leader arm</strong> repeats Ada's arm at 1&nbsp;:&nbsp;2 scale, and its angles go to Ada one-to-one. The <strong>hand in the air</strong> works like a VR headset: the headset tracks the hand, the tracking jitters, and inverse kinematics computes the arm's angles. The <strong>keys</strong> work like a 3D mouse: the command sets the gripper's velocity. You can add latency between the controller and the arm, as happens when commands and video travel over a network.</p>
+      <p>Under the scene, two recordings sit side by side: on the left is the reference, that is, the first successful recording, and on the right is the latest one. For each of them, you see the gripper's path, the gripper's speed over time and the metrics: duration, extra path, pauses and action jitter. Extra path says how much longer the path is than the shortest one. Pauses are the time the gripper stood still, not counting the stops at the cup and on the shelf. Action jitter measures how far the recorded command deviates from its smoothed version.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <canvas id="tCv" class="tele-cv" width="600" height="420" role="img" aria-label="Side view: Ada at the table, her arm, a cup on the table and a shelf on the wall"></canvas>
+        <p class="cv-note">Side view. On the left is Ada: her head, body and wheeled base, with her arm and gripper drawn in blue. The orange dashed frame first shows where to grab the cup and then where to put it. The thin blue line shows the gripper's trail in the recording. The controller and latency are shown at the top right, and the orange dots are commands that are still on their way.</p>
+        <details class="lab-legend"><summary>Legend: what's on the scene</summary><div class="cv-legend" id="tLegend"></div></details>
+        <canvas id="tPult" class="pult-cv" width="600" height="200" role="img" aria-label="Operator's controller: a leader arm, a hand in the air or keys"></canvas>
+        <p class="cv-note">The operator's controller. The leader arm and the hand in the air are shown in the same side view, only smaller; the dashed arcs show how far Ada's arm can reach. Drag the orange handle or the hand circle with the mouse or a finger. For the keys, use the arrow keys on the keyboard or the buttons under the controller.</p>
+        <div class="t-keys" id="tKeys" hidden><button type="button" class="btn sm" data-k="ArrowLeft" aria-label="Left">◀</button><button type="button" class="btn sm" data-k="ArrowUp" aria-label="Up">▲</button><button type="button" class="btn sm" data-k="ArrowDown" aria-label="Down">▼</button><button type="button" class="btn sm" data-k="ArrowRight" aria-label="Right">▶</button></div>
+        <div class="ctl-row">
+          <div class="ctl" id="wrapTMode"><span class="ctl-l">Controller</span><div class="seg" id="tMode" role="group" aria-label="Controller"><button type="button" data-v="leader" aria-pressed="true">leader arm</button><button type="button" data-v="air" aria-pressed="false">hand in the air</button><button type="button" data-v="keys" aria-pressed="false">keys</button></div></div>
+          <label class="hd-range" id="wrapTDelay"><span>Latency</span><input id="tDelay" type="range" min="0" max="500" step="50" value="0"><output>0 ms</output></label>
+          <label class="hd-range" id="wrapTNoise"><span>Tracking jitter</span><input id="tNoise" type="range" min="0" max="10" step="1" value="5"><output>5 mm</output></label>
+          <button type="button" class="btn sm primary" id="tRec">Record a demonstration</button>
+          <button type="button" class="btn sm" id="tStop" hidden>Stop recording</button>
+        </div>
+        <div class="duo" id="tDuo">
+          <figure class="pane"><figcaption class="pane-head"><b>Reference</b><span id="tSubA">first successful recording</span></figcaption><canvas id="tCvA" width="340" height="150" role="img" aria-label="Reference recording: the gripper's path from the side and the gripper's speed over time"></canvas><div class="pane-stat" id="tStatA"></div></figure>
+          <figure class="pane"><figcaption class="pane-head"><b class="fm">Latest recording</b><span id="tSubB">record a demonstration</span></figcaption><canvas id="tCvB" width="340" height="150" role="img" aria-label="Latest recording: the gripper's path from the side and the gripper's speed over time"></canvas><div class="pane-stat" id="tStatB"></div></figure>
+        </div>
+        <p class="cv-note">In each panel, the left part shows the gripper's path from the side, and a dot marks the start; the right part shows the gripper's speed over time, from 0 to 0.5 m/s. Gray bands mark pauses, when the gripper stood still for longer than 0.2 s.</p>
+        <div class="readout" id="tOut"></div>
+      </div>
+      <div class="card guide-card"><div id="tMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: how the controllers, latency and recording metrics work</summary><div class="body">
+      <p><b>Ada's arm</b> is built like the two-link arm from lesson 0.3, with links of 0.5 and 0.4 m. Every 20 ms it receives a command, that is, joint angles, and moves toward it: the joint velocity is proportional to the error with a gain of 14 rad/s per radian, but it doesn't exceed 3 rad/s. Latency works as a command queue: the arm executes the command that the controller issued one latency period earlier. The arm doesn't pass through the table, the shelf or the wall: it gets pushed out, and a contact is counted.</p>
+      <p><b>Leader arm.</b> The mouse sets the point of the handle, and the copy's angles are computed from it. Of the inverse kinematics solutions, we take the one closest to the previous angles so that the elbow doesn't flip, and Ada receives the same angles. On a real leader arm, sensors in the joints read the angles and nothing needs to be computed; we have to compute them because the mouse sets a point, not angles. <b>Hand in the air.</b> Tracking jitter is added to the point of the hand: it is a random process with a correlation time of 60 ms and a given spread. Ada's angles are computed by inverse kinematics. We chose the size of the jitter for illustration: the papers didn't measure it. <b>Keys.</b> While an arrow key is held, the gripper's target moves at 15 cm/s, and inverse kinematics again computes the angles.</p>
+      <p><b>Metrics.</b> Let \(L\) be the length of the gripper's path after smoothing, and \(L_{\min}\) the length of the polyline from the start to the cup, to the corner of the shelf and to the spot on the shelf. Let \(a_t\) be the recorded command, the gripper's point at tick \(t\), and \(\tilde a_t\) the same command after quadratic Savitzky–Golay smoothing over 9 ticks. Then</p>
+      <div class="formula">\[\begin{gathered} \text{extra path} = \frac{L}{L_{\min}} - 1, \\ \text{jitter} = \sqrt{\frac{1}{N}\sum_{t} \lVert a_t - \tilde a_t \rVert^2}. \end{gathered}\]</div>
+      <p>Pauses are the sum of the stretches longer than 0.2 s during which the gripper moves slower than 2 cm/s. The half second at the cup and on the shelf that the gripper needs to close or open doesn't count as a pause.</p>
+      <p><b>Operator model.</b> The lesson's checks run with an operator model: it guides the arm toward the target by what it sees and waits if Ada's arm lags behind the controller by more than 3.5 cm. With this model, a recording with the leader arm and no latency takes 5.9 s, with 300 ms of latency 14.6 s, and with the keys about 12 s. With the hand in the air and 5 mm of tracking jitter, the action jitter comes out at about 3 mm versus 0.3 mm for the leader arm. This is an illustration, not a measurement of people: your recordings will be different.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>The controller and latency change the data itself, not just the operator's comfort. Pauses, corrections and jitter are recorded as part of the “correct” behavior, and the policy learns to repeat them along with the task. That's why ALOHA keeps teleoperation at 50 Hz, Open-TeleVision smooths the hand poses, and HOMIE, which comes up below, reads the operator's hand poses more than 200 times a second. What such demonstrations do to training and how they are filtered is covered in lesson 4.3.</p>
+      <p>But neither the leader arm nor a two-finger gripper conveys what a person's fingers are doing. How do you record fingers?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="hands">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">4</span> Fingers</div>
+      <h2>Fingers: sensor gloves and hand video</h2>
+      <p>A multi-fingered robot hand has 12–16 joints instead of a single gripper, and you can't make a copy for it: human and robot fingers differ in length, and sometimes even in number. So you need to record the movements of a person's fingers and transfer them to the robot hand, with the same retargeting as in Open-TeleVision. That leaves the question of whether a robot is needed for this at all.</p>
+      <p>DexCap (Wang et al., Stanford, 2024) does without a robot. The person puts on Rokoko gloves. They are a motion capture system for the fingers: a tiny magnetic sensor sits in the tip of each finger, and the glove measures where it is relative to the hand. An Intel RealSense T265 camera is mounted on the back of each glove, and SLAM from lesson 0.4 tracks the wrist using its images and inertial sensor. A camera with an L515 lidar on the chest captures the scene in color and depth. A mini-computer in a backpack records everything 60 times a second, the battery lasts about 40 minutes, and the whole system fits within $4,000.</p>
+      <p>Then the recordings are converted for the robot, which has two Franka arms with four-fingered LEAP hands. Inverse kinematics chooses the hand's angles so that its fingertips end up where the person's fingertips were; the pinky is dropped. The LEAP hand is about one and a half times the size of a human hand, and the transfer takes this into account too. The point clouds from the chest camera are brought into one coordinate frame, and the movements of the person's body are removed from them.</p>
+    </div>
+    <figure class="card dev-fig">
+      <div class="dev-grid">
+        <canvas data-anim="dexcap" width="640" height="320" role="img" aria-label="A person in gloves with sensors and with a camera on their chest picks up a sponge from the table; then their fingertips are transferred to a four-fingered robot hand, and the robot picks up the sponge"></canvas>
+        <dl class="dev-dl">
+          <dt>What the person wears</dt><dd>Gloves with magnetic sensors in the fingertips and SLAM cameras on the back, a camera with a lidar on the chest and a backpack with a mini-computer.</dd>
+          <dt>What they see</dt><dd>Their own hands and the table: there is no robot during recording.</dd>
+          <dt>What gets recorded</dt><dd>60 times a second: the finger joints, the wrist poses, the pose of the chest camera and frames with depth. The actions for the robot are obtained later by retargeting.</dd>
+          <dt>Cost</dt><dd>Up to $4,000 for the whole system, without a robot.</dd>
+        </dl>
+      </div>
+      <p class="cv-note">Side view. On the left, a person without a robot picks up a sponge; the orange dots stand for the sensors in the fingertips, and the light blue dots on the table are the point cloud from the chest camera. On the right is a robot hand on a stand: purple dashed lines connect the person's fingertips with the robot's fingertips, and the cross marks the dropped pinky.</p>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>Collecting with DexCap is three times faster than ordinary teleoperation and close to natural movement. Policies trained only on such data, without a single demonstration on the robot, reached an average success rate of up to 72% across three tasks. Where that wasn't enough, a person in the gloves corrected the running policy: they added a small correction to its actions or took over control. With 30 such corrections, full success rose from 0 to 25% on the tea task and from 0 to 20% on the scissors task. DexCap doesn't record force, and the authors name this as a limitation.</p>
+      <p>You can do without gloves too. AnyTeleop (Qin et al., UC San Diego and NVIDIA, 2023) watches the operator's hand with an ordinary camera: a model finds 21 keypoints of the hand's joints in the frame, and an optimization transfers them to the robot hand. A new robot needs only a file that describes its kinematics. With one RealSense camera, an xArm6 arm and an Allegro hand, AnyTeleop did better than the earlier Telekinesis system on 8 tasks out of 10 and just as well on the other two. The weak spot is easy to see: if the fingers occlude each other or the hand moves fast, tracking is lost.</p>
+      <p>Gloves record the hands, but not the body. A humanoid also has legs, and the operator's hands are already busy. How do you control the whole robot at once?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="exo">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">5</span> Exoskeleton</div>
+      <h2>Exoskeleton: a leader arm worn by a person</h2>
+      <p>If you put a leader arm on a person, you get an <strong>exoskeleton</strong>: its links run along the person's arms, angle sensors sit next to their joints, and the angles are sent to the robot one-to-one, without inverse kinematics. The operator's hands are free of a handle, and they guide both robot arms in full, from the shoulder to the gripper.</p>
+      <p>AirExo (Fang et al., Shanghai Jiao Tong University, 2023) is a two-arm exoskeleton on a vest: it has 7 degrees of freedom per arm, like the robot, and a gripper with a scissor handle. It is 20% smaller than the robot and printed from plastic, its joints have encoders with a resolution of 0.08°, and the whole exoskeleton costs about $600. It can also be worn without a robot: the camera goes on the exoskeleton's mount in the same spot where it sits on the robot, and the table stands in front of the person the same way as in front of the robot. Take a task where the robot has to push a curtain aside, take an object from a shelf and throw it. The ACT policy from lesson 1.7, trained on 10 teleoperated demonstrations, that is, on about 3 minutes of recording, made it to the end of the task, the throw, in 44% of trials. With pre-training on 100 demonstrations recorded without a robot, it reached the throw in 88% of trials, while 50 teleoperated demonstrations, more than 20 minutes of recording, gave 84%.</p>
+      <p>HOMIE (Ben, Jia et al., Shanghai AI Laboratory and The Chinese University of Hong Kong, 2025) is a cockpit for the Unitree G1 humanoid. The operator sits and wears an arm exoskeleton with the same kinematics as the robot's arms (3 degrees of freedom in the shoulder, 1 in the elbow and 3 in the wrist), but sized to a human arm. On their hands are gloves with Hall sensors, each with 15 degrees of freedom. With their feet, the operator presses three pedals that set the forward and backward speed, the turning and the body height. Walking and squatting on these commands are controlled not by the person but by a policy trained with reinforcement learning in simulation, so the robot's legs keep their balance on their own. Video from the robot's camera goes over Wi-Fi to a screen in the cockpit, and the link latency is 16 ms. The whole cockpit costs about $500.</p>
+    </div>
+    <figure class="card dev-fig">
+      <div class="dev-grid">
+        <canvas data-anim="exo" width="640" height="320" role="img" aria-label="The operator in a cockpit: an exoskeleton on the arms, gloves, feet on the pedals, a screen with the robot's camera view; a humanoid with legs walks to a box, squats, picks it up and stands up"></canvas>
+        <dl class="dev-dl">
+          <dt>What the person wears</dt><dd>An arm exoskeleton with angle sensors in the joints and gloves, with their feet on the pedals.</dd>
+          <dt>What they see</dt><dd>A screen that receives video from the robot's camera over Wi-Fi. With AirExo, the operator stands next to the robot or works without it at all.</dd>
+          <dt>What gets recorded</dt><dd>Camera frames, arm and finger angles, and walking commands 10 times a second.</dd>
+          <dt>Cost</dt><dd>The HOMIE cockpit costs about $500, and the AirExo exoskeleton about $600. The robot is not included.</dd>
+        </dl>
+      </div>
+      <p class="cv-note">Side view. On the left is the operator in the cockpit: the orange links with circles depict the exoskeleton and the angle sensors in its joints, and there are three pedals under the operator's feet. On the right is the humanoid. The orange arrows carry the arm angles and the pedal commands, the purple block stands for the walking policy, and the blue arrow carries video to the cockpit screen. The walking humanoid on the diagram is the Unitree G1 from the paper, not Ada.</p>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>HOMIE reads the poses of the operator's arms and hands 263 and 293 times a second without a GPU, while Open-TeleVision does it 60 times. Tasks with HOMIE were completed almost twice as fast as through VR, and over five attempts, five novices cut the average time for handing over an object from 24.8 to 8.0 s. With 50 demonstrations, an autonomous policy squatted and picked up an object in 73.3% of trials and picked and placed it in 80%. Neither HOMIE nor AirExo has force feedback, just like GELLO.</p>
+      <p>AirExo showed that recordings without a robot can replace most of the teleoperation. But the camera and the table there are still set up as on a particular robot. Can data be recorded anywhere, and in a way that suits different robots without rework?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="umi">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">6</span> UMI</div>
+      <h2>Collecting without a robot: the UMI hand-held gripper</h2>
+      <p>Teleoperation needs a robot for the whole duration of collection. A robot is expensive and heavy, and nobody carries it around other people's apartments, so data is recorded in a few labs. Yet in lesson 4.1, the diversity of environments turned out to matter more than the number of demonstrations in any one of them.</p>
+      <p>UMI (Chi, Xu et al., Stanford, Columbia University and Toyota Research Institute, 2024) is a <strong>hand-held gripper</strong>: a printed two-finger gripper with soft fingers and a trigger that a person holds in their hand. Its only sensor is a GoPro camera on the gripper. The fisheye lens sees 155°, and two mirrors at the edges of the frame give two more views, which makes stereo possible without a second camera. SLAM recovers the gripper's pose in space from the video and the GoPro's inertial sensor, and the gripper width is read from markers on the fingers. The gripper parts cost $73, the GoPro with accessories $298, and the gripper weighs 780 g.</p>
+      <p>For the recordings to be usable by a robot, the same gripper with the same camera is mounted on the robot's arm. Then the policy sees almost the same frame as during recording, and there's no need to calibrate the camera relative to the robot. The actions are recorded relative to the gripper's current pose: with absolute poses, the policy arranged cups in 25% of trials, with deltas in 80%, and with relative poses in 20 out of 20. The same policy checkpoint on a different arm, a Franka instead of a UR5, passed 18 trials out of 20; both failures happened because joint limits were exceeded. Nobody knows the robot's reach during recording, so the recordings are later filtered by its kinematics. One more correction concerns latency: the camera, the arm and the gripper respond with different latencies, from a few to hundreds of milliseconds, and these are aligned. Without this, the success rate in tossing objects dropped from 87.5 to 57.5%.</p>
+    </div>
+    <figure class="card dev-fig">
+      <div class="dev-grid">
+        <canvas data-anim="umi" width="640" height="320" role="img" aria-label="A person moves a cup onto a saucer with a hand-held gripper that carries a camera, and the gripper leaves a trail of poses; then a robot arm with the same gripper and camera follows the same path; the circle shows the camera frame with the gripper fingers and mirrors at the edges"></canvas>
+        <dl class="dev-dl">
+          <dt>What the person holds</dt><dd>A hand-held gripper with a trigger and a GoPro camera.</dd>
+          <dt>What they see</dt><dd>Their own hand and the scene: there is no robot during recording.</dd>
+          <dt>What gets recorded</dt><dd>Fisheye video with inertial sensor data; the gripper's pose and width are derived from them later. Everything is stored in a single video file.</dd>
+          <dt>Cost</dt><dd>$73 for the gripper parts and $298 for the GoPro with accessories.</dd>
+        </dl>
+      </div>
+      <p class="cv-note">Side view, two scenes. First, a person moves a cup onto a saucer with a hand-held gripper; the orange dashed line shows the recorded path of the gripper. Then comes the same scene with a robot: a blue arm with the same gripper and camera follows the same path. The circle shows the camera frame: the gripper's fingers with markers are visible at the bottom, and the mirrors at the edges.</p>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>In 15 minutes, the hand-held gripper recorded more than three times as many cup arrangement demonstrations as teleoperation with a 3D mouse, even though that's only 48% of the pace of a bare hand: the gripper is heavy and bulky. Three people recorded 1,400 demonstrations in 30 locations in 12 person-hours: in homes, offices and restaurants. A policy trained on this data succeeded in 71.7% of trials in two new locations, while a policy trained on data from a single lab didn't succeed once. Lin et al. from lesson 4.1 also collected their more than 40,000 demonstrations with UMI; about 90% of them turned out to be usable, and SLAM spoiled the rest: dark areas and blank walls get in its way.</p>
+      <p>The authors state the limitations directly: the scene needs texture, the gripper has two fingers instead of five, and it doesn't record force. There turned out to be many devices, and each has its own cost per hour. What ends up costing more in a demonstration: the device, the robot or the person?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="cost">
+  <div class="wrap">
+    <div class="lab-badge"><i>🧩</i> Interactive</div>
+    <h2>What a usable demonstration costs</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>Let's compare three methods: ALOHA teleoperation, the GELLO leader arm with a UR5 arm, and the UMI hand-held gripper. The kit prices are taken from the papers. A UR5 arm costs about $30,000: that's the GELLO paper's estimate for teleoperation in which a second identical arm serves as the leader. The recording rates are taken from the papers too. ALOHA's 50 demonstrations were recorded in 30–60 minutes; we take the middle, about 67 an hour. With UMI, three people recorded 1,400 demonstrations in 12 person-hours, that is, about 117 an hour, including the moves between 30 locations. About 90% of UMI recordings are usable, as in Lin et al.</p>
+      <p>The rest is set for illustration: GELLO's rate is the same as ALOHA's, everyone works 8 hours a day, a kit lasts 2,000 hours, and you choose the operator's wage. ALOHA and UMI were recorded on different tasks, so the comparison of rates is rough: what matters is the order of magnitude.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="calc" id="cRows"></div>
+        <p class="cv-note">Each method has two bars. The first shows how many days the team needs to collect 10,000 usable demonstrations if everyone works 8 hours a day. The second shows the cost of one usable demonstration: the dark part is the equipment, and the light part is the person's time. Bars of the same kind can be compared across methods.</p>
+        <div class="ctl-row">
+          <label class="hd-range wide" id="wrapCBudget"><span>Equipment budget</span><input id="cBudget" type="range" min="10000" max="300000" step="10000" value="100000"><output>$100,000</output></label>
+          <label class="hd-range" id="wrapCPeople"><span>People</span><input id="cPeople" type="range" min="1" max="30" step="1" value="10"><output>10</output></label>
+          <label class="hd-range" id="wrapCWage"><span>Operator wage</span><input id="cWage" type="range" min="5" max="60" step="1" value="25"><output>$25/h</output></label>
+        </div>
+        <div class="readout" id="cOut"></div>
+      </div>
+      <div class="card guide-card"><div id="cMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: how the collection time and the cost per demonstration are computed</summary><div class="body">
+      <p>Let \(P\) be the price of a kit, \(B\) the equipment budget, \(N\) the number of people, \(r\) how many demonstrations a person records in an hour, \(g\) the share of usable ones, and \(w\) the operator's hourly wage. We buy as many kits as the money allows, but no more than there are people; each kit lasts \(T = 2000\) hours. Then</p>
+      <div class="formula">\[\begin{gathered} n = \min\!\Bigl(N,\ \Bigl\lfloor \frac{B}{P} \Bigr\rfloor\Bigr), \qquad \text{per day} = 8\, n\, r\, g, \\ \text{cost per demonstration} = \frac{P / T + w}{r\, g}. \end{gathered}\]</div>
+      <p>For ALOHA, we take \(P = 20\,000\), \(r \approx 67\) and \(g = 1\); for GELLO with a UR5, \(P = 30\,300\), \(r \approx 67\) and \(g = 1\); for UMI, \(P = 371\), \(r \approx 117\) and \(g = 0.9\). The calculation leaves out the cost of resetting the scene beyond what is already counted in the recording rate, as well as repairs, operator training and fine-tuning the policy on robot recordings. The UMI paper didn't need such fine-tuning: the policy was trained only on recordings made with the hand-held gripper.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>Money for equipment buys robots, but it doesn't speed up the operator. As long as a robot is needed for recording, the number of people who can work at the same time is limited by the number of robots, and the cost per demonstration is still set by the person's time. Collecting without a robot removes the first limit but pays in other ways: some of the recordings have to be thrown away, and the robot has to be able to repeat what the person did by hand. How do the methods differ in this respect?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="sort">
+  <div class="wrap">
+    <div class="lab-badge"><i>🧩</i> Interactive</div>
+    <h2>Where the robot is during recording</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>Sort the seven systems from the lesson by whether a robot is needed during recording and how the operator sees it. Drag a card, or click it and then a bin.</p>
+    </div>
+    <div class="card pad dev-sort" id="devSort"></div>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>The further from the robot a recording is made, the cheaper it is and the more recordings can be made in parallel. But the gap between what the person did and what the robot will be able to do grows too. It is closed in different ways: with the same gripper and camera on the robot, with retargeting, with a kinematics filter, with human corrections and with fine-tuning on robot recordings.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="today">
+  <div class="prose">
+    <div class="kicker"><span class="num">7</span> Today</div>
+    <h2>Robot-free collection has grown to hundreds of thousands of hours</h2>
+    <p>Teleoperation remains the way to get data from exactly the robot that will do the work. π0 from lesson 3.6 was trained on robot recordings, and the data of π*0.6 also includes interventions by an operator who corrects the robot while it works on its own.</p>
+    <p>But the largest datasets of 2025–2026 were collected without a robot. In November 2025, Generalist AI reported that more than 270,000 hours of real-world manipulation data had been collected for its GEN-0 model in thousands of homes, warehouses and workplaces, with 10,000 hours added every week. In April 2026, in its post about GEN-1, the company specified that the data is recorded by low-cost wearable devices on people and that the base model is trained without any robot data at all; by then, more than half a million hours had accumulated. In August 2026, in its post about GEN-1.5, the company added that people record this data with a pair of hand-held grippers. In November 2025, Sunday Robotics showed a glove that has the same geometry and the same sensors as the hand of its robot Memo; according to the company's CEO, Tony Zhao, the glove offers “higher capital efficiency compared to teleoperation ($200 vs $20,000).”</p>
+    <p>The next step does without a device altogether: robots are taught from videos of people. In 2025, Figure taught a humanoid to navigate rooms using only first-person videos of people, without a single robot demonstration, and in December 2025, Physical Intelligence showed skill transfer from a few dozen hours of video recorded by people with cameras on their heads and wrists. Lesson 4.4 is devoted to this.</p>
+    <p>But no device answers the main question: what exactly to record. A thousand demonstrations in one kitchen or ten each in a hundred kitchens? Which demonstrations are better thrown away than kept? We'll take up these questions in lesson 4.3.</p>
+  </div>
+</section>
+
+<section class="section alt" id="quiz">
+  <div class="prose">
+    <div class="kicker"><span class="num">8</span> Check yourself</div>
+    <h2>Eight common misconceptions</h2>
+    <div class="quiz" id="quizBox"></div>
+    <p class="score" id="quizScore" style="margin-top:14px"></p>
+  </div>
+</section>
+
+<section class="section" id="finale">
+  <div class="prose">
+    <div class="kicker"><span class="num">9</span> Takeaways</div>
+    <h2>Lesson takeaways</h2>
+    <ol class="takeaways">
+      <li><span>Every demonstration costs a person's time, and usually more than the recording itself lasts: in ALOHA, 10–20 minutes of data took 30–60 minutes of work. <strong>The cost and quality of data depend on the device</strong> used to record it.</span></li>
+      <li><span>A <strong>leader arm</strong> is a copy of the robot arm: its angles go to the robot one-to-one, without inverse kinematics. GELLO costs less than $300 per arm, and 12 novices reached a success of 0.92 with it versus 0.72 with a VR headset and 0.63 with a 3D mouse.</span></li>
+      <li><span>The Open-TeleVision <strong>VR headset</strong> guides a humanoid's head, arms and fingers through pose mapping and retargeting, and a stereo camera on a turning neck shows the operator what the robot will see.</span></li>
+      <li><span><strong>The controller and latency change the data itself</strong>: with latency, the operator moves in steps and waits, tracking jitter gets written into the actions, and the policy learns all of this along with the task.</span></li>
+      <li><span>DexCap gloves and the AirExo and HOMIE exoskeletons record <strong>the fingers and the whole body</strong>. DexCap and AirExo also work without a robot, and HOMIE hands the legs over to a policy trained in simulation.</span></li>
+      <li><span>The <strong>UMI hand-held gripper</strong> takes the robot out of collection: the same gripper and camera are later mounted on the robot, the actions are recorded relative to the gripper, and the recordings are filtered by kinematics. With it, 1,400 demonstrations were recorded in 30 locations in 12 person-hours.</span></li>
+    </ol>
+    <h3 style="margin-top:40px">Open questions</h3>
+    <details class="card pad open-q"><summary>The operator doesn't feel how hard the robot presses on an object. How do you record tasks where force matters?</summary><p>In ALOHA, the action is the poses of the leader arm, and the force is set implicitly by the difference between the leader and the follower, which the joint controllers work to close. GELLO, HOMIE and Open-TeleVision give no force feedback, and DexCap and UMI don't record force. A device with force feedback, such as the Omega7 in the GELLO table, costs $40,000. There are other ways too: tactile sensors in the fingers of the robot and the gripper, like GelSight from lesson 0.2, and reinforcement learning on the robot itself, where force becomes part of the reward.</p></details>
+    <details class="card pad open-q"><summary>If recording without a robot is cheaper and faster, why teleoperate at all?</summary><p>Humans and robots differ. A robot may not reach the place where the gripper was in a person's hand, which is why UMI filters out such recordings. A robot has a different speed and different latencies: the UMI policy was run at half the speed at which the person moved, and the latencies were aligned. Frames recorded with a person and with a robot differ, which is why AirExo was still fine-tuned on 10 teleoperated demonstrations, and DexCap needed human corrections while the policy was running. Teleoperation gives data from exactly the robot and the latencies it will work with, and it lets you correct the robot on the fly.</p></details>
+    <h3 style="margin-top:34px">Paper guide</h3>
+    <p><a href="https://arxiv.org/abs/2402.10329" target="_blank" rel="noopener">C. Chi, Z. Xu et al., “Universal Manipulation Interface: In-The-Wild Robot Teaching Without In-The-Wild Robots”, 2024</a>.</p>
+    <ul class="links">
+      <li><strong>Read closely</strong><span>Section III: the gripper requirements HD1–HD6 (a wrist camera, a fisheye lens, mirrors, SLAM, gripper width, kinematic filtering) and the policy interface requirements: latency matching and relative trajectories. Section V-A: absolute, delta and relative actions. Section VII: collection speed compared with a bare hand and with teleoperation.</span></li>
+      <li><strong>Safe to skip</strong><span>The appendices on assembling the gripper, calibrating latencies and the SLAM improvements.</span></li>
+      <li><strong>Question to keep in mind</strong><span>Why did absolute gripper poses give 25% success and relative ones 100%? What changes when the policy is moved to a different arm, if the poses are recorded relative to the gripper's current pose?</span></li>
+    </ul>
+    <p style="margin-top:18px"><a href="https://arxiv.org/abs/2309.13037" target="_blank" rel="noopener">P. Wu et al., “GELLO: A General, Low-Cost, and Intuitive Teleoperation Framework for Robot Manipulators”</a>: leader arms that copy the UR5, xArm7 and Franka, and a comparison with VR and a 3D mouse.</p>
+    <p><a href="https://arxiv.org/abs/2407.01512" target="_blank" rel="noopener">X. Cheng, J. Li et al., “Open-TeleVision: Teleoperation with Immersive Active Visual Feedback”, 2024</a>: a VR headset, an active neck and stereo.</p>
+    <p><a href="https://arxiv.org/abs/2403.07788" target="_blank" rel="noopener">C. Wang et al., “DexCap: Scalable and Portable Mocap Data Collection System for Dexterous Manipulation”, 2024</a>: gloves, SLAM and collection without a robot.</p>
+    <p><a href="https://arxiv.org/abs/2307.04577" target="_blank" rel="noopener">Y. Qin et al., “AnyTeleop: A General Vision-Based Dexterous Robot Arm-Hand Teleoperation System”, 2023</a>: teleoperation from video of the hand.</p>
+    <p><a href="https://arxiv.org/abs/2309.14975" target="_blank" rel="noopener">H. Fang et al., “AirExo: Low-Cost Exoskeletons for Learning Whole-Arm Manipulation in the Wild”, 2023</a>: an arm exoskeleton and recording without a robot.</p>
+    <p><a href="https://arxiv.org/abs/2502.13013" target="_blank" rel="noopener">Q. Ben, F. Jia et al., “HOMIE: Humanoid Loco-Manipulation with Isomorphic Exoskeleton Cockpit”, 2025</a>: a cockpit with an exoskeleton and pedals for a humanoid.</p>
+    <p><a href="https://arxiv.org/abs/2304.13705" target="_blank" rel="noopener">T. Z. Zhao et al., “Learning Fine-Grained Bimanual Manipulation with Low-Cost Hardware”, RSS 2023</a> and <a href="https://arxiv.org/abs/2401.02117" target="_blank" rel="noopener">Z. Fu, T. Z. Zhao, C. Finn, “Mobile ALOHA”, 2024</a>: ALOHA and its mobile version.</p>
+    <h3 style="margin-top:34px">Resources</h3>
+    <ul class="links">
+      <li><a href="https://wuphilipp.github.io/gello_site/" target="_blank" rel="noopener">GELLO</a><span>Project page: parts, assembly, videos</span></li>
+      <li><a href="https://robot-tv.github.io/" target="_blank" rel="noopener">Open-TeleVision</a><span>Project page: videos of teleoperation over the internet</span></li>
+      <li><a href="https://dex-cap.github.io/" target="_blank" rel="noopener">DexCap</a><span>Project page: the gloves, data collection and human corrections</span></li>
+      <li><a href="https://airexo.github.io/" target="_blank" rel="noopener">AirExo</a><span>Project page: the exoskeleton and collection without a robot</span></li>
+      <li><a href="https://homietele.github.io/" target="_blank" rel="noopener">HOMIE</a><span>Project page: the cockpit and videos with the G1</span></li>
+      <li><a href="https://umi-gripper.github.io/" target="_blank" rel="noopener">UMI</a><span>Project page: gripper assembly instructions, code and data</span></li>
+      <li><a href="https://generalistai.com/blog/gen-0" target="_blank" rel="noopener">GEN-0</a><span>Generalist AI's post, November 4, 2025: 270,000 hours of manipulation data</span></li>
+    </ul>
+    <!--if:4-3-datasety-robotov.html--><div class="callout insight" style="margin-top:34px"><span class="ico">➡️</span><div><p><strong>Next: 4.3 “Robot datasets”.</strong> Collection devices answer the question of what to record with. The next lesson covers what to record: we'll go from RoboNet and BridgeData V2 to DROID and AgiBot World, compare the diversity of scenes with the number of episodes and discuss data curation: how to filter out demonstrations that spoil training.</p><p><a href="4-3-datasety-robotov.html">Lesson 4.3 →</a></p></div></div><!--/if-->
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Lesson 4.2 of the “Modern Robotics and Physical AI” course. The numbers about the devices are taken from papers and official pages; the teleoperation of Ada's arm and the calculator run in your browser, while the operator model, the tracking jitter and the operator's wage are set for illustration.
+</footer>
+<div class="tooltip" id="tooltip" role="tooltip"></div>
+<script>
+/*@@JS@@*/
+</script>
+</body>
+</html>
