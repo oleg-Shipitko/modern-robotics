@@ -66,7 +66,18 @@ const Anim = (() => {
   function hatchBox(c, x0, y0, x1, y1, P) {
     c.beginPath(); c.rect(x0, y0, x1 - x0, y1 - y0); K.hatch(c, x0, y0, x1, y1, P.ink3, 6, 1);
   }
-  const lab = (c, k, text, x, y, o) => K.label(c, k, text, x, y, Object.assign({ px: 11.5, weight: 600 }, o || {}));
+  /** Подпись; если на узком канвасе она вылезает за край (шрифт в CSS-пикселях, а рисунок сжимается), сдвигаем её внутрь. */
+  const lab = (c, k, text, x, y, o) => {
+    o = Object.assign({ px: 11.5, weight: 600 }, o || {});
+    const tr = c.getTransform();
+    if (tr.a > 0 && !tr.b && !tr.c) {
+      K.font(c, k, o.px, o.weight, o.mono);
+      const w = c.measureText(String(text)).width, al = o.align || 'center', x0 = al === 'center' ? x - w / 2 : al === 'right' ? x - w : x;
+      const d0 = tr.a * x0 + tr.e, d1 = tr.a * (x0 + w) + tr.e, m = 3 * tr.a, W = c.canvas.width;
+      if (d1 - d0 < W - 2 * m) x += (d0 < m ? m - d0 : d1 > W - m ? W - m - d1 : 0) / tr.a;
+    }
+    K.label(c, k, text, x, y, o);
+  };
   /** Цвет с прозрачностью: hex или rgb() из CSS-переменной. */
   function alpha(col, a) {
     const s = String(col).trim();
