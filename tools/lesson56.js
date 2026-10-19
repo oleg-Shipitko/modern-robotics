@@ -63,7 +63,7 @@ if (process.argv.includes('--seed')) {
     const [ri0, ri1] = st('random', (s) => s.iql.ok), [rb0, rb1] = st('random', (s) => s.bc.ok);
     console.log(`лаб. 3: аккуратный — IQL как оператор на ${tie}; торопливый — IQL всегда быстро на ${hurFast}; случайный — IQL ${ri0}–${ri1}, BC ${rb0}–${rb1}, IQL выше BC на ${rndWin}`);
     check(txt.includes(`едет как оператор на ${tie} зёрнах из 10`) && txt.includes(`всегда быстро — на ${hurFast}`), 'лаборатория 3: логи одного оператора');
-    check(txt.includes(`IQL — от ${ri0} до ${ri1}`) && txt.includes(`BC — от ${rb0} до ${rb1}`) && txt.includes(`IQL набирает больше BC на ${rndWin}`), 'лаборатория 3: логи случайного оператора');
+    check(txt.includes(`IQL доезжает от ${ri0} до ${ri1}`) && txt.includes(`BC — от ${rb0} до ${rb1}`) && txt.includes(`IQL набирает больше BC на ${rndWin}`), 'лаборатория 3: логи случайного оператора');
     finish();
   })().catch((e) => { console.error(e); process.exit(1); });
 } else {
@@ -190,7 +190,7 @@ const idle = (p, lab) => p.waitFor(`!window.__l56.${lab}.st.busy`, 240000);
     await nextMission(p, '#sMis');
     check(await visible(p, '#wrapSSet'), 'свободный режим: выбор набора виден');
     const sa = await text(p, '#setsAfter');
-    check(['20 поездок из 20 за 15,1 секунды', 'в 17 поездках из 100', '20 поездок из 20 за 8,2 секунды', '+4,02', '12,3 секунды'].every((x) => sa.includes(x)), 'инференс после лаборатории 3 называет те же числа');
+    check(['20 поездках из 20 за 15,1 секунды', 'в 17 поездках из 100', '20 поездках из 20 за 8,2 секунды', '+4,02', '12,3 секунды'].every((x) => sa.includes(x)), 'инференс после лаборатории 3 называет те же числа');
 
     // ---------- тексты совпадают с расчётом ----------
     const fin = await text(p, '#finale .takeaways');

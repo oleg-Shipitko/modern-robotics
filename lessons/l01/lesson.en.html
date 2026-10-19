@@ -72,7 +72,7 @@ v = pid(path.next - hand)</pre>
           <span><svg viewBox="0 0 28 14" class="wide"><path d="M2 11 C 10 11, 15 3, 26 3" fill="none" stroke="#eb6834" stroke-width="2.4" stroke-linecap="round"/></svg>path the operator guided it along</span>
           <span><svg viewBox="0 0 22 20"><rect x="13.5" y="8" width="6" height="4.2" rx="1.6" fill="#8e2b22"/><circle cx="10" cy="10" r="7" fill="#c23a2c"/><circle cx="10" cy="10" r="5.6" fill="#e9b9ad"/><circle cx="10" cy="10" r="4.6" fill="#6b3d1f"/></svg>cup</span>
         </div>
-        <p class="demo-note">The rest on the table: a sugar bowl, a napkin holder, a milk jug and a bowl of coffee beans. From one recording to the next the objects and the cup stand in different places, and the kitchen light changes.</p>
+        <p class="demo-note">The table also holds a sugar bowl, a napkin holder, a milk jug and a bowl of coffee beans. From one recording to the next the objects and the cup stand in different places, and the kitchen light changes.</p>
       </div>
     </div>
 
@@ -173,7 +173,7 @@ v = pid(path.next - hand)</pre>
         <ul>
           <li class="plus"><strong>Generalization.</strong> The network finds features on its own that an engineer would never think to program.</li>
           <li class="plus"><strong>No hand-made interfaces.</strong> The whole system is optimized for the final goal; no information is lost between modules. In the lesson's reference paper (Levine et al., 2016) the robot inserted a block into a shape sorter in 96% of attempts, while a modular version with separate pose estimation never did: a centimeter of error at the interface killed a task with millimeter tolerance.</li>
-          <li class="minus"><strong>Needs lots of data.</strong> Hundreds of examples even for a simple task, thousands of hours for a general-purpose model.</li>
+          <li class="minus"><strong>Needs lots of data.</strong> Even a simple task takes hundreds of examples, and a general-purpose model takes thousands of hours.</li>
           <li class="minus"><strong>No guarantees and silent failures.</strong> Outside its data the network behaves unpredictably and does not report an error.</li>
         </ul>
       </div>
@@ -235,7 +235,7 @@ v = pid(path.next - hand)</pre>
         <span><svg viewBox="0 0 22 20"><rect x="13.5" y="8" width="6" height="4.2" rx="1.6" fill="#8e2b22"/><circle cx="10" cy="10" r="7" fill="#c23a2c"/><circle cx="10" cy="10" r="5.6" fill="#e9b9ad"/><circle cx="10" cy="10" r="4.6" fill="#6b3d1f"/></svg>cup — the goal</span>
         <span><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="9" fill="rgba(208,59,59,.18)" stroke="rgba(208,59,59,.7)" stroke-width="1.1" stroke-dasharray="2.2 2.2"/><circle cx="10" cy="10" r="5" fill="#33353d"/><circle cx="10" cy="10" r="3" fill="#4a4c55"/></svg>hot kettle and the zone where you can get burned</span>
       </div>
-            <p class="cv-note">The rest on the table: a blue sugar bowl, a green napkin holder, a bowl of coffee beans and a white milk jug. The kettle appears in the "Kettle in the way" experiments.</p>
+            <p class="cv-note">The table also holds a blue sugar bowl, a green napkin holder, a bowl of coffee beans and a white milk jug. The kettle appears in the "Kettle in the way" experiments.</p>
           </div>
           <div class="lg-group thoughts-key" id="thoughtsKey">
             <h4>Ada's "thoughts"</h4>
@@ -338,7 +338,7 @@ v = pid(path.next - hand)</pre>
     <div class="fix-grid">
       <div class="card fix-card rules">
         <h3><span class="chip classic">Rules path</span></h3>
-        <p class="sub">Perception rules the engineer wrote in daylight. Add fixes for the failures from Lab 1.</p>
+        <p class="sub">Here are the perception rules the engineer wrote in daylight. Add fixes for the failures from Lab 1.</p>
         <pre class="code" id="rulesCode"></pre>
         <div class="rule-btns">
           <label class="toggle"><input type="checkbox" id="ruleWb"><span class="box"></span>White balance by table color (fixes the evening)</label>
@@ -376,7 +376,7 @@ v = pid(path.next - hand)</pre>
         </div>
         <div class="train-status" id="trainStatus"></div>
         <svg class="chart" id="lossChart" viewBox="0 0 520 170" aria-label="Training loss curve"></svg>
-        <p class="small muted" id="lossNote">The loss is how far the network's commands diverge from the operator's commands in the demonstrations; the scale is logarithmic, each division is 10 times smaller than the previous one. The orange line is the loss on the scenes the network trains on, the gray one on new scenes it has never seen. If the gray line is noticeably above the orange one, the network memorized the examples but did not learn to generalize.</p>
+        <p class="small muted" id="lossNote">The loss shows how far the network's commands diverge from the operator's commands in the demonstrations. The scale is logarithmic: each division is 10 times smaller than the previous one. The orange line shows the loss on the scenes the network trains on, and the gray one on new scenes it has never seen. If the gray line is noticeably above the orange one, the network memorized the examples but did not learn to generalize.</p>
         <div class="callout insight" id="lab2Insight" hidden style="margin-top:12px"><span class="ico">💡</span><div id="lab2InsightText"></div></div>
       </div>
     </div>
@@ -384,7 +384,7 @@ v = pid(path.next - hand)</pre>
 
     <div class="card chart-card" style="margin-top:18px">
       <div class="chart-head">
-        <div><h4>Success versus the number of demonstrations</h4><p>Each point is one training run checked on 40 new scenes. Rules need no data: their level is a horizontal line. At first each network has one point: the 200 demonstrations it trained on when the lesson opened. The curves appear after the "Build the full curve" button above: the networks will train on 5, 10, 25, 50, 100, 200, 500 and 1000 demonstrations.</p></div>
+        <div><h4>Success versus the number of demonstrations</h4><p>Each point is one training run checked on 40 new scenes. Rules need no data: their level is a horizontal line. At first each network has one point: it trained on 200 demonstrations when the lesson opened. The curves appear once you press the "Build the full curve" button above: the networks will train on 5, 10, 25, 50, 100, 200, 500 and 1000 demonstrations.</p></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
           <div class="seg" role="group" aria-label="Test conditions" id="scaleCond">
             <button type="button" data-c="normal" aria-pressed="true">Normal</button>
@@ -434,7 +434,7 @@ v = pid(path.next - hand)</pre>
     <div class="callout thesis"><span class="ico">🧭</span><div><p><strong>How the work is divided.</strong> No approach wins at everything. Neural networks get what rules cannot describe: open-world perception, language, soft objects. Rules stay where guarantees, rate and precision are needed: speed limits, safety zones, emergency stop. How do you apply this to specific tasks?</p></div></div>
     <div class="two-col" style="margin-top:6px">
       <div class="callout note mt-0"><span class="ico">⚠️</span><div><p><strong>Misconception: "end-to-end is always better, it's only a matter of data".</strong> Guarantees do not come from data. A network that goes around the kettle 99 times out of 100 may drive into it on the hundredth, and nobody will know in advance.</p></div></div>
-      <div class="callout note mt-0"><span class="ico">⚠️</span><div><p><strong>Misconception: "a VLA controls the motors directly".</strong> Vision-language-action models output goals a few dozen times per second, while the motors are driven by controllers at around a kilohertz. The boundary is shifting: in 2026 the bottom layer of some robots became neural too. Details in Lesson 0.3 and in Part 6.</p></div></div>
+      <div class="callout note mt-0"><span class="ico">⚠️</span><div><p><strong>Misconception: "a VLA controls the motors directly".</strong> Vision-language-action models output goals a few dozen times per second, while the motors are driven by controllers at around a kilohertz. The boundary is shifting: in 2026 the bottom layer of some robots became neural too. Lesson 0.3 and Part 6 cover this in detail.</p></div></div>
     </div>
   </div>
 </section>
@@ -497,8 +497,8 @@ v = pid(path.next - hand)</pre>
     <h2>Why the course follows the data path from here</h2>
     <p>The industry bets on data because rules do not scale. You cannot write a rule for every situation: a kitchen has infinitely many cups, lights and kinds of mess. This long tail is exactly what the rules version of Ada ran into: every fix closed one case and dragged in the next.</p>
     <p>Data scales differently: to teach a network something new, you do not need to know in advance how the world works — you need to show enough examples. That is why the course follows the data path from here, and brings out the classics when there is no way around them.</p>
-    <p>The main limit became the data itself, and the industry is collecting it in volumes unheard of in robotics. π0 in 2024 was trained on 10,000+ hours of robot demonstrations. GEN-0 in 2025 — already on 270,000 hours, but these are recordings of people working with their hands, captured by wearable devices.</p>
-    <p>It is still a long way to the texts that language models train on: Ken Goldberg called this gap "the 100,000-year data gap". The estimate is rough, he himself calls it a thought experiment, but it conveys the order of magnitude correctly. How the gap is being closed — with teleoperation, human video, simulation and data from robots already at work — is covered in Part 4.</p>
+    <p>The main limit became the data itself, and the industry is collecting it in volumes unheard of in robotics. π0 in 2024 was trained on 10,000+ hours of robot demonstrations. GEN-0 in 2025 was already trained on 270,000 hours, but these are recordings of people working with their hands, captured by wearable devices.</p>
+    <p>It is still a long way to the texts that language models train on: Ken Goldberg called this gap "the 100,000-year data gap". The estimate is rough, he himself calls it a thought experiment, but it conveys the order of magnitude correctly. The gap is being closed with teleoperation, human video, simulation and data from robots already at work. Part 4 covers how this is done.</p>
     <div class="callout insight"><span class="ico">🧭</span><div><p><strong>What comes next.</strong> The main path of the course starts with Part 1: imitation learning, large models, data, reinforcement learning, humanoids and world models. Before that come lessons <a href="0-2-ustroystvo-robota.html">0.2</a>, <a href="0-3-kinematika-i-upravlenie.html">0.3</a> and <a href="0-4-otsenka-sostoyaniya-i-planirovanie.html">0.4</a>: the robot's body, motion control, state estimation and planning.</p></div></div>
   </div>
 </section>
@@ -519,15 +519,15 @@ v = pid(path.next - hand)</pre>
     <div class="kicker"><span class="num">7</span> Takeaways</div>
     <h2>Lesson takeaways</h2>
     <ol class="takeaways">
-      <li><span><strong>Rules</strong> are modules with clear interfaces: guarantees, rate, transparency. The weakness is the open world and the long tail of situations.</span></li>
-      <li><span><strong>Learning from data</strong>: the network finds features on its own and generalizes. The weakness is that it needs lots of data, and failures can be silent: the network does not know it is wrong.</span></li>
+      <li><span><strong>Rules</strong> build the system from modules with clear interfaces and give guarantees, a high rate and transparency. But they cannot cope with the open world and the long tail of situations.</span></li>
+      <li><span>In <strong>learning from data</strong>, the network finds features on its own and generalizes. But it needs lots of data, and failures can be silent: the network does not know it is wrong.</span></li>
       <li><span>A network generalizes only to what the data covers. What matters is not just the number of examples but their <strong>variety</strong>.</span></li>
-      <li><span>Modern systems are <strong>neural models</strong> with a safety net of rules. The learned part grows with every generation.</span></li>
+      <li><span>Modern systems are built on <strong>neural models</strong> with a safety net of rules. The learned part grows with every generation.</span></li>
       <li><span><strong>The main limit is data.</strong> That is why the course follows the data path from here and looks at how data is obtained and how models learn from it.</span></li>
     </ol>
 
     <h3 style="margin-top:40px">Assignment</h3>
-    <p>A one-page essay. Pick a real product: a humanoid, a warehouse robot or a robot vacuum. Break down its stack: which parts are learned, which are programmed, and why exactly that way. Lean on the trade-off table from this lesson.</p>
+    <p>Write a one-page essay. Pick a real product: a humanoid, a warehouse robot or a robot vacuum. Break down its stack: which parts are learned, which are programmed, and why exactly that way. Lean on the trade-off table from this lesson.</p>
 
     <h3 style="margin-top:34px">Resources</h3>
     <ul class="links">
@@ -537,12 +537,12 @@ v = pid(path.next - hand)</pre>
       <li><a href="https://robotics-transformer-x.github.io/" target="_blank" rel="noopener">Open X-Embodiment</a><span>An attempt to build a shared robot dataset: over a million trajectories, 22 robot types</span></li>
       <li><a href="https://manipulation.csail.mit.edu/" target="_blank" rel="noopener">Robotic Manipulation</a><span>R. Tedrake, MIT — classics and learning in manipulation</span></li>
     </ul>
-    <div class="callout insight" style="margin-top:34px"><span class="ico">➡️</span><div><p><strong>Next: how a robot is built.</strong> In this lesson Ada had a perfect body: the network issued a command, and the gripper moved exactly where it was told. In a real robot the command is executed by motors with gearboxes and by controllers, and the robot learns about itself and the world through noisy sensors, each with its own rate. What a policy really receives and outputs, and what it controls — <a href="0-2-ustroystvo-robota.html">Lesson 0.2</a>.</p></div></div>
+    <div class="callout insight" style="margin-top:34px"><span class="ico">➡️</span><div><p><strong>Next: how a robot is built.</strong> In this lesson Ada had a perfect body: the network issued a command, and the gripper moved exactly where it was told. In a real robot the command is executed by motors with gearboxes and by controllers, and the robot learns about itself and the world through noisy sensors, each with its own rate. What a policy really receives and outputs, and what it controls, is covered in <a href="0-2-ustroystvo-robota.html">Lesson 0.2</a>.</p></div></div>
   </div>
   <div class="wrap" style="margin-top:46px">
     <div class="prose" style="margin-bottom:18px;max-width:820px">
       <h3>Course map</h3>
-      <p class="muted" style="margin:0">Nine parts. Click a station to see which question from this lesson is explored there.</p>
+      <p class="muted" style="margin:0">The course has nine parts. Click a station to see which question from this lesson is explored there.</p>
     </div>
     <div class="card pad metro">
       <div class="metro-line" id="metro"></div>

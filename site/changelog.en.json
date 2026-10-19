@@ -23,6 +23,14 @@
       ]
     },
     {
+      "v": "3.3",
+      "date": "2026-10-19",
+      "title": "Lessons in full sentences",
+      "items": [
+        "The text of every lesson is rewritten in full sentences: instead of chains of “X — Y” fragments, each sentence says who does what. Most of the changes are in lab introductions, scene and diagram captions, “Under the hood” blocks and takeaways."
+      ]
+    },
+    {
       "v": "3.2",
       "date": "2026-10-19",
       "title": "Clearer bridges between lessons, a chunk as a maneuver",

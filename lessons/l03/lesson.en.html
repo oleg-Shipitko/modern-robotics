@@ -96,7 +96,7 @@
       <div class="formula">\[\begin{aligned} x &= L_1\cos\theta_1 + L_2\cos(\theta_1 + \theta_2),\\ y &= L_1\sin\theta_1 + L_2\sin(\theta_1 + \theta_2). \end{aligned}\]</div>
       <p>Inverse kinematics:</p>
       <div class="formula">\[\begin{aligned} \cos\theta_2 &= \frac{x^2 + y^2 - L_1^2 - L_2^2}{2L_1L_2},\\ \theta_2 &= \pm\arccos(\ldots),\\ \theta_1 &= \operatorname{atan2}(y, x)\\ &\quad - \operatorname{atan2}(L_2\sin\theta_2,\ L_1 + L_2\cos\theta_2). \end{aligned}\]</div>
-      <p>The \(\pm\) sign gives two solutions. If the right-hand side of the first line is greater than one in absolute value, the target is out of reach. On the outer and inner boundary of the workspace the solutions merge into one. In this lesson \(L_1 = 0.5\) m and \(L_2 = 0.4\) m. To make the boundary easier to catch, the target on the right scene snaps to it within 2 cm.</p>
+      <p>The \(\pm\) sign gives two solutions. If the right-hand side of the first line is greater than one in absolute value, the target is out of reach. On the outer and inner boundary of the workspace the solutions merge into one. In this lesson the link lengths are \(L_1 = 0.5\) m and \(L_2 = 0.4\) m. To make the boundary easier to catch, the target on the right scene snaps to it within 2 cm.</p>
       <p>Real arms have more solutions: a PUMA with a spherical wrist has 8, a general six-link arm up to 16, a seven-link arm infinitely many. See chapters 4–6 of Lynch and Park's "Modern Robotics" for the details.</p>
     </div></details>
     <div class="prose" style="margin:26px 0 0;max-width:820px">
@@ -113,7 +113,7 @@
       <h2>Where the arm moves easily</h2>
       <p>To guide the gripper along a path, we need to know where it will shift from a small rotation of each joint. The answer depends on the arm's pose.</p>
       <p>This relationship is described by the <strong>Jacobian</strong>: it maps joint velocities to gripper velocity. Rotate both joints by a small angle in every combination and mark where the gripper ends up. You get an ellipse: along the long axis the arm moves easily, along the short one with difficulty. If the ellipse has flattened into a segment, there is a direction in which no joint rotation can move the gripper. This is a <strong>singularity</strong>.</p>
-      <p>Drag the gripper. Each position lands as a point on the plot: how round the ellipse is at that distance from the shoulder. Find where the arm moves most easily and where it loses a direction.</p>
+      <p>Drag the gripper. Each position lands as a point on the plot, which shows how round the ellipse is at that distance from the shoulder. Find where the arm moves most easily and where it loses a direction.</p>
     </div>
     <div class="lab lab-narrow">
       <div class="card scene-card">
@@ -142,7 +142,7 @@
     <div class="lab-badge"><i>🔬</i> Lab 1</div>
     <h2>A neural network learns kinematics</h2>
     <p class="lead lab-intro">For a complex arm the inverse kinematics formulas can be hard to derive, and for every new arm they have to be derived all over again.</p>
-    <p class="lead lab-intro">So we can train a network instead: gripper pose in, joint angles out. Training examples are easy to get. Take random angles, compute the gripper pose with forward kinematics and record the pair "pose → angles". You can collect as many pairs as you like.</p>
+    <p class="lead lab-intro">So we can instead train a network that takes the gripper pose and outputs the joint angles. Training examples are easy to get. Take random angles, compute the gripper pose with forward kinematics and record the pair "pose → angles". You can collect as many pairs as you like.</p>
     <p class="lead lab-intro">Let's test this: train two identical networks side by side on different data and send their arms to the same target.</p>
     <div class="lab">
       <div class="card scene-card">
@@ -167,11 +167,11 @@
     </div>
     <details class="deep"><summary>Under the hood: the data, the network and where the average comes from</summary><div class="body">
       <ul>
-        <li><b>Data.</b> 6,000 pairs. The angles \(\theta_1\) are drawn uniformly from −180° to 180°, \(\theta_2\) from −175° to 175°. Network B keeps only the poses with \(\theta_2 > 0\).</li>
-        <li><b>Input and output.</b> Input: the gripper coordinates divided by 0.9 m. Output: \(\cos\theta_1, \sin\theta_1, \cos\theta_2, \sin\theta_2\), so the angle does not jump at the ±180° boundary.</li>
-        <li><b>Network.</b> 2 → 48 → 48 → 4 with Leaky ReLU, Adam, 900 steps of 64 examples each, learning rate 0.005 and 0.0015 at the end. Both networks start from the same weights.</li>
+        <li><b>Data.</b> The set has 6,000 pairs. The angles \(\theta_1\) are drawn uniformly from −180° to 180°, \(\theta_2\) from −175° to 175°. Network B keeps only the poses with \(\theta_2 > 0\).</li>
+        <li><b>Input and output.</b> The network takes the gripper coordinates divided by 0.9 m as input. It outputs \(\cos\theta_1, \sin\theta_1, \cos\theta_2, \sin\theta_2\), so the angle does not jump at the ±180° boundary.</li>
+        <li><b>Network.</b> The network has layers 2 → 48 → 48 → 4 with Leaky ReLU. Training takes 900 Adam steps of 64 examples each, with a learning rate of 0.005 and 0.0015 at the end. Both networks start from the same weights.</li>
       </ul>
-      <p>Why the average. For the two solutions of one pose, \(\cos\theta_2\) is the same, while \(\sin\theta_2\) is equal in magnitude and opposite in sign. The minimum of the mean squared error is the average of the answers, that is \(\sin\theta_2 = 0\). So the network outputs \(\theta_2 = 0^\circ\) or \(180^\circ\): the arm is stretched out or folded and points at the target. The miss is the difference between the distance to the target and the length of such an arm. That is why the training loss of network A never drops below 0.8, while network B's goes down to 0.01.</p>
+      <p>Why does the network output the average? For the two solutions of one pose, \(\cos\theta_2\) is the same, while \(\sin\theta_2\) is equal in magnitude and opposite in sign. The minimum of the mean squared error is the average of the answers, that is \(\sin\theta_2 = 0\). So the network outputs \(\theta_2 = 0^\circ\) or \(180^\circ\): the arm is stretched out or folded and points at the target. The miss is the difference between the distance to the target and the length of such an arm. That is why the training loss of network A never drops below 0.8, while network B's goes down to 0.01.</p>
     </div></details>
     <div class="prose" style="margin:26px 0 0;max-width:820px">
       <p>The networks have the same amount of data, yet their misses differ: on average 23.5 cm for network A and 2 cm for network B. For network A, one gripper pose has two correct answers, and it outputs their average. Regression gives a wrong answer when one input has several correct answers. This is <strong>multimodality</strong>, and lesson 1.3 is devoted to it.</p>
@@ -206,8 +206,8 @@
       <div class="formula">\[\tau = K_p\,(q^* - q) - K_d\,\dot q + g(q)\]</div>
       <p>\(q^*\) are the target angles, \(q\) and \(\dot q\) the current angles and velocities, \(g(q)\) the torques that, according to the model, balance the weight of the arm. \(K_p\) is the stiffness of the virtual spring in N·m/rad, \(K_d\) is the damper. With exact gravity compensation a PD controller reaches the target from any initial position (Takegaki and Arimoto, 1981).</p>
       <p>Without compensation, at equilibrium \(K_p\,(q^* - q) = g(q)\): the spring is stretched just enough to hold the weight. So the sag is inversely proportional to \(K_p\): roughly \(12.6 \cdot 60 / K_p\) cm. The integral part of a PID controller removes the sag without a weight model: it accumulates the error and builds up the torque.</p>
-      <p>How the criteria are computed. Each run lasts 4 s. Sag is the largest gripper error over the last 0.5 s, swing is the difference between the largest and smallest error over the last second, settling time is the moment after which the error stays within 1 cm of its final value.</p>
-      <p>In the lab the links are 0.5 and 0.4 m, masses of 1.2 and 0.9 kg are concentrated at the link ends, the simulation step is 1 ms. For comparison, in real systems: in legged_gym for the A1 robot \(K_p = 20\) N·m/rad and \(K_d = 0.5\); for ANYmal \(K_p = 50\) and \(K_d = 0.1\).</p>
+      <p>How the criteria are computed. Each run lasts 4 s. Sag is the largest gripper error over the last 0.5 s. Swing is the difference between the largest and smallest error over the last second. Settling time is the moment after which the error stays within 1 cm of its final value.</p>
+      <p>In the lab the links are 0.5 and 0.4 m long, masses of 1.2 and 0.9 kg are concentrated at the link ends, and the simulation step is 1 ms. For comparison, real systems use these gains: in legged_gym the A1 robot has \(K_p = 20\) N·m/rad and \(K_d = 0.5\), and ANYmal has \(K_p = 50\) and \(K_d = 0.1\).</p>
     </div></details>
     <div class="prose" style="margin:26px 0 0;max-width:820px">
       <p>A spring without a damper keeps swinging; the damper kills the swing. Stiffness only reduces the sag under the weight: 12.6 cm at Kp = 60, 3.8 cm at Kp = 190. Gravity compensation removes it, and then a moderate Kp is enough.</p>
@@ -230,7 +230,7 @@
         <div class="cv-legend" id="impLegend"></div>
         <p class="cv-note">Side view. The crosshair is the target toward which the controller pulls the gripper with the cloth.</p>
         <canvas id="impPlot" width="520" height="110" class="plot-cv" role="img" aria-label="Plot of the contact force of both arms over time"></canvas>
-        <p class="muted-s plot-cap">The plot shows each arm's contact force against the table, N, over 3 seconds: the black line is the position arm, the blue one is the impedance arm.</p>
+        <p class="muted-s plot-cap">The plot shows each arm's contact force against the table in newtons over 3 seconds: the black line is the position arm, the blue one is the impedance arm.</p>
         <div class="readout" id="impOut"></div>
         <div class="ctl-row">
           <label class="hd-range" id="wrapK"><span>Stiffness</span><input id="impK" type="range" min="100" max="1500" step="50" value="400"><output>400 N/m</output></label>
@@ -241,7 +241,7 @@
     </div>
     <details class="deep"><summary>Under the hood: the impedance controller</summary><div class="body">
       <div class="formula">\[F = K\,(x^* - x) - D\,\dot x, \qquad \tau = J^{\mathsf T} F + g(q)\]</div>
-      <p>The controller imitates a spring of stiffness \(K\) and a damper \(D\) in gripper space, and gets the joint torques through the transposed Jacobian. In the lab \(K\) is set by the slider (400 N/m at first), \(D = 2\sqrt{1.5\,K}\), and the table is a stiff spring of 6,000 N/m with a damper. The position controller is a PD on the angles with \(K_p = 300\) and gravity compensation. The target lies 2 cm below the table so that the cloth is pressed down, plus the camera error. The contact force at rest is the mean force over the last 0.5 s of the three-second run.</p>
+      <p>The controller imitates a spring of stiffness \(K\) and a damper \(D\) in gripper space, and gets the joint torques through the transposed Jacobian. In the lab \(K\) is set by the slider (400 N/m at first), the damping is \(D = 2\sqrt{1.5\,K}\), and the table is modeled as a stiff spring of 6,000 N/m with a damper. The position controller is a PD on the angles with \(K_p = 300\) and gravity compensation. The target lies 2 cm below the table so that the cloth is pressed down, and the camera error is added on top. The contact force at rest is the mean force over the last 0.5 s of the three-second run.</p>
       <p>The idea was formulated by Neville Hogan in 1985: "Control of position or force alone is inadequate; control of dynamic behavior is also required." Learned policies also learn to set compliance: VICES (2019) outputs controller parameters at 20 Hz, and ACP (2025) varies the stiffness in space and time.</p>
     </div></details>
     <div class="prose" style="margin:26px 0 0;max-width:820px">
@@ -274,7 +274,7 @@
       <div class="card guide-card"><div id="mpcMis"></div></div>
     </div>
     <details class="deep"><summary>Under the hood: how this planner works</summary><div class="body">
-      <p>A point moves at 0.5 m/s and at every step (0.1 s) picks a heading. The heading over the horizon is set by 5 control values with linear interpolation between them. The best plan is found by the cross-entropy method: 4 iterations of 64 candidates, 20 of them random headings around the full circle, and the 8 best define the distribution for the next iteration. The cost of a plan is the distance to the target at its end, plus the mean distance along the way with weight 0.3, plus a penalty of 2 for a collision. The warm start is the previous step's plan shifted one step forward. The randomness of the search comes from a generator with seed 11, so every run repeats exactly.</p>
+      <p>A point moves at 0.5 m/s and at every step (0.1 s) picks a heading. The heading over the horizon is set by 5 control values with linear interpolation between them. The best plan is found by the cross-entropy method. It runs 4 iterations of 64 candidates: 20 of them are random headings around the full circle, and the 8 best define the distribution for the next iteration. The cost of a plan is the sum of the distance to the target at its end, the mean distance along the way with weight 0.3, and a penalty of 2 for a collision. The warm start is the previous step's plan shifted one step forward. The randomness of the search comes from a generator with seed 11, so every run repeats exactly.</p>
       <p>When you change the trap, the "path exists" check looks for a passage from start to goal on a grid with a 2 cm step. Cheetah 3 solves a convex quadratic program instead of a search: the model is simplified so that the optimum is found in a fraction of a millisecond.</p>
     </div></details>
     <div class="prose" style="margin:26px 0 0;max-width:820px">
@@ -290,7 +290,7 @@
     <div class="prose" style="margin:0 0 22px;max-width:820px">
       <div class="kicker"><span class="num">4</span> Classics inside neural network systems</div>
       <h2>Who executes the network's commands</h2>
-      <p>In real robots the network and the classics usually connect the same way. A neural network policy almost never outputs motor current. It outputs targets, joint angles or gripper poses, and the layer from this lesson executes them: controllers, kinematics, MPC. Pick a system and see where the network ends and the classics begin.</p>
+      <p>In real robots the network and the classics usually connect the same way. A neural network policy almost never outputs motor current. It outputs targets, that is, joint angles or gripper poses, and the layer from this lesson executes them: controllers, kinematics, MPC. Pick a system and see where the network ends and the classics begin.</p>
     </div>
     <div class="card lab-card stack-card">
       <div class="seg" role="group" aria-label="System" id="stackSeg"></div>
@@ -319,10 +319,10 @@
     <div class="kicker"><span class="num">6</span> Takeaways</div>
     <h2>Lesson takeaways</h2>
     <ol class="takeaways">
-      <li><span>Forward kinematics is geometry. The inverse problem can have <strong>two solutions, one or none</strong>.</span></li>
+      <li><span>Forward kinematics comes down to geometry. The inverse problem can have <strong>two solutions, one or none</strong>.</span></li>
       <li><span>The Jacobian links joint and gripper velocities, and through \(J^{\mathsf T}\), forces and torques. At a <strong>singularity</strong> the arm loses a direction of motion.</span></li>
       <li><span>A network trained on kinematics fails when one input has <strong>several correct answers</strong>: regression outputs their average.</span></li>
-      <li><span>A PD controller is a spring and a damper. Sag under the weight is removed by <strong>gravity compensation</strong>, not by endlessly raising Kp.</span></li>
+      <li><span>A PD controller works like a spring and a damper. Sag under the weight is removed by <strong>gravity compensation</strong>, not by endlessly raising Kp.</span></li>
       <li><span>Impedance sets <strong>how hard to push</strong>: a perception error turns into a moderate force rather than an impact.</span></li>
       <li><span>MPC plans over a horizon and <strong>recomputes the plan at every step</strong>.</span></li>
       <li><span>Neural network policies usually output targets, and this layer executes them. <strong>The closer a layer is to the motor, the faster</strong> it runs.</span></li>
@@ -343,7 +343,7 @@
       <li><a href="https://manipulation.csail.mit.edu/" target="_blank" rel="noopener">Robotic Manipulation</a><span>R. Tedrake's MIT course — chapters 3 and 8</span></li>
       <li><a href="https://github.com/leggedrobotics/legged_gym" target="_blank" rel="noopener">legged_gym</a><span>Code by Rudin et al.: the walking policy outputs target angles, a PD computes the torques</span></li>
     </ul>
-    <div class="callout insight" style="margin-top:34px"><span class="ico">➡️</span><div><p><strong>What's next: where the robot is and where to go.</strong> In every lab of this lesson the controller knew the exact position of the arm, and the planner knew the exact map of the walls. A real robot's sensors are noisy, and there is no map of an unfamiliar home. Before driving the robot to a target, you need to estimate where it is and find a path. That is <a href="0-4-otsenka-sostoyaniya-i-planirovanie.html">lesson 0.4, "State estimation and planning"</a>.</p></div></div>
+    <div class="callout insight" style="margin-top:34px"><span class="ico">➡️</span><div><p><strong>What's next: where the robot is and where to go.</strong> In every lab of this lesson the controller knew the exact position of the arm, and the planner knew the exact map of the walls. A real robot's sensors are noisy, and there is no map of an unfamiliar home. Before driving the robot to a target, you need to estimate where it is and find a path. This is the topic of <a href="0-4-otsenka-sostoyaniya-i-planirovanie.html">lesson 0.4, "State estimation and planning"</a>.</p></div></div>
   </div>
 </section>
 

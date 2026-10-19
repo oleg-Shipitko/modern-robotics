@@ -66,7 +66,7 @@
     <div class="kicker"><span class="num">1</span> Problem</div>
     <h2>Where to get the right data</h2>
     <p>In lesson 1.1 the policy crashed for one reason: it ended up where the operator had never driven. The operator drove Ada down the center of the corridor, while Ada, through small errors, drifted toward the wall. The data had no examples of "what to do by the wall", so that is where she erred, and every error took her even farther from the examples.</p>
-    <p>In the second half of lesson 1.1 we added states near the route to the data: a noisy operator and shifted frames. It helped, but it was a guess: we assumed in advance where the policy would drift. If it drifts somewhere we didn't think of, there will again be no examples.</p>
+    <p>In the second half of lesson 1.1 we added states near the route to the data using a noisy operator and shifted frames. It helped, but it was a guess: we assumed in advance where the policy would drift. If it drifts somewhere we didn't think of, there will again be no examples.</p>
     <p>It's more reliable to ask than to guess. Let Ada drive on her own, and at every point she reaches, let an expert say the correct action. In the papers, the expert is whoever knows the correct action: a human or a program. We add these examples and retrain, and the data appears exactly where the policy errs. That is DAgger. How does it work, and why?</p>
   </div>
 </section>
@@ -96,7 +96,7 @@
         <div><b>return</b> the best \(\hat\pi_i\) on validation</div>
       </div>
       <p>In practice \(\beta_1 = 1\), and on later iterations the expert doesn't intervene: the paper says this variant "often works best". The best policy on validation is returned, not the last one.</p>
-      <p>The guarantee: with enough iterations</p>
+      <p>With enough iterations, DAgger guarantees:</p>
       <div class="formula">\[J(\hat\pi) \le J(\pi^*) + u\,T\,\varepsilon_N + O(1)\]</div>
       <p>Here \(\varepsilon_N\) is the best achievable error on the aggregated data, and \(u\) is how much one error raises the cost of the episode. If an error can be corrected quickly, \(u\) is bounded and the growth is linear. If an error is irreversible, \(u\) grows with \(T\), and the advantage over behavior cloning disappears. The proof needs a no-regret learning algorithm: for example, training on all the accumulated data with a convex loss.</p>
     </div></details>
@@ -159,7 +159,7 @@
     <div class="prose" style="margin:0 0 22px;max-width:820px">
       <div class="kicker"><span class="num">3</span> Comparison</div>
       <h2>DAgger versus "even more demonstrations"</h2>
-      <p>To check this, let's compare the two approaches at the same number of labeled examples. The gray curve is behavior cloning on 5, 10, 20 and 40 tidy demonstrations. The orange one is the same 5 demonstrations plus DAgger iterations, one labeled drive per iteration. Each point is training from scratch plus 20 test runs, a second or two per point. You add the points; the task is on the right.</p>
+      <p>To check this, let's compare the two approaches at the same number of labeled examples. The gray curve shows behavior cloning on 5, 10, 20 and 40 tidy demonstrations. The orange one shows the same 5 demonstrations plus DAgger iterations, and each iteration adds one labeled drive. For each point the network is trained from scratch and makes 20 test runs, which takes a second or two. You add the points; the task is on the right.</p>
     </div>
     <div class="lab curve-lab">
       <div class="card scene-card">
@@ -169,7 +169,7 @@
         </div>
         <canvas id="curveChart" width="760" height="300" aria-label="Success versus the number of labeled examples for behavior cloning and DAgger"></canvas>
         <div class="cv-legend"><span><i style="--c: var(--ink-2)"></i>behavior cloning: more tidy demonstrations</span><span><i style="--c: var(--e2e)"></i>DAgger: 5 demonstrations plus labeled policy drives</span></div>
-        <p class="cv-note">An example is one labeled frame: an observation and the correct steering; one drive gives about 200 examples. The horizontal scale is logarithmic: each tick is twice the previous one. The numbers at the gray points are the number of demonstrations; at the orange ones, how many DAgger iterations were added to the 5 demonstrations. One test run is 5%, so neighboring points can differ by 5–10% by chance.</p>
+        <p class="cv-note">An example is one labeled frame: an observation and the correct steering; one drive gives about 200 examples. The horizontal scale is logarithmic: each tick is twice the previous one. The numbers at the gray points are the number of demonstrations; at the orange ones, how many DAgger iterations were added to the 5 demonstrations. One test run changes the result by 5%, so neighboring points can differ by 5–10% by chance.</p>
         <div class="sq-stats" id="curveStats"><span class="muted-s" id="curveStatus">Press any button to add a point.</span></div>
       </div>
       <div class="card guide-card"><div id="curveGuide" class="m-solo"></div></div>
@@ -206,8 +206,8 @@
       <h2>The robot asks for help when it is unsure</h2>
       <p>It can, if it can estimate its own uncertainty. A human can't watch the robot all day, so the policy must recognize on its own when it needs help and call the expert only then.</p>
       <p>A simple way to estimate uncertainty is to train three networks on the same data with different initializations. Where there is plenty of data, they answer alike. Where there is no data, they start to disagree. The spread of their answers is the uncertainty. Such a group of networks is called an <strong>ensemble</strong>.</p>
-      <p>Below, Ada drives ten times. If the ensemble's spread exceeds the threshold, she asks for help, and the teacher drives that step. The task on the right: find the threshold at which Ada almost never crashes and doesn't call the human without need.</p>
-      <p>This is how ThriftyDAgger (2021) works. There, a robot that calls the human by threshold beat HG-DAgger, where the human decides: 73 successful peg insertions out of 100 versus 57.</p>
+      <p>Below, Ada drives ten times. If the ensemble's spread exceeds the threshold, she asks for help, and the teacher drives that step. In the task on the right, find the threshold at which Ada almost never crashes and doesn't call the human without need.</p>
+      <p>This is how ThriftyDAgger (2021) works. There, a robot that calls the human by threshold beat HG-DAgger, where the human decides: such a robot inserted the peg into the hole in 73 attempts out of 100, and HG-DAgger in 57.</p>
     </div>
     <div class="lab budget-lab">
       <div class="card scene-card">
@@ -232,7 +232,7 @@
       <p>Three networks \(\pi_1, \pi_2, \pi_3\) learn on the same data and differ only in their initial weights. The policy drives by the mean answer, and the uncertainty is the spread of the answers:</p>
       <div class="formula">\[\begin{aligned} \pi(s) &= \frac13 \sum_{k=1}^{3} \pi_k(s), \\ \sigma(s) &= \sqrt{\frac13 \sum_{k=1}^{3} \bigl(\pi_k(s) - \pi(s)\bigr)^2}. \end{aligned}\]</div>
       <p>If \(\sigma(s) > \tau\), the robot asks for help.</p>
-      <p>Where there is plenty of data, the networks converge to one answer. Where there is none, each extrapolates its own way, and \(\sigma\) grows. ThriftyDAgger adds a second signal, risk: a learned estimate of the probability of not reaching the goal. It picks the thresholds so that the human intervenes on a given share of steps, say 1%.</p>
+      <p>Where there is plenty of data, the networks converge to one answer. Where there is none, each extrapolates its own way, and \(\sigma\) grows. ThriftyDAgger adds a second signal, risk, which is a learned estimate of the probability of not reaching the goal. It picks the thresholds so that the human intervenes on a given share of steps, say 1%.</p>
     </div></details>
     <div class="prose" style="margin:26px 0 0;max-width:820px">
       <p>A suitable threshold exists, but the window is narrow: below it Ada calls the human too often; above it she stops asking for help and crashes.</p>
@@ -248,7 +248,7 @@
     <p>There is. The intervention itself says the policy got into a bad spot: otherwise the human wouldn't have taken control. This "something went wrong here" signal is used as a reward in reinforcement learning. In that kind of learning, the robot tries acting on its own and learns from a numeric score of its attempts, the <strong>reward</strong>: the higher it is, the better the attempt. Here are systems that learn from interventions this way:</p>
     <ul class="links">
       <li><strong>RLIF (2023)</strong><span>The step before an intervention gets a reward of −1, all others get 0, and the policy is trained with reinforcement learning. This can beat even an imperfect expert: only the fact of the intervention is needed.</span></li>
-      <li><strong>HIL-SERL (Science Robotics, 2025)</strong><span>20–30 demonstrations, human interventions and reinforcement learning on a real robot: nearly 100% success on a task within 1–2.5 hours.</span></li>
+      <li><strong>HIL-SERL (Science Robotics, 2025)</strong><span>The system uses 20–30 demonstrations, human interventions and reinforcement learning on a real robot. Within 1–2.5 hours it reaches nearly 100% success on a task.</span></li>
       <li><strong>π*0.6 and RECAP (November 2025)</strong><span>The Physical Intelligence model learns from demonstrations, operator corrections and its own attempts. On folding laundry and making espresso, throughput more than doubled. The authors note that even a single iteration often improves the result noticeably, just as in our lab.</span></li>
     </ul>
     <p>We'll cover reinforcement learning in detail in part 5, and π*0.6 in lesson 3.8.</p>
@@ -271,7 +271,7 @@
     <ol class="takeaways">
       <li><span><strong>DAgger</strong> cures distribution shift: the policy drives on its own, the expert labels its states, the data accumulates.</span></li>
       <li><span>At equal labeling DAgger beats "even more demonstrations": what matters is not how much data, but <strong>where</strong> it is.</span></li>
-      <li><span>Humans find it hard to label from the side. <strong>HG-DAgger</strong>: the human takes over control himself, and his segments go into the data.</span></li>
+      <li><span>Humans find it hard to label from the side. In <strong>HG-DAgger</strong> the human takes over control himself, and his segments go into the data.</span></li>
       <li><span><strong>Uncertainty</strong> can be measured by the spread of an ensemble, so the robot asks for help only when the network is unsure.</span></li>
       <li><span>An intervention is also a <strong>"this is bad" signal</strong>. Reinforcement learning in the systems of 2025 is built on it.</span></li>
     </ol>

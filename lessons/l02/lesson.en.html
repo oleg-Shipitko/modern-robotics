@@ -69,7 +69,7 @@
       <h2>What the policy sees and what it controls</h2>
       <p>What does a policy take as input, and what does it output? A language model answers in text and can think about its reply for as long as it likes: the user will wait. A robot can’t do that. While the network is computing, Ada keeps driving, falling or squeezing the cup, and the motors need new commands thousands of times per second. A big network can’t keep up with that.</p>
       <p>That’s why control is split into levels. A fast lower level drives the motors; a slow upper level decides what to do. The neural network usually sits in the middle: a few dozen times per second it outputs targets, such as joint angles. From there, controllers take over: simple programs that compare the target with sensor readings and compute how hard to drive the motor.</p>
-      <p>Click the robot’s parts: what’s inside, how fast it runs, and what the policy gets out of it. Below, the same questions for four well-known robots.</p>
+      <p>Click the robot’s parts to see what is inside, how fast it runs, and what the policy gets out of it. Below, the same questions are answered for four well-known robots.</p>
     </div>
     <div class="card lab-card body-card">
       <div class="body-grid">
@@ -151,7 +151,7 @@
       <p>A gearbox with ratio \(N\) multiplies the motor’s torque and divides its speed. Rotor inertia "reflected" to the output grows as the square of \(N\):</p>
       <div class="formula">\[\begin{aligned} \tau_{\text{out}} &= N\,\tau_{\text{motor}}, \\ \omega_{\text{out}} &= \omega_{\text{motor}} / N, \\ J_{\text{reflected}} &= N^2 J_{\text{rotor}}, \\ J_{\text{eff}} &= J_{\text{link}} + N^2 J_{\text{rotor}}. \end{aligned}\]</div>
       <p>On impact with a rigid wall of stiffness \(k\) at speed \(v\), the peak torque grows roughly as \(v\sqrt{k\,J_{\text{eff}}}\): the larger the effective inertia, the harder the hit. In MIT Cheetah 2, a rotor inertia of 3.03·10⁻⁴ kg·m² at a gear ratio of 5.8 gives about 0.01 kg·m² at the output. A direct drive with the same torque would need a motor 76 cm in diameter.</p>
-      <p>In the lab: rotor inertia 1.2·10⁻⁴ kg·m², peak motor torque 1.6 N·m, link inertia 0.09 kg·m². Gearbox friction grows with \(N\): Coulomb friction \(0.02\,N\) N·m plus viscous. The wall is a spring with a damper; the link accelerates to 3 rad/s. When you drag the link, your hand acts as a spring between your finger and the end of the link, and the motor is off.</p>
+      <p>In the lab the rotor inertia is 1.2·10⁻⁴ kg·m², the peak motor torque is 1.6 N·m, and the link inertia is 0.09 kg·m². Gearbox friction grows with \(N\): it is the sum of Coulomb friction \(0.02\,N\) N·m and viscous friction. The wall is modeled as a spring with a damper, and before the impact the link accelerates to 3 rad/s. When you drag the link, your hand acts as a spring between your finger and the end of the link, and the motor is off.</p>
       <p>A small gear ratio has one more advantage: torque can be estimated from motor current: \(\tau \approx N K_t\, i\). That’s how MIT Cheetah gets by without force sensors in its legs. The price is estimation error: in Cheetah 3, gearbox friction adds about ±10%.</p>
     </div></details>
     <div class="prose" style="margin:22px 0 0;max-width:820px">
@@ -267,8 +267,8 @@
         <canvas data-anim="imu" width="360" height="220" role="img" aria-label="The body tilts: in the accelerometer a mass on springs shifts downward, in the gyroscope an oscillating mass is pushed sideways; on a jolt only the accelerometer mass shifts"></canvas>
         <dl>
           <dt>What it measures</dt><dd>Acceleration and angular rate of the body about three axes.</dd>
-          <dt>How it works</dt><dd>In the accelerometer a tiny mass on springs shifts with tilt and acceleration; the shift is measured by capacitance. In the gyroscope a mass oscillates, and when the body rotates, the Coriolis force pushes it sideways. The g arrow in the diagram is the direction of gravity.</dd>
-          <dt>Weak spot</dt><dd>The gyroscope drifts if you integrate its readings over time. The accelerometer is noisy and confuses a jolt with a tilt. So the two are combined: that’s the lab below.</dd>
+          <dt>How it works</dt><dd>In the accelerometer a tiny mass on springs shifts with tilt and acceleration; the shift is measured by capacitance. In the gyroscope a mass oscillates, and when the body rotates, the Coriolis force pushes it sideways. The g arrow in the diagram shows the direction of gravity.</dd>
+          <dt>Weak spot</dt><dd>The gyroscope drifts if you integrate its readings over time. The accelerometer is noisy and confuses a jolt with a tilt. So the two are combined, and we will do that in the lab below.</dd>
           <dt>Where it’s used</dt><dd>In the body of every legged robot. Bosch BMI088 delivers gyroscope data up to 2,000 times per second.</dd>
         </dl>
       </article>
@@ -276,9 +276,9 @@
         <h3>Force-torque sensor</h3>
         <canvas data-anim="ft" width="360" height="220" role="img" aria-label="The gripper lowers onto a table and slides along it; the sensor’s elastic beams bend, the strain gauges change their readings, six force and torque numbers rise"></canvas>
         <dl>
-          <dt>What it measures</dt><dd>Three forces and three torques: six numbers describing how an object pushes on the arm. In the diagram, Fx, Fy, Fz are forces along three axes, Mx, My, Mz are torques about them.</dd>
+          <dt>What it measures</dt><dd>Three forces and three torques: six numbers describing how an object pushes on the arm. In the diagram, Fx, Fy, Fz are forces along three axes, and Mx, My, Mz are torques about them.</dd>
           <dt>How it works</dt><dd>An elastic element sits between the wrist and the gripper. Under load it bends slightly, and strain gauges on it change resistance. The bending in the diagram is greatly exaggerated.</dd>
-          <dt>Weak spot</dt><dd>Expensive and fragile, drifts with temperature. Sees only the forces that pass through the wrist.</dd>
+          <dt>Weak spot</dt><dd>The sensor is expensive and fragile, and it drifts with temperature. It sees only the forces that pass through the wrist.</dd>
           <dt>Where it’s used</dt><dd>In the UR5e flange. ATI Axia80 samples 8,000 times per second with under 1 ms latency. Franka FR3 has torque sensors in all seven joints.</dd>
         </dl>
       </article>
@@ -288,7 +288,7 @@
         <dl>
           <dt>What it measures</dt><dd>Distance to every point in the frame: a depth map.</dd>
           <dt>How it works</dt><dd>Two cameras look from different positions. The closer an object, the more it shifts between their frames, and distance is computed from the shift. A projector paints dots on the scene so there is something to lock onto on smooth surfaces. The diagram is a top view.</dd>
-          <dt>Weak spot</dt><dd>Shiny and transparent objects, bright sunlight. The error grows with the square of distance: far away, the shift drops below a pixel.</dd>
+          <dt>Weak spot</dt><dd>Shiny and transparent objects and bright sunlight interfere with it. The error grows with the square of distance: far away, the shift drops below a pixel.</dd>
           <dt>Where it’s used</dt><dd>On humanoid heads and manipulator wrists. Intel RealSense D435i gives depth up to 1280×720 at 90 frames per second.</dd>
         </dl>
       </article>
@@ -331,7 +331,7 @@
     <details class="deep"><summary>Under the hood: the complementary filter</summary><div class="body">
       <p>At each step we advance the estimate by the gyroscope and nudge it slightly toward the accelerometer angle:</p>
       <div class="formula">\[\hat\theta_t = \alpha\,\bigl(\hat\theta_{t-1} + \omega_{\text{gyro}}\,\Delta t\bigr) + (1 - \alpha)\,\theta_{\text{accel}}\]</div>
-      <p>In frequency terms, it is a high-pass filter for the gyroscope and a low-pass filter for the accelerometer: fast changes come from the former, the slow "which way is down" from the latter. At \(\alpha = 0.98\) and a 10 ms step, the time constant is about half a second. In the lab, the gyroscope has a zero offset of 1.5 °/s plus noise, and the accelerometer has noise with a 4° standard deviation plus spikes from body accelerations. The "Shake the robot" button adds four short jolts: the accelerometer takes them for tilt, while the gyroscope doesn’t see them, because it measures rotation. A Kalman filter does the same thing optimally when the noise models are known; that is Lesson 0.4.</p>
+      <p>In frequency terms, it is a high-pass filter for the gyroscope and a low-pass filter for the accelerometer: fast changes come from the former, the slow "which way is down" from the latter. At \(\alpha = 0.98\) and a 10 ms step, the time constant is about half a second. In the lab, the gyroscope has a zero offset of 1.5 °/s plus noise, and the accelerometer has noise with a 4° standard deviation plus spikes from body accelerations. The "Shake the robot" button adds four short jolts: the accelerometer takes them for tilt, while the gyroscope doesn’t see them, because it measures rotation. A Kalman filter does the same thing optimally when the noise models are known; Lesson 0.4 covers it.</p>
     </div></details>
     <div class="prose" style="margin:22px 0 0;max-width:820px">
       <p>On their own, the gyroscope drifts, and the accelerometer is noisy and confuses a jolt with a tilt. Together, in a complementary filter, they err by less than 2° even under shaking. But the robot’s parts run at very different rates: the IMU delivers data at up to 2 kHz, the camera at about 30 frames per second, the policy a few dozen times per second. How do they coexist in one system?</p>
@@ -352,7 +352,7 @@
       <div class="ladder-reveal" id="ladderReveal" hidden>
         <h3>The rate ladder</h3>
         <div class="ladder" id="ladderBox"></div>
-        <p class="muted-s" style="margin:10px 0 0">The scale is logarithmic. Data from systems published in 2018–2026.</p>
+        <p class="muted-s" style="margin:10px 0 0">The scale is logarithmic. The data comes from systems published in 2018–2026.</p>
       </div>
     </div>
     <div class="prose" style="margin:22px 0 0;max-width:820px">
@@ -391,10 +391,10 @@
     </div>
     <details class="deep"><summary>Under the hood: what’s inside</summary><div class="body">
       <ul>
-        <li><b>Real actuator.</b> An internal PD position controller, 15 ms command latency, torque saturation, Coulomb and viscous friction. The link is a pendulum. Backlash is zero by default; the slider in the "Actuator wear" mission adds it. The encoder sits on the motor and doesn’t see the backlash: while the motor takes up the gap, no torque reaches the link.</li>
-        <li><b>Simulator model.</b> The same PD, but instantaneous and without nonlinearities.</li>
-        <li><b>Data.</b> 20 seconds of random commands at a 2.5 ms step: about 8 thousand samples. Input: position and velocity errors over the last 4 steps; output: the torque the actuator actually produced.</li>
-        <li><b>Network.</b> 8 → 32 → 32 → 1 with tanh, Adam, 1,500 iterations of 64 samples regardless of data volume. After training, the network replaces the actuator model in the simulator. The network sees only the last 10 ms of history, so it learns latency longer than that poorly.</li>
+        <li><b>Real actuator.</b> It has an internal PD position controller, 15 ms command latency, torque saturation, and Coulomb and viscous friction. The link is modeled as a pendulum. Backlash is zero by default; the slider in the "Actuator wear" mission adds it. The encoder sits on the motor and doesn’t see the backlash: while the motor takes up the gap, no torque reaches the link.</li>
+        <li><b>Simulator model.</b> It uses the same PD controller, but it acts instantly and without nonlinearities.</li>
+        <li><b>Data.</b> Recording 20 seconds of random commands at a 2.5 ms step gives about 8 thousand samples. The network takes the position and velocity errors over the last 4 steps as input and predicts the torque the actuator actually produced.</li>
+        <li><b>Network.</b> The network has layers 8 → 32 → 32 → 1 with tanh. Training takes 1,500 Adam iterations of 64 samples each, regardless of data volume. After training, the network replaces the actuator model in the simulator. The network sees only the last 10 ms of history, so it learns latency longer than that poorly.</li>
       </ul>
       <p>That is what Hwangbo et al. did in 2019: an exact analytical model can be built for a direct drive, but not for ANYmal’s series elastic actuators. They learned the actuator model from data, trained the policy in a simulator with that model, and the robot ran with no fine-tuning on hardware.</p>
     </div></details>
@@ -421,13 +421,13 @@
       <li><span>A robot’s policy is an "observation → action" interface at a certain rate. It usually outputs <strong>targets for controllers</strong>, and a fast lower loop drives the motors.</span></li>
       <li><span>Degrees of freedom are joints. Extra degrees of freedom give <strong>freedom of pose</strong> for the same gripper position.</span></li>
       <li><span>The gear ratio trades speed for torque, but inertia grows as <strong>\(N^2\)</strong>: at large \(N\) the actuator loses backdrivability and becomes more dangerous on impact.</span></li>
-      <li><span>An actuator is chosen for the joint’s job: for impacts and contact, a small gear ratio or a spring; for high torque in a small package, a <strong>harmonic drive</strong>; for linear force, a roller screw; for a light limb, tendons.</span></li>
-      <li><span>Sensors are noisy, they drift and they lag. They are <strong>fused</strong>: from the complementary filter to the Kalman filter.</span></li>
+      <li><span>An actuator is chosen for the joint’s job. Impacts and contact call for a small gear ratio or a spring, high torque in a small package for a <strong>harmonic drive</strong>, linear force for a roller screw, and a light limb for tendons.</span></li>
+      <li><span>Sensors are noisy, they drift and they lag. So they are <strong>fused</strong> with different filters, from the complementary filter to the Kalman filter.</span></li>
       <li><span>The gap between simulator and robot often starts at the actuator. It is narrowed with an <strong>actuator model learned from data</strong>.</span></li>
     </ol>
     <h3 style="margin-top:40px">Open questions</h3>
     <details class="card pad open-q"><summary>Why do a robot vacuum and a quadruped robot have such different actuators?</summary><p>The vacuum only needs wheel speed, and there are almost no impact contacts, so cheap motors with a large gearbox will do. A quadruped hits the ground on every step and has to feel the contact force, so it needs transparent actuators with a small gear ratio.</p></details>
-    <details class="card pad open-q"><summary>You are training a policy for a hand with 20 degrees of freedom. Which sensors would you add to the cameras, and why?</summary><p>Encoders on every joint for precise finger positions, torque estimates from current or torque sensors to feel the grip force, and tactile sensors on the fingertips: the camera can’t see contact when the fingers cover the object.</p></details>
+    <details class="card pad open-q"><summary>You are training a policy for a hand with 20 degrees of freedom. Which sensors would you add to the cameras, and why?</summary><p>It is worth adding encoders on every joint for precise finger positions, torque estimates from current or torque sensors to feel the grip force, and tactile sensors on the fingertips: the camera can’t see contact when the fingers cover the object.</p></details>
     <h3 style="margin-top:34px">Paper guide</h3>
     <p><a href="https://doi.org/10.1109/TRO.2016.2640183" target="_blank" rel="noopener">Wensing et al., "Proprioceptive Actuator Design in the MIT Cheetah", IEEE T-RO, 2017</a>.</p>
     <ul class="links">
@@ -441,7 +441,7 @@
       <li><a href="https://www.youtube.com/watch?v=xNeZWP5Mx9s" target="_blank" rel="noopener">Mini Cheetah: backflip</a><span>MIT video — quasi-direct drives in action</span></li>
       <li><a href="https://www.youtube.com/watch?v=-9EM5_VFlt8" target="_blank" rel="noopener">Farewell to HD Atlas</a><span>Boston Dynamics says goodbye to the hydraulic Atlas</span></li>
     </ul>
-    <div class="callout insight" style="margin-top:34px"><span class="ico">➡️</span><div><p><strong>What’s next: kinematics and control.</strong> We have covered what the policy controls. The remaining question is how its target becomes motion. In the arm lab, the joint angles were found on their own as soon as you dragged the gripper, and the joint controllers simply held the target. Who converts a gripper pose into joint angles, how does a controller turn a target into torque, and why can a neural network that has learned kinematics miss by more than 40 cm? <a href="0-3-kinematika-i-upravlenie.html">Lesson 0.3</a>.</p></div></div>
+    <div class="callout insight" style="margin-top:34px"><span class="ico">➡️</span><div><p><strong>What’s next: kinematics and control.</strong> We have covered what the policy controls. The remaining question is how its target becomes motion. In the arm lab, the joint angles were found on their own as soon as you dragged the gripper, and the joint controllers simply held the target. <a href="0-3-kinematika-i-upravlenie.html">Lesson 0.3</a> explains who converts a gripper pose into joint angles, how a controller turns a target into torque, and why a neural network that has learned kinematics can miss by more than 40 cm.</p></div></div>
   </div>
 </section>
 
