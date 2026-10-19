@@ -26,6 +26,7 @@ function initNav() {
 const pal = () => ({ bg: HeroKit.css('--surface-2'), bg2: HeroKit.css('--bg-2'), grid: HeroKit.css('--line'), line: HeroKit.css('--line-2'), ink: HeroKit.css('--ink'), ink2: HeroKit.css('--ink-2'), ink3: HeroKit.css('--ink-3'), e2e: HeroKit.css('--e2e'), cl: HeroKit.css('--classic'), hy: HeroKit.css('--hybrid'), good: HeroKit.css('--good'), bad: HeroKit.css('--critical'), surf: HeroKit.css('--surface') });
 const fmt = (v, d) => (+v).toLocaleString('ru-RU', { minimumFractionDigits: d == null ? 1 : d, maximumFractionDigits: d == null ? 1 : d }).replace('-', '−');
 const nWord = (n, a, b, c) => `${n} ${plural(n, a, b, c)}`;
+const demos = (n) => nWord(n, 'демонстрация', 'демонстрации', 'демонстраций');
 function setOut(el, html) { if (el.dataset.h !== html) { el.innerHTML = html; el.dataset.h = html; } }
 const redrawOn = (fn) => { App.on('theme', fn); App.on('resize', fn); };
 /** Живые миссии (без кнопки) помечаем классом: невыполненный критерий там «ещё нет», а не провал. */
@@ -159,7 +160,9 @@ const Gap = (() => {
       else { HeroKit.label(c, k, r.name, L, mid - 6, { px: 12, weight: 700, color: P.ink, align: 'right', halo: false }); HeroKit.label(c, k, r.sub, L, mid + 8, { px: 10, color: P.ink3, align: 'right', halo: false }); }
       if (r.hide) { c.setLineDash([3, 4]); c.strokeStyle = P.line; c.strokeRect(x0, mid - bh / 2, (x1 - x0) * 0.25, bh); c.setLineDash([]); HeroKit.label(c, k, '?', x0 + (x1 - x0) * 0.25 + 12, mid, { px: 12, weight: 700, color: P.ink3, halo: false }); return; }
       const w = Math.max(2, X(r.v) - x0); c.fillStyle = r.col; c.beginPath(); c.roundRect(x0, mid - bh / 2, w, bh, 3); c.fill();
-      HeroKit.label(c, k, '≈ ' + big(r.v), x0 + w + 6, mid, { px: 11.5, weight: 650, color: P.ink, align: 'left', halo: false });
+      const vt = '≈ ' + big(r.v); c.font = `650 ${11.5 * k}px Inter, system-ui, -apple-system, sans-serif`; const vw = c.measureText(vt).width;
+      if (x0 + w + 6 + vw > W - 4 && w > vw + 12) HeroKit.label(c, k, vt, x0 + w - 6, mid, { px: 11.5, weight: 650, color: P.surf, align: 'right', halo: false });
+      else HeroKit.label(c, k, vt, x0 + w + 6, mid, { px: 11.5, weight: 650, color: P.ink, align: 'left', halo: false });
     });
     if (st.stage < 1) { const cx = (x0 + x1) / 2 + 20, cy = top + rh * 2.5; c.fillStyle = rgba(P.surf, 0.92); c.fillRect(cx - (narrow ? 130 : 170), cy - 16, narrow ? 260 : 340, 32); HeroKit.label(c, k, narrow ? 'Сделай ставку и нажми «Посчитать»' : 'Сделай ставку и нажми «Посчитать» — появятся полосы', cx, cy, { px: 12, weight: 650, color: P.ink2, halo: false }); }
     out();
@@ -202,11 +205,11 @@ const Gap = (() => {
       action: { label: 'Добавить датасеты роботов', run: (X) => X.addRobots() },
       criteria: [{ label: 'Датасеты роботов на шкале', test: (r) => !!r }, { label: 'Корпус Llama 3 больше записей π0 в десятки тысяч раз', test: (r) => r.ratio > 1e4 }],
       explain: (r) => `10 000 часов — ${yearsW(r.pi0)} записи, и корпус Llama 3 при тех же допущениях больше в ${times(r.ratio)}: отсюда и порядок 100 000. Самая длинная синяя полоса, полмиллиона часов GEN-1, — около ${yearsW(r.gen1)}, всё ещё в ${times(approx(r.ratioGen1))} меньше. И это не часы роботов: базовую модель GEN-1 учили на записях носимых устройств на людях, а данные GEN-0 собирали и устройства сбора, и роботы.` },
-    { short: 'Парк', title: 'Сколько устройств нужно, чтобы сравняться', text: 'Голдберг пишет, что разрыв не закроется ни за пять, ни за десять лет. Проверь сам: каждое устройство сбора записывает смену в 8 часов в день. Найди, сколько устройств нужно, чтобы за 10 лет набрать столько лет записи, сколько лет чтения в корпусе Llama 3, и не больше чем вдвое.',
+    { short: 'Парк', title: 'Сколько устройств нужно, чтобы сравняться', text: 'Голдберг не ждёт гуманоидов, которые справятся с домашней работой, ни через пять, ни через десять лет. Проверь, успеет ли за это время сбор данных: каждое устройство сбора записывает смену в 8 часов в день. Найди, сколько устройств нужно, чтобы за 10 лет набрать столько лет записи, сколько лет чтения в корпусе Llama 3, и не больше чем вдвое.',
       controls: ['fleet'], onEnter: (X) => X.showFleet(),
       criteria: [{ label: 'Парк сравнивается с корпусом Llama 3 не дольше чем за 10 лет', test: (r, s) => s.corpus === 'llama3' && s.shift === 8 && s.parity <= 10 }, { label: 'И не быстрее чем за 5 лет: лишних устройств нет', test: (r, s) => s.corpus === 'llama3' && s.parity >= 5 }],
       hint: 'Ползунок «Устройств сбора» — под графиком, шкала у него логарифмическая. Ответ — несколько десятков тысяч.',
-      explain: () => { const s = state(), need = E.fleetFor(s.years, CAL, 8), weeks = s.years * E.HOURS_YEAR / 10000; return `Нужно около ${big(approx(need))} устройств и столько же людей, которые работают с ними каждый день 10 лет. GEN-0 прибавляет больше 10 тысяч часов в неделю; таким темпом ${big(approx(s.years))} лет записи набирались бы около ${yearsW(approx(weeks / 52))}. Поэтому разрыв сокращают не только числом устройств: данные берут из видео людей, симуляции и с роботов, которые уже работают.`; } },
+      explain: () => { const s = state(), need = E.fleetFor(s.years, CAL, 8), weeks = s.years * E.HOURS_YEAR / 10000; return `Нужно около ${big(approx(need))} устройств и столько же людей, которые работают с ними каждый день 10 лет. GEN-0 прибавляет 10 тысяч часов в неделю; таким темпом ${big(approx(s.years))} лет записи набирались бы около ${yearsW(approx(weeks / 52))}. Поэтому разрыв сокращают не только числом устройств: данные берут из видео людей, симуляции и с роботов, которые уже работают.`; } },
     { short: 'Свободно', title: 'Свободный режим', text: 'Меняй корпус, допущения о чтении, парк и единицы. Переключи единицы на токены и найди, во сколько раз токенов действий в 10 000 часах π0 меньше, чем токенов текста в Llama 3, со сжатием FAST и без него. Почему в годах разрыв в десять раз больше, чем в токенах?', final: true, controls: ['corpus', 'wpm', 'tpw', 'read', 'fleet', 'shift', 'unit'], onEnter: (X) => X.showFleet() },
   ];
   function init() {
@@ -316,7 +319,7 @@ const Scale = (() => {
   function drawPlot() {
     const cv = $('#sPlot'), narrow = (cv.parentElement.getBoundingClientRect().width || PW) < 480, W = narrow ? 360 : PW, H = narrow ? 300 : PH;
     if (cv.dataset.layout !== (narrow ? 'n' : 'w')) { cv.style.aspectRatio = `${W} / ${H}`; cv.dataset.layout = narrow ? 'n' : 'w'; }
-    const { c, k } = HeroKit.fit(cv, W, H), P = pal(), L = narrow ? 46 : 56, R = W - 16, T = narrow ? 44 : 34, B = H - 46;
+    const { c, k } = HeroKit.fit(cv, W, H), P = pal(), L = narrow ? 46 : 56, R = W - 16, T = narrow ? 44 : 52, B = H - 46;
     c.fillStyle = P.surf; c.fillRect(0, 0, W, H);
     const X = (m) => L + (R - L) * Math.log2(m) / 5, Y = (g) => T + (B - T) * (-Math.log10(Math.max(g, 0.006))) / 2.2;
     c.strokeStyle = P.grid; c.lineWidth = 1;
@@ -332,7 +335,7 @@ const Scale = (() => {
       for (const r of pts) { const zero = r.gap <= 0; c.beginPath(); c.arc(X(r.M), Y(zero ? 0.006 : r.gap), 4.6, 0, 7); if (zero) { c.strokeStyle = col; c.lineWidth = 2; c.stroke(); } else { c.fillStyle = col; c.fill(); c.strokeStyle = P.surf; c.lineWidth = 1.2; c.stroke(); } }
     });
     // легенда цветов
-    let lx = R; const ly = narrow ? T - 34 : T - 16; [...Ks].reverse().forEach((K) => { const t = narrow ? String(K) : `${K} на сцену`; c.font = `600 ${11 * k}px Inter, system-ui, sans-serif`; const w = c.measureText(t).width; lx -= w + 22; c.fillStyle = kCol(K); c.beginPath(); c.arc(lx + 5, ly, 4.5, 0, 7); c.fill(); HeroKit.label(c, k, t, lx + 13, ly, { px: 11, color: P.ink2, align: 'left', halo: false }); });
+    let lx = R; const ly = narrow ? T - 34 : 16; [...Ks].reverse().forEach((K) => { const t = narrow ? String(K) : `${K} на сцену`; c.font = `600 ${11 * k}px Inter, system-ui, sans-serif`; const w = c.measureText(t).width; lx -= w + 22; c.fillStyle = kCol(K); c.beginPath(); c.arc(lx + 5, ly, 4.5, 0, 7); c.fill(); HeroKit.label(c, k, t, lx + 13, ly, { px: 11, color: P.ink2, align: 'left', halo: false }); });
     if (narrow && Ks.length) HeroKit.label(c, k, 'демонстраций на сцену:', lx - 6, ly, { px: 11, color: P.ink3, align: 'right', halo: false });
   }
   function readout() {
@@ -341,7 +344,7 @@ const Scale = (() => {
     const M = st.show ? st.show[0] : st.M, K = st.show ? st.show[1] : st.K, r = Store.get(M, K), f = fitOf(K);
     if (!r) return setOut(el, '');
     const tbl = r.runs.filter((q) => !q.ok && q.miss === 'table').length, dis = r.runs.filter((q) => !q.ok && q.miss !== 'table').length;
-    setOut(el, `<b>${M} × ${K} = ${M * K} демонстраций:</b> кубик взят в ${r.ok} из 100 новых сцен; промахов по помехам — ${dis}, по пустому столу — ${tbl}.` + (f && serRes(K).length >= 3 ? ` Прямая для ${K} на сцену: доля провалов ≈ ${fmt(f.beta, 2)} · M<sup>−${fmt(f.alpha, 2)}</sup>, r = ${fmt(f.r, 2)}.` : ''));
+    setOut(el, `<b>${M} × ${K} = ${demos(M * K)}:</b> кубик взят в ${r.ok} из 100 новых сцен; промахов по помехам — ${dis}, по пустому столу — ${tbl}.` + (f && serRes(K).length >= 3 ? ` Прямая для ${K} на сцену: доля провалов ≈ ${fmt(f.beta, 2)} · M<sup>−${fmt(f.alpha, 2)}</sup>, r = ${fmt(f.r, 2)}.` : ''));
   }
   function render() { drawPanes(); drawPlot(); readout(); const pg = $('#sProg'); pg.hidden = Store.st.busy !== 'scale'; pg.firstElementChild.style.width = (Store.st.prog * 100).toFixed(1) + '%'; $('#sOne').disabled = !!Store.st.busy; }
   /** Серия: шесть наборов 1–32 сцены по K демонстраций. */
@@ -377,7 +380,7 @@ const Scale = (() => {
       bet: { q: 'где окажутся новые точки?', options: ['Там же: важны сцены, а не демонстрации', 'Выше, и прямая положе: провалов больше, и с ростом сцен они убывают медленнее', 'Ниже: на малых данных модель меньше переобучается'], answer: (r) => (r.meanDiff <= 5 ? 0 : r.above <= 1 ? 2 : 1) },
       action: { label: 'Обучить серию с одной демонстрацией', run: (X) => X.s2() },
       criteria: [{ label: 'Серия обучена', test: (r) => r.n === 6 }, { label: 'При 32 сценах провалов больше, чем с 8 демонстрациями', test: (r) => r.f32_1 > r.f32_8 }],
-      explain: (r) => `С одной демонстрацией на сцену при 32 сценах провалов ${r.f32_1} из 100, с восемью — ${r.f32_8}; наклон прямой ${fmt(r.fit1.alpha, 2)} против ${fmt(r.fit8.alpha, 2)}. Одной расстановки мало, чтобы сеть отделила кубик от помех этой сцены: демонстрации на сцену нужны, пока их мало. У Lin и соавторов кривые для 1/32 и 1/16 демонстраций тоже лежат ниже остальных.` },
+      explain: (r) => `С одной демонстрацией на сцену при 32 сценах провалов ${r.f32_1} из 100, с восемью — ${r.f32_8}; наклон прямой ${fmt(r.fit1.alpha, 2)} против ${fmt(r.fit8.alpha, 2)}. Одной расстановки мало, чтобы сеть отделила кубик от помех этой сцены: демонстрации на сцену нужны, пока их мало. У Lin и соавторов то же видно по баллу: на кривых для 1/32 и 1/16 демонстраций он ниже, чем на остальных.` },
     { short: '16 на сцену', title: 'Шестнадцать демонстраций на сцену', text: 'А если записать по 16 демонстраций в каждой сцене — вдвое больше, чем в первой серии?',
       controls: [],
       bet: { q: 'что станет с точками?', options: ['Опустятся: провалов везде станет примерно вдвое меньше', 'Почти совпадут с точками для 8 демонстраций', 'Лягут на более крутую прямую: больше демонстраций — быстрее рост'], answer: (r) => (r.meanDiff < 5 ? 1 : r.below >= 4 ? 0 : 2) },
@@ -419,7 +422,7 @@ const Dbl = (() => {
     const S = sets(), b = st.done ? Store.get(...S.B) : null;
     pane($('#dCvL'), 'L'); pane($('#dCvR'), 'R');
     $('#dSubL').textContent = `${nWord(st.M, 'сцена', 'сцены', 'сцен')} × ${st.K * 2}`; $('#dSubR').textContent = `${nWord(st.M * 2, 'сцена', 'сцены', 'сцен')} × ${st.K}`;
-    ['L', 'R'].forEach((sd) => { const r = st.done ? Store.get(...S[sd]) : null, el = $('#dStat' + sd); setOut(el, r && b ? `Взят кубик: <b>${r.ok} из 100</b> (было ${b.ok}, ${r.ok - b.ok >= 0 ? '+' : '−'}${Math.abs(r.ok - b.ok)})` : `Набор: ${S[sd][0] * S[sd][1]} демонстраций, исходный — ${st.M * st.K}`); });
+    ['L', 'R'].forEach((sd) => { const r = st.done ? Store.get(...S[sd]) : null, el = $('#dStat' + sd); setOut(el, r && b ? `Взят кубик: <b>${r.ok} из 100</b> (было ${b.ok}, ${r.ok - b.ok >= 0 ? '+' : '−'}${Math.abs(r.ok - b.ok)})` : `Набор: ${demos(S[sd][0] * S[sd][1])}, исходный — ${st.M * st.K}`); });
     const L = st.done ? Store.get(...S.L) : null, R = st.done ? Store.get(...S.R) : null;
     $('#dStatL').classList.toggle('ok', !!(L && R && L.ok > R.ok)); $('#dStatR').classList.toggle('ok', !!(L && R && R.ok > L.ok));
     const pg = $('#dProg'); pg.hidden = Store.st.busy !== 'dbl'; pg.firstElementChild.style.width = (Store.st.prog * 100).toFixed(1) + '%';
