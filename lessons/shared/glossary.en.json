@@ -1058,7 +1058,7 @@
  {
   "id": "egocentric-video",
   "t": "Egocentric video",
-  "d": "Video shot by a camera on a person’s head or glasses: the frame shows what they see and their own hands. Ego4D is the example: 3670 hours of everyday life of 931 people.",
+  "d": "Video shot by a camera on a person’s head or glasses: the frame shows what they see and their own hands. An example is Ego4D: 3,670 hours of the everyday life of 931 people.",
   "a": "egocentric videos?"
  },
  {

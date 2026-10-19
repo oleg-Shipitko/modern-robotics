@@ -80,6 +80,7 @@
 .pl-step .gap { flex: none; font-size: 10.5px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; padding: 1px 6px; border-radius: 6px; background: var(--surface-2); color: var(--ink-3); border: 1px solid var(--line); }
 .pl-chain { list-style: none; margin: 0; padding: 10px; display: grid; gap: 6px; min-height: 56px; border: 1px dashed var(--line-2); border-radius: 12px; background: var(--surface-2); counter-reset: pl; }
 .pl-chain:empty::before { content: "Цепочка пуста: нажми на шаги выше по порядку"; color: var(--ink-3); font-size: 13.5px; padding: 8px 4px; }
+html[lang="en"] .pl-chain:empty::before { content: "The chain is empty: tap the steps above in order"; }
 .pl-chain li { counter-increment: pl; }
 .pl-chain li .pl-step { width: 100%; }
 .pl-chain li .pl-step::before { content: counter(pl); flex: none; width: 22px; height: 22px; border-radius: 50%; display: inline-grid; place-items: center; font-size: 12px; font-weight: 700; background: var(--surface-2); color: var(--ink-2); }

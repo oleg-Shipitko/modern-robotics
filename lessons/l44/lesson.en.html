@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>4.4 Learning from human video — Modern Robotics and Physical AI</title>
+<meta name="description" content="Lesson 4.4 of the “Modern Robotics and Physical AI” course: how to train robots on videos of people working with their own hands. Ego4D, actions from video, retargeting, MimicPlay, EgoMimic, HAT and human-to-robot transfer in the Physical Intelligence VLA. Transfer a person's movement onto Ada's arm and split ten minutes of recording between the robot and human video.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<script>
+  (function () { try { var t = localStorage.getItem('mr-theme'); if (t) document.documentElement.dataset.theme = t; else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme = 'dark'; } catch (e) {} })();
+</script>
+<style>
+/*@@CSS@@*/
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html#program" title="To the course program"><div>Modern Robotics and Physical AI<small>Lesson 4.4 · Learning from human video</small></div></a>
+    <nav class="toc" aria-label="Lesson sections">
+      <a href="#why">Why</a>
+      <a href="#ego4d">Ego4D</a>
+      <a href="#actions">Actions</a>
+      <a href="#retarget">Ada's arm</a>
+      <a href="#mimicplay">MimicPlay</a>
+      <a href="#egomimic">EgoMimic</a>
+      <a href="#mix">Mix</a>
+      <a href="#hat">HAT</a>
+      <a href="#emerge">Transfer</a>
+      <a href="#today">Today</a>
+      <a href="#quiz">Quiz</a>
+      <a href="#finale">Takeaways</a>
+    </nav>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Toggle theme">◐</button>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main>
+
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="kicker"><span class="num">4.4</span> Part 4 · Data for training robots</div>
+    <h1>Learning from human video: <span class="amp">how recordings of a person's hands become data for a robot</span></h1>
+    <p class="lead">In lesson 4.2, every hour of demonstrations took an hour of an operator's work, and in lesson 4.3 we decided what to spend that hour on. Video of people cooking, cleaning and putting things away by themselves is much easier to shoot: the Ego4D dataset holds 3,670 hours from head-mounted cameras worn by 931 people in 9 countries, and with camera glasses you record about 1,400 short demonstrations an hour versus 135 on a robot. Such video has two difficulties. A human arm is built differently from a robot arm: different lengths, fingers instead of a gripper, a different speed and a different look in the frame. And the video contains no actions: the path of the hand and the gripper opening have to be recovered from the frames. We'll look at how MimicPlay, EgoMimic, HAT and Physical Intelligence deal with these difficulties, and why human video starts to pay off in large models pre-trained on diverse robot data.</p>
+    <div class="hero-meta"><span>≈ 55 minutes</span><span>two labs, an interactive and a quiz</span><span id="heroMis">missions with a goal</span></div>
+    <div class="hero-list">
+      <div><b>A HUMAN ARM AND ADA'S ARM</b>Transfer a person's movement from a video onto Ada's arm and find what gets lost on the way: the place, the speed, the fingers, the reach</div>
+      <div><b>TEN MINUTES OF RECORDING</b>Split the time between robot demonstrations and human video and compare the models in kitchens where the robot has never been</div>
+      <div><b>PALM AND GRIPPER</b>See what happens to the model if you take the labels from human video as they are</div>
+      <div><b>PROCESSING A CLIP</b>Assemble, step by step, the path from a clip shot with glasses to a training example for a robot</div>
+    </div>
+    <p style="margin-top:28px"><a class="btn primary" href="#why">Start the lesson ↓</a></p>
+  </div>
+</section>
+
+<section class="recall-sec" id="recall" aria-label="Warm-up on the previous lesson">
+  <div class="wrap"><div class="card recall" data-recall></div></div>
+  <script type="application/json" id="recallData">{"n": "4.3", "title": "Robot datasets", "href": "4-3-datasety-robotov.html", "q": [{"q": "The budget is 48 episodes. What works better in unfamiliar places?", "o": ["All 48 in one kitchen: the model will learn the task more firmly", "Two episodes each in 24 different kitchens", "No difference: the number of episodes is the same"], "a": 1, "e": "On Ada's table, the 24-kitchen model hit the cube in 67% of attempts in new kitchens, and the one-kitchen model in 28%. In BridgeData V2, at equal size, 13 skills gave 65% versus 30% for three, and in DROID a subset from all scenes beat a subset from 20 scenes.", "sec": "kitchens", "secTitle": "One kitchen or twenty-four"}, {"q": "How do DROID and AgiBot World differ in approach?", "o": ["DROID is 18 identical setups in 564 scenes in 52 buildings, with a success mark from the collector; AgiBot World is a million trajectories on one site, and annotators check every recording", "DROID was collected in simulation, AgiBot World on real robots", "No difference: both merge existing datasets, like Open X-Embodiment"], "a": 0, "e": "DROID spends its recordings on new places: about 135 trajectories per scene. AgiBot World spends them on volume and checking: more than 100 robots, 4,000 m² of purpose-built rooms, and labeling of failures and recoveries.", "sec": "agibot", "secTitle": "A million trajectories with every recording checked"}, {"q": "Every third episode in a dataset is bad. What will raise the policy's success rate?", "o": ["Record as many again: the good ones will outweigh the bad", "Throw out the bad ones, even if fewer episodes remain", "Train longer"], "a": 1, "e": "The policy imitates the same mix, however much of it you record. In AgiBot World, 528 verified trajectories gave a completion score of 0.59 versus 0.41 together with 482 unverified ones; on Ada's table, it was 69% versus 38%.", "sec": "curation", "secTitle": "Reviewing episodes: throw out the bad ones or record more"}]}</script>
+</section>
+
+<section class="section alt" id="why">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">1</span> Why human video</div>
+      <h2>A robot demonstration is expensive, human video isn't</h2>
+      <p>Every demonstration from lesson 4.2 takes a robot, a controller and an operator who guides the robot more slowly than they would do the same thing themselves. In lesson 4.3, we decided what to spend such recordings on, but their number is still limited by the number of robots and operators: the RT-1 data from lesson 3.1 took 17 months to collect on 13 robots. Meanwhile, people do the same tasks with their own hands every day, in all kinds of kitchens and workshops, with no robot at all. The MimicPlay authors give an example: what takes 90 seconds of robot teleoperation, a person does in 5. In EgoMimic, an hour of recording gave 1,400 short demonstrations by a person wearing glasses with a camera, versus 135 demonstrations of the same task on the robot.</p>
+      <p>A few words the lesson rests on. <strong>Egocentric video</strong> is video shot by a camera on a person's head or glasses: the frame shows what the person sees and their own hands. An <strong>embodiment</strong> is the body a system acts in the world with: a person has an arm with a five-fingered hand, Ada a two-link arm with a gripper, and the Unitree H1 two arms with five-fingered hands. Two things get in the way of human video. The first is the <strong>embodiment gap</strong>: a human arm doesn't match the robot's arm. It has different link lengths, fingers instead of a gripper and a different speed, and it looks different in the frame. The second difficulty is that video has no <strong>action labels</strong>: the policy from lesson 1.1 learns from “observation → action” pairs, while video gives only observations, without joint angles or gripper commands.</p>
+      <p>Next, we'll go step by step through what human video exists and what it records, how to extract an action from video, how to transfer it onto Ada's arm and what gets lost along the way. Then we'll compare three approaches: take only the plan from the video, as MimicPlay does; treat the person as one more embodiment and train a shared policy, as EgoMimic and HAT do; or rely on a large model in which transfer emerges by itself, as at Physical Intelligence. Let's start with the data: how much first-person human video is there at all?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="ego4d">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">2</span> Ego4D</div>
+      <h2>3,670 first-person hours</h2>
+      <p>The best-known egocentric video dataset is Ego4D (Grauman et al., first version in 2021). Facebook and 13 universities spent two years collecting it. It holds 3,670 hours of everyday life: 931 people in 74 locations across 9 countries wore a camera for one to ten hours at a time while they cooked, cleaned, did laundry, sewed and gardened. Almost none of it was scripted: people went about their own business. The footage was shot with seven different camera models, among them GoPro, Vuzix Blade glasses and Pupil Labs, so that models wouldn't get used to a single device. Camera placement matters: a head-mounted GoPro pointed down shows the hands handling objects well, while a camera in glasses at eye level sees what the person sees but misses what happens close to the body.</p>
+      <p>Along with the video, Ego4D has descriptions in words: an annotator watches a five-minute clip and writes a sentence about each action of the camera wearer. On average, that's 13.2 sentences per minute of video, 3.85 million sentences in total, with 1,772 different verbs and 4,336 nouns. Some of the hours also come with audio (2,535 hours), inertial sensor data (836), 3D scans of the rooms (491) and gaze direction (45). Annotating the whole dataset took more than 250,000 hours of human work.</p>
+      <p>Ego4D has no robot actions. The dataset was collected for perception tasks: recalling where an object was, understanding what the hands are doing with a thing, predicting the next action. That's why the first robotics papers, R3M and MVP, took only frames from Ego4D and used them to pre-train an image encoder for the policy. The MimicPlay authors cite work by Hansen et al., where simple data augmentation gave a similar effect, and the Physical Intelligence authors write that such representations don't directly improve action prediction. For human video to teach acting, you have to extract the action itself from it. How can that be done?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="actions">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">3</span> Actions from video</div>
+      <h2>How to extract an action from video</h2>
+      <p>A policy learns from “frame → action” pairs, but a video has only frames. The action has to be recovered, and there are three ways to do it.</p>
+      <p>The first way is to track the hand. A tracking model finds 3D keypoints of the hand in the frame: the wrist, the finger joints and the fingertips, usually 17–21 points per hand. The head keeps moving all the while, so you also need the camera pose in every frame. Visual SLAM from lesson 0.4 provides it; Project Aria glasses have two side cameras and an inertial sensor for that. Then the hand's path is converted into the coordinate frame of the camera at the moment the observation frame was taken: EgoMimic recomputes every future point of the path this way, so the policy predicts actions without guessing where the head will turn later. The simplest way to get the gripper opening is to take the distance between the thumb and the index finger. Physical Intelligence is more careful: it computes the hand's “end effector” from the keypoints of the palm and the middle and ring fingers, doesn't estimate the gripper opening from video at all and learns it from robot data only.</p>
+      <p>The path of a person's hand is not yet a command for the robot. It is transferred onto the robot's body by <strong>retargeting</strong> from lesson 4.2: inverse kinematics converts the hand position into the angles of the robot arm, and the fingers are turned into the gripper opening or the angles of the robot's fingers.</p>
+      <p>The second way is an <strong>inverse dynamics model</strong> (IDM): from two frames, before and after, it guesses which action happened between them. This is easier than a policy's job: a policy sees only the past and has to guess the intent, while an inverse dynamics model also sees what happened next. In VPT (OpenAI, 2022), hired players recorded about 2,000 hours of Minecraft gameplay together with their key presses and mouse movements. An inverse dynamics model trained on them labeled about 70,000 hours of videos from the internet, and a policy was trained on these labels. According to the authors, a fairly accurate inverse dynamics model can be trained on as little as 100 hours. In robotics, it is trained on robot data and then used to label video that has no actions.</p>
+      <p>The third way is <strong>latent actions</strong>. In GR00T N1, a model compresses the difference between frame \(t\) and frame \(t+H\) into a code from a vocabulary so that the second frame can be reconstructed from the first frame and the code. This code serves as the action, and it is shared by different bodies: for robots and for people, similar codes mean, for example, “move the right arm to the left.” This is how GR00T N1 labels Ego4D, EPIC-KITCHENS and other human video datasets; we'll see how this fits into the data pyramid in lesson 4.6.</p>
+      <p>For the rest of this lesson, we'll need the first way: all the systems we'll discuss work with it. The diagram below shows what is recorded for it and what comes out.</p>
+    </div>
+    <figure class="card flow-card">
+      <canvas data-anim="ego2act" width="720" height="380" role="img" aria-label="Diagram: a person wearing glasses with a camera picks up a cup; from the clip, SLAM gives the camera pose and a hand tracker gives the hand keypoints; the hand's path is converted into the camera frame at the moment of the frame; retargeting gives the position and opening of Ada's gripper; force and contact are not in the video"></canvas>
+      <figcaption class="muted-s">The diagram shows how a clip from the glasses turns into an action; the person is seen from the side. Orange marks the person and what they do: the head with the glasses, the arm, the fingers. Blue marks what is measured and computed: the camera pose, the hand keypoints, the hand's path in the camera frame and Ada's gripper at the output. Gray shows what the video doesn't contain: the force with which the fingers squeeze the cup. At the bottom runs the recording strip: each frame has an image, a camera pose and hand keypoints. The action for moment \(t\) is a piece of the future path, converted into the camera frame of that moment. Click the diagram to pause it.</figcaption>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>What comes out is the path the person's hand traveled and the moments when the fingers closed and opened. Will Ada repeat it if we pass this path to her as it is?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="retarget">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 1</div>
+    <h2>A human arm and Ada's arm</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p class="ada-note"><svg class="ada-ico" viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="10" width="48" height="42" rx="18" fill="#f4efe6" stroke="#3d3c38" stroke-width="3"/><rect x="15" y="19" width="34" height="22" rx="10" fill="#1f2430"/><ellipse cx="25" cy="30" rx="4" ry="5.5" fill="#eb6834"/><ellipse cx="39" cy="30" rx="4" ry="5.5" fill="#eb6834"/></svg><span>Ada is a home humanoid on a wheeled base; the course labs are built around her. More about her in <a href="0-1-dve-paradigmy.html#ada">lesson 0.1</a>.</span></p>
+      <p>The task is the same as in the lab of lesson 4.2: move a cup from the table to a shelf. Only now the demonstration comes not from an operator with a controller but from a video of a person who did it themselves at the same table. The hand tracker and SLAM have already given the path of their hand and the opening of their fingers. What's left is to turn them into commands for Ada's arm, that is, to do the retargeting.</p>
+      <p>There are three ways. <b>Joint angles</b>: pass the person's shoulder and elbow angles to Ada one-to-one, the way the leader arm's angles went to the robot in lesson 4.2. <b>From the shoulder</b>: repeat the hand's path relative to the shoulder, the way the arm moved relative to the body. <b>From the table</b>: repeat the path relative to the table and the cup; this is how EgoMimic and Physical Intelligence convert the path into the frame of a camera whose pose they know from SLAM. The person moves faster than Ada's motors allow, so the recording can be slowed down: with a ×4 slowdown, Ada takes four times as long over the path as the person in the video.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="duo duo-side" id="rDuo">
+          <figure class="pane"><figcaption class="pane-head"><b class="hu">Human video</b><span id="rSubL">cup from the table to the shelf</span></figcaption><canvas id="rCvL" width="340" height="300" role="img" aria-label="Side view: a person wearing camera glasses moves an object from the table to the shelf"></canvas><div class="pane-stat" id="rStatL"></div></figure>
+          <figure class="pane"><figcaption class="pane-head"><b class="fm">Ada repeats</b><span id="rSubR">retargeting: from the table, slowdown ×1</span></figcaption><canvas id="rCvR" width="340" height="300" role="img" aria-label="Side view: Ada repeats the transferred path of the person's hand"></canvas><div class="pane-stat" id="rStatR"></div></figure>
+        </div>
+        <p class="cv-note">Side view of the table and the shelf: the person on the left, Ada on the right at the same table. On the left, orange shows the person's arm, the camera glasses and two fingertips: the thumb and the index finger. On the right, blue shows Ada's arm and her gripper. The orange dashed line shows the path that retargeting set for her, and the blue line the path Ada's wrist actually traveled. Ada's wrist can't reach beyond the gray arc. Both scenes play in sync: the human video is slowed down by the same factor as Ada's motion.</p>
+        <details class="lab-legend"><summary>Legend: marks on the scene</summary><div class="cv-legend" id="rLegend"></div></details>
+        <div class="ctl-row">
+          <div class="ctl" id="wrapRMode"><span class="ctl-l">Retargeting</span><div class="seg" id="rMode" role="group" aria-label="Retargeting method"><button type="button" data-v="joints" aria-pressed="false">joint angles</button><button type="button" data-v="shoulder" aria-pressed="false">from the shoulder</button><button type="button" data-v="table" aria-pressed="true">from the table</button></div></div>
+          <label class="hd-range" id="wrapRSlow"><span>Slowdown</span><input id="rSlow" type="range" min="1" max="6" step="1" value="1"><output>×1</output></label>
+          <div class="ctl" id="wrapRClip"><span class="ctl-l">Video</span><div class="seg" id="rClip" role="group" aria-label="Which human video to transfer"><button type="button" data-v="cup" aria-pressed="true">cup</button><button type="button" data-v="jar" aria-pressed="false">jar of grain</button><button type="button" data-v="far" aria-pressed="false">far end of the shelf</button></div></div>
+        </div>
+        <div class="ctl-row" id="wrapRRun"><button type="button" class="btn" id="rRun">Run Ada</button></div>
+        <div class="readout" id="rOut"></div>
+      </div>
+      <div class="card guide-card"><div id="rMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: coordinate frames, Ada's controller and what is illustrative here</summary><div class="body">
+      <p><b>The path in the camera frame.</b> In EgoMimic, the hand point \(p_i\) in image \(i\) is known in the camera coordinate frame \(F_i\) of that image, and SLAM gives the camera's pose in the world, \(T^{W}_{F_i}\). The action for the observation at moment \(t\) is the future points converted into the camera frame of moment \(t\):</p>
+      <div class="formula">\[ a_{i} = \left(T^{W}_{F_t}\right)^{-1} T^{W}_{F_i}\, p_i, \qquad i = t, \dots, t+h. \]</div>
+      <p>On the robot, the camera is fixed relative to its base, and hand–eye calibration gives the same frame. In the lab, this is the “from the table” method: the person and Ada work at the same table, and the hand's path is transferred in the same table coordinates.</p>
+      <p><b>Three ways of retargeting.</b> “Joint angles”: from the position of the person's hand, we find the angles of their shoulder and elbow (a two-link arm, elbow down) and set the same angles on Ada's arm, \(q_\text{Ada} = q_\text{human}\). “From the shoulder”: \(p_\text{Ada} = p_\text{hand} - p_\text{human shoulder}\), and the point is measured from Ada's shoulder. “From the table”: \(p_\text{Ada} = p_\text{hand}\). In all three cases, Ada's angles for the point come from the inverse kinematics of lesson 0.3, and the gripper closes at the moment the person's fingers close.</p>
+      <p><b>The controller.</b> Every 10 ms, joint \(j\) gets the path velocity plus a correction for the lag, with limits on velocity and acceleration:</p>
+      <div class="formula">\[ \dot q_j \leftarrow \operatorname{clip}\!\left(\dot q^{\,\text{path}}_j + K\,(q^{\,\text{path}}_j - q_j),\ \pm\dot q_{\max}\right), \qquad |\ddot q_j| \le \ddot q_{\max}. \]</div>
+      <p><b>What is illustrative here.</b> Ada's links are 0.5 and 0.4 m long, as in all the labs with her arm. The human arm measures 0.30 m from the shoulder to the elbow and 0.27 m from the elbow to the middle of the palm; the person's shoulder is higher and closer to the table than Ada's. Ada's joint velocity limit is 1.2 rad/s, the acceleration limit 3 rad/s², and the widest gripper opening 9 cm; these numbers were chosen for the lab. The person in the video covers the whole path in 2.5 s. The HAT authors estimated from the mean task times that people are about 4 times faster than a teleoperated robot, and MimicPlay's numbers come to 5 s versus 90 s.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>Four things get lost in the transfer, and they are of different kinds. Retargeting itself fixes the place and the speed: the path is converted into a common coordinate frame and slowed down. It won't fix the fingers and the reach: if the person wrapped their palm around an object or stepped toward the far end of the shelf, Ada, with a two-finger gripper and a stationary base, has no such movement. Such recordings are either thrown out, the way UMI in lesson 4.2 filtered out trajectories the robot couldn't reach, or the robot is built closer to a human, as EgoMimic and HAT did. But if every human movement loses something in the transfer, maybe we should take from the video not the whole movement but only the plan: where to reach and in what order?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="mimicplay">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">4</span> MimicPlay</div>
+      <h2>The plan from video, the movements from teleoperation</h2>
+      <p>The fine movements of the fingers and the wrist differ between a human and a robot, but the plan of the task is shared: where to pick something up, where to carry it and in what order. MimicPlay (Wang et al., Stanford, NVIDIA and others, CoRL 2023) is built on this. A person “plays” in the scene with one hand: with no specific task, they open the oven, pull out the tray, put a pan on the stove. Such a recording needs no labeling, and the scene doesn't have to be reset to its initial state after every attempt. The authors recorded 10 minutes of play for each environment and estimate that in content this is roughly equivalent to 3 hours of teleoperation. They filmed with two calibrated cameras: an off-the-shelf detector finds the hand in both images, and the two viewpoints give a 3D path of the hand. With a single camera, the path would be flat, with no depth.</p>
+      <p>The model has two levels. The upper level learns only from human video: from the current frame and a goal frame, it predicts where the person's hand will go over the next few seconds. There can be several paths to the same goal, so the output is a mixture of Gaussians, as in lesson 1.3. The internal vector of this prediction is the <strong>latent plan</strong>. Human and robot frames look different, and their features are pulled together with a penalty: the distributions of features on human frames and on robot frames have to match. No paired videos are needed for this. The lower level learns from teleoperation, less than 30 minutes per environment: from the wrist camera, the robot's state and the latent plan, a transformer outputs the arm's actions.</p>
+      <p>MimicPlay was tested on a Franka arm in 6 environments on 14 tasks lasting 100–200 seconds. To keep the comparison equal in collection time, the other methods got 10 extra minutes of teleoperation instead of the 10 minutes of human video. In the kitchen, on long tasks with 20 robot demonstrations, MimicPlay succeeded in 47% of attempts, and the same model without human video in 23%; with 40 demonstrations, it came to 70% versus 40%. At the study desk, on new combinations of subtasks that weren't in the robot demonstrations, MimicPlay scored 47% versus 10%.</p>
+      <p>The limitation follows from the design. Human video trains only the upper level, and the lower level learns how exactly to close the gripper on the oven handle from teleoperation alone. The authors of the next work, EgoMimic, write that such systems remain constrained by a lower level trained on robot data alone. Can human video train the actions themselves too?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="egomimic">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">5</span> EgoMimic</div>
+      <h2>The human as one more embodiment</h2>
+      <p>EgoMimic (Kareer et al., Georgia Tech, 2024) treats human recordings as demonstrations just like robot recordings, only from a different embodiment, and trains one policy on both sources. The person records with Project Aria glasses weighing 75 g: a wide-angle front camera captures the frame, and two monochrome side cameras run SLAM and track the hands even when they leave the front camera's view. The authors built the robot to make the gap smaller: two light ViperX 300 S arms with 6 degrees of freedom each hang from a stand like human arms from the shoulders, RealSense cameras sit on the wrists, and the main camera is the same Aria glasses, mounted where a person's eyes would be. The stand without the arms costs less than $1,000.</p>
+      <p>There are three gaps to close. Coordinate frames: the path of the human hand and the path of the robot gripper are converted into the camera frame at the moment of observation, for the human by SLAM and for the robot by calibration. Distributions: even in the same coordinate frame, human hands and robot grippers move in different ranges, especially left to right, so poses and actions are normalized separately for each source: its own mean is subtracted and the result is divided by its own spread. Appearance: both the hand and the robot are masked out in the frames, with the SAM segmentation model finding them, and a red line is drawn on top along the direction of the grasp.</p>
+      <p>The model is based on ACT from lesson 1.7. The encoder and the transformer are shared, and there are two outputs: gripper poses for both the human and the robot, and joint angles for the robot only. The robot is controlled by joint angles, because with pose control the six-degree-of-freedom ViperX arm often produced jerks and singularities, poses in which the gripper can't be moved in some direction (<a href="0-3-kinematika-i-upravlenie.html#jac">lesson 0.3</a>). Only a single linear layer separates the heads, so the model has to build a shared representation for both bodies.</p>
+    </div>
+    <figure class="card flow-card">
+      <canvas data-anim="cotrain" width="720" height="330" role="img" aria-label="EgoMimic diagram: human and robot frames from identical glasses go through masking and normalization, then a shared encoder and transformer; the pose head learns from both sources, the joint-angle head only from robot data"></canvas>
+      <figcaption class="muted-s">The diagram shows one policy on two sources, after Fig. 4 and Algorithm 1 of the EgoMimic paper. Orange marks the human data: a frame from the glasses with the hand masked out, and the hand's path. Blue marks the robot data: a frame from the same glasses, the wrist cameras, the joint angles. Purple shows the shared part: the encoder and the transformer. An example from the training batch travels from its source to the shared part; the pose head learns from both sources, the angle head only from the robot. Click the diagram to pause it.</figcaption>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>Human data is faster to collect: in the Continuous Object-in-Bowl task, where a toy goes into a bowl and back out, a person recorded 1,400 demonstrations in 60 minutes, and the robot 270 in 120. In points, awarded every time a toy is placed in the bowl and every time the bowl is emptied, EgoMimic scored 128 in this task versus 39 for ACT and 68 for EgoMimic itself without human data. In T-shirt folding, the full success rate was 88% versus 55% for ACT. ACT folded T-shirts of a new color in 25% of attempts, EgoMimic in 85%. In a scene with a new background and lighting that appeared only in the human video, EgoMimic scored 63 points, and MimicPlay with the same data 4. The key comparison is this: 2 hours of robot data and 1 hour of human data gave 128 points, while 3 hours of robot data gave ACT 74. The authors note that part of the gain came from the architecture itself.</p>
+      <p>The authors tested each alignment step separately: without the red line the model scored 112 points, without the line and the mask 95, without action normalization 79, and without hand data 68. Normalization matters most. This raises two questions that are easy to test on a table: how many robot recordings do you need if you have human video, and what happens to the model if you take the labels from the video as they are?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="mix">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 2</div>
+    <h2>How much human video replaces an hour of robot recording</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>The world is assembled from the table of lesson 2.1 and the kitchens of lesson 4.3: a tablecloth, the light, a cube and three neighboring objects, bowls and cans. There is one task: Ada picks up the cube. The robot stands in a lab with two kitchens, so its demonstrations come only from those. Human video can be shot anywhere, and each video comes from a kitchen of its own. You have 10 minutes for recording. EgoMimic recorded 135 robot demonstrations or 1,400 human demonstrations in an hour, so in 10 minutes you can record 22 robot demonstrations or 233 human videos, and the time can be split between them.</p>
+      <p>The label of a robot demonstration is the cell at the center of the cube where the operator closed the gripper. The label of a video is the palm point given by the hand tracker. A person picks up the cube with their fingers from their own side, so the palm ends up about 3 cm closer to them than the grasp point, and it also jitters by a few millimeters. This is what the embodiment gap looks like in the lab: the person and Ada have different points that count as “the place of the action.”</p>
+      <p>The model is the same as in lesson 4.3: for each cell of the table, it looks at a 12 × 12 pixel window around the cell and outputs a score, and it turns the scores of all 576 cells into probabilities. We call success the share of attempts in which the gripper will hit the cube. The recipe with <strong>alignment</strong> follows the spirit of EgoScale and HumanScale, described in the “Today” section. First, the model learns only from human video and predicts where the palm will be. Then the robot demonstrations are used to find an <strong>offset</strong>: the shift from the grasp point to the palm under which the robot demonstrations are most probable for the model. After that, the model continues training on a 50/50 mix, as at Physical Intelligence, with the robot labels shifted by this offset. Ada closes the gripper where the model expects the palm, shifted back by the offset.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="duo" id="mDuo">
+          <figure class="pane"><figcaption class="pane-head"><b>Robot only</b><span id="mSubL">22 demonstrations in 2 lab kitchens</span></figcaption><canvas id="mCvL" width="360" height="360" role="img" aria-label="Top-down view of the table: a test kitchen and the grasp probabilities of the model trained on robot data only"></canvas><div class="pane-stat" id="mStatL"></div><div class="thumbs" id="mThL" aria-label="Examples from the left model's data"></div></figure>
+          <figure class="pane"><figcaption class="pane-head"><b class="fm" id="mHeadR">Robot and human video</b><span id="mSubR">11 robot demos and 117 videos, with alignment</span></figcaption><canvas id="mCvR" width="360" height="360" role="img" aria-label="Top-down view of the table: the same test kitchen and the grasp probabilities of the model trained on the data mix"></canvas><div class="pane-stat" id="mStatR"></div><div class="thumbs" id="mThR" aria-label="Examples from the right model's data"></div></figure>
+        </div>
+        <p class="cv-note">Top-down view of the table; the table measures 96 × 96 pixels, about 48 cm. The test kitchen is the same for both models, and the robot has never been in it. The orange fill shows the probability with which Ada closes the gripper in that cell. The cube is circled with a green ring. Under the scenes are examples from the data. In a robot demonstration, the white crosshair marks where the operator closed the gripper. In a human video, the hand is drawn over the frame, and the orange dot marks the palm as the tracker found it: this is the label.</p>
+        <details class="lab-legend"><summary>Legend: marks on the scene</summary><div class="cv-legend" id="mLegend"></div></details>
+        <div class="ctl-row">
+          <label class="hd-range" id="wrapMScene"><span>Test kitchen</span><input id="mScene" type="range" min="1" max="24" step="1" value="1"><output>1</output></label>
+          <label class="hd-range" id="wrapMShare"><span>Human video</span><input id="mShare" type="range" min="0" max="5" step="1" value="2"><output>50%</output></label>
+          <div class="ctl" id="wrapMAlign"><span class="ctl-l">Human labels</span><div class="seg" id="mAlign" role="group" aria-label="How to use the labels of human video"><button type="button" data-v="1" aria-pressed="true">with alignment</button><button type="button" data-v="0" aria-pressed="false">as is</button></div></div>
+        </div>
+        <div class="m-chart" id="wrapMChart"><svg id="mChart" role="img" aria-label="Chart: the share of successful attempts in new kitchens versus the share of time spent on human video"></svg></div>
+        <div class="bars" id="mBars"></div>
+        <div class="prog-line" id="mProg" hidden><i></i></div>
+        <div class="readout" id="mOut"></div>
+      </div>
+      <div class="card guide-card"><div id="mMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: the offset, the mix and the spread across seeds</summary><div class="body">
+      <p><b>The model.</b> The features of a cell are the mean colors of the cell itself and its eight neighbors, 27 numbers in total. A network with 16 ReLU neurons gives a score \(s_i\), and the probabilities come from a softmax over the 576 cells. All models are trained the same way: they minimize the cross-entropy over the label cell for 300 Adam steps with batches of 8 examples.</p>
+      <p><b>The offset.</b> After the first 150 steps on human video, the model \(p_\theta\) predicts the palm cell. We find the offset \(d\) by trying all shifts of up to three cells along each axis:</p>
+      <div class="formula">\[ d^{*} = \arg\max_{d}\ \sum_{(o,\,c)\,\in\,\text{robot}} \log p_\theta\big(c + d \mid o\big). \]</div>
+      <p>In the remaining 150 steps, half of each batch is human video and half is robot demonstrations whose label cell \(c\) is replaced with \(c + d^{*}\). Ada closes the gripper in cell \(i\) with probability \(p_\theta(i + d^{*} \mid o)\). Without alignment, all examples are mixed together in proportion to their numbers, and the human labels are used as they are.</p>
+      <p><b>Human labels.</b> The palm lies 6 pixels (about 3 cm) below the center of the cube in the image, with a random spread of 1.5 pixels. This is an illustration: in the papers, the gap between a human hand and a robot gripper is more complex, and Physical Intelligence defines the hand's “end effector” from keypoints of the palm and fingers.</p>
+      <p><b>Spread.</b> The numbers in the missions are computed for one seed. We repeated the experiment with four seeds for the initial weights and got these ranges: robot only 33–36%, half and half without alignment 20–22%, half and half with alignment 46–53%, a quarter and three quarters of the time on human video 40–54%, 90% 34–43%, human video only 16–24%. Alignment beats the robot-only model on every seed.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>This small model shows the same thing as the papers. In the lab kitchens, human video changes almost nothing, as in HAT, where the result barely moved in familiar conditions. In new kitchens, it helps: the human video brought a variety of kitchens, and a few robot demonstrations brought the offset between the palm and the gripper. Without this offset, the human labels hurt even in the lab: the model reaches for where the palm was. And without robot demonstrations, there is nowhere to get the offset from. But if a robot is built like a human, with two arms, a turning neck and five-fingered hands, maybe the human and the robot can be described by the same numbers?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="hat">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">6</span> HAT</div>
+      <h2>A humanoid and a human in one action space</h2>
+      <p>HAT (Qiu et al., UC San Diego, CMU, Apple and others, CoRL 2025) starts from the observation that teleoperating a humanoid is already a transfer of human movements onto a robot. So the robot can be described in human quantities, and a robot action can be obtained from a human action with a single conversion. The authors collected the PH2D dataset: 26,824 human demonstrations, about 3 million frames, and 1,552 humanoid demonstrations. For comparison, DexCap from lesson 4.2 had 787 human demonstrations, and EgoMimic 2,150. They recorded with ordinary VR headsets: an Apple Vision Pro with its built-in camera, or a Meta Quest 3 or Vision Pro with a ZED Mini stereo camera, a setup the authors put at under $700. The headset itself tracks the head and the hands, as in Open-TeleVision from lesson 4.2. Each demonstration carries out a specific task with a language instruction, for example “grasp a can of coke zero with right hand.”</p>
+      <p>The state and the action of both the human and the robot are described by the same 54 numbers: the rotations of the head and both wrists and the positions of both wrists and the ten fingertips. For the robot, forward kinematics computes them, and to execute an action, inverse kinematics and hand retargeting convert them back into angles. The experiments used Unitree H1 and H1-2 walking humanoids with five-fingered Inspire hands, a turning neck and no wrist cameras. The model is a transformer that predicts action chunks, like ACT, with a frozen DINOv2 image encoder.</p>
+      <p>HAT closes the remaining gaps simply. People move their whole body as they work, so the collectors were asked to sit upright. People move faster, so the human recordings are slowed down 4 times: that's how much the mean task time differs between a human and the humanoid. The appearance gap is closed without masks: with a large and diverse dataset, random color jitter and blurring of the frames are enough.</p>
+      <p>In conditions similar to the robot demonstrations, human video changes almost nothing: 49 successful attempts out of 60 versus 42 of 60 for the same model on robot data only. In new conditions, with a different background, different objects and object placements that appeared only in the human video, it came to 101 of 170 versus 59 of 170. There was also a separate experiment about time: in 20 minutes, you can record either 60 robot demonstrations or 30 robot demonstrations and 120 human ones; the second mix gave 35 successful grasps out of 90 versus 28. The model's design was tested too: without the slowdown it made 1 successful grasp out of 10, without the shared state space 0 of 10, and with both 4 of 10. Without the shared space, the model can tell from the state right away whose data it is, and it learns two different behaviors instead of one.</p>
+      <p>The processing steps are similar across all these systems: SLAM, a hand tracker, conversion into the camera frame, alignment. To keep them straight, let's put them into one chain.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="pipeline">
+  <div class="wrap">
+    <div class="lab-badge"><i>🧩</i> Interactive</div>
+    <h2>Build the processing chain for a clip from glasses</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>A clip from the glasses contains the frames and the data from the side cameras and the inertial sensor. To become a training example for a policy, it is run through a chain of steps, and the order matters: you can't convert the hand's path into the camera frame until you have both the camera pose and the hand keypoints. Tap the steps in the order they should be performed, and they will line up in the chain; tapping a step in the chain removes it. The check will show which gaps are closed and where the order is broken.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="pl-box">
+          <div class="pl-h">Steps</div>
+          <div class="pl-pool" id="pPool" role="group" aria-label="Processing steps: tap to add to the chain"></div>
+          <div class="pl-h">Chain: from the clip to a training example</div>
+          <ol class="pl-chain" id="pChain" aria-label="Processing chain: tap a step to remove it"></ol>
+        </div>
+        <p class="cv-note" id="pNote">On the left of each step is the gap it closes. “Labels” means that without this step there is no action for the robot, while “coordinates”, “distributions”, “appearance”, “speed” and “fingers” are the embodiment gaps from the sections above. The robot is given in the mission statement.</p>
+        <div class="ctl-row"><button type="button" class="btn sm" id="pReset">Clear the chain</button></div>
+        <div class="readout" id="pOut"></div>
+      </div>
+      <div class="card guide-card"><div id="pMis"></div></div>
+    </div>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>The three systems share a minimum: the camera pose, the hand keypoints and the path in the camera frame; beyond that, the recipes diverge. EgoMimic closes the appearance gap with a mask, HAT with data diversity and simple frame distortions, and in HAT the fingers transfer directly because the robot has five-fingered hands. Physical Intelligence adds subtasks in words and uses no mask, no normalization and no slowdown. Why does it work for them without hand-made alignment?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="emerge">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">7</span> Transfer and scale</div>
+      <h2>Human-to-robot transfer grows with pre-training</h2>
+      <p>Every alignment from the previous sections was designed by hand and tuned to its own robot. Kareer et al. from Physical Intelligence and Georgia Tech (December 2025; the first author is the same as for EgoMimic) asked the question differently. In language models, the ability to learn from heterogeneous data emerges with size: small models can't make use of diverse instructions, while large ones can. Maybe transfer from human video also emerges in a VLA by itself, once the model is large enough and pre-trained on diverse enough data?</p>
+      <p>The recipe is deliberately simple. They take π0.5 from lesson 3.8 and add human video as one more embodiment, with the same training objectives as for robot data: predicting actions as FAST tokens and with flow matching, as in lesson 3.6, and predicting subtasks in words. There are no masks, no normalization and no separate losses. The video was shot with a head-mounted camera, in some experiments with two more cameras on the wrists, and in episodes, like teleoperation: 3 hours each for table bussing, the spice shelf and the dresser, and 5 hours for sorting eggs. SLAM gives the head motion, the tracker gives 17 points per hand, and the hand's “end effector” is computed from the keypoints of the palm and the middle and ring fingers. The gripper opening isn't estimated from the video: the model learns it from robot data. During fine-tuning, human video is mixed 50/50 with robot data from the most similar task.</p>
+      <p>Only what is in the human video and not in the robot data gets tested. In a new apartment, success on the spice shelf rose from 32% to 71%, and on the dresser from 25% to 50%. With new objects in table bussing, the share of correctly cleared items rose from 53 to 63%. A new task: in the robot data, eggs are simply put into a carton, while in the human video they are sorted by color. The model trained only on robot data placed the eggs haphazardly: it sorted 57% correctly, and with human video 78%.</p>
+      <p>The main experiment concerns pre-training. The authors took π0.5 pre-trained on 0%, 25%, 50%, 75% and 100% of the diversity of their ARX robot data, and on the whole mix with other robots, and for each version compared fine-tuning with and without human video. Without pre-training and at 25%, human video didn't help, and for the dresser, up to 50% it could even hurt. At 75–100%, the gain became noticeable, and it was largest for the model pre-trained on other robots as well. The same is visible inside the model: in a model without pre-training, the representations of human and robot frames lie apart, and as pre-training diversity grows, they converge. Two more observations: for egg sorting and the dresser, human video turned out to be almost as useful as data from the robot itself, and data from another robot, a UR5, helped about as much as human video.</p>
+      <p>This explains why the small model in the second lab needed an offset: it has nowhere to get a shared representation of the two bodies from. The PI authors suggest that a large model already has such a representation after diverse pre-training. Their human video added up to tens of hours. What happens if there are thousands?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="today">
+  <div class="prose">
+    <div class="kicker"><span class="num">8</span> Today</div>
+    <h2>Tens of thousands of hours of human video</h2>
+    <p>In February 2026, NVIDIA, UC Berkeley and the University of Maryland presented EgoScale, a VLA pre-trained on 20,854 hours of egocentric video with action labels. The labels come from off-the-shelf SLAM and hand pose estimation; they were joined by 829 hours of the EgoDex dataset, shot with Apple Vision Pro with precise hand tracking. The error in predicting wrist and finger motion falls linearly with the logarithm of the hours, and the task completion on the robot rises from 0.30 at a thousand hours to 0.71 at 20,000 and, according to the authors, hasn't plateaued yet. The recipe has two stages: first the model is pre-trained on human video, then comes a short aligned training stage on 344 tasks, with about 50 hours of recordings of people wearing Manus gloves and Vive trackers and only 4 hours of robot data. On a Galaxea R1Pro humanoid with 22-degree-of-freedom Sharpa hands, the average success rate is 54% higher than for a model without pre-training; the model also transfers to a Unitree G1 with a three-fingered hand.</p>
+    <p>In June 2026, HumanScale (PKU, NUS, MIT, UCSB, NVIDIA) compared pre-training sources head-on: 5,000 hours of human video from the HumanNet dataset, which gathers a million hours of human activity, versus 5,000 hours of robot data. At equal volume, the model trained on human video had a 24% lower error in predicting robot actions and succeeded more often on an AgiBot robot. The labels are retargeted hand poses, and they are carefully filtered. The authors call the result preliminary: it was tested only at 5,000 hours and only on world models with actions. In the same month, the ActiveMimic authors wrote the opposite: models pre-trained on human video usually fall behind models trained on robot data unless you account for the fact that a person keeps turning their head while working; they treat this movement as a separate action. Whether human video can replace robot data at the pre-training stage is an open question.</p>
+    <p>Companies are going the same way. Generalist AI says it trains its GEN-1 base model without robot data, on recordings from low-cost wearable devices (lesson 4.3), and in 2025 Figure taught its humanoid to navigate rooms from first-person human video (lesson 4.2). Human video is turning from an add-on to robot data into the basis of pre-training.</p>
+    <p>But a video contains only what happened in front of the camera. Rare failures, dangerous situations and the robot's own body aren't in it, and recording them on a robot is expensive. The second cheap source of data is the simulator, the topic of lesson 4.5.</p>
+  </div>
+</section>
+
+<section class="section" id="quiz">
+  <div class="prose">
+    <div class="kicker"><span class="num">9</span> Check yourself</div>
+    <h2>Eight common misconceptions</h2>
+    <div class="quiz" id="quizBox"></div>
+    <p class="score" id="quizScore" style="margin-top:14px"></p>
+  </div>
+</section>
+
+<section class="section alt" id="finale">
+  <div class="prose">
+    <div class="kicker"><span class="num">10</span> Takeaways</div>
+    <h2>Lesson takeaways</h2>
+    <ol class="takeaways">
+      <li><span>Human video is much cheaper to shoot than robot recordings: in EgoMimic, an hour gave 1,400 human demonstrations versus 135 for the robot, and in MimicPlay a person takes 5 seconds versus 90 for a teleoperated robot. Ego4D holds 3,670 first-person hours, and HumanNet a million hours. Two things get in the way: the <strong>embodiment gap</strong> and the absence of <strong>action labels</strong>.</span></li>
+      <li><span>There are three ways to extract an action from video: a <strong>hand tracker and SLAM</strong> give the hand's path, which is converted into the camera frame; an <strong>inverse dynamics model</strong> guesses the action from the frames before and after (VPT: 2,000 labeled hours → 70,000 hours of video); the <strong>latent actions</strong> of GR00T N1 compress the change between frames into a shared code.</span></li>
+      <li><span><strong>Retargeting</strong> loses the place, the speed, the fingers and the reach. A common coordinate frame and a slowdown fix the place and the speed (4 times in HAT); on Ada, one-to-one joint angles took her wrist 17 cm away from the cup, and she put the cup on the shelf only with a ×4 slowdown. Retargeting won't fix the fingers and the reach: such recordings are discarded, or the robot is built closer to a human.</span></li>
+      <li><span>We covered three approaches. <strong>MimicPlay</strong> takes only the plan from video: on long tasks, this gave 47% versus 23%. <strong>EgoMimic</strong> and <strong>HAT</strong> train one policy on human and robot recordings and align the coordinates, distributions, appearance and speed. In EgoMimic, 2 hours of robot recordings and 1 hour of human recordings gave 128 points versus 74 for 3 hours of robot data, and in HAT it came to 101 of 170 versus 59 in new conditions.</span></li>
+      <li><span>You still need a little robot data: on Ada's table, for the same 10 minutes, the aligned mix gave 52% in new kitchens versus 36% for the robot alone, 23% without alignment and 22% with human video only. In EgoScale, the alignment stage had 4 hours of robot data for 50 hours of human data.</span></li>
+      <li><span>In large VLAs, transfer from human video emerges with the diversity of pre-training: in π0.5 + ego, it is noticeable at 75–100% of the robot data diversity and almost absent at 0–25%, and the representations of human and robot frames converge. In 2026, human video already amounts to tens of thousands of hours and serves as the basis of pre-training.</span></li>
+    </ol>
+    <h3 style="margin-top:40px">Open questions</h3>
+    <details class="card pad open-q"><summary>Will human video replace robot data at the pre-training stage?</summary><p>At an equal 5,000 hours, HumanScale got a lower error and a higher success rate with human video, and EgoScale sees a scaling law up to 20,000 hours without a plateau. ActiveMimic writes that, without accounting for head motion, models trained on human video fall behind models trained on robot data. All three works compare different models, robots and tasks, and there is no single experiment yet that compares the sources at equal cost and on many robots.</p></details>
+    <details class="card pad open-q"><summary>How do you learn from videos where the hands aren't visible and there are no labels, such as internet videos?</summary><p>Almost all the systems in this lesson use video from glasses or a headset, where the camera pose and the hands are known. Ordinary videos are shot from someone else's viewpoint, the hands are often hidden, and the camera is unknown. Latent actions and inverse dynamics models label such videos, but how well their labels suit precise movements of robot hands is not yet clear.</p></details>
+    <h3 style="margin-top:34px">Paper guide</h3>
+    <p><a href="https://arxiv.org/abs/2410.24221" target="_blank" rel="noopener">S. Kareer, D. Patel, R. Punamiya et al., “EgoMimic: Scaling Imitation Learning via Egocentric Video”, 2024</a>.</p>
+    <ul class="links">
+      <li><strong>Read closely</strong><span>Section III-B: the three gaps, coordinate frames, distributions and appearance, and the formula that converts the hand's path into the camera frame. Algorithm 1 and Section III-C: the shared policy with two heads. Table II: how many human and robot demonstrations are recorded in the same amount of time.</span></li>
+      <li><strong>Safe to skip</strong><span>The description of how the robot stand is assembled and the task details in Section IV-A.</span></li>
+      <li><strong>Question to keep in mind</strong><span>The authors control the robot by joint angles, and only the poses remain shared with the human in the policy. What would have to change if the robot had an arm that is easy to control by gripper pose?</span></li>
+    </ul>
+    <p style="margin-top:18px">Other papers in this lesson: <a href="https://arxiv.org/abs/2110.07058" target="_blank" rel="noopener">Ego4D</a> (Grauman et al.), <a href="https://arxiv.org/abs/2206.11795" target="_blank" rel="noopener">VPT</a> (Baker et al., 2022), <a href="https://arxiv.org/abs/2302.12422" target="_blank" rel="noopener">MimicPlay</a> (Wang et al., 2023), <a href="https://arxiv.org/abs/2503.13441" target="_blank" rel="noopener">Humanoid Policy ~ Human Policy</a> (Qiu et al., 2025), <a href="https://arxiv.org/abs/2512.22414" target="_blank" rel="noopener">Emergence of Human to Robot Transfer in Vision-Language-Action Models</a> (Kareer et al., 2025), <a href="https://arxiv.org/abs/2602.16710" target="_blank" rel="noopener">EgoScale</a> (Zheng et al., 2026), <a href="https://arxiv.org/abs/2606.20521" target="_blank" rel="noopener">HumanScale</a> (Ma et al., 2026), <a href="https://arxiv.org/abs/2606.06194" target="_blank" rel="noopener">ActiveMimic</a> (2026), <a href="https://arxiv.org/abs/2503.14734" target="_blank" rel="noopener">GR00T N1</a> (NVIDIA, 2025).</p>
+    <h3 style="margin-top:34px">Resources</h3>
+    <ul class="links">
+      <li><a href="https://ego4d-data.org" target="_blank" rel="noopener">Ego4D</a><span>The dataset page: videos, narrations, benchmarks</span></li>
+      <li><a href="https://egomimic.github.io" target="_blank" rel="noopener">EgoMimic</a><span>Videos of the experiments, with Aria glasses on a person and on the robot</span></li>
+      <li><a href="https://mimic-play.github.io" target="_blank" rel="noopener">MimicPlay</a><span>Videos of human play and robot tasks</span></li>
+      <li><a href="https://human-as-robot.github.io" target="_blank" rel="noopener">HAT and PH2D</a><span>The dataset and videos of the humanoids</span></li>
+      <li><a href="https://www.pi.website/research/human_to_robot" target="_blank" rel="noopener">Physical Intelligence: human-to-robot transfer</a><span>A post from December 16, 2025 with videos of the tasks</span></li>
+    </ul>
+    <div class="bridge-note"><p>Human video gives plenty of hand movements, but the robot's actions have to be recovered from the frames, and the robot's body, rare failures and dangerous situations aren't in it. Recordings with a robot would show these, but they cost hours of operators' work.</p><p class="bridge-to"><!--if:4-5-simulyatsiya.html--><a href="4-5-simulyatsiya.html"><!--/if-->Lesson 4.5 · Simulation: how to get thousands of demonstrations for the price of compute time, and what you pay for it<!--if:4-5-simulyatsiya.html--></a><!--/if--></p></div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Lesson 4.4 of the “Modern Robotics and Physical AI” course. The lab models are trained in your browser; the numbers for the systems and datasets are taken from their papers and official pages.
+</footer>
+<div class="tooltip" id="tooltip" role="tooltip"></div>
+<script>
+/*@@JS@@*/
+</script>
+</body>
+</html>
