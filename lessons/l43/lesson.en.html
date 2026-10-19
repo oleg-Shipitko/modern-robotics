@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>4.3 Robot datasets — Modern Robotics and Physical AI</title>
+<meta name="description" content="Lesson 4.3 of the “Modern Robotics and Physical AI” course: how robot datasets are built, from RoboNet and BridgeData V2 to DROID and AgiBot World, how the diversity and quality of demonstrations are measured and how data is curated. Split 48 recordings between one kitchen and twenty-four, find which difference between kitchens matters most, and throw out the bad episodes.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<script>
+  (function () { try { var t = localStorage.getItem('mr-theme'); if (t) document.documentElement.dataset.theme = t; else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme = 'dark'; } catch (e) {} })();
+</script>
+<style>
+/*@@CSS@@*/
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html#program" title="To the course program"><div>Modern Robotics and Physical AI<small>Lesson 4.3 · Robot datasets</small></div></a>
+    <nav class="toc" aria-label="Lesson sections">
+      <a href="#collect">What to collect</a>
+      <a href="#path">RoboNet and Bridge</a>
+      <a href="#droid">DROID</a>
+      <a href="#agibot">AgiBot</a>
+      <a href="#table">Table</a>
+      <a href="#kitchens">Kitchens</a>
+      <a href="#quality">Quality</a>
+      <a href="#curation">Curation</a>
+      <a href="#today">Today</a>
+      <a href="#quiz">Quiz</a>
+      <a href="#finale">Takeaways</a>
+    </nav>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Toggle theme">◐</button>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main>
+
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="kicker"><span class="num">4.3</span> Part 4 · Data for training robots</div>
+    <h1>Robot datasets: <span class="amp">what to record so that a model copes in unfamiliar places</span></h1>
+    <p class="lead">In lesson 4.2, demonstrations were recorded with a leader arm, a VR headset, gloves and the UMI hand-held gripper, and each method has its own cost per hour of recording. Since every hour costs money, you have to decide what exactly to record before collection starts: more attempts at one task in a familiar room, or fewer attempts, but in different rooms, with different objects and cameras. Large robot datasets have answered this question in different ways. RoboNet (2019) collected about 162,000 trajectories from seven robots that moved on their own, at random. BridgeData V2 (2023) collected 60,000 recordings from one low-cost arm in 24 environments. DROID (2024) holds 76,000 trajectories in 564 scenes, and 13 institutions recorded them by shared rules. AgiBot World (2025) holds a million trajectories from more than a hundred identical robots, and a person checks every recording there. We'll look at how these datasets are built, how their authors measure diversity and quality, and why it pays more to throw out bad recordings than to dilute them with new ones.</p>
+    <div class="hero-meta"><span>≈ 50 minutes</span><span>two labs, an interactive and a quiz</span><span id="heroMis">missions with a goal</span></div>
+    <div class="hero-list">
+      <div><b>ONE KITCHEN OR MANY</b>Split 48 recordings in different ways, all in one kitchen or two each in 24 kitchens, and test both models in kitchens that weren't in the data</div>
+      <div><b>WHAT TO VARY</b>Find which difference between kitchens helps the model most: the tablecloth, the light or the objects</div>
+      <div><b>REVIEWING RECORDINGS</b>Find the bad ones among 48 recordings and compare: throw them out or record as many again</div>
+      <div><b>SIX DATASETS</b>Compare RoboNet, RT-1, BridgeData V2, Open X-Embodiment, DROID and AgiBot World by robots, scenes and tasks</div>
+    </div>
+    <p style="margin-top:28px"><a class="btn primary" href="#collect">Start the lesson ↓</a></p>
+  </div>
+</section>
+
+<section class="recall-sec" id="recall" aria-label="Warm-up on the previous lesson">
+  <div class="wrap"><div class="card recall" data-recall></div></div>
+  <script type="application/json" id="recallData">{"n": "4.2", "title": "Teleoperation and data collection devices", "href": "4-2-teleoperatsiya.html", "q": [{"q": "Why don't the ALOHA and GELLO leader arms need inverse kinematics?", "o": ["They only set the gripper's speed", "They are copies of the robot arm: their joint angles go to the robot one-to-one", "The robot computes inverse kinematics itself"], "a": 1, "e": "A leader arm has the same design as the follower, only smaller, so its angles suit the robot without any conversion. The ALOHA authors write that off-the-shelf inverse kinematics “fails frequently in this setting.”", "sec": "leader", "secTitle": "The leader arm: a small copy of the robot"}, {"q": "What does latency between the controller and the robot do to a demonstration?", "o": ["It just shifts the demonstration in time", "The operator moves in steps and waits, the recording gets longer and full of pauses, and the policy learns this along with the task", "It makes the movements more precise"], "a": 1, "e": "The operator guides the arm by what they see, and with latency they correct it step by step. In ALOHA, with teleoperation at 5 Hz instead of 50 Hz, the tasks took 62% longer.", "sec": "tele", "secTitle": "The operator, latency and the controller"}, {"q": "Why are recordings from the UMI hand-held gripper usable by a robot, even though there was no robot during recording?", "o": ["They are converted by fingertip retargeting", "The same gripper with the same camera is mounted on the robot, the actions are recorded relative to the gripper, and recordings the robot can't reach are filtered out", "The robot repeats a video of the person"], "a": 1, "e": "The policy sees almost the same frame as during recording, and no calibration is needed. The same checkpoint passed 18 of 20 trials on a Franka; both failures came from exceeding joint limits.", "sec": "umi", "secTitle": "Collecting without a robot: the UMI hand-held gripper"}]}</script>
+</section>
+
+<section class="section alt" id="collect">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">1</span> What to collect</div>
+      <h2>An hour of recording is expensive: what to spend it on</h2>
+      <p>In lesson 4.2, demonstrations were recorded with different devices: a leader arm, a VR headset, gloves and the UMI hand-held gripper. Every hour of recording takes an hour of work by an operator, the person who guides the robot or the gripper. That's why the question of how much data to collect always comes with the question of which data. You can record a thousand attempts at one task on one table, or a hundred attempts each on ten tables with different objects. The number of recordings is the same, but the model will generalize differently, that is, cope differently with unfamiliar conditions.</p>
+      <p>Part of the answer has come up before. In lesson 3.1, the RT-1 ablations showed that removing a quarter of the tasks costs as much generalization as removing 49% of the episodes: the diversity of tasks matters more than their number. In lesson 3.4, Open X-Embodiment merged 60 existing datasets from 22 robots and brought them to a common format. In this lesson, we'll look at how the datasets themselves are built: what goes into them, how diversity is measured and how the quality of recordings is controlled.</p>
+      <p>A few words the lesson rests on. An <strong>episode</strong>, or <strong>trajectory</strong>, is the recording of one attempt from start to finish: the camera frames, the robot's state and its actions at every step, and often a description of the task in words. A <strong>scene</strong> is the robot's workplace: the table, the room, the objects around it. A <strong>task</strong> is what needs to be done, for example “put the carrot in the bowl”; different datasets count tasks differently, and we'll come back to this. A <strong>viewpoint</strong> describes where the camera stands and where it looks.</p>
+      <p>The first large robot datasets answered the question of what to record in different ways. Where did it all start?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="path">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">2</span> RoboNet and BridgeData V2</div>
+      <h2>Many robots or many scenes</h2>
+      <p>The first large shared dataset was RoboNet (Dasari et al., 2019). It holds about 162,000 trajectories and almost 15 million frames; the data came from 4 institutions and was shot from 113 camera positions. The trajectories were recorded by 7 robots: Sawyer, Franka, WidowX, Kuka and Baxter, plus public data from a Google robot and a Fetch. RoboNet has no operator. The robot moved on its own: it shifted the gripper at random and closed it when it went below a set height. A person only set this distribution of movements and from time to time put out new objects. Collecting this way is cheap: according to the authors, “data collection is otherwise unattended.”</p>
+      <p>What was trained on this data wasn't a policy but a model that predicts the next frames from the current frames and an action (visual foresight): the robot tries out candidate movements and picks the one after which the image is closest to the goal. The main result of the work concerns transfer to a new robot. After pre-training on RoboNet without its data and 400 of its own random trajectories, Kuka solved 40% of the tasks, while a model trained from scratch on 1,800 trajectories solved 30%. Franka got 40% versus 35% for a model trained from scratch on 8,000 trajectories. The authors conclude that a small amount of data from many different domains matters more than quantity. But they also warn that models trained on RoboNet underfit, and that pre-training on one similar robot is sometimes better than on the whole dataset. After the data of a Sawyer alone, Baxter solved 83% of the tasks, and after all of RoboNet, 58%.</p>
+      <p>Random movements give only pushes and simple grasps. BridgeData V2 (Walke et al., 2023) made a different bet: one robot, but a person sets the movements, and there are many scenes. It holds 60,096 trajectories on a low-cost WidowX 250 arm, and the whole setup costs about $4,000. An operator recorded 50,365 of them with a Meta Quest 2 VR headset, and 9,731 came from a simple program that fails often but works without a person. The dataset has 24 environments (toy kitchens, sinks, tabletops), more than 100 objects and 13 skills. There are four cameras: a fixed over-the-shoulder one, two that the collector repositions every 50 trajectories, and one on the gripper. Many different tasks were recorded in each scene so that the model would look at the command instead of guessing the task from the setting. Annotators added the task descriptions in words afterward.</p>
+      <p>The authors checked what diversity gives at equal size: a model trained on 28,000 trajectories of three skills and a model trained on 27,000 trajectories of 13 skills. On a new pick-and-place task, the first succeeded in 30% of trials, the second in 65%. The first version of the dataset together with the PTR data held 13,000 trajectories, 15 environments and 11 skills, and compared with it, the success of the same model on new tasks rose from 8% to 70%. The authors name the limitation themselves: everything was collected at one institution and on one robot.</p>
+      <p>The next step suggested itself: the same setup, but in dozens of real rooms and with many collectors. That's how DROID is built.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="droid">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">3</span> DROID</div>
+      <h2>One setup in 564 scenes</h2>
+      <p>DROID (Khazatsky et al., 2024) was collected over 12 months by 50 people from 13 institutions in North America, Asia and Europe. The result was 76,000 trajectories, 350 hours of recording, 564 scenes and 86 tasks in 52 buildings. Everyone has the same setup, replicated 18 times: a Franka Panda arm with a Robotiq gripper on a height-adjustable table with wheels, two movable Zed 2 stereo cameras at the side and a Zed Mini camera on the wrist. The arm is guided with the controllers of an Oculus Quest 2 headset. The table with the robot can be wheeled into a kitchen, a bedroom, a bathroom, a laundry room, a dining room or an office: Figure 1 of the paper shows such rooms.</p>
+      <p>The <strong>data collection protocol</strong>, that is, the rules by which every episode is recorded, is shared too. A session starts with a new scene and camera calibration with a checkerboard: this tells where the cameras stand relative to the robot. A program on a laptop gives the collector a random task from a list that they made for this scene themselves, and from time to time prompts them to shuffle the scene: nudge the table, move the cameras, change the light, add or remove objects. The authors call this “scene augmentations.” Up to 100 trajectories, about 20 minutes, are recorded in one scene, and then the scene is changed. After every attempt, the collector marks whether it succeeded. About 16,000 attempts were marked as failed: they were released separately and not counted in the 76,000. Annotators wrote the task descriptions in words afterward, one to three per episode.</p>
+    </div>
+    <figure class="card flow-card">
+      <canvas data-anim="droid" width="720" height="340" role="img" aria-label="Diagram of recording one DROID episode: the operator guides the Franka arm with a VR headset controller, three cameras and the arm's sensors write frames, joint angles and the action 15 times a second, at the end the collector marks success, later annotators add task descriptions, and before the next episodes the cameras are moved"></canvas>
+      <figcaption class="muted-s">The diagram shows how one DROID episode is recorded; the setup is seen from the side. Orange marks the person and what they set: the controller motion, the success mark, the task descriptions. Blue marks the robot and what is measured: three cameras, the joint angles, the gripper position. Next to it runs the episode strip: 15 steps a second, and each step holds three frames, the arm's state and the action; one column of the strip is schematic and stands for several steps. Gray shows what isn't recorded: the table, the camera stands, the lamp. Click the diagram to pause it.</figcaption>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>Co-training on DROID was tested on 6 tasks in 4 locations. The diffusion policy from lesson 1.5 was trained on 50–150 demonstrations of a task, mixed half and half with DROID, half and half with Open X-Embodiment, or with nothing. The mix with DROID beat the next best option by 22 percentage points in familiar conditions and by 17 in unfamiliar ones: with extra and new objects and with a shifted camera. For this, the first 40,000 successful trajectories with descriptions were taken from DROID. Separately, the authors compared two subsets of 7,362 trajectories each: one from the 20 scenes with the most recordings, and a random selection from all scenes. In unfamiliar conditions, the subset with diverse scenes won.</p>
+      <p>DROID's weak spot lies elsewhere. The collectors judge the quality of their recordings themselves, with a single “succeeded” mark, and the AgiBot World authors name the absence of quality assurance with human feedback as a key limitation of DROID. What does a dataset look like where a person reviews every recording?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="agibot">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">4</span> AgiBot World</div>
+      <h2>A million trajectories with every recording checked</h2>
+      <p>AgiBot World (AgiBot World team, 2025) wasn't collected in other people's rooms but on a single site of more than 4,000 m², where a home, a store, a factory, a restaurant and an office with more than 3,000 objects were built. More than 100 identical two-armed AgiBot G1 robots recorded 1,001,552 trajectories: 2,976 hours of recording over 217 tasks and 87 skills in 106 scenes. The robot has two arms with 7 degrees of freedom each, a mobile base, an adjustable waist joint and eight cameras, and its arms end in a gripper or a hand with 6 degrees of freedom. The robot's state is recorded 30 times a second. The operators guide the robot with a VR headset or through a motion capture system: it reads the movements of the person's body and fingers and transfers them to the robot.</p>
+      <p>The main difference of AgiBot World is the checking. Every task is first tried out in a pilot collection, and rules are written for it. Then skilled operators collect the data, the recording is checked on site (for example, for missing frames), and after that annotators watch every episode and check whether the collection rules were followed. Attempts in which the robot made a mistake and recovered aren't thrown out: the annotators mark the cause of the failure and the moment it happened; such attempts make up about 1% of the dataset. There is also a loop with a model: they collected a little, trained a policy, watched how it behaves on the robot and adjusted the rules. That's how they found that the policy stood still for a long time at the start of an attempt, and they added post-processing that cuts out idle frames.</p>
+      <p>Does this pay off? The authors pre-trained the same open RDT model on AgiBot World and on Open X-Embodiment and fine-tuned it on tasks. They measured the completion score, a number from 0 to 1 for how much of the task's steps were done. In familiar conditions, it came to 0.77 versus 0.47, and in unfamiliar ones to 0.67 versus 0.38. There was also a direct experiment on quality: fine-tuning on 528 verified trajectories gave 0.59, and on the same ones together with 482 unverified ones, 0.41. There was half as much data, and the result was higher.</p>
+      <p>All four datasets describe themselves with numbers: robots, trajectories, scenes, tasks. Let's compare them in one table, together with RT-1 and Open X-Embodiment from part 3.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="table">
+  <div class="wrap">
+    <div class="lab-badge"><i>🧩</i> Interactive</div>
+    <h2>Six datasets in one table</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>You can't compare the numbers of different datasets at face value: each counts in its own way. The scenes of RoboNet, RT-1, BridgeData V2, Open X-Embodiment and DROID are taken from Table I of the DROID paper, where a scene is a distinct robot workplace. AgiBot World's scenes are counted in its own paper, by its own definition. Some count tasks as instructions, others as skills, and DROID counts them as distinct verbs in the descriptions. Hover over a cell or tap it to read what stands behind the number.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="tbl-wrap" id="dsTable"></div>
+        <p class="cv-note" id="dsNote">An empty cell means the paper gives no number. The “Robot models” column shows how many robots of different design the dataset has; there can be more identical units. On a narrow screen, the table scrolls sideways.</p>
+        <div class="ctl-row">
+          <div class="ctl" id="wrapDsCol"><span class="ctl-l">Trajectories per scene</span><div class="seg" id="dsCol" role="group" aria-label="Show the “trajectories per scene” column"><button type="button" data-v="off" aria-pressed="true">hide</button><button type="button" data-v="per" aria-pressed="false">show</button></div></div>
+        </div>
+        <div class="readout" id="dsOut"></div>
+      </div>
+      <div class="card guide-card"><div id="dsMis"></div></div>
+    </div>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>The table shows two paths. You can grow the number of recordings on one site, like AgiBot World, and then each scene gets thousands of trajectories. Or you can grow the number of places, like DROID: it has 135 trajectories per scene with the largest number of scenes. Which path is better depends on what the authors measure diversity by and what changes where the model will work.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="measure">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">5</span> Diversity</div>
+      <h2>How diversity is measured</h2>
+      <p>The DROID authors measure diversity along five axes: tasks, objects, scenes, viewpoints and the places on the table where the robot picks up objects. They count tasks as the number of distinct verbs in the descriptions, and synonyms and typos were removed with the GPT-4 language model. Objects were extracted from the same descriptions and split into 14 categories: containers, textiles, furniture, clothes, food, kitchen tools and others. The scene type was determined from one frame per episode by the GPT-4V vision-language model. A noticeable change of the robot's workplace counts as a new scene, but rearranging objects or shifting a camera doesn't: of the 2,080 scene IDs that the collectors recorded, 564 remained after checking. The dataset has 1,417 camera viewpoints, and the interaction location is taken to be the point where the gripper first closed.</p>
+      <p>By scenes, DROID is far ahead: 564 versus 24 for BridgeData V2, 2 for RT-1 and 311 for all of Open X-Embodiment. By verbs, only BridgeData V2 comes close among single datasets: 82 versus 86. At the same time, RT-1 has 744 instructions, but by DROID's count only 2 verbs: hundreds of instructions are combinations of a few actions with different objects. The number of tasks says something about diversity only if you know how it was counted.</p>
+      <p>The number of scenes doesn't settle the question either. Diversity helps when the data already contains what will differ in the place where the model works. RoboNet found that a subset resembling the test location is sometimes better. This raises two questions that are easier to ask on a table where everything is computed before your eyes: what pays off more with the same budget, one kitchen or many, and which difference between kitchens matters most?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="kitchens">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 1</div>
+    <h2>One kitchen or twenty-four</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p class="ada-note"><svg class="ada-ico" viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="10" width="48" height="42" rx="18" fill="#f4efe6" stroke="#3d3c38" stroke-width="3"/><rect x="15" y="19" width="34" height="22" rx="10" fill="#1f2430"/><ellipse cx="25" cy="30" rx="4" ry="5.5" fill="#eb6834"/><ellipse cx="39" cy="30" rx="4" ry="5.5" fill="#eb6834"/></svg><span>Ada is a home humanoid on a wheeled base; the course labs are built around her. More about her in <a href="0-1-dve-paradigmy.html#ada">lesson 0.1</a>.</span></p>
+      <p>There is one task: Ada picks up a cube from the table. The camera looks at the table from above, and Ada chooses which cell to close the gripper in. A kitchen is made up of a tablecloth (10 options, including checkered and striped ones), the light (daylight, a warm or cool lamp, evening light, dim light), a cube of one of six colors and three neighboring objects, bowls and cans of different colors. At home, Ada has a light linen tablecloth, daylight, a red cube, a blue bowl, a green can and a yellow bowl. An episode contains the same kitchen with the objects in new places and the cell in which the operator picked up the cube.</p>
+      <p>The model is built like the “where to pick” map from lesson 2.1, only with a small network instead of a single filter. For each cell of the table, it looks at a 12 × 12 pixel window around the cell, about 6 cm, and outputs a score, and it turns the scores of all 576 cells into probabilities. Ada chooses a cell by these probabilities, just as the generative policy from lesson 1.5 samples an action from the learned distribution. That's why we call success the share of attempts in which the gripper will hit the cube, and we compute it exactly by adding up the probabilities of the cells over the cube.</p>
+      <p>The recording budget is 48 episodes. The left model is trained on 48 episodes in the home kitchen, the right one on two episodes in each of 24 different kitchens. Both are tested in the same 24 new kitchens that weren't in the data.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="duo" id="kDuo">
+          <figure class="pane"><figcaption class="pane-head"><b id="kHeadL">One kitchen</b><span id="kSubL">48 episodes at home</span></figcaption><canvas id="kCvL" width="360" height="360" role="img" aria-label="Top-down view of the table: a test kitchen and the left model's grasp probabilities"></canvas><div class="pane-stat" id="kStatL"></div><div class="thumbs" id="kThL" aria-label="Sample episodes from the left model's dataset"></div></figure>
+          <figure class="pane"><figcaption class="pane-head"><b id="kHeadR" class="fm">24 kitchens</b><span id="kSubR">2 episodes in each</span></figcaption><canvas id="kCvR" width="360" height="360" role="img" aria-label="Top-down view of the table: the same test kitchen and the right model's grasp probabilities"></canvas><div class="pane-stat" id="kStatR"></div><div class="thumbs" id="kThR" aria-label="Sample episodes from the right model's dataset"></div></figure>
+        </div>
+        <p class="cv-note">Top-down view of the table; the table measures 96 × 96 pixels, about 48 cm, and the test kitchen is the same for both models. The orange fill shows the probability with which Ada closes the gripper in that cell: the brighter, the more often. The cube is circled with a green ring. Under each scene are six episodes from that model's dataset as the operator recorded them: the white crosshair marks where they closed the gripper.</p>
+        <details class="lab-legend"><summary>Legend: marks on the scene</summary><div class="cv-legend" id="kLegend"></div></details>
+        <div class="ctl-row">
+          <label class="hd-range" id="wrapKScene"><span>Test kitchen</span><input id="kScene" type="range" min="1" max="24" step="1" value="1"><output>1</output></label>
+          <div class="ctl" id="wrapKAxes"><span class="ctl-l">Varied for the right model</span><div class="seg multi" id="kAxes" role="group" aria-label="Which kitchen properties vary in the right model's dataset"><button type="button" data-v="table" aria-pressed="true">tablecloth</button><button type="button" data-v="light" aria-pressed="true">light</button><button type="button" data-v="objs" aria-pressed="true">objects</button></div></div>
+        </div>
+        <div class="bars" id="kBars"></div>
+        <div class="prog-line" id="kProg" hidden><i></i></div>
+        <div class="readout" id="kOut"></div>
+      </div>
+      <div class="card guide-card"><div id="kMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: the model, training and the spread across seeds</summary><div class="body">
+      <p><b>Features and model.</b> The 96 × 96 pixel table is compressed to a grid of 24 × 24 cells of 4 × 4 pixels each, as in lesson 2.1. The features of a cell are the mean colors of the cell itself and its eight neighbors, 27 numbers in total. A network with 16 ReLU neurons gives each cell a score \(s_i\), and the probabilities come from a softmax over all the cells of the table:</p>
+      <div class="formula">\[\begin{gathered} p_i = \frac{e^{s_i}}{\sum_{j=1}^{576} e^{s_j}}, \qquad \text{success} = \frac{1}{24}\sum_{\text{kitchens}}\ \sum_{i\,\in\,\text{cube}} p_i . \end{gathered}\]</div>
+      <p>A cell counts as “over the cube” if its center is closer than 4.8 pixels to the center of the cube: the gripper will hit it there. Both models are trained the same way: they minimize the cross-entropy over the cell where the operator grasped, for 300 Adam steps with batches of 8 episodes. The model sees only the window around a cell, so the position of the objects on the table doesn't matter to it: the datasets differ only in which kitchens they contained.</p>
+      <p><b>Kitchens.</b> There are 10 tablecloths: light linen, white, gray plastic, striped light oak and walnut, mint, light blue, terracotta, and red-and-white and blue-and-white check. The light multiplies each color channel: a warm lamp adds red and removes blue, a cool lamp does the opposite, and dim light darkens everything. The cube comes in six colors, and the neighbors are bowls and cans of six colors; there are no balls, because from above, on such a grid, a ball and a cube are almost impossible to tell apart. The test kitchens are assembled from the same tablecloths, lamps and objects, but none of them matches a training kitchen.</p>
+      <p><b>Spread.</b> The numbers in the missions are computed for one set of seeds. We averaged the results over three different sets of seeds for the kitchens, the episodes and the initial weights and got: one kitchen 28%, 24 kitchens 67%, only different tablecloths 39%, only the light 35%, only the objects 46%. On one of the three sets, different objects and different tablecloths gave the same result; on the other two, the objects helped more.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>A dataset from one kitchen teaches the model what sets the cube apart from everything else in that kitchen. At home, the cube is always red and the neighbors are blue, green and yellow, so the shortest path is to reach for red. In new kitchens, this rule fails as soon as the cube is blue, green or purple and there's an orange can or a red bowl next to it: the model picks them up. Twenty-four kitchens with the same number of episodes offer no such shortcut, and the model has to learn what cubes have in common: their shape. The DROID and BridgeData V2 ablations show the same thing: at equal size, the dataset with more scenes and skills wins.</p>
+      <p>But so far, all the recordings were correct: the operator always picked up the cube. In real datasets, that's not the case.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="quality">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">6</span> Quality</div>
+      <h2>Demonstration quality: consistent actions and diversity from the world</h2>
+      <p>The diversity of scenes solves only half of the problem. The other half depends on what the operator does in each of them. The operator may freeze halfway, jerk their hand, grab an object by the edge one time and by the middle the next, or miss altogether. Belkhale, Cui and Sadigh (2023) defined dataset quality through the outcome: a good dataset keeps the learned policy in the states the expert visited and doesn't let it drift where there is no data. Errors compound, as in lesson 1.2, and the earlier in an episode an error happens, the more it costs: after it, the policy has a longer way to go through unfamiliar states.</p>
+      <p>The authors singled out two properties of the data. <strong>Action divergence</strong> shows how much the actions of the learned policy differ from the expert's actions in the same states. It grows when the operator acts differently in identical situations. <strong>Transition diversity</strong> shows how different the next states can be for the same state and action, that is, the noise of the world itself: an object slips, the arm falls slightly short.</p>
+      <p>Both properties widen the set of states in the data, but they work in opposite directions. In the robomimic Square task, where an arm puts a nut onto a peg, the authors recorded demonstrations with a scripted expert and added noise either to the world or to its actions, choosing the noise strength so that the set of states was the same. With 200 episodes, the policy succeeded in 82.0% of trials with noise in the world and in 73.0% with noise in the actions; with 50 episodes, it was 69.7% versus 49.3%. Diversity is useful when the world provides it and harmful when it comes from the inconsistent actions of the demonstrator. The authors advise outright that expert data “should be curated to have more consistent actions.”</p>
+      <p>Human recordings show the same thing. robomimic has datasets from operators with different levels of experience. In the Square task, a policy trained on 200 demonstrations by a proficient operator succeeded in 58% of trials, while on 100 demonstrations from the “Better”, “Okay” and “Worse” groups it succeeded in 36, 12 and 2%, and the episodes of these groups get longer and longer: 150, 190, 250 and 350 steps. The operators in the worst group grabbed the nut in different places instead of by the handle: there were several ways to do it, and the policy mixed them up.</p>
+      <p>What do you do with a dataset that already contains such recordings? The authors name two paths: influence the operator with prompts and feedback, or filter the dataset. We'll test the filter.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="curation">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 2</div>
+    <h2>Reviewing episodes: throw out the bad ones or record more</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p><strong>Data curation</strong> can be done by hand, by watching every episode, or automatically. Hejna et al. (2025) proposed the DemInf method for this: it scores each demonstration from the recordings themselves, without any labels. A demonstration gets a high score if its action is easy to predict from the state, that is, if the operator acts similarly in similar situations. At the same time, the actions across the whole dataset should be diverse, or else the best recording would be one in which the robot does the same thing all the time. Together, these two conditions give the <strong>mutual information</strong> between states and actions; the formula is in “Under the hood”. Episodes with a low score are dropped entirely.</p>
+      <p>Curation pays off: on the robomimic datasets, a policy trained on the selected part did 5–10% better than one trained on all the data. On real robots, according to the authors, the selected half worked much better than a randomly chosen half. In these experiments on the DROID setup, half of the demonstrations were bad on purpose: the operator drops an object, takes a long path or moves jerkily. AgiBot World got the same result on its own data with manual checking: 528 verified trajectories are better than the same ones together with 482 unverified ones.</p>
+      <p>DemInf has limitations, and the authors name them themselves. The method looks only at states and actions and doesn't know whether the task was completed, so it assumes that all demonstrations are successful. Episodes with pauses get a high score from it: while the robot stands still, it's easy to predict from the state that it will keep standing. That's why the authors advise filtering out failures and pauses separately, with success marks, as in DROID, or with human review, as in AgiBot World.</p>
+      <p>Ada's dataset has 48 episodes in the same 24 kitchens, two in each. Several operators recorded them, and 16 episodes are bad in one of two ways. <strong>“Miss”</strong> means the gripper closed on the table next to the cube. <strong>“Wrong object”</strong> means the operator picked up a can or a bowl. Both errors make the attempt a failure, and failed attempts are exactly what has to be filtered out separately. There are no success marks here, unlike in DROID: find the bad episodes yourself, like the AgiBot World annotators. Click an episode to remove it from the dataset, and click again to put it back. The model and the test are the same as in lab 1.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="ep-grid" id="cGrid" role="group" aria-label="The 48 episodes of the dataset: click to remove or restore"></div>
+        <p class="cv-note">The panel shows 48 episodes. Each is shown close up around the spot where the operator closed the gripper: a 36 × 36 pixel area of the table, about 18 cm, seen from above, as from the wrist camera at the moment of the grasp. The center of the white crosshair marks the grasp spot. A crossed-out episode has been removed from the dataset. There is one cube in each episode, the only square object, and its color changes from kitchen to kitchen; from above, a bowl looks like a ring and a can like a narrow rectangle.</p>
+        <div class="ctl-row">
+          <span class="c-count" id="cCount"></span>
+          <button type="button" class="btn sm" id="cReset">Restore all</button>
+        </div>
+        <div class="bars" id="cBars"></div>
+        <div class="prog-line" id="cProg" hidden><i></i></div>
+        <div class="readout" id="cOut"></div>
+      </div>
+      <div class="card guide-card"><div id="cMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: mutual information and how DemInf estimates it</summary><div class="body">
+      <p>DemInf scores a demonstration by how much it adds to the mutual information between states and actions across the whole dataset:</p>
+      <div class="formula">\[ I(S; A) = H(A) - H(A \mid S). \]</div>
+      <p>\(H(A)\) is the entropy of the actions; it is large if the actions in the dataset are diverse. \(H(A \mid S)\) is the entropy of the action given the state; it is small if the action is easy to predict from the state. Demonstrations with diverse but predictable actions get a high score; without the first term, a demonstrator who always does the same thing would win. It is estimated like this: the states and the action chunks are compressed with two variational autoencoders, the contribution of each pair is estimated in the embeddings from its nearest neighbors (the KSG estimator), the result is averaged over the steps of an episode, and episodes whose score falls below a threshold are dropped entirely.</p>
+      <p><b>The lab dataset.</b> It has 32 good episodes, in which the operator picks up the cube at its center with a spread of ±1 pixel. It also has 8 “miss” episodes, in which the gripper closes on the table 8–11 pixels from the center of the cube, and 8 “wrong object” episodes, in which the operator picks up a can, or a bowl if there is no can in the kitchen. The model is trained from scratch on the episodes that remain, for 300 steps, as in lab 1.</p>
+      <p><b>Spread.</b> We repeated the experiment on five datasets with other episodes and other positions of the bad recordings. All 48 episodes gave from 35 to 44% successful attempts, the 32 good ones from 58 to 69%, and 96 episodes with the same share of bad ones from 35 to 42%. Removing the bad episodes beats recording twice as many on all five datasets.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>A policy imitates what was recorded, errors included. If every third episode in a dataset is bad, a dataset twice as large with the same share of errors teaches the same mix, and the model keeps picking up the table and the cans. Removing the bad recordings pays more than recording twice as many: new recordings cost the operators' time, and they don't raise the success rate.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="today">
+  <div class="prose">
+    <div class="kicker"><span class="num">7</span> Today</div>
+    <h2>Hundreds of thousands of hours and a common format</h2>
+    <p>In two years, the scale has grown by orders of magnitude. DROID has 350 hours, AgiBot World about 3,000, and π0 from lesson 3.6 was trained on more than 10,000 hours of its own recordings. In its post about the GEN-0 model (November 2025), Generalist AI wrote about more than 270,000 hours of real-world manipulation recordings, growing by 10,000 hours a week, and in April 2026, announcing the GEN-1 model, it reported more than half a million hours. Their conclusion is the same as in this lesson: “data quality and diversity matters more than sheer volume.” There is also a detail we'll come back to: the base GEN-1 model, according to the company, is trained without any robot data at all, on recordings of people with low-cost wearable devices.</p>
+    <p>The way data is stored and shared has changed too. Hugging Face's LeRobotDataset format keeps states, actions and timestamps in Parquet tables, and camera frames in MP4 video files. Version 3.0 (September 2025) puts many episodes into one file: with one file per episode, file systems couldn't cope once there were millions of episodes. According to a Hugging Face report from spring 2026, the number of robotics datasets on the platform grew from 1,145 in 2024 to 26,991 in 2025. The official Open X-Embodiment list has grown from 60 to 72 datasets, and the first of the new ones is DROID. AgiBot World 2026 is being released in phases, in the LeRobot format, and attempts with a failure and a recovery are still annotated rather than thrown out.</p>
+    <p>Datasets are also divided by role: large diverse ones go into pre-training, and small clean ones into post-training, as with π0 in lesson 3.6. How to build a pyramid out of them, from human video and simulation up to robot recordings, we'll cover in lesson 4.6 using GR00T N1 as the example.</p>
+    <p>One question remains, and GEN-1 raises it: if recordings of people with wearable devices are good enough for the foundation of a model, can robots be taught from ordinary videos where people simply go about their business? Lesson 4.4 is devoted to this.</p>
+  </div>
+</section>
+
+<section class="section alt" id="quiz">
+  <div class="prose">
+    <div class="kicker"><span class="num">8</span> Check yourself</div>
+    <h2>Eight common misconceptions</h2>
+    <div class="quiz" id="quizBox"></div>
+    <p class="score" id="quizScore" style="margin-top:14px"></p>
+  </div>
+</section>
+
+<section class="section" id="finale">
+  <div class="prose">
+    <div class="kicker"><span class="num">9</span> Takeaways</div>
+    <h2>Lesson takeaways</h2>
+    <ol class="takeaways">
+      <li><span>An hour of recording is expensive, so it matters not only how much you record but also what. With the same budget, <strong>many scenes with a couple of episodes each beat many episodes in one scene</strong>: in BridgeData V2, 13 skills versus three gave 65% versus 30% on a new task, in DROID a subset from all scenes beat a subset from 20 scenes, and on Ada's table it came to 67% versus 28%.</span></li>
+      <li><span>The datasets evolved like this. <strong>RoboNet</strong> collected about 162,000 trajectories from 7 robots that moved at random. <strong>BridgeData V2</strong> recorded 60,000 trajectories of one $4,000 arm in 24 environments with 13 skills. <strong>DROID</strong> recorded 76,000 trajectories in 564 scenes on 18 identical setups at 13 institutions under a single protocol. <strong>AgiBot World</strong> collected a million trajectories on more than 100 robots, and every episode there is checked.</span></li>
+      <li><span>Diversity is measured along axes: tasks, objects, scenes, viewpoints, interaction locations. The numbers of different datasets are comparable only if they are defined the same way: RT-1 has 744 instructions, but 2 verbs.</span></li>
+      <li><span>Diversity helps along the axis on which the test world differs. As long as the cube at home is always red, the model learns the color, and new tablecloths and light without new objects help little.</span></li>
+      <li><span>Data quality rests on the operator's <strong>consistent actions</strong>. State diversity that comes from the world's noise is useful, while state diversity from the spread of the operator's actions is harmful: in the Square task, with the same set of states, it came to 82.0% versus 73.0%.</span></li>
+      <li><span>It pays more to throw out bad recordings than to dilute them with new ones: in AgiBot World, 528 verified trajectories gave 0.59 versus 0.41 for the whole set, and on Ada's table, 32 good episodes gave 69% versus 38% for all 48 and 35% for a set twice as large with the same share of errors.</span></li>
+    </ol>
+    <h3 style="margin-top:40px">Open questions</h3>
+    <details class="card pad open-q"><summary>How do you curate data if there are no success marks and no person can watch a million episodes?</summary><p>DemInf estimates how predictable the actions are, but it assumes the demonstrations are successful, and it gives pauses a high score. DROID relies on the collector's mark, AgiBot World on annotators. For datasets of hundreds of thousands of hours, like Generalist AI's, neither can be done in full, and how to find failures and inconsistent recordings automatically remains an open question.</p></details>
+    <details class="card pad open-q"><summary>Different robots in one dataset: diversity or interference?</summary><p>RoboNet noticed that pre-training on one similar robot is sometimes better than on all seven, and that models trained on the whole dataset underfit. In lesson 3.4, the small RT-1-X lost to RT-1 on RT-1's own data, while the large RT-2-X won. AgiBot World and DROID chose identical robots, while π0 and GEN-1 mix different ones. How many robots, and which ones, it pays to put into one dataset for a given model size has no single answer yet.</p></details>
+    <h3 style="margin-top:34px">Paper guide</h3>
+    <p><a href="https://arxiv.org/abs/2403.12945" target="_blank" rel="noopener">A. Khazatsky, K. Pertsch et al., “DROID: A Large-Scale In-The-Wild Robot Manipulation Dataset”, 2024</a>.</p>
+    <ul class="links">
+      <li><strong>Read closely</strong><span>Section III: the setup, the collection protocol and the “scene augmentations”. Section IV and Table I: how the authors count tasks, scenes and viewpoints and how they compare DROID with other datasets. Section V-C: the scene diversity ablation on 7,362 trajectories.</span></li>
+      <li><strong>Safe to skip</strong><span>The appendices on camera calibration and the detailed task lists by institution.</span></li>
+      <li><strong>Question to keep in mind</strong><span>Why don't the authors count rearranging objects and shifting a camera as a new scene? What would happen to the number of scenes in Table I, and to the comparison of datasets, if they did?</span></li>
+    </ul>
+    <p style="margin-top:18px">Other papers in this lesson: <a href="https://arxiv.org/abs/1910.11215" target="_blank" rel="noopener">RoboNet</a> (Dasari et al., 2019), <a href="https://arxiv.org/abs/2308.12952" target="_blank" rel="noopener">BridgeData V2</a> (Walke et al., 2023), <a href="https://arxiv.org/abs/2503.06669" target="_blank" rel="noopener">AgiBot World Colosseo</a> (2025), <a href="https://arxiv.org/abs/2306.02437" target="_blank" rel="noopener">Data Quality in Imitation Learning</a> (Belkhale, Cui, Sadigh, 2023), <a href="https://arxiv.org/abs/2502.08623" target="_blank" rel="noopener">Robot Data Curation with Mutual Information Estimators</a> (Hejna et al., 2025).</p>
+    <h3 style="margin-top:34px">Resources</h3>
+    <ul class="links">
+      <li><a href="https://droid-dataset.github.io" target="_blank" rel="noopener">DROID</a><span>The dataset page: a scene overview, downloads, annotation updates</span></li>
+      <li><a href="https://rail-berkeley.github.io/bridgedata/" target="_blank" rel="noopener">BridgeData V2</a><span>The dataset page and a description of the WidowX 250 setup</span></li>
+      <li><a href="https://github.com/OpenDriveLab/AgiBot-World" target="_blank" rel="noopener">AgiBot World</a><span>The dataset, the GO-1 model and the version history</span></li>
+      <li><a href="https://huggingface.co/docs/lerobot/lerobot-dataset-v3" target="_blank" rel="noopener">LeRobotDataset v3.0</a><span>How the open format for robot datasets is built</span></li>
+      <li><a href="https://generalistai.com/blog/gen-0" target="_blank" rel="noopener">GEN-0</a><span>Generalist AI's post about 270,000 hours of data and scaling laws</span></li>
+    </ul>
+    <div class="bridge-note"><p>We know what to record: different scenes and objects give more than repeats in one room, and bad recordings are better thrown out. But behind every recording with a robot stands an operator's work: an hour gives about 135 short demonstrations, while glasses with a camera on a person's head give about 1,400.</p><p class="bridge-to"><!--if:4-4-video-lyudey.html--><a href="4-4-video-lyudey.html"><!--/if-->Lesson 4.4 · Human video: how to teach a robot from recordings of someone else's hand that contain none of its actions<!--if:4-4-video-lyudey.html--></a><!--/if--></p></div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Lesson 4.3 of the “Modern Robotics and Physical AI” course. The lab models are trained in your browser; the dataset numbers are taken from their papers and official pages.
+</footer>
+<div class="tooltip" id="tooltip" role="tooltip"></div>
+<script>
+/*@@JS@@*/
+</script>
+</body>
+</html>

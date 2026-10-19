@@ -992,7 +992,7 @@
  {
   "id": "viewpoint",
   "t": "Camera viewpoint",
-  "d": "Where the camera stands and where it looks. Viewpoint diversity in the data teaches the policy not to depend on how the camera was placed; DROID has 1417 of them.",
+  "d": "Where the camera stands and where it looks. Viewpoint diversity in the data teaches the policy not to depend on how the camera was placed; DROID has 1,417 of them.",
   "a": "(?:camera )?viewpoints?"
  },
  {
@@ -1004,7 +1004,7 @@
  {
   "id": "transition-diversity",
   "t": "Transition diversity",
-  "d": "How varied the next states are for the same state and action — the noise of the world itself. It enriches the data usefully, unlike the spread in the operator’s actions.",
+  "d": "How varied the next states are for the same state and action — the noise of the world itself. Unlike the spread in the operator’s actions, it widens the data in a useful way.",
   "a": "transition diversity"
  },
  {

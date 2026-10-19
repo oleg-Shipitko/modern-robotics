@@ -81,6 +81,7 @@
 .ep .ep-k { display: none; position: absolute; left: 0; right: 0; bottom: 0; font-size: 10px; line-height: 1.3; padding: 1px 3px; text-align: center; color: #fff; background: var(--critical); }
 .ep.rv.bad .ep-k { display: block; }
 .ep.rv.bad[data-kind="miss"] .ep-k { background: var(--hybrid); }
+html[lang="en"] .ep .ep-k { padding: 1px 10px; } /* «wrong object» в одну строку доходит до углов карточки, где её перечёркивает крест; с отступами переносится на две строки, как русская подпись */
 .ep.off canvas { opacity: .28; }
 .ep.off::after { content: ""; position: absolute; inset: 0; background: linear-gradient(45deg, transparent 47%, var(--critical) 47% 53%, transparent 53%), linear-gradient(-45deg, transparent 47%, var(--critical) 47% 53%, transparent 53%); }
 .ep:focus-visible { outline: 2px solid var(--e2e); outline-offset: 1px; }
