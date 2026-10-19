@@ -200,7 +200,7 @@ const Rand = (() => {
       c.globalAlpha = 1;
     }
     const t = sc.target; c.beginPath(); c.arc(t.x * s, t.y * s, L21.RT * s * 1.3, 0, 7); c.lineWidth = 3; c.strokeStyle = P.good; c.stroke();
-    if (!m) HeroKit.label(c, k, st.busy ? 'модель учится…' : 'модель для этих ползунков не обучена', CW / 2, 22, { px: 13, weight: 700, color: P.ink, haloColor: P.surf });
+    if (!m) HeroKit.label(c, k, st.busy ? 'модель учится…' : 'модель не обучена', CW / 2, 22, { px: 13, weight: 700, color: P.ink, haloColor: P.surf });
   }
   const OBJ = (q) => (q ? L21.phrase(q.color, q.shape) : 'стол');
   function stats() {
@@ -319,8 +319,13 @@ const Dactyl = (() => {
   const visible = (id, pose) => (id === 'all' && pose === 'markers') || st.open[pose] || (pose === 'vision' && id === 'all' && st.open.markers);
   function draw() {
     const cv = $('#dChart'), dm = chartDims(cv, [640, 340, false], [360, 392, true]); W = dm[0]; H = dm[1];
-    const { c, k } = HeroKit.fit(cv, W, H), P = pal(), short = dm[2] || k > 1.5;
-    const x0 = short ? 128 : 210, x1 = W - (short ? 14 : 20), y0 = 26, rh = short ? 40 : 34, X = (v) => x0 + (x1 - x0) * v / 50;
+    const { c, k } = HeroKit.fit(cv, W, H), P = pal();
+    // длинные подписи — только если помещаются: шрифт задан в CSS-пикселях, а рисунок сжимается вместе с канвасом
+    const longName = (id, pose) => E.dactyl(id, pose).name + (pose === 'vision' ? ', по камерам' : '');
+    HeroKit.font(c, k, 11.5, 750); const needL = Math.max(...ROWS.map(([id, pose]) => c.measureText(longName(id, pose)).width)) + 18;
+    HeroKit.font(c, k, 11.5, 650); const axisW = c.measureText('поворотов подряд до падения кубика (попытку останавливали на 50)').width;
+    const short = dm[2] || k > 1.1 || needL > 218 || axisW > W - 218 - 24;
+    const x0 = short ? 128 : 218, x1 = W - (short ? 14 : 20), y0 = 26, rh = short ? 40 : 34, X = (v) => x0 + (x1 - x0) * v / 50;
     dots = []; c.clearRect(0, 0, W, H);
     c.strokeStyle = P.grid; c.lineWidth = 1;
     for (const v of [0, 10, 20, 30, 40, 50]) { c.beginPath(); c.moveTo(X(v), y0 - 8); c.lineTo(X(v), y0 + rh * 8 - 6); c.stroke(); HeroKit.label(c, k, String(v), X(v), y0 + rh * 8 + 8, { px: 11, color: P.ink3, haloColor: P.surf }); }
@@ -334,8 +339,9 @@ const Dactyl = (() => {
     ROWS.forEach(([id, pose], ri) => {
       const y = y0 + rh * (ri + 1.5) + (pose === 'vision' ? 6 : 0), row = E.dactyl(id, pose), vis = visible(id, pose), sel = st.group === id && st.pose === pose;
       if (sel) { c.fillStyle = rgba(P.e2e, 0.12); c.fillRect(4, y - rh / 2 + 1, W - 8, rh - 2); }
-      const name = short ? SHORT[id] : row.name + (pose === 'vision' ? ', по камерам' : '');
-      const fs = short ? 10.5 : 11.5;
+      const name = short ? SHORT[id] : longName(id, pose);
+      let fs = short ? 10.5 : 11.5; HeroKit.font(c, k, fs, sel ? 750 : 550);
+      while (fs > 8 && c.measureText(name).width > x0 - 14) { fs -= 0.5; HeroKit.font(c, k, fs, sel ? 750 : 550); }
       HeroKit.label(c, k, name, x0 - 8, y, { px: fs, align: 'right', weight: sel ? 750 : 550, color: vis ? P.ink : P.ink3, haloColor: P.surf });
       if (!vis) { HeroKit.label(c, k, '?', X(25), y, { px: 13, weight: 700, color: P.ink3, haloColor: P.surf }); return; }
       const seen = {};
@@ -450,7 +456,7 @@ const Gen = (() => {
     const ch = st.checks[name], run = ch ? ch.runs[st.scene] : null;
     objects(c, sc, P, run);
     if (run) { path(c, run.path, P.cl, 4.2, 0.95); endMark(c, run, P); }
-    else HeroKit.label(c, k, st.busy ? 'модель учится…' : name !== 'src' && !st.gen[name] ? 'генерация ещё не запускалась' : 'модель ещё не обучена', CW / 2, 20, { px: 13, weight: 700, color: P.ink, haloColor: P.bg });
+    else HeroKit.label(c, k, st.busy ? 'модель учится…' : name !== 'src' && !st.gen[name] ? 'генерации ещё нет' : 'модель ещё не обучена', CW / 2, 20, { px: 13, weight: 700, color: P.ink, haloColor: P.bg });
   }
   function paneStat(el, name) {
     const ch = st.checks[name];
@@ -505,7 +511,7 @@ const Gen = (() => {
       bet: { q: 'какая модель чаще положит кубик в миску?', options: ['На 10 записях: в них настоящие движения оператора, без склеек', 'Поровну: новых движений генератор не придумывает', 'Со сгенерированными'], answer: (r) => (r.ok > r.src + 0.1 ? 2 : r.src > r.ok + 0.1 ? 0 : 1) },
       action: { label: 'Сгенерировать и обучить обе модели', run: (X) => X.first() },
       criteria: [{ label: 'Модель со сгенерированными данными справляется хотя бы в половине расстановок', test: (r) => r.ok >= 0.5 }, { label: 'Модель на 10 записях — меньше чем в каждой десятой', test: (r) => r.src < 0.1 }],
-      explain: (r) => `Модель на 10 записях положила кубик в ${pct(r.src)}% новых расстановок. В зоне, где записывал оператор, она справляется в ${pct(r.srcD0)}% случаев, а за её пределами не знает, куда ехать: чаще всего смыкает захват мимо кубика. Модель с 300 сгенерированными — ${pct(r.ok)}%. Генератор сделал ${r.tries} попыток, удались ${r.okN} — ${pct(r.rate)}%. На сцене — расстановка, где левая модель ошибается, а правая нет. В MimicGen та же картина: 10 записей в узкой зоне и 1000 сгенерированных подняли успех в задаче Square с 11,3% до 90,7%.` },
+      explain: (r) => `Модель на 10 записях положила кубик в ${pct(r.src)}% новых расстановок. В зоне, где записывал оператор, она справляется в ${pct(r.srcD0)}% случаев, а за её пределами не знает, куда ехать: чаще всего смыкает захват мимо кубика. Модель с 300 сгенерированными — ${pct(r.ok)}%. Генератор сделал ${r.tries} ${plural(r.tries, 'попытку', 'попытки', 'попыток')}, удались ${r.okN} — ${pct(r.rate)}%. На сцене — расстановка, где левая модель ошибается, а правая нет. В MimicGen та же картина: 10 записей в узкой зоне и 1000 сгенерированных подняли успех в задаче Square с 11,3% до 90,7%.` },
     { short: 'Проверка', title: 'Нужна ли проверка в симуляторе', text: 'Генератор оставлял только попытки, в которых кубик оказался в миске. Обучим третью модель на 300 попытках подряд, удачных и нет: в части из них рука не успевала доехать до кубика и смыкала захват мимо.',
       controls: ['scene'],
       bet: { q: 'что будет, если оставить и неудачные попытки?', options: ['Станет лучше: данных про разные расстановки больше', 'Почти ничего: неудачных — около каждой десятой', 'Станет хуже'], answer: (r) => (r.all < r.ok - 0.05 ? 2 : r.all > r.ok + 0.05 ? 0 : 1) },
