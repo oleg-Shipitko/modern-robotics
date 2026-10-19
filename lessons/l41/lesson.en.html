@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>4.1 The scale of data in robotics — Modern Robotics and Physical AI</title>
+<meta name="description" content="Lesson 4.1 of the “Modern Robotics and Physical AI” course: how much data language models and robots have, Ken Goldberg's “100,000-year data gap” and data scaling laws in imitation learning (Lin et al., ICLR 2025). Convert the Llama 3 corpus and robot datasets into years, train a policy in your browser on sets of 1–32 scenes and compare which is worth doubling: demonstrations or scenes.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<script>
+  (function () { try { var t = localStorage.getItem('mr-theme'); if (t) document.documentElement.dataset.theme = t; else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme = 'dark'; } catch (e) {} })();
+</script>
+<style>
+/*@@CSS@@*/
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html#program" title="To the course program"><div>Modern Robotics and Physical AI<small>Lesson 4.1 · The scale of data in robotics</small></div></a>
+    <nav class="toc" aria-label="Lesson sections">
+      <a href="#corpus">Corpus</a>
+      <a href="#gap">Gap</a>
+      <a href="#laws">Laws</a>
+      <a href="#scaling">Curve</a>
+      <a href="#double">Doubling</a>
+      <a href="#today">Today</a>
+      <a href="#quiz">Quiz</a>
+      <a href="#finale">Takeaways</a>
+    </nav>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Toggle theme">◐</button>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main>
+
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="kicker"><span class="num">4.1</span> Part 4 · Data for training robots</div>
+    <h1>The scale of data <span class="amp">in robotics</span></h1>
+    <p class="lead">In Part 3, models for robots grew the same way language models did: RT-1 was trained on 130,000 episodes that 13 robots collected over 17 months, π0 on 10,000 hours of recordings, and π0.5 added web data and subtasks in words to the robot recordings. Language models are trained on trillions of tokens from the internet, and people wrote that text long before the models appeared and for entirely different purposes. Robots have no such corpus: someone recorded every trajectory by hand, and an hour of an operator's work gives an hour of data. We'll work out by what factor these scales differ and why any such comparison is rough, where Ken Goldberg's estimate of a “100,000-year data gap” comes from, and what Lin et al. found in an experiment with 40,000 demonstrations: generalization to new settings grows with the number of different settings and objects, while extra demonstrations in the same setting add almost nothing.</p>
+    <div class="hero-meta"><span>≈ 40 minutes</span><span>2 labs, an interactive, a diagram and a quiz</span><span id="heroMis">missions with a goal</span></div>
+    <div class="hero-list">
+      <div><b>GAP</b>Convert the text Llama 3 was trained on into years of reading and robot datasets into years of recording, and estimate how many data collection devices it would take to catch up</div>
+      <div><b>CURVE</b>In your browser, train a policy that picks up a cube from a table on sets of 1–32 different settings, and watch the failure rate in new settings fall</div>
+      <div><b>DOUBLING</b>Compare two ways of doubling the data on the same test: twice as many demonstrations in the same settings, or twice as many settings</div>
+    </div>
+    <p style="margin-top:28px"><a class="btn primary" href="#corpus">Start the lesson ↓</a></p>
+  </div>
+</section>
+
+<section class="recall-sec" id="recall" aria-label="Warm-up on the previous lesson">
+  <div class="wrap"><div class="card recall" data-recall></div></div>
+  <script type="application/json" id="recallData">{"n": "3.8", "title": "Generalization and reasoning: from π0.5 to π0.7", "href": "3-8-obobshchenie-i-rassuzhdenie.html", "q": [{"q": "What share of the examples in the first stage of π0.5 training are recordings of mobile robots in homes?", "o": ["More than half: this is the target task itself", "About 2.4%: the rest are other robots, web data and step captions", "All 100%: other data would only confuse the model"], "a": 1, "e": "There are about 400 hours of mobile robot recordings from roughly 100 homes, and they make up 2.4% of the mixture. Without data from other robots, performance in new homes drops noticeably.", "sec": "mix", "secTitle": "Co-training: recordings of the target task are a small part of the data"}, {"q": "How does π0.5 carry out a long task like “clean the kitchen”?", "o": ["A separate language model dictates the steps to it", "The same model first names a subtask in words, then outputs an action chunk that depends only on the subtask", "The model outputs all the actions ten minutes ahead at once"], "a": 1, "e": "Both levels share the same weights. The low level learns from the actions of any robots, and the high level from step captions, web data and verbal instructions.", "sec": "levels", "secTitle": "First a subtask in words, then actions"}, {"q": "What did the π0.5 experiment show, in which the same amount of data was collected in different numbers of locations?", "o": ["The result doesn't depend on the number of locations: only the amount matters", "The result generally grows with the number of locations; the model from 104 locations works about as well as a model trained in the test homes themselves", "The model from three locations is best: its data is more uniform"], "a": 1, "e": "The number of training steps was chosen so that all the models saw the same number of examples. The variety of locations gave something that doubling the recordings in one home wouldn't have.", "sec": "homes", "secTitle": "How many homes it takes to work in a new one"}]}</script>
+</section>
+
+<section class="section alt" id="corpus">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">1</span> Corpus</div>
+      <h2>Trillions of tokens and thousands of hours</h2>
+      <p>By robotics standards, the datasets of Part 3 are record-breaking. RT-1 from lesson 3.1 was trained on 130,000 episodes that 13 robots collected over 17 months. Open X-Embodiment from lesson 3.4 pooled 60 datasets from 22 robots, more than a million trajectories. π0 from lesson 3.6 was pre-trained on more than 10,000 hours of recordings. Are these datasets large by the standards of language models?</p>
+      <p>Llama 3 (Meta, 2024) was trained on more than 15 trillion tokens from publicly available sources, and Qwen3 (Alibaba, 2025) on 36 trillion. Nobody writes such corpora for the models: people have been publishing books, articles and forum posts for decades, and a corpus is assembled from what is already on the internet. Robots are a different story. Someone recorded every trajectory: an operator guided the robot's arm with a controller or held a gripper with a camera in their own hand, and an hour of recording cost an hour of their work. Ken Goldberg (UC Berkeley) put it this way in a 2025 interview with Berkeley News: “every eight hours of work gives you just eight more hours of data.”</p>
+      <p>These numbers can't be compared directly, because the units differ. Language model data is counted in <strong>tokens</strong>, pieces of words that are usually shorter than a word. Robot datasets are counted in <strong>episodes</strong>, <strong>trajectories</strong> or hours of recording. An episode is one attempt at a task from start to finish, and a trajectory is the recorded sequence of frames, states and actions of one attempt. An episode can last five seconds or several minutes. An hour of recording with control at 50 Hz contains 180,000 actions, plus frames from several cameras over the same time.</p>
+      <p>That's why the best-known comparison puts everything on a single scale: time. How many years would a person need to read a language model's corpus, and how many years of recording do robot datasets hold? This conversion is where the “100,000-year data gap” comes from.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="gap">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 1</div>
+    <h2>The gap calculator: years of reading and years of recording</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>The estimate didn't start with Goldberg. In November 2024, Kevin Black of Physical Intelligence showed a slide in a talk, and he himself called it “a very silly thought experiment”: the slide compares language datasets with robotics datasets “in the most shallow way possible”, by time. He assumed that a person reads 238 words per minute and that there are 1.33 tokens per word. According to his slide, the Llama 3 corpus would take 790 million hours to read, while π0's data is 10,000 hours of recording.</p>
+      <p>In August 2025, Goldberg repeated the comparison in a column in Science Robotics. In his words, the data that modern vision-language models are trained on would take a human “on the order of 100,000 years” to read and view, while the largest robot dataset holds on the order of a year of recording. Hence the “100,000-year data gap” in the column's title. In a footnote, Goldberg cites Black's slide along with his words about a silly thought experiment: the estimate shows the order of magnitude, not an exact number.</p>
+      <p>Do the math yourself. The sizes of the corpora and datasets are taken from papers and official pages. We set the reading speed and the number of tokens per word as Black did, and you can change them.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <canvas id="gCv" class="gap-cv" width="640" height="330" role="img" aria-label="Horizontal bars on a logarithmic scale of years: how many years it takes to read a language model's corpus and how many years of recording robot datasets hold"></canvas>
+        <p class="cv-note" id="gNote">The scale of years is logarithmic: each tick is 100 times larger than the previous one. The gray bar shows how many years a person would spend reading the language model's corpus without sleep or rest. The blue bars show how many years of round-the-clock recording the datasets of robots and data collection devices hold. The orange bar shows how much data the fleet of collection devices that you set will gather.</p>
+        <div class="ctl-row">
+          <div class="ctl" id="wrapGCorpus"><span class="ctl-l">Corpus</span><div class="seg" id="gCorpus" role="group" aria-label="Language model corpus"><button type="button" data-v="llama3" aria-pressed="true">Llama 3 · 15T</button><button type="button" data-v="qwen25" aria-pressed="false">Qwen2.5 · 18T</button><button type="button" data-v="qwen3" aria-pressed="false">Qwen3 · 36T</button></div></div>
+          <label class="hd-range" id="wrapGWpm"><span>Words per minute</span><input id="gWpm" type="range" min="150" max="400" step="1" value="238"><output>238</output></label>
+          <label class="hd-range" id="wrapGTpw"><span>Tokens per word</span><input id="gTpw" type="range" min="1" max="1.6" step="0.01" value="1.33"><output>1.33</output></label>
+          <div class="ctl" id="wrapGRead"><span class="ctl-l">A year is</span><div class="seg" id="gRead" role="group" aria-label="How many hours a day count when converting to years"><button type="button" data-v="24" aria-pressed="true">24 hours a day</button><button type="button" data-v="8" aria-pressed="false">8 hours a day</button></div></div>
+        </div>
+        <div class="ctl-row">
+          <label class="hd-range wide" id="wrapGFleet"><span>Collection devices</span><input id="gFleet" type="range" min="0" max="5" step="0.01" value="2"><output>100</output></label>
+          <div class="ctl" id="wrapGShift"><span class="ctl-l">Recording</span><div class="seg" id="gShift" role="group" aria-label="How many hours a day recording runs"><button type="button" data-v="8" aria-pressed="true">8-hour shift</button><button type="button" data-v="24" aria-pressed="false">round the clock</button></div></div>
+          <div class="ctl" id="wrapGUnit"><span class="ctl-l">Units</span><div class="seg" id="gUnit" role="group" aria-label="Which units to compare in"><button type="button" data-v="years" aria-pressed="true">years</button><button type="button" data-v="tokens" aria-pressed="false">tokens</button></div></div>
+        </div>
+        <div class="readout" id="gOut"></div>
+      </div>
+      <div class="card guide-card"><div id="gMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: the calculator's formulas and why the units are debatable</summary><div class="body">
+      <p>Let \(T\) be the number of tokens in the corpus, \(\tau\) the number of tokens per word, \(w\) the number of words per minute, and \(d\) the number of hours in a day when converting to years: 24 or 8, the same for all the bars. The hours of reading the corpus, the years of reading and the years of recording for a dataset of \(h\) hours are computed like this:</p>
+      <div class="formula">\[\begin{gathered} H_{\text{text}} = \frac{T}{60\, \tau\, w}, \\ Y_{\text{text}} = \frac{H_{\text{text}}}{365\, d}, \qquad Y_{\text{robot}} = \frac{h}{365\, d}. \end{gathered}\]</div>
+      <p>With \(T = 15 \cdot 10^{12}\), \(\tau = 1.33\), \(w = 238\) and round-the-clock reading, this comes to about \(7.9 \cdot 10^8\) hours, as on Black's slide, or about 90,000 years. A fleet of \(N\) devices, each recording \(s\) hours a day, catches up with the corpus in \(H_{\text{text}} / (365\, N s)\) calendar years.</p>
+      <p>The assumptions strongly affect the answer. Replying to Black in December 2024, Goldberg compared π0 with Qwen2.5 and arrived at 1.2 billion hours for Qwen, about 120,000 person-years. That matches 18 trillion tokens if you count each token as a word; with Black's conversion, it comes to about 0.95 billion hours. Vision-language models are also trained on images and video: in his column, Goldberg converts both word tokens and image tokens into time, and he notes that “YouTube includes about 35,000 years of videos.”</p>
+      <p>A comparison in tokens also depends on what you count. One second of folding a T-shirt with two arms at 50 Hz contains 700 action numbers, and after FAST compression from lesson 3.6 they fit into 53 tokens. Then π0's 10,000 hours give about \(1.9 \cdot 10^9\) FAST tokens, 7,900 times fewer than 15 trillion; without compression, there are 600 times fewer action numbers than tokens in the corpus. If you add the camera images, the robot's token count grows by orders of magnitude, but the images of neighboring frames are almost identical and contain little that is new. So the gap is an order-of-magnitude estimate, not a measure you can shrink by a few percent.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>Different assumptions change the answer severalfold, but not by five orders of magnitude. Goldberg draws a cautious conclusion from this: humanoids that can handle housework are “not going to happen in the next two years, or five years or even 10 years.” He proposes combining learned models with “good old-fashioned engineering” (GOFE): Kalman filters, inverse kinematics and motion planning, that is, the methods from lessons 0.3 and 0.4. Such robots already do paid work and collect data along the way: in four years, Ambi Robotics' parcel sorters gathered 22 years of recordings of real work, more than 200,000 operational hours. The data accumulates without an operator: every hour of useful work becomes an hour of recording.</p>
+      <p>But while data is scarce, every hour of it is expensive, and it matters what you spend it on. Should you record another thousand demonstrations in the same kitchen, or ten each in a hundred different kitchens? Which will teach a robot faster to work in a home it has never seen?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="laws">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">2</span> Laws</div>
+      <h2>Data scaling laws in imitation learning</h2>
+      <p>Language models are trained on all the text that could be collected, and nobody has to choose what to record. Roboticists do have a choice, and it costs money. To choose wisely, you need to know how a policy's success depends on what the data contains. For text, such dependencies have been known since 2020: a language model's loss falls as a power law as data, model size and compute grow (Kaplan et al., OpenAI). A <strong>scaling law</strong> is exactly such a formula: it describes how quality changes with scale. Is there a similar law for robots?</p>
+      <p>Fanqi Lin et al. (Tsinghua University, ICLR 2025) tested this on real robots. They split generalization into two dimensions: to new <strong>environments</strong> (a different table, lighting, background, distractor objects) and to new <strong>objects</strong> of the same category (a different bottle or a different mouse: color, size, shape). A dataset is described by three numbers: M environments, N objects and K demonstrations for each object in each environment. The policy is always tested where it didn't train: in new environments or with new objects. The authors didn't study generalization to new tasks: that, they write, would require data from thousands of tasks.</p>
+      <p>The demonstrations were recorded with UMI, a hand-held gripper: a person holds a gripper with a wrist camera and performs the task themselves, without a robot, so moving from one setting to another takes almost no setup (more on this in lesson 4.2). The authors trained Diffusion Policy from lesson 1.5 with a DINOv2 ViT-L image encoder. There are two tasks: pouring water from a bottle into a mug and putting the bottle on a coaster (Pour Water), and placing a computer mouse on a mouse pad facing forward (Mouse Arrangement). In total, the authors collected more than 40,000 demonstrations and ran more than 15,000 test rollouts on the robot.</p>
+      <p>The experiment works like this: out of 32 environments, they pick 1, 2, 4, …, 32, take a fraction of the demonstrations in each, from 1/32 to all 120, train a policy and test it in 8 new environments with 5 trials each. A trial is split into 2–3 stages, the tester gives up to 3 points for each, and the total is normalized so that the maximum is 1. The score was used instead of the success rate because success is too coarse a signal, and the action error on validation demonstrations, according to the authors, often doesn't match how the robot behaves.</p>
+    </div>
+    <figure class="card flow-card">
+      <canvas data-anim="sweep" class="anim-cv" width="720" height="250" role="img" aria-label="Animated diagram of the experiment: 32 environments with demonstrations, a subset of environments is chosen, a policy is trained, tested in 8 new environments and becomes a point on the plot"></canvas>
+      <figcaption class="cv-note">The diagram shows the experiment of Lin et al. step by step. First you see 32 environments, and the dots in each one stand for recorded demonstrations; the environments included in the set get an orange frame. Then a policy is trained on these environments. Finally, the policy is tested in 8 new environments: the dots under a tile are its 5 trials, and the blue ones succeeded. The test result becomes a point on a plot with logarithmic axes: the point shows what share of the maximum score was not earned with this number of environments. The dashed line is the paper's fit for Mouse Arrangement over environments; for clarity, the points on the diagram lie right on it. Click the diagram to pause it.</figcaption>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>The authors draw three conclusions. The first concerns the <strong>optimality gap</strong>: that's what they call the share of the maximum score that wasn't earned, that is, one minus the score. This gap falls roughly as a power law in the number of environments, objects or environment–object pairs: \(1 - S \approx \beta\, X^{-\alpha}\). On logarithmic axes, this is a straight line with slope \(-\alpha\): each doubling of \(X\) multiplies the gap by the same number, \(2^{-\alpha}\). The fits have correlation coefficients from 0.94 to 0.99. For Mouse Arrangement, the exponent \(\alpha\) is 0.47 over environments, 0.70 over objects and 0.68 over pairs. Environments are harder than objects: with just 8 objects, the score on new objects is already above 0.8.</p>
+      <p>The second: demonstrations in the same environment quickly stop helping. The curves for half and for all of the demonstrations almost coincide, and for environment–object pairs, even the curves for a quarter and for all of them coincide. The more environments or objects there are, the fewer demonstrations each one needs. There is no power law in the total number of demonstrations: for 8, 16 and 32 pairs, the growth stops at 400, 800 and 1,600 demonstrations. That's why the authors recommend 50 demonstrations per pair for tasks of similar difficulty; dexterous tasks may need more.</p>
+      <p>The third: diversity matters more than quantity. Even with the same total number of demonstrations, more environments and objects give better generalization. Several objects in one environment help while there are few environments, but with 16 environments the difference disappears, so the authors advise collecting data in as many environments as possible, with one object in each. Following this recipe, four people recorded 32 pairs with 50 demonstrations each in one afternoon for two new tasks: folding a towel and unplugging a charger from a power strip. The policies succeeded in 87.5% and 90% of trials in new environments with new objects.</p>
+      <p>Why do environments matter more than demonstrations, and where do demonstrations stop paying off? You can check this in a world where every number is recomputed in seconds.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="scaling">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 2</div>
+    <h2>A scaling curve on a table with a cube</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p class="ada-note"><svg class="ada-ico" viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="10" width="48" height="42" rx="18" fill="#f4efe6" stroke="#3d3c38" stroke-width="3"/><rect x="15" y="19" width="34" height="22" rx="10" fill="#1f2430"/><ellipse cx="25" cy="30" rx="4" ry="5.5" fill="#eb6834"/><ellipse cx="39" cy="30" rx="4" ry="5.5" fill="#eb6834"/></svg><span>Ada is a home humanoid on a wheeled base; the course labs are built around her. More about her in <a href="0-1-dve-paradigmy.html#ada">lesson 0.1</a>.</span></p>
+      <p>Ada is learning one task: picking up a cube from the table. The table is the same as in lesson 2.1: a top view, a 96 × 96-pixel image, and the gripper comes down into one of the cells of a 24 × 24 grid. A <strong>scene</strong> here is an environment–object pair, as in Lin et al. Each scene has its own table color, its own lighting, three or four distractor objects (bowls and cans of different colors) and its own cube with its own color and size. The demonstrations of one scene differ only in the arrangement: the operator lays out the same objects differently and shows where the cube is.</p>
+      <p>The policy is a small network similar to the “where to pick” map from lesson 2.1. It looks at a 13 × 13-pixel window around each cell and gives the cell a score, and the gripper comes down into the cell with the highest score. On each set, the policy is trained from scratch for the same number of steps, and in the browser this takes less than a second. We test the policy on 100 new scenes that aren't in any set: each has a new table, lighting, distractors and cube. If Ada picked up the cube, the trial is a success, and if the gripper came down somewhere else, it's a failure. The sets are nested, as in the paper: the set of 8 scenes contains the set of 4.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="duo" id="sDuo">
+          <figure class="pane"><figcaption class="pane-head"><b class="pp" id="sHeadL">Training set</b><span id="sSubL">scenes where demonstrations were recorded</span></figcaption><canvas id="sTrain" width="400" height="400" role="img" aria-label="Top view of the table: tiles of the training set's scenes, one arrangement each"></canvas><div class="pane-stat" id="sStatL"></div></figure>
+          <figure class="pane"><figcaption class="pane-head"><b class="fm" id="sHeadR">Test</b><span id="sSubR">16 of 100 new scenes</span></figcaption><canvas id="sTest" width="400" height="400" role="img" aria-label="Top view of the table: tiles of the test scenes and where the gripper came down"></canvas><div class="pane-stat" id="sStatR"></div></figure>
+        </div>
+        <p class="cv-note">The table is shown from above. On the left are the set's scenes, one arrangement each; the number in a tile's corner says how many demonstrations were recorded in the scene. On the right are the first 16 of the 100 test scenes for the most recently trained model. A green ring means Ada picked up the cube, a red cross means the gripper came down somewhere else, and a dashed frame marks where the cube was.</p>
+        <canvas id="sPlot" class="plot-cv" width="640" height="340" role="img" aria-label="Plot on logarithmic axes: the failure rate in new scenes versus the number of scenes in the set"></canvas>
+        <p class="cv-note">Horizontal: the number of scenes in the set; vertical: the failure rate in 100 new scenes. Both axes are logarithmic: each step to the right doubles the number of scenes, and going from 100% to 10% takes the same distance as going from 10% to 1%. A point's color shows how many demonstrations were recorded per scene, and the line of the same color is the straight line fitted to those points. Near the bottom, the points are noisy: 3 failures out of 100 and 4 are almost the same thing.</p>
+        <div class="ctl-row">
+          <div class="ctl" id="wrapSK"><span class="ctl-l">Demonstrations per scene</span><div class="seg" id="sK" role="group" aria-label="Demonstrations per scene"><button type="button" data-v="1" aria-pressed="false">1</button><button type="button" data-v="2" aria-pressed="false">2</button><button type="button" data-v="4" aria-pressed="false">4</button><button type="button" data-v="8" aria-pressed="true">8</button><button type="button" data-v="16" aria-pressed="false">16</button></div></div>
+          <div class="ctl" id="wrapSM"><span class="ctl-l">Scenes</span><div class="seg" id="sM" role="group" aria-label="Scenes in the set"><button type="button" data-v="1" aria-pressed="false">1</button><button type="button" data-v="2" aria-pressed="false">2</button><button type="button" data-v="4" aria-pressed="false">4</button><button type="button" data-v="8" aria-pressed="true">8</button><button type="button" data-v="16" aria-pressed="false">16</button><button type="button" data-v="32" aria-pressed="false">32</button></div></div>
+          <button type="button" class="btn sm" id="sOne">Train and test</button>
+        </div>
+        <div class="prog-line" id="sProg" hidden><i></i></div>
+        <div class="readout" id="sOut"></div>
+      </div>
+      <div class="card guide-card"><div id="sMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: the table world, the policy and how our experiment differs from the paper</summary><div class="body">
+      <p><b>Scenes.</b> The table gets a random light shade. The lighting sets a random multiplier for each of the three color channels: it averages about 1, with a spread of 0.18. There are three or four distractor objects: bowls and cans of random colors and sizes. The cube has its own color and size in each scene. In each arrangement, the objects lie in random places without touching each other, and the lighting changes slightly.</p>
+      <p><b>The policy.</b> For each of the 576 cells, we take a 13 × 13-pixel window around its center. The network sees not the color itself but the absolute value of its difference from the table color, which it estimates as the median over the image; differences below 0.04 count as noise. The window gives 507 numbers, which pass through 8 neurons with tanh and turn into a single score. The cell probabilities come from a softmax over the scores, as with the “where to pick” map in lesson 2.1:</p>
+      <div class="formula">\[\begin{gathered} p(i) = \frac{e^{f(x_i)}}{\sum_j e^{f(x_j)}}, \qquad \mathcal L = -\log p(i^\ast), \end{gathered}\]</div>
+      <p>where \(i^\ast\) is the cube's cell in the demonstration. To keep training fast, the sum in the denominator runs over 32 cells: the cube's cell, the cells of the distractor objects and random ones. We train on every set the same way: we take 300 Adam steps on batches of 8 demonstrations with a step size of 0.005. A grasp counts as a hit if the gripper comes down closer than 4.5 pixels to the cube's center.</p>
+      <p><b>The line.</b> From the points of one color with a nonzero failure rate, least squares fits \(\log \beta\) and \(\alpha\) in \(\log(1 - S) = \log\beta - \alpha \log M\), where \(S\) is the success rate and \(M\) is the number of scenes. The paper fits the same way, only on the score rather than the success rate.</p>
+      <p><b>How it differs from the paper.</b> We have one object category and environment–object pairs, not three experiments. We count the success rate instead of a tester's score. On every set, the policy trains for the same number of steps, while the paper trained larger sets for longer. The numbers depend on the initial weights: we repeated the whole grid with four different initializations, the numbers shifted by a few scenes out of 100, and the conclusions stayed the same.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>On the table, we reached the same conclusions as the paper. The failure rate in new scenes falls almost along a straight line on logarithmic axes, until there are so many scenes that only a handful of failures remain. Demonstrations matter while there are few of them: with one demonstration per scene, the result is noticeably worse than with eight, while sixteen are hardly different from eight. The reason lies in the world itself: the demonstrations of one scene differ only in the arrangement, and the policy scores every cell with the same rule, so a new position of the cube adds almost nothing. A new scene brings a new table, lighting, distractors and cube, which is exactly what the test will bring too.</p>
+      <p>The line describes how success grows as you add scenes. But someone who collects data usually has a different question: there is already a budget for as many recordings again, so where should they go?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="double">
+  <div class="wrap">
+    <div class="lab-badge"><i>🧩</i> Interactive</div>
+    <h2>Double the demonstrations or the scenes</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>Suppose Ada has a set and the budget to double it. You can record twice as many demonstrations in the same scenes, or record the same number of demonstrations in new scenes, so that there are twice as many scenes. The policy trains on each set from scratch, as in lab 2, and both models take the same test on 100 new scenes.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="duo" id="dDuo">
+          <figure class="pane"><figcaption class="pane-head"><b id="dHeadL">Twice the demonstrations</b><span id="dSubL">same scenes</span></figcaption><canvas id="dCvL" width="400" height="400" role="img" aria-label="Top view of the table: the scenes of the set with doubled demonstrations, and the test scenes"></canvas><div class="pane-stat" id="dStatL"></div></figure>
+          <figure class="pane"><figcaption class="pane-head"><b class="fm" id="dHeadR">Twice the scenes</b><span id="dSubR">as many demonstrations in each</span></figcaption><canvas id="dCvR" width="400" height="400" role="img" aria-label="Top view of the table: the set with twice as many scenes, and the same test scenes"></canvas><div class="pane-stat" id="dStatR"></div></figure>
+        </div>
+        <p class="cv-note">The table is shown from above. The top strip shows the set's scenes: the scenes of the original set have a gray frame, and the new ones an orange frame. The number in the corner shows how many demonstrations the scene has; it's orange if demonstrations were added to the scene. Below are 9 of the 100 test scenes, the same on the left and on the right. A green ring means the cube was picked up, a red cross means a miss, and a dashed frame marks where the cube was.</p>
+        <div class="ctl-row">
+          <div class="ctl" id="wrapDM"><span class="ctl-l">Original set: scenes</span><div class="seg" id="dM" role="group" aria-label="Scenes in the original set"><button type="button" data-v="1" aria-pressed="true">1</button><button type="button" data-v="2" aria-pressed="false">2</button><button type="button" data-v="4" aria-pressed="false">4</button><button type="button" data-v="8" aria-pressed="false">8</button><button type="button" data-v="16" aria-pressed="false">16</button></div></div>
+          <div class="ctl" id="wrapDK"><span class="ctl-l">demonstrations per scene</span><div class="seg" id="dK" role="group" aria-label="Demonstrations per scene in the original set"><button type="button" data-v="1" aria-pressed="false">1</button><button type="button" data-v="2" aria-pressed="false">2</button><button type="button" data-v="4" aria-pressed="true">4</button><button type="button" data-v="8" aria-pressed="false">8</button></div></div>
+          <button type="button" class="btn sm" id="dGo">Compare</button>
+        </div>
+        <div class="prog-line" id="dProg" hidden><i></i></div>
+        <div class="readout" id="dOut"></div>
+      </div>
+      <div class="card guide-card"><div id="dMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: what decides when demonstrations stop helping</summary><div class="body">
+      <p>The policy scores each cell by the window around it with one and the same rule. If the cube lies somewhere else in a demonstration, that adds nothing to the rule: it can already find the cube in any cell. So new arrangements of the same scene are useful only while there are very few of them: they show the cube next to different distractors and under slightly different light. After that, the network already knows everything it can learn from the scene.</p>
+      <p>For a real robot, the arrangement matters more. The object's position determines how to approach and turn the arm, where the elbow ends up and what blocks the camera's view; the robot has to learn the motion too, not just the grasp location. That's why the threshold in Lin et al. is higher, at 50 demonstrations per environment–object pair, and dexterous tasks, the authors write, may need more. But in their experiments too, growth stops past the threshold.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>Doubling the demonstrations in the same scene gave almost nothing, while a second scene with the same four demonstrations raised success more than one and a half times. But the rule “always add scenes” is wrong too: when each scene has one demonstration, a second one helps as much as new scenes do. It pays best to keep the number of demonstrations per scene at the threshold and spend the rest on diversity. What does this mean for those who collect data for large models?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="today">
+  <div class="prose">
+    <div class="kicker"><span class="num">3</span> Today</div>
+    <h2>Data collection in 2025–2026</h2>
+    <p>By 2025, the conclusion that “diversity matters more than quantity” had become common wisdom, and data collection moved to where diversity is cheaper. DROID (2024) contains 76,000 trajectories, about 350 hours of recording in 564 scenes from 52 buildings; 50 people recorded them over 12 months on identical robots. AgiBot World (2025) has more than a million trajectories and almost 3,000 hours of recording across 217 tasks in 106 scenes; more than a hundred identical robots collected them. How such datasets are built, how their diversity is measured and how bad recordings are filtered out is the subject of lesson 4.3.</p>
+    <p>In November 2025, Generalist AI reported more than 270,000 hours of real-world manipulation data for its GEN-0 model, growing by 10,000 hours a week and accelerating. The data is collected by thousands of collection devices and robots in homes, warehouses and workplaces. The authors write about a power-law relationship between the amount of pre-training data and performance after post-training, and about a threshold in model size: models smaller than 7B parameters exhibit “ossification”, meaning they stop absorbing new pre-training data, whereas in language models this was observed at sizes around 10M. In April 2026, GEN-1 was trained on half a million hours, and its base model was trained without any robot data at all: the recordings were made with low-cost wearable devices on people.</p>
+    <p>Other companies mix sources. For π0.5, Physical Intelligence recorded about 400 hours of mobile robots in roughly 100 homes, but in the first training stage, 97.6% of the examples came from other sources: data from other robots, web data and subtasks in words. The same paper repeated the experiment with the number of environments: the model was post-trained on recordings from 3, 12, 22, 53, 82 and 104 locations with the same number of steps. Success on four tasks in unfamiliar homes generally grew with the number of locations, and the 104-location model worked about as well as a model that had seen recordings from the test homes themselves. For the first version of Helix (2025), Figure made do with about 500 hours of teleoperation. For GR00T N1, NVIDIA built a pyramid: human videos and web data lie at the bottom, simulation and generated video in the middle, and a small amount of real robot recordings at the top. We'll take this pyramid apart in lesson 4.6.</p>
+    <p>Even half a million hours is about 57 years of recording, roughly 1,600 times less than the 90,000 years it would take to read the Llama 3 corpus. The gap is being closed from all sides at once: demonstrations are recorded more cheaply, models learn from human video, data is simulated, and robots that are already at work collect it. Lesson 4.2 starts with the first of these: where demonstrations come from and what an hour of them costs.</p>
+  </div>
+</section>
+
+<section class="section alt" id="quiz">
+  <div class="prose">
+    <div class="kicker"><span class="num">4</span> Check yourself</div>
+    <h2>Eight common misconceptions</h2>
+    <div class="quiz" id="quizBox"></div>
+    <p class="score" id="quizScore" style="margin-top:14px"></p>
+  </div>
+</section>
+
+<section class="section" id="finale">
+  <div class="prose">
+    <div class="kicker"><span class="num">5</span> Takeaways</div>
+    <h2>Lesson takeaways</h2>
+    <ol class="takeaways">
+      <li><span>Language models are trained on <strong>trillions of tokens</strong> that people wrote long before the models appeared. Robot data is recorded by someone on purpose, and an hour of an operator's work gives an hour of recording.</span></li>
+      <li><span>The <strong>“100,000-year data gap”</strong> comes from converting the corpus into reading time. It's a thought experiment by Kevin Black that Ken Goldberg repeated. The assumptions change the answer severalfold, but the order of magnitude stays the same.</span></li>
+      <li><span>In the experiments of Lin et al., the optimality gap on new environments and objects falls <strong>as a power law</strong> in the number of environments, objects and environment–object pairs: each doubling multiplies it by the same number, which gives a straight line on logarithmic axes.</span></li>
+      <li><span>Demonstrations in the same setting help only <strong>up to a threshold</strong>: beyond it, the curves coincide. The authors recommend 50 demonstrations per environment–object pair and as many different environments as possible, with one object in each.</span></li>
+      <li><span>Below the threshold, demonstrations are needed: with one demonstration per scene, a second one helps as much as new scenes do. It pays to keep the number of demonstrations per scene at the threshold and spend the rest on diversity.</span></li>
+      <li><span>In 2025–2026, the gap is being closed from all sides: GEN-0 and GEN-1 are trained on hundreds of thousands of hours from collection devices, π0.5 on a mixture of robot recordings and web data, GR00T N1 on a data pyramid, and working robots collect data along the way.</span></li>
+    </ol>
+    <h3 style="margin-top:40px">Open questions</h3>
+    <details class="card pad open-q"><summary>According to the fit by Lin et al. for Mouse Arrangement, a score of 0.99 would take 1,191 environment–object pairs. Why can't you trust such a forecast without checking it?</summary><p>The line was drawn through six points from 1 to 32 pairs, and the forecast goes 37 times further. Any task has an irreducible share of failures caused by errors of the gripper, the sensors and the operator, and a straight line on logarithmic axes doesn't see it. The authors point this out in a footnote: a model with a third parameter, the floor, “does not seem statistically justified given that we have only 6 data points.” They left the forecast to be verified in future work, and in our lab, the points at the bottom of the plot are already noisy because there are so few failures.</p></details>
+    <details class="card pad open-q"><summary>For Lin et al., diversity means environments and objects. What other axes of diversity does a model that performs many tasks need?</summary><p>They include the tasks themselves and the wording of commands, robots with different bodies and different actions (lesson 3.4), viewpoints and camera types, and the manner of different operators. The authors deliberately didn't study generalization to new tasks: it needs data from thousands of tasks. How such axes are counted in large datasets is covered in lesson 4.3: DROID, for example, measures scenes, tasks and camera positions separately.</p></details>
+    <h3 style="margin-top:34px">Paper guide</h3>
+    <p><a href="https://arxiv.org/abs/2410.18647" target="_blank" rel="noopener">F. Lin, Y. Hu, P. Sheng, C. Wen, J. You, Y. Gao, “Data Scaling Laws in Imitation Learning for Robotic Manipulation”, ICLR 2025</a>.</p>
+    <ul class="links">
+      <li><strong>Read closely</strong><span>Section 3: what an environment and an object are, how M, N and K are set up and why the evaluation uses a score. Section 4.1 and Figures 2–4: the curves for different fractions of the demonstrations. Section 4.2 and Figure 5: the power-law fit. Section 4.3 and Figures 6–7: how many objects per environment and how many demonstrations per pair.</span></li>
+      <li><strong>Safe to skip</strong><span>Appendices B and F on how UMI works and on the robot setup (we'll cover them in lesson 4.2), and the detailed scoring criteria for each task in Appendix D.</span></li>
+      <li><strong>Question to keep in mind</strong><span>Why is the power law fitted to one minus the score rather than to the score itself? What would the curve look like on logarithmic axes if the task had an irreducible failure rate of 5%?</span></li>
+    </ul>
+    <p style="margin-top:18px"><a href="https://autolab.berkeley.edu/assets/publications/media/GOFE-Can-Close-the-100000-Year-Robot-Data-Gap-Science-Robotics-Aug-2025-scirobotics.aea7390.pdf" target="_blank" rel="noopener">K. Goldberg, “Good old-fashioned engineering can close the 100,000-year ‘data gap’ in robotics”, Science Robotics, 2025</a>: a column about the gap and about how working robots collect data.</p>
+    <h3 style="margin-top:34px">Resources</h3>
+    <ul class="links">
+      <li><a href="https://data-scaling-laws.github.io/" target="_blank" rel="noopener">Data Scaling Laws</a><span>The project page of Lin et al.: rollout videos, code, data and models</span></li>
+      <li><a href="https://x.com/kvablack/status/1856373781603987655" target="_blank" rel="noopener">Kevin Black's slide</a><span>The original thought experiment: text and robot datasets in hours of reading, November 2024</span></li>
+      <li><a href="https://news.berkeley.edu/2025/08/27/are-we-truly-on-the-verge-of-the-humanoid-robot-revolution/" target="_blank" rel="noopener">Ken Goldberg's interview</a><span>Berkeley News, August 2025: where the 100,000 years come from and why helper humanoids won't appear in the next ten years</span></li>
+      <li><a href="https://generalistai.com/blog/nov-04-2025-GEN-0" target="_blank" rel="noopener">GEN-0</a><span>Generalist AI's post: 270,000 hours of data, a power law and the ossification of small models</span></li>
+      <li><a href="https://ai.meta.com/blog/meta-llama-3/" target="_blank" rel="noopener">Llama 3</a><span>Meta's post: pre-training on more than 15T tokens</span></li>
+    </ul>
+    <!--if:4-2-teleoperatsiya.html--><div class="callout insight" style="margin-top:34px"><span class="ico">➡️</span><div><p><strong>Next: where demonstrations come from.</strong> Someone recorded every hour of robot data. Lesson 4.2 covers the devices used for this: the ALOHA and GELLO leader arms, a VR headset, gloves and other motion capture systems, exoskeletons and the UMI hand-held gripper that Lin et al. used to collect their data. We'll compare what an hour of recording costs and how demonstrations from different devices differ. <a href="4-2-teleoperatsiya.html">Lesson 4.2 →</a></p></div></div><!--/if-->
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Lesson 4.1 of the “Modern Robotics and Physical AI” course. The sizes of the corpora and datasets are taken from papers and official pages; the tabletop policy is trained and tested in your browser.
+</footer>
+<div class="tooltip" id="tooltip" role="tooltip"></div>
+<script>
+/*@@JS@@*/
+</script>
+</body>
+</html>
