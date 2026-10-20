@@ -1220,7 +1220,7 @@
  {
   "id": "ppo",
   "t": "PPO",
-  "d": "A policy gradient method (Schulman et al., 2017): an objective with the ratio of new to old policy probabilities clipped to 1 ± ε keeps one update from taking the policy too far, so several epochs can be run over a batch. The standard for learning to walk in simulation.",
+  "d": "A policy gradient method (Schulman et al., 2017): an objective with the ratio of new to old policy probabilities clipped to 1 ± ε keeps one update from taking the policy too far, so several epochs can be run over one rollout batch. The standard for learning to walk in simulation.",
   "a": "PPO|proximal policy optimization"
  },
  {

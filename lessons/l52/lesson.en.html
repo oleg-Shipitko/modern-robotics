@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>5.2 Policy gradient and PPO — Modern Robotics and Physical AI</title>
+<meta name="description" content="Lesson 5.2 of the “Modern Robotics and Physical AI” course: the policy gradient (REINFORCE), the baseline and the advantage, GAE, the TRPO trust region and PPO clipping, and how ANYmal learned to walk with thousands of robots in simulation. Train two steering policies for Ada side by side in your browser, one without clipping and one with PPO, find where PPO stops pulling up an action's probability, and calculate how much experience walking takes.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<script>
+  (function () { try { var t = localStorage.getItem('mr-theme'); if (t) document.documentElement.dataset.theme = t; else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme = 'dark'; } catch (e) {} })();
+</script>
+<style>
+/*@@CSS@@*/
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html#program" title="To the course program"><div>Modern Robotics and Physical AI<small>Lesson 5.2 · Policy gradient and PPO</small></div></a>
+    <nav class="toc" aria-label="Lesson sections">
+      <a href="#continuous">Steering</a>
+      <a href="#pg">Gradient</a>
+      <a href="#baseline">Advantage</a>
+      <a href="#trust">Step size</a>
+      <a href="#corridor">Corridor</a>
+      <a href="#clip">Clipping</a>
+      <a href="#walking">Walking</a>
+      <a href="#steps">Steps</a>
+      <a href="#today">Today</a>
+      <a href="#quiz">Quiz</a>
+      <a href="#finale">Takeaways</a>
+    </nav>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Toggle theme">◐</button>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main>
+
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="kicker"><span class="num">5.2</span> Part 5 · Reinforcement learning</div>
+    <h1>Policy gradient and PPO: <span class="amp">how to improve a policy without breaking it</span></h1>
+    <p class="lead">In lesson 5.1, Ada looked for the way to the kitchen on a grid of the apartment, where every cell has its own value and there are only four moves. But Ada's steering can take any value from full left to full right, and her rangefinder never sees exactly the same picture twice: you can't keep a table for that. So instead you train the policy itself, a network that outputs a distribution over steering, and adjust it so that it more often does what turned out better than usual. The difficulty is that the policy collects its own training data: take one step that is too large, and the next drives are made by already broken behavior. TRPO (2015) limited how much the policy can change in one update, and PPO (2017) achieved the same with a simple change to the objective. In 2021, PPO was used to teach the four-legged robot ANYmal to walk over steps and slopes in under 20 minutes on a single GPU: 4096 copies of it ran in the simulator at once, and training took 1500 updates.</p>
+    <div class="hero-meta"><span>≈ 55 minutes</span><span>three labs, an interactive and a quiz</span><span id="heroMis">missions with a goal</span></div>
+    <div class="hero-list">
+      <div><b>A DRIVE STEP BY STEP</b>Go through one of Ada's drives decision by decision and find a steering turn that earned reward but turned out worse than usual</div>
+      <div><b>TWO ADAS LEARN SIDE BY SIDE</b>Train two steering policies on the same reward in your browser: one may change as much as it likes in an update, the other only a little</div>
+      <div><b>ONE EXAMPLE ON A PLOT</b>Find where PPO stops pulling up an action's probability, and see how far the policy drifts without this limit</div>
+      <div><b>HOW MUCH EXPERIENCE WALKING TAKES</b>Use the paper's numbers to calculate how much experience 4096 copies of a robot gather in a simulator, and where such parallelism hits its limit</div>
+    </div>
+    <p style="margin-top:28px"><a class="btn primary" href="#continuous">Start the lesson ↓</a></p>
+  </div>
+</section>
+
+<section class="recall-sec" id="recall" aria-label="Warm-up on the previous lesson">
+  <div class="wrap"><div class="card recall" data-recall></div></div>
+  <script type="application/json" id="recallData">{"n": "5.1", "title": "RL basics: reward, value, advantage", "href": "5-1-osnovy-rl.html", "q": [{"q": "What is the return G_t?", "o": ["The reward for the current step", "The sum of future rewards, where the reward k steps ahead is multiplied by γ to the power k", "The average reward per episode"], "a": 1, "e": "At the bed with γ = 0.9, the return is 10 · 0.9¹¹ = 3.14: the +10 at the stove comes 12 steps later. Toward the stove it doesn't grow in a straight line: every step back multiplies it by 0.9.", "sec": "return", "secTitle": "Return and discounting: why the future weighs less"}, {"q": "There is a puddle (−1) by the sink, and the detour around the table is two steps longer. How will an Ada with γ = 0.5 and an Ada with γ = 0.99 drive?", "o": ["Both will go around the puddle", "With γ = 0.5 through the puddle, with γ = 0.99 around it", "With γ = 0.5 around it, with γ = 0.99 through the puddle"], "a": 1, "e": "Two extra steps cost the impatient Ada 75% of the reward and the far-sighted one 2%. Value iteration finds the route on its own: the arrows lead to the neighbor with the higher estimate.", "sec": "iterate", "secTitle": "Value iteration in Ada's apartment"}, {"q": "What does the advantage A(s, a) = Q(s, a) − V(s) show?", "o": ["How good the action is on its own", "How much better the action is than what the agent usually does in this state", "The probability of choosing the action"], "a": 1, "e": "Ada's habitual action has A = 0. Switching to actions with A > 0 shortened her route from 18 steps to 12 and raised the return at the bed from 1.67 to 3.14. The policy gradient does the same smoothly: it raises the probability of actions with a positive advantage.", "sec": "advantage", "secTitle": "Advantage: how much better an action is than usual"}]}</script>
+</section>
+
+<section class="section alt" id="continuous">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">1</span> Steering</div>
+      <h2>Steering is a continuous action, and no table can describe it</h2>
+      <p>In lesson 5.1, Ada looked for the way to the kitchen on a grid of the apartment: there is a finite number of cells and four moves, and value iteration stores one number per cell. In this lesson's labs, Ada drives through the apartment from lessons 1.1 and 1.2, from the hallway through the living room to the kitchen; the scenes show the apartment from above. Her speed is constant, 60 cm/s, and the only thing she chooses is the steering, that is, the turn rate from −2.2 to 2.2 radians per second, any number in between. Ada sees 9 rangefinder beams and the direction to the kitchen, 13 numbers in all, and each of them also changes continuously.</p>
+      <p class="ada-note"><svg class="ada-ico" viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="10" width="48" height="42" rx="18" fill="#f4efe6" stroke="#3d3c38" stroke-width="3"/><rect x="15" y="19" width="34" height="22" rx="10" fill="#1f2430"/><ellipse cx="25" cy="30" rx="4" ry="5.5" fill="#eb6834"/><ellipse cx="39" cy="30" rx="4" ry="5.5" fill="#eb6834"/></svg><span>Ada is a home humanoid on a wheeled base; the course labs are built around her. More about her in <a href="0-1-dve-paradigmy.html#ada">lesson 0.1</a>.</span></p>
+      <p>The table of action values Q(s, a) from lesson 5.1 doesn't work here. There are infinitely many states, and none of them will repeat exactly. The value can be approximated with a neural network, but even then, to choose the steering you would have to search for the maximum of Q(s, a) over all steering values at every step, and that is a separate optimization problem inside the control loop. So it's done differently: you train the policy itself, with no table and no search for a maximum.</p>
+      <p>In lesson 1.1, the <strong>policy</strong> was a network that maps an observation to steering. In reinforcement learning, it is made <strong>stochastic</strong>: the network outputs not a single number but a distribution over steering. Most often this is a normal, Gaussian distribution: the network gives the mean μ(s), and the spread σ sets how far from it Ada tries to deviate. Such a policy is written \(\pi_\theta(a \mid s)\): the probability density of choosing action \(a\) in state \(s\) with network weights \(\theta\). This is what Sutton and Barto's textbook (Section 13.7) suggests for continuous actions: learn not the probability of each action but the parameters of a distribution. The randomness is needed for exploration: while Ada tries steering a little to the left and a little to the right of the mean, she finds out which works better.</p>
+      <p>There is no longer a teacher who knows the correct steering, as in lesson 1.1. There's only the reward set by an engineer: +1 for every meter Ada advances toward the kitchen along the corridor, +2 when she gets there, and −1 for hitting furniture or a wall. How can a score like this tell you which way to change the network's weights?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="pg">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">2</span> Gradient</div>
+      <h2>Policy gradient: do more of what turned out well</h2>
+      <p>The idea is straightforward: drive a few times with the current policy and adjust the weights so that the actions after which things went well become more likely, and those after which things went badly become less likely. How well things went is given by the <strong>return</strong> \(G_t\) from lesson 5.1: the sum of rewards from step \(t\) to the end of the episode, where each next reward is discounted by one more factor of \(\gamma\).</p>
+      <p>The <strong>REINFORCE</strong> method (Williams, 1992) does this with a single formula. The <strong>policy gradient</strong> is the direction in weight space in which the expected return grows fastest. It is estimated from the collected drives:</p>
+    </div>
+    <div class="formula">\[ \nabla_\theta J(\theta) \;\approx\; \frac{1}{N}\sum_{t=1}^{N} G_t\,\nabla_\theta \log \pi_\theta(a_t \mid s_t). \]</div>
+    <div class="prose" style="margin:0;max-width:820px">
+      <p>Here \(J(\theta)\) is the expected return of the policy with weights \(\theta\); the sum runs over all \(N\) steps of the collected drives; \(s_t\) and \(a_t\) are the state and the action at step \(t\). The vector \(\nabla_\theta \log \pi_\theta(a_t \mid s_t)\) shows which way to shift the weights to make the action taken more likely. Each such vector is weighted by \(G_t\): the larger the return after an action, the harder it is pushed. Then the weights are moved a small step \(\alpha\) along this estimate. This is gradient ascent: the same gradient descent used to train networks, only toward a maximum.</p>
+      <p>The logarithm isn't there for looks. \(\nabla \log \pi = \nabla \pi / \pi\): the push is divided by the action's probability. Without this division, actions the policy already chooses often would win just because they show up in the data more often; this is how Sutton and Barto explain it (Section 13.3).</p>
+      <div class="algo"><div><b>REINFORCE</b></div><div>repeat:</div><div class="i1">drive an episode with the policy π<sub>θ</sub>: s<sub>0</sub>, a<sub>0</sub>, r<sub>0</sub>, s<sub>1</sub>, a<sub>1</sub>, r<sub>1</sub>, …</div><div class="i1">for each step t: G<sub>t</sub> ← r<sub>t</sub> + γ·r<sub>t+1</sub> + γ²·r<sub>t+2</sub> + …</div><div class="i1">θ ← θ + α · G<sub>t</sub> · ∇<sub>θ</sub> log π<sub>θ</sub>(a<sub>t</sub> | s<sub>t</sub>) <span class="c">— for every step of the episode</span></div></div>
+      <p>This rule has a weak spot, and in Ada's corridor it shows right away. The reward is given for every meter toward the kitchen, and while Ada moves forward, the return after her decisions is positive even if she crashes later: in the drive we'll examine below, the return is positive at 49 of 68 steps, although the drive ended in a crash. So almost all the actions taken get pushed up, good and bad alike, only with different strength. Which of them actually helped has to be found out by averaging over many drives. How can the signal be made cleaner?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="baseline">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">3</span> Advantage</div>
+      <h2>Baseline and advantage: comparing with the usual</h2>
+      <p>A gradient estimate from a few drives is noisy. In one drive Ada got a lucky start, in another a random steering command took her into a wall, and the return after the same decision jumps around. Sutton and Barto write that REINFORCE, as a Monte Carlo method, may have high variance and therefore learn slowly (Section 13.3).</p>
+      <p>What helps is a <strong>baseline</strong>: a number \(b(s_t)\) subtracted from the return, so that the action's weight becomes \(G_t - b(s_t)\). If \(b\) depends only on the state and not on the action, the direction of the gradient doesn't change on average: the subtracted part, averaged over all of the policy's actions, gives zero. But the variance of the estimate can drop a lot (Section 13.4). A natural choice of baseline is the state value \(V(s)\) from lesson 5.1, that is, the expected return from \(s\) under the current policy. Then an action's weight shows how much the return after it turned out larger or smaller than is usual for this place. This is an estimate of the <strong>advantage</strong> \(A(s, a) = Q(s, a) - V(s)\) from lesson 5.1. If the advantage is positive, the action is better than usual, and it is made more likely. If it is negative, the action is worse, and its probability is lowered.</p>
+      <p>The value \(V(s)\) is learned by a second network from the same drives: it predicts the return. The policy-and-value pair is called an <strong>actor-critic</strong>: the actor chooses the actions, and the critic estimates how well things usually go from this state.</p>
+    </div>
+    <figure class="card flow-card">
+      <canvas data-anim="pg" width="720" height="340" role="img" aria-label="Diagram of one policy gradient step: Ada, facing a doorway, tries six steering values, and each gets a return; after the value is subtracted, some of the estimates become negative, and the bell of the steering distribution shifts toward the actions with a positive advantage"></canvas>
+      <figcaption class="muted-s">One policy gradient step for a single state. In the first part of the diagram, Ada stands in front of the doorway to the living room, seen from above. The arcs show where she will go with each of the six steering values: a cross marks a hit against the wall, and a dot marks passing through the doorway. The second part shows the steering distribution: horizontally, steering from full left to full right; the height of the bell is the probability density; the dots on the axis are the six values tried. First, each value gets a return bar: all the bars are blue and point up, and the dashed line is the value V(s), the usual return from this place. Then V(s) is subtracted from the return: above the dashed line the advantage is positive (a green bar), below it negative (a red one). The orange bell is the policy, and it shifts toward the green values. The numbers in the diagram are illustrative. Click the diagram to pause it.</figcaption>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>It remains to decide how to estimate the advantage itself. You can take the full return to the end of the drive and subtract \(V(s_t)\): this estimate has no systematic error, but it is noisy, because it picks up the randomness of all the following steps. Or you can look at a single step: the step's reward plus the discounted value of the next state minus the value of the current one, \(\delta_t = r_t + \gamma V(s_{t+1}) - V(s_t)\). There is little noise, but if the critic is wrong, so is the estimate. <strong>GAE</strong> (generalized advantage estimation, Schulman et al., 2015) mixes all the options in between: the \(\delta\) from \(k\) steps later is taken with weight \((\gamma\lambda)^k\). With \(\lambda = 0\), a single step remains; with \(\lambda = 1\), the full return minus the value. The authors call this a compromise between bias and variance; the best \(\lambda\) in their experiments lay between 0.92 and 0.99. From here on, we take \(\gamma = 0.99\) and \(\lambda = 0.95\), as in the hyperparameter tables of the PPO paper and the Rudin et al. paper.</p>
+    </div>
+    <div class="lab-badge"><i>🧩</i> Interactive</div>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>Below is one real drive of Ada's from Lab 1: it was driven by the policy after 10 PPO updates and is evaluated by the critic from the same moment. Ada crossed the living room and hit the edge of the doorway to the kitchen. Move the slider through the steps of the drive: the chart shows what return came after each steering decision, what the critic expected and what advantage came out of it.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <canvas id="eCv" width="600" height="400" role="img" aria-label="Top view of the apartment: Ada's path in one drive, colored by the estimate of each steering decision, and Ada's position at the selected step"></canvas>
+        <p class="cv-note">Top view of the apartment, 6 × 4 m. The circle with eyes is Ada at the selected step, and the orange arc shows where the steering chosen at this step takes her. The path is colored by the weight with which the gradient pushes the decision at each step: green means the decision is pushed up, red means it is pushed down, and the paler the color, the weaker the push. The dashed circle in the kitchen marks where Ada is heading, and the red cross marks the crash.</p>
+        <canvas id="eChart" class="e-chart" width="600" height="220" role="img" aria-label="Chart over the steps of the drive: the return, the value and the advantage of each steering decision"></canvas>
+        <p class="cv-note">Horizontal axis: the step of the drive, 0.1 s each. The blue line is the return \(G_t\) after the step, and the gray dashed line is the value \(V(s_t)\) the critic expected. The bars show the GAE advantage: green bars point up if the decision is better than usual, red ones point down if it is worse. The vertical line marks the selected step.</p>
+        <div class="ctl-row">
+          <label class="hd-range" id="wrapET"><span>Drive step</span><input id="eT" type="range" min="0" max="10" step="1" value="0"><output>0</output></label>
+        </div>
+        <div class="ctl-row">
+          <div class="ctl" id="wrapEWeight"><span class="ctl-l">Path colored by</span><div class="seg" id="eWeight" role="group" aria-label="What the path is colored by"><button type="button" data-v="A" aria-pressed="true">advantage</button><button type="button" data-v="G" aria-pressed="false">return, as in REINFORCE</button></div></div>
+          <div class="ctl" id="wrapELam"><span class="ctl-l">λ in GAE</span><div class="seg" id="eLam" role="group" aria-label="Parameter λ"><button type="button" data-v="0" aria-pressed="false">0</button><button type="button" data-v="0.95" aria-pressed="true">0.95</button><button type="button" data-v="1" aria-pressed="false">1</button></div></div>
+        </div>
+        <div class="readout" id="eOut"></div>
+      </div>
+      <div class="card guide-card"><div id="eMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: the return, the value and GAE on this drive</summary><div class="body">
+      <p>For step \(t\) of a drive of length \(T\), the discounted return and the one-step value error are computed as follows:</p>
+      <div class="formula">\[\begin{gathered} G_t = \sum_{k=0}^{T-t-1} \gamma^{k}\, r_{t+k}, \\ \delta_t = r_t + \gamma V(s_{t+1}) - V(s_t). \end{gathered}\]</div>
+      <p>Here \(r_t\) is the reward received after the decision at step \(t\); after a crash or arrival in the kitchen, \(V = 0\), because the episode is over. The GAE advantage estimate is computed with equation 16 of the GAE paper:</p>
+      <div class="formula">\[ \hat A_t^{\text{GAE}(\gamma,\lambda)} = \sum_{k=0}^{T-t-1} (\gamma\lambda)^{k}\, \delta_{t+k}. \]</div>
+      <p>With \(\lambda = 1\), the sum of the \(\delta\) telescopes into \(G_t - V(s_t)\); with \(\lambda = 0\), only \(\delta_t\) remains. During training in Lab 1, the advantages of the whole rollout batch are also normalized: the mean is subtracted, and the result is divided by the standard deviation. The chart here shows the numbers before normalization. This drive is the seventh of eight in the rollout batch that the PPO Ada in Lab 1 (the one on the right) collects before the 11th update.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px" id="baselineAfter">
+      <p>With a baseline, the gradient pushes the good and bad decisions of the same drive in opposite directions, and the estimate gets quieter. So training steps can be taken more boldly too. But how boldly? A gradient step changes the policy, and the next training drives will be made by that changed policy.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="trust">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">4</span> Step size</div>
+      <h2>Why a large step ruins the policy: the trust region and clipping</h2>
+      <p>In supervised learning, a bad gradient step is a small problem: the next minibatch comes from the same dataset and corrects the weights. In reinforcement learning, there is no ready-made dataset. The current policy collects the data and learns from that same data; such learning is called <strong>on-policy</strong>: it runs on fresh data from its own policy. If a training step has taken the policy too far (say, Ada now always steers at full lock), the next drives will hit the wall near the start or circle in place. Such data doesn't show how to get to the kitchen, and the policy has no data to recover on.</p>
+      <p>There is a second reason too. The gradient estimate is valid only near the policy that collected the data: the advantages were computed for its behavior. The further the new policy is from the old one, the less these numbers say about it. That is why the plain policy gradient takes one step per <strong>rollout batch</strong> (all the steps collected before an update) and then discards it. The PPO authors write that doing several optimization steps on the same rollout is not well justified, and “empirically it often leads to destructively large policy updates.”</p>
+      <p><strong>TRPO</strong> (trust region policy optimization, Schulman et al., 2015) limits the step itself. The theory promises that the return will grow if the new policy doesn't move far from the old one in an update, but with the penalty coefficient the theory recommends, in the authors' words, “the step sizes would be very small.” Instead of a penalty, TRPO imposes a hard constraint, a <strong>trust region</strong>: the divergence between the old and the new action distributions, averaged over states, is at most \(\delta\). The divergence is measured with the Kullback–Leibler divergence, KL: it is zero when the distributions coincide and grows as they move apart. In all the paper's experiments, \(\delta = 0.01\).</p>
+    </div>
+    <div class="formula">\[\begin{aligned} \max_{\theta}\ \ & \hat{\mathbb E}_t\!\left[\frac{\pi_\theta(a_t \mid s_t)}{\pi_{\theta_{\text{old}}}(a_t \mid s_t)}\,\hat A_t\right] \\ \text{subject to}\ \ & \hat{\mathbb E}_t\Bigl[\mathrm{KL}\bigl(\pi_{\theta_{\text{old}}}(\cdot \mid s_t)\,\big\|\,\pi_\theta(\cdot \mid s_t)\bigr)\Bigr] \le \delta. \end{aligned}\]</div>
+    <div class="prose" style="margin:0;max-width:820px">
+      <p>Here \(\theta_{\text{old}}\) are the weights before the update, \(\hat{\mathbb E}_t\) is the average over the steps of the rollout, and \(\hat A_t\) is the advantage estimate. The fraction under the average is the <strong>probability ratio</strong> \(r_t(\theta)\): how many times more likely the new policy is to choose the action that the old one actually took. At the start of an update, \(r_t = 1\). The product \(r_t \hat A_t\), averaged over the rollout, estimates how much the return will change, and this estimate holds as long as the new policy stays close to the old one. With this constraint, TRPO trained simulated robots to swim, hop on one leg and walk, while the natural policy gradient with a fixed penalty never found hopping or walking gaits. But the constrained problem is solved approximately, with the conjugate gradient method, and the PPO authors call TRPO relatively complicated: for example, it is not compatible with networks in which the policy and the value share weights.</p>
+      <p><strong>PPO</strong> (proximal policy optimization, Schulman et al., 2017) changes the objective itself instead of adding a constraint:</p>
+    </div>
+    <div class="formula">\[ L^{\text{CLIP}}(\theta) = \hat{\mathbb E}_t\Bigl[\min\bigl(r_t(\theta)\,\hat A_t,\ \ \operatorname{clip}\bigl(r_t(\theta),\,1-\varepsilon,\,1+\varepsilon\bigr)\,\hat A_t\bigr)\Bigr]. \]</div>
+    <div class="prose" style="margin:0;max-width:820px">
+      <p>\(\operatorname{clip}(r, 1-\varepsilon, 1+\varepsilon)\) is <strong>clipping</strong>: \(r\) clamped to the interval from \(1-\varepsilon\) to \(1+\varepsilon\); the paper uses \(\varepsilon = 0.2\). The minimum of the two options works like this. If an action turned out better than usual (\(\hat A_t > 0\)), training raises its probability until \(r\) reaches 1.2; beyond that there is no gain, and this example stops pulling on the weights. If it turned out worse than usual, its probability is lowered down to 0.8 of what it was. And if the optimizer has moved \(r\) the wrong way, the minimum picks the unclipped option, and the mistake is corrected at full strength. The authors call \(L^{\text{CLIP}}\) a pessimistic bound: a change in \(r\) is ignored when it would make the objective better and taken into account when it makes the objective worse. That is why several epochs of minibatches can be run over one rollout batch instead of a single step.</p>
+    </div>
+    <figure class="card flow-card">
+      <canvas data-anim="loop" width="720" height="360" role="img" aria-label="Diagram of the PPO training loop: drives with the current policy, values and advantages, five update epochs with clipping, then the rollout is discarded and the loop repeats with the new policy"></canvas>
+      <figcaption class="muted-s">The PPO training loop in Lab 1 of this lesson. Blue shows what is measured during the drives: positions, steering, rewards. Orange shows what is being trained: the policy (the actor) and the value (the critic). Ada makes 8 drives with the current policy. The critic estimates the value of each state, and the GAE advantages are computed from the rewards. Then come 5 update epochs in minibatches of 128 steps: examples whose \(r\) has gone past 1 ± 0.2 in the favorable direction fade out and stop pulling. The rollout is discarded, and everything repeats with the new policy. At the bottom are the update number and how many of the 8 drives reached the kitchen, and the rollout batch is labeled with how many steps it holds. The numbers come from a real training run of Lab 1. Click the diagram to pause it.</figcaption>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>Let's check what clipping gives in a real training run: two Adas learn with the same reward and the same step size.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="corridor">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 1</div>
+    <h2>Two Adas learn to drive to the kitchen: without clipping and with PPO</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>Both Adas start from the same random policy. It is a steering network with two hidden layers of 24 neurons; its mean steering is near zero, and its spread is about 0.6 of the maximum steering. Before every update, each Ada makes 8 drives from the hallway, from slightly different starts, and the starts and the random steering are the same for both. Then come five update epochs in minibatches of 128 steps, with Adam step size 0.003 and GAE with \(\gamma = 0.99\) and \(\lambda = 0.95\). There is one difference: the Ada on the left learns with the objective without clipping, \(r_t \hat A_t\), and the Ada on the right with PPO, \(\varepsilon = 0.2\). There will be 50 updates and 400 drives for each Ada in total; training runs right in your browser and takes a few seconds.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="duo" id="pDuo">
+          <figure class="pane"><figcaption class="pane-head"><b id="pHeadL" class="nc">No clipping</b><span id="pSubL">step 0.003 · 5 epochs</span></figcaption><canvas id="pCvL" width="600" height="400" role="img" aria-label="Top view of the apartment: the drives of the Ada learning without clipping, at the selected update"></canvas><div class="pane-stat" id="pStatL"></div></figure>
+          <figure class="pane"><figcaption class="pane-head"><b id="pHeadR" class="fm">PPO</b><span id="pSubR">ε = 0.2 · step 0.003 · 5 epochs</span></figcaption><canvas id="pCvR" width="600" height="400" role="img" aria-label="Top view of the apartment: the drives of the Ada learning with PPO, at the selected update"></canvas><div class="pane-stat" id="pStatR"></div></figure>
+        </div>
+        <p class="cv-note">Top view of the apartment, 6 × 4 m: the hallway on the left, the living room in the middle, the kitchen on the right; the furniture is hatched. The dashed circle in the kitchen marks where Ada is heading. The lines show the 8 drives before the selected update. The mark at the end of a drive shows how it ended: a green check means Ada made it, a red cross means she crashed, and a gray circle means the 20 seconds ran out before she reached the kitchen.</p>
+        <div class="p-chart"><canvas id="pChart" width="640" height="260" role="img" aria-label="Chart over updates: the share of drives that reached the kitchen, or how much an update changed the policy"></canvas></div>
+        <p class="cv-note" id="pChartNote">Horizontal axis: the update number; vertical axis: how many of the 8 drives before that update reached the kitchen. Click the chart or move the slider below it to see the drives of any update.</p>
+        <div class="ctl-row">
+          <div class="ctl" id="wrapPView"><span class="ctl-l">Chart</span><div class="seg" id="pView" role="group" aria-label="What to show on the chart"><button type="button" data-v="ok" aria-pressed="true">reached the kitchen</button><button type="button" data-v="kl" aria-pressed="false">how much the policy changed</button></div></div>
+        </div>
+        <div class="ctl-row">
+          <label class="hd-range" id="wrapPIter"><span>Update</span><input id="pIter" type="range" min="1" max="50" step="1" value="50"><output>50</output></label>
+        </div>
+        <div class="ctl-row" id="wrapPOpts">
+          <div class="ctl"><span class="ctl-l">Clipping ε</span><div class="seg" id="pClip" role="group" aria-label="Clipping ε"><button type="button" data-v="0" aria-pressed="false">none</button><button type="button" data-v="0.1" aria-pressed="false">0.1</button><button type="button" data-v="0.2" aria-pressed="true">0.2</button><button type="button" data-v="0.5" aria-pressed="false">0.5</button></div></div>
+          <div class="ctl"><span class="ctl-l">Adam step size</span><div class="seg" id="pLr" role="group" aria-label="Adam step size"><button type="button" data-v="0.0003" aria-pressed="false">0.0003</button><button type="button" data-v="0.001" aria-pressed="false">0.001</button><button type="button" data-v="0.003" aria-pressed="true">0.003</button><button type="button" data-v="0.01" aria-pressed="false">0.01</button></div></div>
+          <div class="ctl"><span class="ctl-l">Epochs per rollout</span><div class="seg" id="pEp" role="group" aria-label="Epochs per rollout batch"><button type="button" data-v="1" aria-pressed="false">1</button><button type="button" data-v="3" aria-pressed="false">3</button><button type="button" data-v="5" aria-pressed="true">5</button></div></div>
+          <div class="ctl"><span class="ctl-l">λ in GAE</span><div class="seg" id="pLam" role="group" aria-label="λ in GAE"><button type="button" data-v="0" aria-pressed="false">0</button><button type="button" data-v="0.95" aria-pressed="true">0.95</button><button type="button" data-v="1" aria-pressed="false">1</button></div></div>
+        </div>
+        <div class="ctl-row" id="wrapPTrain"><button type="button" class="btn primary sm" id="pTrain">Train the Ada on the right with these settings</button></div>
+        <div class="prog-line" id="pProg" hidden><i></i></div>
+        <div class="readout" id="pOut"></div>
+      </div>
+      <div class="card guide-card"><div id="pMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: the environment, the reward, the networks and a check on ten seeds</summary><div class="body">
+      <p><b>The environment.</b> The apartment and the motion come from lessons 1.1 and 1.2: Ada drives at 60 cm/s, the steering is limited to ±2.2 rad/s, and the simulation step is 0.05 s. A steering decision is held for 0.1 s, that is, two simulation steps. The observation includes 9 rangefinder beams over a ±120° sector out to 2.5 m, plus the direction and the distance to the kitchen. Ada starts at the hallway with a spread of 8 cm and 0.12 rad. A drive ends in the kitchen, on a crash or after 20 s.</p>
+      <p><b>The reward.</b> Progress is measured along the center line of the passage: we take the point of the line nearest to Ada and the distance along the line from the start. Ada gets +1 for every meter of progress, +2 in the kitchen and −1 on a crash. If the 20 s run out, the return is continued with the value of the last state, as in Rudin et al.: a timeout is treated not as the end of the episode but as a cut in the recording.</p>
+      <p><b>The policy and the critic.</b> Both networks are 13 → 24 → 24 → 1 with tanh in the hidden layers. The mean steering \(\mu_\theta(s) = \tanh(\cdot)\) is a fraction of the maximum steering, and the spread \(\sigma\) is a single trainable parameter, initially \(e^{-0.5} \approx 0.61\). The action is sampled as \(a \sim \mathcal N(\mu_\theta(s), \sigma^2)\) and executed as \(\operatorname{clip}(a, -1, 1)\) times 2.2 rad/s. The log probability and the estimate of the divergence after an update are computed as follows:</p>
+      <div class="formula">\[\begin{gathered} \log \pi_\theta(a \mid s) = -\frac{(a - \mu_\theta(s))^2}{2\sigma^2} - \log \sigma - \tfrac12 \log 2\pi, \\ \widehat{\mathrm{KL}} = \hat{\mathbb E}_t\bigl[(r_t - 1) - \log r_t\bigr]. \end{gathered}\]</div>
+      <p>The critic learns from the targets \(\hat A_t + V(s_t)\) with a mean squared error, using its own Adam with the same step size. The advantages of a rollout are normalized to a mean of 0 and a standard deviation of 1. There is no entropy bonus, as in the PPO paper's MuJoCo experiments.</p>
+      <p><b>The same in every browser.</b> The exponential, the logarithm, the sine and the arctangent in the engine are built from additions, multiplications and divisions: the built-in Math.exp and Math.sin can differ in the last digit between browsers, and reinforcement learning blows such a difference up into different numbers. So everyone gets the same lab numbers.</p>
+      <p><b>Ten seeds.</b> The lab uses one seed. We repeated the training on seeds 1–10, 50 updates each, and for each variant computed the share of drives that reached the kitchen over the last 10 updates. For PPO, this share was 84 to 99%. Without clipping, it is 0% on nine seeds and 1% on one, and over the whole training such an Ada made 0 to 10 drives to the kitchen out of 400. Without clipping and with step size 0.0003, the share was 5 to 50%, on every seed at least 30 points below PPO. The median KL per update was 0.0077 to 0.011 for PPO and 0.0011 to 0.003 without clipping with the small step size. The largest KL per update was 0.03 to 0.11 for PPO and 1.3 to 4.8 without clipping. For PPO with \(\lambda = 0\), the share came out at 0 to 57%, and on every seed it is lower than with \(\lambda = 0.95\). With step size 0.01, PPO's share was 0 to 93%: on some seeds it learns, on others it falls apart.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px" id="corridorAfter">
+      <p>Without clipping, the Ada on the left never learned: in 50 updates, she did not reach the kitchen once in 400 drives. Her updates changed the policy dozens of times more than PPO's: a median KL per update of 0.29 versus 0.0095, and the largest jump was 3.6. After such a jump, the next eight drives are made by a different policy, and the advantages computed for the previous one hardly apply to it. PPO, with the same starts and the same step size, reached the kitchen in 295 of 400 drives, and in 99% of drives in the last ten updates.</p>
+      <p>A small step size also keeps updates from ruining the policy, but learning becomes slow: its median KL per update is 0.0025, almost four times less than PPO's, and in the last ten updates Ada makes it in only 48% of drives. Clipping lets the step stay large where that is safe and damps it where the policy has already moved far enough. How exactly does it decide which example to damp?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="clip">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 2</div>
+    <h2>Clipping in action: where PPO stops pulling</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>The PPO objective is an average over all the steps of the rollout batch, and each step contributes its own term. The first plot shows one such term as a function of the probability ratio \(r\), as in Figure 1 of the PPO paper. You set the sign of the advantage and \(\varepsilon\), and you can drag the point \(r\) with the mouse or a finger: the arrow shows which way the gradient of this term moves \(r\) at the next training step.</p>
+      <p>The second plot shows real probability ratios. After 10 updates, the PPO Ada from Lab 1 made her next 8 drives, with 772 steering decisions in them. Her policy is updated for five epochs on this rollout twice, starting from the same copy: once with clipping and once without. For each decision, we compute how many times its probability changed.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <canvas id="kCv" class="k-cv" width="600" height="300" role="img" aria-label="Plot of one term of the PPO objective as a function of the probability ratio r, with the point r and the gradient arrow"></canvas>
+        <p class="cv-note">Horizontal axis: the probability ratio \(r\); 1 means the action's probability hasn't changed, 1.5 means it grew one and a half times. Vertical axis: one example's contribution to the objective. The orange line is the PPO term, and the gray dashed line is the same term without clipping, \(r\hat A\). The gray band marks the interval from \(1-\varepsilon\) to \(1+\varepsilon\), and the hatching marks where this example's gradient is zero. The point is the current \(r\), and the arrow shows where the gradient pulls it.</p>
+        <div class="ctl-row">
+          <div class="ctl" id="wrapKSign"><span class="ctl-l">Advantage</span><div class="seg" id="kSign" role="group" aria-label="Sign of the advantage"><button type="button" data-v="1" aria-pressed="true">A &gt; 0: better than usual</button><button type="button" data-v="-1" aria-pressed="false">A &lt; 0: worse than usual</button></div></div>
+        </div>
+        <div class="ctl-row">
+          <label class="hd-range" id="wrapKR"><span>Ratio r</span><input id="kR" type="range" min="0.3" max="2" step="0.01" value="1"><output>1</output></label>
+          <label class="hd-range" id="wrapKEps"><span>Clipping ε</span><input id="kEps" type="range" min="0.05" max="0.5" step="0.05" value="0.2"><output>0.2</output></label>
+        </div>
+        <canvas id="kHist" class="k-hist" width="600" height="250" role="img" aria-label="Histograms of probability ratios after five update epochs on one rollout batch, with clipping and without"></canvas>
+        <p class="cv-note">Horizontal axis: how many times the probability of a steering decision changed after five epochs, on a log scale from 0.05 to 20; vertical axis: how many of the 772 decisions fell into each bar. The top row shows the update with clipping at the current \(\varepsilon\), the bottom row the update without clipping. The gray band marks the interval from \(1-\varepsilon\) to \(1+\varepsilon\).</p>
+        <div class="readout" id="kOut"></div>
+      </div>
+      <div class="card guide-card"><div id="kMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: the derivative of one term, and why r still goes beyond 1 ± ε</summary><div class="body">
+      <p>The derivative of one term with respect to \(r\) is piecewise:</p>
+      <div class="formula">\[ \frac{\partial}{\partial r}\min\bigl(r\hat A,\ \operatorname{clip}(r, 1-\varepsilon, 1+\varepsilon)\hat A\bigr) = \begin{cases} 0, & \hat A > 0,\ r > 1+\varepsilon, \\ 0, & \hat A < 0,\ r < 1-\varepsilon, \\ \hat A & \text{otherwise}. \end{cases} \]</div>
+      <p>Clipping zeroes out the gradient of an individual example but doesn't stop its \(r\) from changing: the network's weights are shared, and a step taken for the sake of other examples shifts this example's probability too. So even with clipping, some examples go beyond \(1 \pm \varepsilon\). To keep from drifting far even so, Rudin et al. also adapted the Adam step size by KL: they divided the step size by 1.5 if the KL per update exceeded 0.02 and multiplied it by 1.5 if it was below 0.005 (the desired KL is 0.01).</p>
+      <p><b>Ten seeds.</b> We repeated the same procedure for seeds 1–10: the PPO Ada collects one rollout batch after 10 updates, and her policy is updated for five epochs. With clipping at \(\varepsilon = 0.2\), 5 to 28% of decisions went outside \([0.8,\ 1.2]\), the KL was 0.0048 to 0.030, and the largest \(r\) was 1.2 to 3.1. Without clipping, 33 to 77% of decisions went outside, the KL was 0.025 to 0.43, and the largest \(r\) was 1.7 to 10.1. On every seed, more decisions ended up outside the interval without clipping than with it.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px" id="clipAfter">
+      <p>On the same rollout, without clipping, 72% of the steering decisions changed their probability by more than 20%: for one, it grew almost 8 times, and for another, it fell more than a hundredfold. With clipping, 20% did, and no decision's probability even doubled. This is the TRPO trust region, only reached without a constrained problem: PPO remains ordinary gradient ascent in minibatches, which is easy to compute in parallel on large rollout batches.</p>
+      <p>In the corridor, Ada's policy has 13 numbers as input and one as output. How does this work for a robot that has to learn to walk?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="walking">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">5</span> Walking</div>
+      <h2>PPO and walking: thousands of robots in a simulator</h2>
+      <p>A walking robot has no wheeled base like Ada's: it has dozens of joints, legs that alternately push against the ground and lift off it, and it can fall. Its policy controls all the joints at once, and it needs orders of magnitude more experience than a steering policy. Collecting that experience on a real robot is slow and dangerous for the robot, so walking is learned in a physics simulator from lesson 4.5.</p>
+      <p>Already in the GAE paper (2015), TRPO with GAE advantage estimates taught simulated two-legged and four-legged robots to run, with neural networks directly outputting joint torques. Training the biped took about two hours on a 16-core machine, and by the authors' count, it used 0.01 s per step × 50,000 steps per update × 1000 updates = 5.8 days of real time.</p>
+      <p>Hwangbo et al. (ETH Zurich and Intel, 2019) transferred a policy trained this way to the real ANYmal, a four-legged robot the size of a medium dog. They still trained with TRPO: the authors chose it because it requires almost no parameter tuning. Their simulator, together with the neural networks that model ANYmal's actuators, computed almost 500,000 steps per second, about a thousand times faster than real time, and four hours on an ordinary computer with one CPU and one GPU produced about a quarter of a billion transitions. Running on velocity commands took 9 days of simulated experience, that is, four hours of computation, and getting up after a fall took 79 days of experience and 11 hours of computation. The real ANYmal ran 25% faster than its previous record.</p>
+      <p>Rudin et al. (ETH Zurich and NVIDIA, 2021) moved both the simulation and the training onto the GPU. In the Isaac Gym simulator, thousands of copies of ANYmal learn at once, and the data never leaves the GPU. The training there is PPO: unlike TRPO, it is ordinary gradient ascent in minibatches, and in the paper, rollout batches of 98,304 steps are split into minibatches of 24,576. The policy for rough terrain (steps, slopes, obstacles) was trained for 1500 updates in under 20 minutes on a single RTX A6000 GPU, and the one for flat ground in under 4 minutes. On steps up to 0.2 m high, the trained policy succeeded in nearly 100% of attempts, and the same scheme, with adjusted rewards and actuator settings for the smaller robots, trained ANYmal C with an arm, ANYmal B, A1 and the two-legged Cassie.</p>
+      <p>Parallelism isn't free for an on-policy method. A rollout batch is the number of robots times the number of steps each makes per update. For the same rollout batch, the more robots there are, the fewer consecutive steps each one gets, and GAE needs the rewards of several consecutive steps: the authors write that the algorithm struggles with fewer than 25 consecutive steps, that is, less than 0.5 s of simulation (they themselves used 24). With fewer robots, there are more consecutive steps, and neighboring steps of one robot are similar to each other. The authors name 2048–4096 robots and rollout batches of about 100,000–200,000 steps as the best compromise for their task. Let's calculate how much experience stands behind these numbers.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="steps">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 3</div>
+    <h2>How many simulation steps walking takes</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>There is no simulation here; we only calculate with the numbers from the Rudin et al. paper. ANYmal's policy makes a decision 50 times per second. In one update, each robot makes several consecutive steps, the rollout batch consists of all the steps of all the robots, and training lasts 1500 such updates. The sliders set the number of robots, each robot's steps per update and the number of updates; the calculator computes the rollout batch, the total number of steps and how much experience this is if converted to one robot walking without breaks. The chart below the calculator shows the same quantities for the lesson's three papers.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="calc" id="sCalc">
+          <label class="calc-row" id="wrapSRobots"><span>Robots in the simulator</span><input id="sRobots" type="range" min="0" max="8" step="1" value="5"><output></output></label>
+          <label class="calc-row" id="wrapSSteps"><span>Steps per robot per update</span><input id="sSteps" type="range" min="0" max="6" step="1" value="2"><output></output></label>
+          <label class="calc-row" id="wrapSUpd"><span>Updates</span><input id="sUpd" type="range" min="0" max="3" step="1" value="2"><output></output></label>
+          <p class="calc-fixed">The policy makes 50 decisions per second, as in Rudin et al.</p>
+        </div>
+        <div class="calc-out" id="sOut"></div>
+        <div class="calc-warn" id="sWarn"></div>
+        <canvas id="sCv" class="s-cv" width="640" height="250" role="img" aria-label="Bars: how many days of experience the policy gathers in three papers and in your setting, log scale"></canvas>
+        <p class="cv-note">The bars show how many days of one robot's experience stand behind the training, on a log scale. The blue bars are the lesson's papers, and their labels say how long the training itself took. The orange bar is your setting. How long it would take on a GPU, the calculator doesn't know: that depends on the simulator and the number of robots.</p>
+      </div>
+      <div class="card guide-card"><div id="sMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: the calculator's formulas and what they leave out</summary><div class="body">
+      <p>Let \(n_r\) be the number of robots in the simulator, \(n_s\) the number of steps each makes per update, \(N\) the number of updates, and \(f = 50\) Hz the policy's decision rate. Then</p>
+      <div class="formula">\[\begin{gathered} B = n_r\, n_s, \qquad S = B\,N, \\ T_{\text{exp}} = \frac{S}{f}, \qquad T_{\text{seg}} = \frac{n_s}{f}. \end{gathered}\]</div>
+      <p>Here \(B\) is the rollout batch of one update, \(S\) is the total number of policy steps, \(T_{\text{exp}}\) is how long one robot would walk, and \(T_{\text{seg}}\) is the segment each robot covers in one update. In Rudin et al., an episode lasts up to 20 s and is not cut off at every update: the robot keeps walking until it falls or the time runs out. How long training takes on a GPU can't be derived from these formulas: the paper shows the time falling almost linearly as the number of robots grows up to about 4000, after which the gain slows down.</p>
+      <p>For the papers, we took these numbers. In GAE, a step lasts 0.01 s, a rollout batch has 50,000 steps, there are 1000 updates, and training took about 2 hours on 16 cores. For ANYmal in 2019, 9 days of simulation took 4 hours, and 79 days took 11 hours. In Rudin et al., 4096 robots make 24 steps each per update, there are 1500 updates, and the whole training took under 20 minutes. How many times faster than real time the training ran, we calculated ourselves: 54 times for ANYmal 2019, and more than 2400 times for Rudin et al.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px" id="stepsAfter">
+      <p>In 20 minutes of training, each of the 4096 copies of ANYmal walks for only 12 minutes, but together that's 147 million steps, more than a month of one robot's experience. This also makes PPO's place in the scheme clear. It uses each rollout batch for 5 epochs and throws it away, so it needs a lot of data, but it doesn't care how many robots collect it, as long as each robot gets a stretch of half a second in a row and the rollout batch is large enough. In a simulator, that is cheap.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="today">
+  <div class="prose">
+    <div class="kicker"><span class="num">6</span> Today</div>
+    <h2>What lives on in the systems of 2025–2026</h2>
+    <p>The Rudin et al. recipe (thousands of copies of a robot in a simulator on a GPU, PPO, and physical parameters varied across the copies) has become the usual way to teach walking. In lesson 4.5, we saw how Figure described training its Figure 02 humanoid to walk (March 2025): thousands of robots learn in simulation in parallel, each with its own physical parameters, years of experience are gathered in a few hours, and then the policy is transferred to real robots without further tuning. How such training works for humanoids, we'll cover in Part 6. The Rudin et al. code is open: it's legged_gym.</p>
+    <p>PPO teaches more than walking. Dactyl from lesson 4.5, the hand that turns a cube in its palm, was also trained with PPO, in a distributed system on many machines; its authors write that “PPO scales up easily and requires little hyperparameter tuning.”</p>
+    <p>With large models, though, the policy gradient gets along less well. In lesson 3.8, π*0.6 learns from the robots' own attempts and also computes an advantage: how much better an action is than usual. But its authors write that the policy gradient is hard to apply to a flow matching model, so they train it with ordinary supervised learning, adding the text “Advantage: positive” or “Advantage: negative” to its input. The idea itself, doing more often what turned out better than usual, is the same as in this lesson.</p>
+  </div>
+</section>
+
+<section class="section" id="quiz">
+  <div class="prose">
+    <div class="kicker"><span class="num">7</span> Check yourself</div>
+    <h2>Eight common misconceptions</h2>
+    <div class="quiz" id="quizBox"></div>
+    <p class="score" id="quizScore" style="margin-top:14px"></p>
+  </div>
+</section>
+
+<section class="section alt" id="finale">
+  <div class="prose">
+    <div class="kicker"><span class="num">8</span> Takeaways</div>
+    <h2>Lesson takeaways</h2>
+    <ol class="takeaways">
+      <li><span>When the action is continuous and there are infinitely many states, the value table is replaced with a <strong>stochastic policy</strong>: the network outputs the mean steering, and the spread sets how boldly Ada tries other values.</span></li>
+      <li><span>The <strong>policy gradient</strong> (REINFORCE) pushes every action taken with the weight of the return after it. If the returns are almost always positive, almost all actions get pushed up, and the signal drowns in noise.</span></li>
+      <li><span>The <strong>baseline</strong> \(V(s)\) turns the return into the <strong>advantage</strong>, which says whether an action is better or worse than usual. The average direction of the gradient doesn't change, and the variance drops. <strong>GAE</strong> mixes the one-step estimate and the full-return estimate with weight \(\lambda\): in Ada's corridor, PPO with \(\lambda = 0\) learns worse on every one of ten seeds.</span></li>
+      <li><span>The policy collects its own data, so a step that is too large ruins both the policy and the next rollout batch. <strong>TRPO</strong> limits how far the policies diverge: a KL of at most 0.01 per update. <strong>PPO</strong> clips the probability ratio to \(1 \pm 0.2\) and runs several epochs over a rollout batch. In Ada's corridor, the Ada without clipping didn't reach the kitchen once in 400 drives, while PPO made it in 99% of drives in the last 10 updates; the median KL per update was 0.29 versus 0.0095.</span></li>
+      <li><span>A small step size also keeps updates from ruining the policy, but learning becomes slow: 48% versus 99% over the same 50 updates.</span></li>
+      <li><span>PPO and thousands of copies of a robot on a GPU teach ANYmal to walk over rough terrain in under 20 minutes; in that time, 147 million steps pile up, about 34 days of one robot's experience. An on-policy method pays for this with data: each rollout batch lives for a few epochs and is thrown away.</span></li>
+    </ol>
+    <h3 style="margin-top:40px">Open questions</h3>
+    <details class="card pad open-q"><summary>How do you choose ε and the step size without searching over them every time?</summary><p>In Table 1 of the PPO paper, ε = 0.1, 0.2 and 0.3 gave average scores of 0.76, 0.82 and 0.70 on seven MuJoCo tasks, and the variant with no clipping or penalty scored −0.39, worse than a random policy. Rudin et al. kept ε = 0.2 but adapted the Adam step size by the KL per update, aiming at 0.01, which in effect brought back the TRPO constraint as a rule for the step size. There is no universal rule: a setting that works for one task doesn't guarantee success on another. In Lab 1, PPO with step size 0.01 instead of 0.003 never reaches the kitchen in the last updates, and on other seeds with the same step size, the result swings from 0 to 93%.</p></details>
+    <details class="card pad open-q"><summary>Can you train with PPO directly on a real robot?</summary><p>After their 5.8 days of experience for the biped, the GAE authors wrote that “it is plausible that this algorithm could be run on a real robot, or multiple real robots learning in parallel, if there were a way to reset the state of the robot and ensure that it doesn't damage itself.” Learning to walk with PPO took 34 days of experience, all of it in a simulator. Methods that spend experience more economically are covered in lesson 5.3, and transferring a policy from the simulator to a real robot in lesson 5.4.</p></details>
+    <h3 style="margin-top:34px">Paper guide</h3>
+    <p><a href="https://arxiv.org/abs/1707.06347" target="_blank" rel="noopener">J. Schulman, F. Wolski, P. Dhariwal, A. Radford, O. Klimov, “Proximal Policy Optimization Algorithms”, 2017</a>.</p>
+    <ul class="links">
+      <li><strong>Read closely</strong><span>Section 2: the policy gradient and TRPO in the same notation. Section 3 and Figures 1–2: clipping, the pessimistic bound and the KL after one update. Section 5 and Algorithm 1: the whole loop on one page. Table 1: what clipping gives compared with a KL penalty and with no constraint at all.</span></li>
+      <li><strong>Safe to skip</strong><span>Section 6.4 and Appendix B on Atari games, and Section 4 on the adaptive KL penalty if you don't plan to implement it.</span></li>
+      <li><strong>Question to keep in mind</strong><span>Why does \(L^{\text{CLIP}}\) take the minimum of two terms when it could have taken just the clipped one? What changes for an example with a negative advantage whose \(r\) has already reached 1.5?</span></li>
+    </ul>
+    <p style="margin-top:18px">Other papers in this lesson: <a href="https://arxiv.org/abs/1502.05477" target="_blank" rel="noopener">TRPO</a> (Schulman et al., 2015), the trust region; <a href="https://arxiv.org/abs/1506.02438" target="_blank" rel="noopener">GAE</a> (Schulman et al., 2015), advantage estimation and running in simulation; <a href="https://arxiv.org/abs/1901.08652" target="_blank" rel="noopener">Learning Agile and Dynamic Motor Skills for Legged Robots</a> (Hwangbo et al., 2019), ANYmal and TRPO; <a href="https://arxiv.org/abs/2109.11978" target="_blank" rel="noopener">Learning to Walk in Minutes Using Massively Parallel Deep RL</a> (Rudin et al., 2021), PPO and thousands of robots; and the textbook <a href="http://incompleteideas.net/book/the-book-2nd.html" target="_blank" rel="noopener">R. Sutton, A. Barto, “Reinforcement Learning: An Introduction”, 2nd ed., 2018</a>, Chapter 13 on the policy gradient.</p>
+    <h3 style="margin-top:34px">Resources</h3>
+    <ul class="links">
+      <li><a href="https://leggedrobotics.github.io/legged_gym/" target="_blank" rel="noopener">legged_gym</a><span>The Rudin et al. code: environments for ANYmal and other robots, and PPO training in Isaac Gym</span></li>
+      <li><a href="http://incompleteideas.net/book/RLbook2020.pdf" target="_blank" rel="noopener">Sutton and Barto, PDF</a><span>The free version of the textbook; the policy gradient is Chapter 13</span></li>
+    </ul>
+    <div class="bridge-note"><p>PPO trains a policy carefully and has become the standard for walking in simulation, where thousands of copies of a robot run in parallel. But after every update it throws away the experience it collected, and even simple tasks need millions of steps: you can't collect that many on a real robot.</p><p class="bridge-to"><!--if:5-3-sac.html--><a href="5-3-sac.html"><!--/if-->Lesson 5.3 · Off-policy and SAC: how to store experience and learn from it again and again<!--if:5-3-sac.html--></a><!--/if--></p></div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Lesson 5.2 of the “Modern Robotics and Physical AI” course. The lab policies are trained in your browser with a fixed seed; the papers' numbers are given from the original sources, and our recalculations based on them are marked.
+</footer>
+<div class="tooltip" id="tooltip" role="tooltip"></div>
+<script>
+/*@@JS@@*/
+</script>
+</body>
+</html>
