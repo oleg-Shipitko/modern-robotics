@@ -170,6 +170,7 @@ const dragLikeTeacher = (p) => p.eval(`(async () => {
     t0 = Date.now(); r = await viaUI(p, '#hMis', 0);
     const st4 = J(await p.eval(`JSON.stringify((() => { const r = window.__l57.Hands.st.result; return { prio: r.prio.evShelf.ok, plain: r.plain.evShelf.ok, corr: r.corr, human: r.human }; })())`));
     check(r.ok && st4.corr === 10 && st4.prio >= 15 && r.out.includes(`дали ${st4.prio} из 20`), `миссия 4 (${((Date.now() - t0) / 1000).toFixed(0)} с): 10 исправлений → ${st4.prio} из 20 (без буфера ${st4.plain})`);
+    check(/на ремне ГРМ за 6 часов/.test(r.out) && /HG-DAgger на тех же записях давал в среднем 49,7%/.test(r.out) && !/\bBC\b/.test(r.out), 'миссия 4: ремень ГРМ — 6 часов, сравнение с HG-DAgger, без «BC»');
     await show(p, 'hands', '#hands .lab', 'l57-hands-corr10.png');
     await nextMission(p, '#hMis');
     check(await visible(p, '#wrapHKind') && await visible(p, '#wrapHPrio'), 'свободный режим: выбор старта и буфера виден');
@@ -184,25 +185,28 @@ const dragLikeTeacher = (p) => p.eval(`(async () => {
     check(!(await visible(p, '#wrapBMin')), 'миссии 1–2: ползунок бюджета скрыт');
     await show(p, 'budget', '#budget .lab', 'l57-budget-empty.png');
     t0 = Date.now(); r = await viaUI(p, '#bMis', 1);
-    check(r.ok && /ставка сыграла/i.test(r.out) && /80 демонстраций \(7,9 мин\): 44 из 60, из соседней ниши 0 из 8/.test(r.out) && /была 44 из 60/.test(r.out) && /75 попыток с присмотром \(7,6 мин\): 60 из 60, из соседней ниши 8 из 8/.test(r.out), `миссия 1 (${((Date.now() - t0) / 1000).toFixed(0)} с): ` + r.out.slice(0, 120));
+    check(r.ok && /ставка сыграла/i.test(r.out) && /120 демонстраций \(80 новых за 7,8 мин\): 43 из 60, из соседней ниши 0 из 8/.test(r.out) && /у политики по 40 демонстрациям было 44 из 60/.test(r.out) && /75 попыток с присмотром \(7,6 мин\): 60 из 60, из соседней ниши 8 из 8/.test(r.out), `миссия 1 (${((Date.now() - t0) / 1000).toFixed(0)} с): ` + r.out.slice(0, 120));
+    // оба пути считают только работу сверх базовой политики: на отметке 8 минут у них почти одно и то же время, а точки «40 демонстраций» на кривой нет
+    const eq = J(await p.eval(`JSON.stringify((() => { const B = window.__l57.Budget, a = B.api.at(8); return { d: a.demo.min, i: a.iter.minutes, n: a.demo.n, first: B.api.demoPts()[0].n }; })())`));
+    check(eq.n === 120 && eq.first === 80 && eq.d <= 8 && eq.i <= 8 && Math.abs(eq.d - eq.i) < 0.5, `8 минут: ещё 80 демонстраций за ${eq.d.toFixed(2)} мин против 75 попыток за ${eq.i.toFixed(2)} мин; первая точка кривой — ${eq.first} демонстраций`);
     await show(p, 'budget', '#budget .lab', 'l57-budget-8.png');
     await nextMission(p, '#bMis');
     t0 = Date.now(); r = await viaUI(p, '#bMis', 1);
-    check(r.ok && /ставка сыграла/i.test(r.out) && /320 демонстраций \(31,5 мин\): 55 из 60 — у шкафа 12 из 12, из соседней ниши 3 из 8/.test(r.out) && /57 → 59 → 60 → 60 → 59 → 59 из 60/.test(r.out) && /из соседней ниши 7 из 8 за 15,3 мин/.test(r.out), `миссия 2 (${((Date.now() - t0) / 1000).toFixed(0)} с): ` + r.out.slice(0, 120));
+    check(r.ok && /ставка сыграла/i.test(r.out) && /320 демонстраций \(280 новых за 27,6 мин\): 55 из 60, у шкафа 12 из 12, из соседней ниши 3 из 8/.test(r.out) && /57 → 59 → 60 → 60 → 59 → 59 из 60/.test(r.out) && /за 15,3 мин политика научилась справляться из соседней ниши в 7 стартах из 8/.test(r.out), `миссия 2 (${((Date.now() - t0) / 1000).toFixed(0)} с): ` + r.out.slice(0, 120));
     await show(p, 'budget', '#budget .lab', 'l57-budget-32.png');
     await nextMission(p, '#bMis');
     check(await visible(p, '#wrapBMin'), 'свободный режим: ползунок бюджета виден');
     await setRange(p, '#bMin', 5); await sleep(150);
     const bo = await text(p, '#bOut');
-    check(/За 5 мин\. Ещё демонстрации: 40 демонстраций \(3,9 мин\): 44 из 60/.test(bo) && /25 попыток с присмотром \(2,4 мин, итерация 1\): 57 из 60/.test(bo), 'бюджет 5 мин: ' + bo.slice(0, 160));
+    check(/За 5 мин\. Ещё демонстрации: 40 новых записей \(4,0 мин\), всего 80: 44 из 60/.test(bo) && /25 попыток с присмотром \(2,4 мин, итерация 1\): 57 из 60/.test(bo), 'бюджет 5 мин: ' + bo.slice(0, 160));
     const ba = await text(p, '#budgetAfter');
-    check(['80 демонстраций дают 44', '75 попыток робота, дают 60 из 60', '320 демонстраций, поднимают результат до 55', 'во всех 12 стартах', 'только в 3 из 8', '57, 59, 60, 60, 59, 59 из 60', '7–8 из 8'].every((x) => ba.includes(x)), 'инференс после лаборатории 3 называет те же числа');
+    check(['ещё 80 демонстраций', 'по 120 демонстрациям справляется в 43 стартах из 60', '75 попыток робота, дают 60 из 60', 'ещё 280 демонстраций, поднимают результат до 55', 'во всех 12 стартах', 'только в 3 из 8', '57, 59, 60, 60, 59, 59 из 60', '7–8 из 8'].every((x) => ba.includes(x)), 'инференс после лаборатории 3 называет те же числа');
 
     // ---------- тексты совпадают с расчётом ----------
     const fin = await text(p, '#finale .takeaways');
     check(['47% и 46%', '49,7%', '51 из 60', '59 и 56 из 60', '618 и 612', '13,3 шага против 13,8', '3 удачных старта из 20', 'десять — 19', 'без него 15', '59–60 из 60', '55'].every((x) => fin.includes(x)), 'итоги урока называют числа лабораторий и статей');
     const lead = await text(p, '.hero .lead');
-    check(['1–2,5 часа', '100% успеха', '49,7%', '3D-мышью'].every((x) => lead.includes(x)), 'шапка: числа HIL-SERL');
+    check(['1–2,5 часа', '100% успеха', '49,7%', '3D-мышью', 'ремень ГРМ так же надёжно — за 6 часов'].every((x) => lead.includes(x)), 'шапка: числа HIL-SERL, ремень ГРМ — за 6 часов');
     const ceil = await text(p, '#ceiling');
     check(['47% и 46%', '41,7% и 58,3%', '93,3%', 'справляется в 44', '40 из 40', '4 из 12', '0 из 8'].every((x) => ceil.includes(x)), 'раздел 1: числа статей и базовой политики');
     // ---------- квиз, глоссарий, формулы, консоль ----------

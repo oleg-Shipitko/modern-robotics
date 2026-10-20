@@ -57,7 +57,7 @@ const okLine = (ev) => `${ev.ok} из ${ev.n}`;
   function box(c, k, A, P, b, title, sub, col, hot) {
     A.rect(c, b[0], b[1], b[2], b[3], 9, A.alpha(col, hot ? 0.18 : 0.06), col, hot ? 2.2 : 1.3);
     A.lab(c, k, title, b[0] + b[2] / 2, b[1] + 13, { px: 10.5, weight: 700, color: col, halo: false });
-    if (sub) A.lab(c, k, sub, b[0] + b[2] / 2, b[1] + b[3] - 10, { px: 9, color: P.ink2, halo: false });
+    if (sub) A.lab(c, k, sub, b[0] + b[2] / 2, b[1] + b[3] - 10, { px: 10, color: P.ink2, halo: false });
   }
   /** Стопка переходов: синие — шаги робота, оранжевые — шаги человека. */
   function stack(c, A, P, x, y, w, h, n, nH) { const dy = Math.min(5, h / 9); for (let i = 0; i < n; i++) A.rect(c, x, y + h - (i + 1) * dy, w, dy * 0.66, 1.5, A.alpha(i < nH ? P.mot : P.out, 0.8), null); }
@@ -83,7 +83,10 @@ const okLine = (ev) => `${ev.ok} из ${ev.n}`;
     const r_ = (b) => [b[0] + b[2], b[1] + b[3] / 2], l_ = (b) => [b[0], b[1] + b[3] / 2], bt = (b) => [b[0] + b[2] / 2, b[1] + b[3]], tp = (b) => [b[0] + b[2] / 2, b[1]];
     const actCol = itv ? P.mot : P.out;
     A.arrow(c, r_(B.act)[0] + 2, r_(B.act)[1], l_(B.env)[0] - 2, l_(B.env)[1], actCol, 2, 7);
-    A.lab(c, k, itv ? (n ? 'действие человека' : 'действие человека aитв') : (n ? 'действие π' : 'действие политики aRL'), (r_(B.act)[0] + l_(B.env)[0]) / 2, r_(B.act)[1] - 9, { px: 9.5, color: actCol, halo: false });
+    // подпись стрелки — в две строки (первое слово и остальное): между блоками мало места
+    const al = itv ? 'действие человека' : 'действие политики', sp = al.indexOf(' '), ax = (r_(B.act)[0] + l_(B.env)[0]) / 2, ay = r_(B.act)[1];
+    A.lab(c, k, sp < 0 ? al : al.slice(0, sp), ax, ay - 23, { px: 10, color: actCol, halo: false });
+    if (sp >= 0) A.lab(c, k, al.slice(sp + 1), ax, ay - 10, { px: 10, color: actCol, halo: false });
     A.arrow(c, bt(B.hum)[0], bt(B.hum)[1] + 2, tp(B.act)[0], tp(B.act)[1] - 2, itv ? P.mot : alpha(P.mot, 0.35), itv ? 2.2 : 1.4, 7);
     A.arrow(c, bt(B.env)[0], bt(B.env)[1] + 2, tp(B.rew)[0], tp(B.rew)[1] - 2, P.ink3, 1.6, 6);
     // переходы летят в буферы: шаги робота — только в буфер опыта, шаги человека — в оба
@@ -109,17 +112,19 @@ const okLine = (ev) => `${ev.ok} из ${ev.n}`;
     else { A.arrow(c, bt(B.dem)[0], bt(B.dem)[1] + 2, tp(B.lrn)[0], tp(B.lrn)[1] - 2, P.mot, 1.8, 6); A.arrow(c, tp(B.rl)[0], tp(B.rl)[1] - 2, bt(B.lrn)[0], bt(B.lrn)[1] + 2, P.out, 1.8, 6); }
     if (n) A.arrow(c, tp(B.lrn)[0], tp(B.lrn)[1] - 2, bt(B.act)[0], bt(B.act)[1] + 2, upd ? P.spr : alpha(P.spr, 0.45), upd ? 2.4 : 1.4, 7);
     else A.arrow(c, l_(B.lrn)[0] - 2, l_(B.lrn)[1], tp(B.act)[0] + 20, tp(B.act)[1] - 2, upd ? P.spr : alpha(P.spr, 0.45), upd ? 2.4 : 1.4, 7);
-    A.lab(c, k, n ? 'новые веса π' : 'новые веса политики — роботу', g.wlab[0], g.wlab[1], { px: 9.5, color: P.spr, halo: false, align: g.wlab[2] || 'center' });
+    A.lab(c, k, n ? 'новые веса π' : 'новые веса политики — роботу', g.wlab[0], g.wlab[1], { px: 10, color: P.spr, halo: false, align: g.wlab[2] || 'center' });
     const cap = n
       ? (itv ? ['Человек перехватил: его шаги — в оба буфера,', 'шаги политики до и после — в буфер опыта'] : upd ? ['Обучение: половина пакета из демонстраций', 'и исправлений, половина — из опыта робота'] : ['Робот работает сам, награда по кадру 0 или 1,', 'человек смотрит и готов перехватить'])
       : (itv ? ['Человек перехватил управление: его шаги идут в оба буфера,', 'шаги политики до и после — только в буфер опыта'] : upd ? ['Обучение: пакет наполовину из демонстраций и исправлений,', 'наполовину из опыта робота; новая политика — на робота'] : ['Робот работает сам, классификатор по кадру ставит 0 или 1,', 'человек смотрит и готов перехватить 3D-мышью']);
     A.lab(c, k, cap[0], g.cap[0], g.cap[1], { px: n ? 10.5 : 12, weight: 700, color: P.ink, halo: false, align: 'left' });
     A.lab(c, k, cap[1], g.cap[0], g.cap[1] + 17, { px: n ? 10.5 : 12, weight: 600, color: P.ink2, halo: false, align: 'left' });
   }
-  const WIDE = { narrow: false, b: { hum: [20, 20, 150, 62], act: [20, 190, 150, 62], env: [250, 190, 160, 62], rew: [250, 290, 160, 58], dem: [470, 20, 150, 62], lrn: [470, 128, 150, 62], rl: [470, 262, 150, 58] }, wlab: [300, 148], cap: [20, 372] };
-  const NARROW = { narrow: true, b: { hum: [10, 14, 120, 54], act: [10, 100, 120, 54], env: [190, 100, 140, 54], rew: [190, 186, 140, 54], dem: [190, 272, 140, 54], rl: [190, 358, 140, 54], lrn: [10, 300, 120, 54] }, wlab: [76, 228, 'left'], cap: [10, 448] };
+  // блоки шире подписей 10 px до k ≈ 1,08 (уже 700 px — узкая раскладка); между колонками место под подпись стрелки в две строки
+  const WIDE = { narrow: false, b: { hum: [16, 20, 160, 62], act: [16, 190, 160, 62], env: [236, 190, 180, 62], rew: [236, 290, 180, 58], dem: [478, 20, 210, 62], lrn: [478, 128, 210, 62], rl: [478, 262, 210, 58] }, wlab: [326, 148], cap: [20, 372] };
+  // в узкой раскладке блок человека выше: значок не задевает подписи
+  const NARROW = { narrow: true, b: { hum: [10, 8, 116, 70], act: [10, 100, 116, 54], env: [194, 100, 136, 54], rew: [194, 186, 136, 54], dem: [194, 272, 136, 54], rl: [194, 358, 136, 54], lrn: [10, 300, 116, 54] }, wlab: [74, 228, 'left'], cap: [10, 448] };
   Anim.add('hil', {
-    W: 720, H: 400, start: 2.2, narrowAt: 600,
+    W: 720, H: 400, start: 2.2, narrowAt: 700,
     draw(c, k, t, P, A) { draw(c, k, t, P, A, WIDE); },
     narrow: { W: 360, H: 490, draw(c, k, t, P, A) { draw(c, k, t, P, A, NARROW); } },
   });
@@ -141,16 +146,17 @@ const okLine = (ev) => `${ev.ok} из ${ev.n}`;
     const { x0, x1, y0, y1 } = g.plot, X = (i) => x0 + (x1 - x0) * i / (N - 1), Y = (v) => y1 - (v + 1) * (y1 - y0);
     // оси графика ценности
     line(c, [[x0, y1], [x1, y1]], P.ink3, 1.2); line(c, [[x0, y0], [x0, y1]], P.ink3, 1.2);
-    lab(c, k, n ? 'шаги попытки →' : 'шаги одной попытки →', x1, y1 + 14, { px: 9.5, color: P.ink3, align: 'right', halo: false });
-    lab(c, k, n ? 'V: −шагов до успеха' : 'ценность V(o): минус шагов до успеха', x0 + 2, y0 - 9, { px: 9.5, color: P.ink3, align: 'left', halo: false });
-    lab(c, k, '0', x0 - 6, Y(0), { px: 9, color: P.ink3, align: 'right', halo: false }); lab(c, k, '−1', x0 - 6, Y(-1), { px: 9, color: P.ink3, align: 'right', halo: false });
+    lab(c, k, n ? 'шаги попытки →' : 'шаги одной попытки →', x1, y1 - 8, { px: 10, color: P.ink3, align: 'right', halo: false });
+    lab(c, k, n ? 'V: −шагов до успеха' : 'ценность V(o): минус шагов до успеха', x0 + 2, y0 - 9, { px: 10, color: P.ink3, align: 'left', halo: false });
+    lab(c, k, '0', x0 - 6, Y(0), { px: 10, color: P.ink3, align: 'right', halo: false }); lab(c, k, '−1', x0 - 6, Y(-1), { px: 10, color: P.ink3, align: 'right', halo: false });
     // лента шагов: кто делал шаг
     const ty = g.tape, tw = (x1 - x0) / N;
     for (let i = 0; i < N; i++) {
       const col = WHO[i] ? P.mot : P.out, x = x0 + tw * i;
       A.rect(c, x + 1, ty, tw - 2, 12, 2, alpha(col, i <= shown ? 0.85 : 0.25), null);
     }
-    lab(c, k, n ? 'синие — шаги робота, оранжевые — исправление человека' : 'лента попытки: синие — шаги робота, оранжевые — исправление оператора', x0, ty + 24, { px: 9.5, color: P.ink3, align: 'left', halo: false });
+    if (n) { lab(c, k, 'синие — шаги робота,', x0, ty + 24, { px: 10, color: P.ink3, align: 'left', halo: false }); lab(c, k, 'оранжевые — исправление человека', x0, ty + 37, { px: 10, color: P.ink3, align: 'left', halo: false }); }
+    else lab(c, k, 'лента попытки: синие — шаги робота, оранжевые — исправление оператора', x0, ty + 24, { px: 10, color: P.ink3, align: 'left', halo: false });
     // кривая V по шагам
     const pts = []; for (let i = 0; i <= shown; i++) pts.push([X(i), Y(V[i])]);
     if (pts.length > 1) line(c, pts, P.spr, 2.4);
@@ -169,10 +175,11 @@ const okLine = (ev) => `${ev.ok} из ${ev.n}`;
     const pb = g.pol;
     A.rect(c, pb[0], pb[1], pb[2], pb[3], 10, alpha(P.mot, policyOn ? 0.16 : 0.06), P.mot, policyOn ? 2.2 : 1.3);
     lab(c, k, n ? 'политика' : 'политика (VLA)', pb[0] + pb[2] / 2, pb[1] + 14, { px: 10.5, weight: 700, color: P.mot, halo: false });
-    lab(c, k, n ? 'вход: кадр, задача,' : 'вход: кадры, задача и текст', pb[0] + pb[2] / 2, pb[1] + 32, { px: 9.5, color: P.ink2, halo: false });
+    lab(c, k, n ? 'вход: кадр, задача,' : 'вход: кадры, задача и текст', pb[0] + pb[2] / 2, pb[1] + 32, { px: 10, color: P.ink2, halo: false });
     const tag = policyOn ? '«Advantage: positive»' : labelOn ? (n ? '«Advantage: ±»' : '«Advantage: positive / negative»') : '…';
-    lab(c, k, tag, pb[0] + pb[2] / 2, pb[1] + 48, { px: n ? 10 : 10.5, weight: 700, color: policyOn ? P.good : P.ink, halo: false });
-    lab(c, k, policyOn ? (n ? 'при работе — всегда positive' : 'при работе во вход всегда пишут positive') : (n ? 'учится на всех шагах' : 'учится на всех шагах, метка подсказывает, какие лучше'), pb[0] + pb[2] / 2, pb[1] + pb[3] - 10, { px: 9, color: P.ink2, halo: false });
+    lab(c, k, tag, pb[0] + pb[2] / 2, pb[1] + 50, { px: n ? 10 : 10.5, weight: 700, color: policyOn ? P.good : P.ink, halo: false });
+    const pSub = policyOn ? (n ? ['при работе — всегда positive'] : ['при работе во вход', 'всегда пишут positive']) : (n ? ['учится на всех шагах'] : ['учится на всех шагах,', 'метка подсказывает, какие лучше']);
+    pSub.forEach((s, i) => lab(c, k, s, pb[0] + pb[2] / 2, pb[1] + pb[3] - 10 - (pSub.length - 1 - i) * 15, { px: 10, color: P.ink2, halo: false }));
     const cap = n
       ? (policyOn ? ['При работе во вход пишут «positive»:', 'модель повторяет шаги лучше обычного'] : labelOn ? ['Порог ε: A > ε — positive, иначе negative;', 'исправления человека всегда positive'] : shown < N - 1 ? ['Ценность: сколько шагов до успеха;', 'преимущество — на сколько шаг её поднял'] : ['Ошибка уронила ценность, исправление', 'подняло; дальше преимущество по шагам'])
       : (policyOn ? ['При работе во вход пишут «positive»:', 'модель повторяет только шаги лучше обычного'] : labelOn ? ['Порог ε: шаги с A > ε — positive, остальные — negative;', 'исправления человека всегда positive'] : shown < N - 1 ? ['Функция ценности оценивает каждый кадр: сколько шагов', 'до успеха; преимущество — на сколько шаг её поднял'] : ['Ошибка робота уронила ценность, исправление подняло;', 'дальше преимущество считается по шагам']);
@@ -180,9 +187,9 @@ const okLine = (ev) => `${ev.ok} из ${ev.n}`;
     lab(c, k, cap[1], g.cap[0], g.cap[1] + 17, { px: n ? 10.5 : 12, weight: 600, color: P.ink2, halo: false, align: 'left' });
   }
   Anim.add('recap', {
-    W: 720, H: 350, start: 3.4, narrowAt: 600,
-    draw(c, k, t, P, A) { draw(c, k, t, P, A, { plot: { x0: 50, x1: 450, y0: 30, y1: 210 }, tape: 236, pol: [490, 60, 210, 110], cap: [50, 300] }); },
-    narrow: { W: 360, H: 470, draw(c, k, t, P, A) { draw(c, k, t, P, A, { narrow: true, plot: { x0: 36, x1: 340, y0: 24, y1: 180 }, tape: 206, pol: [36, 250, 300, 90], cap: [20, 400] }); } },
+    W: 720, H: 350, start: 3.4, narrowAt: 700,
+    draw(c, k, t, P, A) { draw(c, k, t, P, A, { plot: { x0: 50, x1: 450, y0: 30, y1: 210 }, tape: 236, pol: [482, 58, 222, 112], cap: [50, 300] }); },
+    narrow: { W: 360, H: 470, draw(c, k, t, P, A) { draw(c, k, t, P, A, { narrow: true, plot: { x0: 36, x1: 340, y0: 24, y1: 180 }, tape: 206, pol: [36, 258, 300, 90], cap: [20, 400] }); } },
   });
 })();
 
@@ -247,16 +254,18 @@ const View = (() => {
     cabinet(c, yn, P, K, o.noTarget); ada(c, K, P);
     return { c, k, P, K, sh: k > 1.5 };
   }
-  /** Сцена попытки: рука в последней позе, путь чашки, исход; подписи сверху. */
+  /** Влезает ли подпись в maxW логических единиц канваса (шрифт задан в экранных пикселях, поэтому на узком канвасе подпись шире). */
+  function fits(c, k, txt, px, weight, maxW) { HeroKit.font(c, k, px, weight); return c.measureText(txt).width <= maxW; }
+  /** Сцена попытки: рука в последней позе, путь чашки, исход; подписи сверху. Короткие варианты подписей — когда длинный не влезает в ширину канваса. */
   function scene(cv, ep, o) {
     o = o || {}; const { c, k, P, K, sh } = base(cv, ep ? ep.yn : o.yn == null ? 0.15 : o.yn), col = o.color || P.e2e;
-    if (!ep) { if (o.q) arm(c, o.q, P, K, col); if (o.empty) HeroKit.label(c, k, sh && o.emptyShort ? o.emptyShort : o.empty, W / 2 - 10, 330, { px: 12.5, weight: 700, color: P.ink2, haloColor: P.grid }); return { c, k, P }; }
+    if (!ep) { if (o.q) arm(c, o.q, P, K, col); if (o.empty) HeroKit.label(c, k, o.emptyShort && (sh || !fits(c, k, o.empty, 12.5, 700, W - 32)) ? o.emptyShort : o.empty, W / 2 - 10, 330, { px: 12.5, weight: 700, color: P.ink2, haloColor: P.grid }); return { c, k, P }; }
     const qs = ep.qs, last = o.step == null ? qs.length - 1 : Math.min(o.step, qs.length - 1);
     if (o.ghostStart) arm(c, qs[0], P, K, col, { ghost: true });
     path(c, ep.traj.slice(0, last + 1), col, P, { who: ep.who });
     arm(c, qs[last], P, K, col);
     if (last === qs.length - 1 && ep.outcome) mark(c, ep.traj[last], ep.outcome, P);
-    const lh = 15 * Math.max(1, k), y1 = 6 + 9 * Math.max(1, k), title = sh && o.titleShort ? o.titleShort : o.title;
+    const lh = 15 * Math.max(1, k), y1 = 6 + 9 * Math.max(1, k), title = o.titleShort && (sh || !fits(c, k, o.title, 12, 700, W - 16)) ? o.titleShort : o.title;
     if (title) HeroKit.label(c, k, title, 8, y1, { px: 12, weight: 700, color: P.ink, align: 'left', haloColor: P.bg });
     if (o.sub !== false) {
       const txt = last < qs.length - 1 || !ep.outcome ? `шаг ${last} из ${ep.T}` : ep.outcome === 'goal' ? `чашка в нише за ${ep.T} ${plural(ep.T, 'шаг', 'шага', 'шагов')}` : ep.outcome === 'crash' ? `задела полку на шаге ${ep.T}` : 'время вышло';
@@ -292,7 +301,8 @@ const Store = (() => {
   const auto = async () => { const b = await base(); return once('auto', async () => E.collect(b.P, E.CFG.N_ROLL, E.CFG.SEED * 17 + 1)); };
   /** Дообучение базовой политики способом method на попытках eps; key — имя для памяти. */
   const finetune = (key, eps, method, opts, onProg) => once(key, async (p) => { const b = await base(); const r = await chunked(E.finetune(b.P, eps, method, opts), p); const runI = method === 'adv' ? 1 : 0; return Object.assign(r, { method, runI, ev: E.evaluate(r.P, runI), evShelf: E.evaluate(r.P, runI, E.starts('shelf')) }); }, onProg);
-  const demoPolicy = (n, onProg) => once('demo' + n, async (p) => { const r = await chunked(E.trainDemoPolicy(n), p); return Object.assign(r, { ev: E.evaluate(r.P, 0), secs: r.D.reduce((a, e) => a + e.T * E.STEP_S + E.RESET_S, 0) }); }, onProg);
+  /** Политика по n демонстрациям для лаборатории 3; secs — время только новых записей: первые N_DEMO те же, что у базовой политики, с неё начинают оба пути. */
+  const demoPolicy = (n, onProg) => once('demo' + n, async (p) => { const r = await chunked(E.trainDemoPolicy(n), p); return Object.assign(r, { ev: E.evaluate(r.P, 0), added: r.D.length - E.CFG.N_DEMO, secs: r.D.slice(E.CFG.N_DEMO).reduce((a, e) => a + e.T * E.STEP_S + E.RESET_S, 0) }); }, onProg);
   const get = (key) => cache[key] || null;
   return { base, watched, auto, finetune, demoPolicy, get, cache };
 })();
@@ -348,7 +358,7 @@ const Trio = (() => {
     c.fillStyle = P.surf; c.fillRect(0, 0, W, H);
     const rows = [['base', b() && b().ev], ...METHODS.map((m) => [m, res(m) && res(m).ev])].filter((r) => r[1]);
     if (!rows.length || st.mode === 'map') { K.label(c, k, narrow ? 'сводка появится после второй миссии' : 'сводка по политикам появится, когда дообучишь три политики во второй миссии', W / 2, H / 2, { px: 12.5, weight: 700, color: P.ink2, haloColor: P.surf }); return; }
-    const L = narrow ? 36 : 44, R = 12, T = 30, B = narrow ? 70 : 48, gw = W - L - R, gh = H - T - B;
+    const L = narrow ? 46 : 44, R = 12, T = narrow ? 36 : 30, B = narrow ? 70 : 48, gw = W - L - R, gh = H - T - B;   // слева место под «100%», сверху — под заголовок и подпись столбика 100% на телефоне
     const speed = st.view === 'speed';
     const groups = speed ? [['tGoal', 'шагов до ниши'], ['perHour', 'удачных в час']] : [['all', 'все 60 стартов'], ['home', 'обычная поза (40)'], ['near', 'у шкафа (12)'], ['shelf', 'из ниши (8)']];
     const val = (ev, g) => (g === 'all' ? ev.ok / ev.n : g === 'tGoal' ? ev.tGoal : g === 'perHour' ? ev.perHour : ev.by[g].ok / Math.max(1, ev.by[g].n));
@@ -362,15 +372,15 @@ const Trio = (() => {
         const v = vals[j], x = gx + gwid / 2 + (j - (rows.length - 1) / 2) * (bw + 4) - bw / 2, col = colorOf(key, P);
         c.fillStyle = col; c.globalAlpha = key === 'base' ? 0.55 : 0.9; c.fillRect(x, Y(v), bw, Y(0) - Y(v)); c.globalAlpha = 1;
         const txt = speed ? (g === 'tGoal' ? fmt(v, 1) : fmt(Math.round(v), 0)) : `${ev[g === 'all' ? 'ok' : 'x'] != null && g === 'all' ? ev.ok : ev.by[g].ok}`;
-        K.label(c, k, txt, x + bw / 2, Y(v) - 8, { px: narrow ? 9 : 9.5, weight: 650, color: P.ink2, haloColor: P.surf });
+        K.label(c, k, txt, x + bw / 2, Y(v) - 8, { px: 10, weight: 650, color: P.ink2, haloColor: P.surf });
       });
       K.label(c, k, narrow ? ({ all: 'все 60', home: 'обычная', near: 'у шкафа', shelf: 'из ниши', tGoal: 'шагов до ниши', perHour: 'удачных в час' }[g]) : name, gx + gwid / 2, H - B + 14, { px: narrow ? 10 : 11, weight: 650, color: P.ink2, halo: false });
     });
-    if (!speed) for (const v of [0.5, 1]) { const y = T + gh * (1 - v); c.strokeStyle = P.grid; c.setLineDash([3, 3]); c.beginPath(); c.moveTo(L, y); c.lineTo(W - R, y); c.stroke(); c.setLineDash([]); K.label(c, k, `${v * 100}%`, L - 5, y, { px: 9.5, color: P.ink3, align: 'right', halo: false }); }
-    K.label(c, k, speed ? (narrow ? 'скорость: шагов до ниши и удачных попыток в час' : 'скорость: среднее число шагов до ниши (меньше — быстрее) и удачных попыток в час') : (narrow ? 'удачных из стартов каждого вида' : 'удачных проверочных попыток из стартов каждого вида'), L, 11, { px: 10.5, color: P.ink3, align: 'left', halo: false });
+    if (!speed) for (const v of [0.5, 1]) { const y = T + gh * (1 - v); c.strokeStyle = P.grid; c.setLineDash([3, 3]); c.beginPath(); c.moveTo(L, y); c.lineTo(W - R, y); c.stroke(); c.setLineDash([]); K.label(c, k, `${v * 100}%`, L - 5, y, { px: 10, color: P.ink3, align: 'right', halo: false }); }
+    K.label(c, k, speed ? (narrow ? 'скорость: шагов до ниши и удачных попыток в час' : 'скорость: среднее число шагов до ниши (меньше — быстрее) и удачных попыток в час') : (narrow ? 'удачных из стартов каждого вида' : 'удачных проверочных попыток из стартов каждого вида'), narrow ? 8 : L, 11, { px: 10.5, color: P.ink3, align: 'left', halo: false });
     // легенда
     let lx = L; const ly0 = H - (narrow ? 26 : 12);
-    rows.forEach(([key], i) => { const ly = narrow ? ly0 + (i % 2) * 14 : ly0; if (narrow && i % 2 === 0) lx = L + Math.floor(i / 2) * 150; c.fillStyle = colorOf(key, P); c.globalAlpha = key === 'base' ? 0.55 : 0.9; c.fillRect(lx, ly - 5, 10, 10); c.globalAlpha = 1; const t = METH[key]; K.label(c, k, t, lx + 14, ly, { px: narrow ? 9 : 10, color: P.ink2, align: 'left', halo: false }); if (!narrow) lx += 14 + t.length * 5.8 + 14; });
+    rows.forEach(([key], i) => { const ly = narrow ? ly0 + (i % 2) * 14 : ly0; if (narrow && i % 2 === 0) lx = L + Math.floor(i / 2) * 150; c.fillStyle = colorOf(key, P); c.globalAlpha = key === 'base' ? 0.55 : 0.9; c.fillRect(lx, ly - 5, 10, 10); c.globalAlpha = 1; const t = METH[key]; K.label(c, k, t, lx + 14, ly, { px: 10, color: P.ink2, align: 'left', halo: false }); if (!narrow) lx += 14 + c.measureText(t).width + 14; });
   }
   function render() {
     for (let i = 0; i < 3; i++) drawPane(i);
@@ -467,21 +477,30 @@ const Hands = (() => {
     if (st.hold && st.target) { const { c } = K.fit(cv, View.W, View.H); const cp = cupPx(); c.setLineDash([3, 3]); c.strokeStyle = P.e2e; c.lineWidth = 1.5; c.beginPath(); c.moveTo(cp.x, cp.y); c.lineTo(View.X(st.target.x), View.Y(st.target.y)); c.stroke(); c.setLineDash([]); }
   }
   function hintArrow(c, k, P) { if (!b()) return; const cp = cupPx(); K.label(c, k, k > 1.5 ? 'возьми' : 'возьми и веди', cp.x, cp.y - 22, { px: 11, weight: 700, color: P.e2e, haloColor: P.bg }); }
-  /** Лента попытки: квадратики шагов, синие — робот, оранжевые — ты; после дообучения — метки +/−. */
+  /** Лента попытки: квадратики шагов, синие — робот, оранжевые — ты; после дообучения — метки +/−.
+   *  На узком канвасе лента выше, а подпись идёт в две строки под квадратиками. */
   function drawTape() {
-    const cv = $('#hTape'), W = 640, H = 64, { c, k } = K.fit(cv, W, H), P = pal(), ep = st.ep;
+    const cv = $('#hTape'), narrow = canvasNarrow(cv, 640), W = narrow ? 380 : 640, H = narrow ? 94 : 64;
+    if (cv.style.aspectRatio !== `${W} / ${H}`) cv.style.aspectRatio = `${W} / ${H}`;
+    const { c, k } = K.fit(cv, W, H), P = pal(), ep = st.ep;
     c.fillStyle = P.surf; c.fillRect(0, 0, W, H);
-    if (!ep || !ep.T) { K.label(c, k, 'лента попытки: шаги робота синим, твои — оранжевым', W / 2, H / 2, { px: 11, color: P.ink3, halo: false }); return; }
+    if (!ep || !ep.T) {
+      if (narrow) { K.label(c, k, 'лента попытки', W / 2, H / 2 - 9, { px: 11, color: P.ink3, halo: false }); K.label(c, k, 'шаги робота синим, твои — оранжевым', W / 2, H / 2 + 9, { px: 11, color: P.ink3, halo: false }); }
+      else K.label(c, k, 'лента попытки: шаги робота синим, твои — оранжевым', W / 2, H / 2, { px: 11, color: P.ink3, halo: false });
+      return;
+    }
     const n = Math.max(ep.T, 14), w = Math.min(22, (W - 20) / n), x0 = 10;
     for (let i = 0; i < ep.T; i++) { c.fillStyle = ep.who[i] ? P.e2e : P.cl; c.globalAlpha = 0.85; c.fillRect(x0 + i * w, 22, w - 2, 20); c.globalAlpha = 1; }
     const labels = st.result && st.result.lastLabels; if (labels && labels.length === ep.T) for (let i = 0; i < ep.T; i++) K.label(c, k, labels[i] > 0 ? '+' : '−', x0 + i * w + (w - 2) / 2, 12, { px: 11, weight: 800, color: labels[i] > 0 ? P.good : P.bad, halo: false });
-    const hs = ep.who.reduce((a, v) => a + v, 0);
-    K.label(c, k, `${ep.T} ${plural(ep.T, 'шаг', 'шага', 'шагов')}, твоих ${hs}${ep.outcome === 'goal' ? ' · чашка в нише' : ep.outcome === 'crash' ? ' · задела полку' : ep.outcome === 'timeout' ? ' · время вышло' : ''}${labels ? ' · метки после дообучения' : ''}`, x0, H - 10, { px: 10.5, color: P.ink2, align: 'left', halo: false });
+    const hs = ep.who.reduce((a, v) => a + v, 0), out = ep.outcome === 'goal' ? 'чашка в нише' : ep.outcome === 'crash' ? 'задела полку' : ep.outcome === 'timeout' ? 'время вышло' : '';
+    const l1 = `${ep.T} ${plural(ep.T, 'шаг', 'шага', 'шагов')}, твоих ${hs}` + (out ? ' · ' + out : ''), l2 = labels ? 'метки после дообучения' : '';
+    if (narrow) { K.label(c, k, l1, x0, 61, { px: 10.5, color: P.ink2, align: 'left', halo: false }); if (l2) K.label(c, k, l2, x0, 79, { px: 10.5, color: P.ink2, align: 'left', halo: false }); }
+    else K.label(c, k, l1 + (l2 ? ' · ' + l2 : ''), x0, H - 10, { px: 10.5, color: P.ink2, align: 'left', halo: false });
   }
   function bufferLine() {
     const A = auto(); if (!A) return 'Буфер опыта пуст.';
     const corr = corrAll(), s = stats(A), hc = corr.reduce((a, e) => a + e.who.reduce((x, y) => x + y, 0), 0), mine = st.mine.length, scr = st.scr.length;
-    return `В буфере: ${s.n} попыток робота без присмотра (${s.ok} удачных, из соседней ниши ${s.by.shelf[0]} из ${s.by.shelf[1]}) и ${corr.length} ${plural(corr.length, 'попытка', 'попытки', 'попыток')} с исправлениями${mine && scr ? ` (${mine} твоих, ${scr} наблюдателя)` : scr ? ' (наблюдателя)' : ''}; шагов человека — ${hc}, они ${st.prio === 'half' ? 'во втором буфере и дают половину каждого пакета' : 'просто добавлены к остальным'}.`;
+    return `В буфере: ${s.n} попыток робота без присмотра (${s.ok} удачных, из соседней ниши ${s.by.shelf[0]} из ${s.by.shelf[1]}) и ${corr.length} ${plural(corr.length, 'попытка', 'попытки', 'попыток')} с исправлениями${mine && scr ? ` (твоих ${mine}, наблюдателя ${scr})` : scr ? ' (наблюдателя)' : ''}; шагов человека — ${hc}, они ${st.prio === 'half' ? 'во втором буфере и дают половину каждого пакета' : 'просто добавлены к остальным'}.`;
   }
   function render() {
     drawScene(); drawTape(); segSet('#hKind', st.kind); segSet('#hPrio', st.prio);
@@ -552,13 +571,13 @@ const Hands = (() => {
       bet: { q: 'сколько из 20 стартов из соседней ниши робот пройдёт сам после твоих исправлений?', options: ['Почти все: правило простое — сначала назад', 'Часть: исправлений мало, чтобы покрыть разные высоты и глубины', 'Ни одного: несколько исправлений растворятся среди ста попыток'], answer: (r) => (r.chosen.evShelf.ok >= 15 ? 0 : r.chosen.evShelf.ok > 0 ? 1 : 2) },
       action: { label: 'Дообучить с исправлениями', run: (X) => X.corrected() },
       criteria: [{ label: 'Из соседней ниши появились удачные старты (было 0 из 20)', test: (r) => r.chosen.evShelf.ok > r.base.ok }],
-      explain: (r) => `С буфером исправлений: ${r.prio.evShelf.ok} из 20 стартов из соседней ниши, на всех 60 стартах ${r.prio.ev.ok} из 60. Те же записи, но без второго буфера — исправления просто добавлены к ста попыткам: ${r.plain.evShelf.ok} из 20. Исправленных попыток ${r.corr}, твоих шагов ${r.human}; ценность у стартов из ниши низкая, и положительную метку там получают только исправления. На ленте попытки — метки шагов после дообучения.` },
+      explain: (r) => `С буфером исправлений: ${r.prio.evShelf.ok} из 20 стартов из соседней ниши, на всех 60 стартах ${r.prio.ev.ok} из 60. Те же записи, но без второго буфера — исправления просто добавлены к ста попыткам: ${r.plain.evShelf.ok} из 20. Исправленных попыток ${r.corr}, шагов человека в них ${r.human}; ценность у стартов из ниши низкая, и положительную метку там получают только исправления. На ленте попытки — метки шагов после дообучения.` },
     { short: 'Ещё', title: 'Сколько исправлений закрывают промах', text: 'Наблюдатель доберёт исправленных попыток из соседней ниши до десяти — из разных ниш, сверху и снизу — и дообучение повторится. В HIL-SERL вмешательств много в начале обучения и всё меньше к концу; авторы предупреждают не делать их длинными и редкими — такие завышают оценку ценности.',
       bet: { q: 'хватит ли десяти исправленных попыток, чтобы робот справлялся из соседней ниши хотя бы в 15 стартах из 20?', options: ['Да', 'Нет: нужны десятки', 'Нет: без новых демонстраций хвост не закрыть'], answer: (r) => (r.chosen.evShelf.ok >= 15 ? 0 : 1) },
       action: { label: 'Добрать до 10 исправлений и дообучить', run: (X) => X.more() },
       criteria: [{ label: 'Из соседней ниши не меньше 15 стартов из 20', test: (r) => r.chosen.evShelf.ok >= 15 }],
       hint: 'Если вышло меньше 15, добавь свои исправления и нажми кнопку ещё раз.',
-      explain: (r) => `Десять исправленных попыток (${r.human} шагов человека) дали ${r.prio.evShelf.ok} из 20 из соседней ниши и ${r.prio.ev.ok} из 60 на всех стартах; без буфера исправлений — ${r.plain.evShelf.ok} из 20. Десять попыток — около минуты работы. В HIL-SERL за 1–2,5 часа такой работы с перехватами политика доходила до 100% на вставке RAM, сборке приборной панели и ремне ГРМ — там, где BC на тех же записях давала в среднем 49,7%.` },
+      explain: (r) => `Десять исправленных попыток (${r.human} шагов человека) дали ${r.prio.evShelf.ok} из 20 из соседней ниши и ${r.prio.ev.ok} из 60 на всех стартах; без буфера исправлений — ${r.plain.evShelf.ok} из 20. Десять попыток занимают около минуты работы. В HIL-SERL такая работа с перехватами доводила политику до 100% на вставке планки памяти за 1,5 часа, на сборке приборной панели за 2 часа, а на ремне ГРМ за 6 часов; HG-DAgger на тех же записях давал в среднем 49,7%.` },
     { short: 'Свободно', title: 'Свободный режим', text: 'Запускай робота из разных стартов, перехватывай, переключай буфер исправлений и дообучай. Найди, помогают ли исправления из соседней ниши стартам у шкафа.', final: true, controls: ['kind', 'prio'] },
   ];
   function init() {
@@ -590,7 +609,7 @@ const Budget = (() => {
   const st = { min: 8, busy: false, prog: 0, msg: '' };
   let ctl = null;
   const iters = [];   // { k, ev, minutes, attempts, human, okCollected }
-  const demoPts = () => E.CFG.DEMO_CURVE.map((n) => Store.get('demo' + n)).filter(Boolean).map((r) => ({ n: r.D.length, min: r.secs / 60, ev: r.ev }));
+  const demoPts = () => E.CFG.DEMO_CURVE.map((n) => Store.get('demo' + n)).filter(Boolean).map((r) => ({ n: r.D.length, added: r.added, min: r.secs / 60, ev: r.ev }));
   function progress(msg) { return (p) => { st.prog = p; st.msg = msg; const pg = $('#bProg'); pg.hidden = false; pg.firstElementChild.style.width = (p * 100).toFixed(1) + '%'; setOut($('#bOut'), `${msg} ${Math.round(p * 100)}%.`); }; }
   /** Итерация k: 25 попыток под присмотром политикой прошлой итерации, дообучение от базовой на всём собранном (с демонстрациями в буфере). */
   async function iterate(upTo, onProg) {
@@ -624,33 +643,38 @@ const Budget = (() => {
     c.fillStyle = P.surf; c.fillRect(0, 0, W, H);
     const X = (m) => L + gw * m / MAXMIN, Y = (v) => T + gh * (1 - v / 60);
     c.strokeStyle = P.grid; c.lineWidth = 1;
-    for (const v of [0, 15, 30, 45, 60]) { c.beginPath(); c.moveTo(L, Y(v)); c.lineTo(W - R, Y(v)); c.stroke(); K.label(c, k, String(v), L - 6, Y(v), { px: 9.5, color: P.ink3, align: 'right', halo: false }); }
-    for (let m = 0; m <= MAXMIN; m += 8) K.label(c, k, String(m), X(m), H - B + 12, { px: 9.5, color: P.ink3, halo: false });
-    K.label(c, k, narrow ? 'минут работы' : 'минут работы робота или оператора', L + gw / 2, H - 9, { px: 10.5, color: P.ink3, halo: false });
+    for (const v of [0, 15, 30, 45, 60]) { c.beginPath(); c.moveTo(L, Y(v)); c.lineTo(W - R, Y(v)); c.stroke(); K.label(c, k, String(v), L - 6, Y(v), { px: 10, color: P.ink3, align: 'right', halo: false }); }
+    for (let m = 0; m <= MAXMIN; m += 8) K.label(c, k, String(m), X(m), H - B + 12, { px: 10, color: P.ink3, halo: false });
+    K.label(c, k, narrow ? 'минут сверх базовой политики' : 'минут работы робота или оператора сверх базовой политики', L + gw / 2, H - 9, { px: 10.5, color: P.ink3, halo: false });
     K.label(c, k, narrow ? 'удачных из 60 стартов' : 'удачных проверочных попыток из 60', L, 10, { px: 10.5, color: P.ink3, align: 'left', halo: false });
     const d = demoPts(), it = iters, b = Store.get('base');
     if (!d.length && !it.length) { K.label(c, k, narrow ? 'нажми кнопку миссии' : 'кривые появятся, когда нажмёшь кнопку миссии: обе считаются в браузере', L + gw / 2, T + gh / 2, { px: 12.5, weight: 700, color: P.ink2, haloColor: P.surf }); return; }
-    // бюджет
+    // бюджет: подпись внизу графика, не дальше краёв поля (у 0 мин — правее подписей оси, у 32 мин — левее края)
     c.setLineDash([4, 4]); c.strokeStyle = P.ink2; c.lineWidth = 1.2; c.beginPath(); c.moveTo(X(st.min), T); c.lineTo(X(st.min), T + gh); c.stroke(); c.setLineDash([]);
-    K.label(c, k, `${st.min} мин`, X(st.min), narrow ? T + gh - 8 : T - 8, { px: 10, weight: 700, color: P.ink2, haloColor: P.surf });
+    { const txt = `${st.min} мин`; K.font(c, k, 10, 700); const hw = c.measureText(txt).width / 2; K.label(c, k, txt, Math.min(W - R - 2 - hw, Math.max(L + 4 + hw, X(st.min))), T + gh - 8, { px: 10, weight: 700, color: P.ink2, haloColor: P.surf }); }
     const series = [[P.cl, d.map((p) => [p.min, p.ev.ok, `${p.n}`]), 'ещё демонстрации'], [P.e2e, it.map((p) => [p.minutes, p.ev.ok, `${p.attempts}`]), 'опыт с исправлениями']];
     const origin = b ? [[0, b.ev.ok]] : [];
     series.forEach(([col, pts, name]) => {
       if (!pts.length) return; const all = origin.concat(pts);
       c.strokeStyle = col; c.lineWidth = 2.4; c.lineJoin = 'round'; c.beginPath(); all.forEach(([x, y], i) => (i ? c.lineTo(X(x), Y(y)) : c.moveTo(X(x), Y(y)))); c.stroke();
-      pts.forEach(([x, y, t], i) => { c.beginPath(); c.arc(X(x), Y(y), 4, 0, 7); c.fillStyle = col; c.fill(); const up = !narrow && col !== P.cl && (i % 2 === 0); K.label(c, k, narrow ? t : `${t} · ${y}`, X(x), Y(y) + (up ? -12 : 14), { px: 9.5, weight: 650, color: col, haloColor: P.surf }); });
+      const up = col === P.cl;
+      pts.forEach(([x, y, t]) => { c.beginPath(); c.arc(X(x), Y(y), 4, 0, 7); c.fillStyle = col; c.fill(); K.label(c, k, narrow ? t : `${t} · ${y}`, X(x), Y(y) + (up ? -12 : 14), { px: 10, weight: 650, color: col, haloColor: P.surf }); });
     });
-    if (b) { c.beginPath(); c.arc(X(0), Y(b.ev.ok), 4, 0, 7); c.fillStyle = P.ink3; c.fill(); K.label(c, k, narrow ? `${b.ev.ok}` : `40 демонстраций: ${b.ev.ok}`, X(0) + 6, Y(b.ev.ok) + 14, { px: 9.5, weight: 650, color: P.ink3, align: 'left', haloColor: P.surf }); }
-    let lx = L + 6; const ly = T + gh - (narrow ? 44 : 40);
-    for (const [col, , name] of series) { c.fillStyle = col; c.fillRect(lx, ly - 5, 10, 10); K.label(c, k, name, lx + 14, ly, { px: narrow ? 9.5 : 10.5, color: P.ink2, align: 'left', halo: false }); lx += 14 + name.length * (narrow ? 6.1 : 6.3) + 16; }
-    K.label(c, k, narrow ? 'подпись у точки: демонстраций или попыток' : 'подпись у точки: число демонстраций или попыток робота · удачных из 60', L + 6, T + gh - (narrow ? 26 : 22), { px: 9.5, color: P.ink3, align: 'left', halo: false });
+    if (b) { c.beginPath(); c.arc(X(0), Y(b.ev.ok), 4, 0, 7); c.fillStyle = P.ink3; c.fill(); K.label(c, k, narrow ? `${b.ev.ok}` : `40 демонстраций: ${b.ev.ok}`, X(0) + 6, Y(b.ev.ok) + 14, { px: 10, weight: 650, color: P.ink3, align: 'left', haloColor: P.surf }); }
+    // легенда: в одну строку, а если не влезает (узкий график, длинные названия) — в две, вторая на месте первой
+    const ly = T + gh - (narrow ? 44 : 40), lpx = narrow ? 10 : 10.5; K.font(c, k, lpx, 600);
+    const lw = series.map(([, , name]) => 14 + c.measureText(name).width), one = L + 6 + lw[0] + 16 + lw[1] <= W - R - 2;
+    let lx = L + 6;
+    series.forEach(([col, , name], i) => { const y = one ? ly : ly - (1 - i) * 16 * Math.max(1, k); if (!one) lx = L + 6; c.fillStyle = col; c.fillRect(lx, y - 5, 10, 10); K.label(c, k, name, lx + 14, y, { px: lpx, color: P.ink2, align: 'left', halo: false }); lx += lw[i] + 16; });
+    K.label(c, k, narrow ? 'подпись у точки: демонстраций или попыток' : 'подпись у точки: число демонстраций или попыток робота · удачных из 60', L + 6, T + gh - (narrow ? 26 : 22), { px: 10, color: P.ink3, align: 'left', halo: false });
   }
   function render() {
     drawChart(); const sl = $('#bMin'); sl.value = st.min; syncRange(sl, `${st.min} мин`);
     const pg = $('#bProg'); pg.hidden = !st.busy; pg.firstElementChild.style.width = (st.prog * 100).toFixed(1) + '%';
     if (st.busy) { setOut($('#bOut'), `${st.msg} ${Math.round(st.prog * 100)}%.`); return; }
-    const a = at(st.min), b = Store.get('base');
-    const dTxt = a.demo ? `${a.demo.n} демонстраций (${fmt(a.demo.min, 1)} мин): ${a.demo.ev.ok} из 60, из соседней ниши ${a.demo.ev.by.shelf.ok} из 8` : b ? '40 демонстраций: ' + b.ev.ok + ' из 60 (кривая ещё не посчитана)' : 'ещё не посчитано';
+    const a = at(st.min), b = Store.get('base'), curve = demoPts().length > 0;
+    const dTxt = a.demo ? `${a.demo.added} ${plural(a.demo.added, 'новая запись', 'новые записи', 'новых записей')} (${fmt(a.demo.min, 1)} мин), всего ${a.demo.n}: ${a.demo.ev.ok} из 60, из соседней ниши ${a.demo.ev.by.shelf.ok} из 8`
+      : !b ? 'ещё не посчитано' : curve ? `в бюджет не уложилась ни одна точка, остаётся политика по 40 демонстрациям: ${b.ev.ok} из 60` : `политика по 40 демонстрациям: ${b.ev.ok} из 60 (кривая ещё не посчитана)`;
     const iTxt = a.iter ? `${a.iter.attempts} попыток с присмотром (${fmt(a.iter.minutes, 1)} мин, итерация ${a.iter.k}): ${a.iter.ev.ok} из 60, из соседней ниши ${a.iter.ev.by.shelf.ok} из 8, ${perHour(a.iter.ev)} удачных в час` : 'ни одной итерации не уложилось';
     setOut($('#bOut'), `За ${st.min} мин. Ещё демонстрации: ${dTxt}. Опыт с исправлениями: ${iTxt}.`);
   }
@@ -658,21 +682,21 @@ const Budget = (() => {
   const api = {
     reset() { st.min = 8; render(); },
     state, render, st, iters, demoPts, at,
-    async eight() { await compute(80, 3); st.min = 8; render(); const a = at(8); return { demo: a.demo, iter: a.iter, base: Store.get('base').ev }; },
-    async thirty() { await compute(320, 6); st.min = 32; render(); const d = Store.get('demo320'), last = iters[iters.length - 1]; return { demo320: d.ev, demoMin: d.secs / 60, iter: last, iters: iters.slice() }; },
+    async eight() { await compute(120, 3); st.min = 8; render(); const a = at(8); return { demo: a.demo, iter: a.iter, base: Store.get('base').ev }; },
+    async thirty() { await compute(320, 6); st.min = 32; render(); const d = Store.get('demo320'), last = iters[iters.length - 1]; return { demo320: d.ev, demoMin: d.secs / 60, demoAdded: d.added, iter: last, iters: iters.slice() }; },
   };
   const missions = [
-    { short: '8 минут', title: 'Восемь минут: демонстрации или опыт', text: 'Оператор за 8 минут записывает ещё 40 демонстраций из обычной позы (всего 80; демонстрация — около 6 секунд с возвратом сцены). Или те же 8 минут робот работает сам под присмотром наблюдателя: три итерации по 25 попыток, после каждой — дообучение с меткой и буфером исправлений, как в лабораториях 1 и 2. Расчёт займёт несколько секунд.',
-      bet: { q: 'какой путь даст больше удачных стартов из 60 за 8 минут?', options: ['Ещё 40 демонстраций: данные оператора чище', 'Три итерации опыта с исправлениями', 'Поровну: минуты те же'], answer: (r) => (Math.abs(r.iter.ev.ok - r.demo.ev.ok) <= 2 ? 2 : r.iter.ev.ok > r.demo.ev.ok ? 1 : 0) },
+    { short: '8 минут', title: 'Восемь минут: демонстрации или опыт', text: 'Оператор за 8 минут записывает ещё 80 демонстраций из обычной позы, и всего их становится 120: одна демонстрация занимает около 6 секунд вместе с возвратом сцены. Или те же 8 минут робот работает сам под присмотром наблюдателя: три итерации по 25 попыток, и после каждой политика дообучается с меткой и буфером исправлений, как в лабораториях 1 и 2. Оба пути начинаются с базовой политики по 40 демонстрациям, поэтому её время не считаем. Расчёт займёт несколько секунд.',
+      bet: { q: 'какой путь даст больше удачных стартов из 60 за 8 минут?', options: ['Ещё 80 демонстраций: данные оператора чище', 'Три итерации опыта с исправлениями', 'Поровну: минуты те же'], answer: (r) => (Math.abs(r.iter.ev.ok - r.demo.ev.ok) <= 2 ? 2 : r.iter.ev.ok > r.demo.ev.ok ? 1 : 0) },
       action: { label: 'Посчитать обе кривые до 8 минут', run: (X) => X.eight() },
       criteria: [{ label: 'Опыт с исправлениями впереди демонстраций на отметке 8 минут', test: (r) => r.iter && r.demo && r.iter.ev.ok > r.demo.ev.ok }],
-      explain: (r) => `80 демонстраций (${fmt(r.demo.min, 1)} мин): ${r.demo.ev.ok} из 60, из соседней ниши ${r.demo.ev.by.shelf.ok} из 8 — политика по демонстрациям была ${r.base.ok} из 60. ${r.iter.attempts} попыток с присмотром (${fmt(r.iter.minutes, 1)} мин): ${r.iter.ev.ok} из 60, из соседней ниши ${r.iter.ev.by.shelf.ok} из 8. Робот сам попадает в старты, которых оператор не записывает, а исправления ложатся точно туда, где он ошибается.` },
-    { short: 'Полчаса', title: 'Полчаса демонстраций', text: 'Доведём обе кривые до 32 минут: 160 и 320 демонстраций (числу шагов обучения дали расти вместе с данными) против шести итераций по 25 попыток.',
+      explain: (r) => `${r.demo.n} демонстраций (${r.demo.added} новых за ${fmt(r.demo.min, 1)} мин): ${r.demo.ev.ok} из 60, из соседней ниши ${r.demo.ev.by.shelf.ok} из 8, а у политики по 40 демонстрациям было ${r.base.ok} из 60. ${r.iter.attempts} попыток с присмотром (${fmt(r.iter.minutes, 1)} мин): ${r.iter.ev.ok} из 60, из соседней ниши ${r.iter.ev.by.shelf.ok} из 8. Робот сам попадает в старты, которых оператор не записывает, а исправления ложатся точно туда, где он ошибается.` },
+    { short: 'Полчаса', title: 'Полчаса демонстраций', text: 'Доведём обе кривые до 32 минут: политики по 160 и 320 демонстрациям, то есть ещё 120 и 280 записей оператора, против шести итераций по 25 попыток. Число шагов обучения у политик по демонстрациям растёт вместе с данными.',
       bet: { q: 'хватит ли 320 демонстраций, около получаса записи, чтобы робот справлялся из соседней ниши?', options: ['Да: данных вчетверо больше, обобщит', 'Нет: движения назад из ниши в демонстрациях нет, сколько их ни записывай', 'Да, но только если записывать быстрее'], answer: (r) => (r.demo320.by.shelf.ok >= 6 ? 0 : 1) },
       action: { label: 'Досчитать кривые до 32 минут', run: (X) => X.thirty() },
       criteria: [{ label: '320 демонстраций не закрывают старты из соседней ниши: не больше 4 из 8', test: (r) => r.demo320.by.shelf.ok <= 4 }, { label: 'Опыт с исправлениями закрывает их: не меньше 6 из 8', test: (r) => r.iter.ev.by.shelf.ok >= 6 }],
-      explain: (r) => `320 демонстраций (${fmt(r.demoMin, 1)} мин): ${r.demo320.ok} из 60 — у шкафа ${r.demo320.by.near.ok} из 12, из соседней ниши ${r.demo320.by.shelf.ok} из 8. Старты у шкафа лишние демонстрации закрывают: политика лучше выучивает «сначала высота», а вот выезда из ниши в записях оператора нет. Опыт с исправлениями: ${r.iters.map((x) => `${x.ev.ok}`).join(' → ')} из 60 по итерациям, последняя — из соседней ниши ${r.iter.ev.by.shelf.ok} из 8 за ${fmt(r.iter.minutes, 1)} мин. Так и в HIL-SERL: 200 демонстраций вместо 20 без вмешательств дали 0% на сборке приборной панели, а с вмешательствами — 100% за 2 часа.` },
-    { short: 'Свободно', title: 'Свободный режим', text: 'Двигай бюджет минут и сравнивай пути. Найди наименьший бюджет, при котором опыт с исправнениями обгоняет 320 демонстраций.'.replace('исправнениями', 'исправлениями'), final: true, controls: ['min'] },
+      explain: (r) => `320 демонстраций (${r.demoAdded} новых за ${fmt(r.demoMin, 1)} мин): ${r.demo320.ok} из 60, у шкафа ${r.demo320.by.near.ok} из 12, из соседней ниши ${r.demo320.by.shelf.ok} из 8. Старты у шкафа лишние демонстрации закрывают: политика лучше выучивает «сначала высота», а вот выезда из ниши в записях оператора нет. Опыт с исправлениями даёт по итерациям ${r.iters.map((x) => `${x.ev.ok}`).join(' → ')} из 60, а за ${fmt(r.iter.minutes, 1)} мин политика научилась справляться из соседней ниши в ${r.iter.ev.by.shelf.ok} ${plural(r.iter.ev.by.shelf.ok, 'старте', 'стартах', 'стартах')} из 8. Так и в HIL-SERL: 200 демонстраций вместо 20 без вмешательств дали 0% на сборке приборной панели, а с вмешательствами — 100% за 2 часа.` },
+    { short: 'Свободно', title: 'Свободный режим', text: 'Двигай бюджет минут и сравнивай пути. Найди наименьший бюджет, при котором опыт с исправлениями обгоняет 320 демонстраций.', final: true, controls: ['min'] },
   ];
   function init() {
     $('#bMin').addEventListener('input', (e) => { st.min = +e.target.value; render(); if (ctl) ctl.update(); });
