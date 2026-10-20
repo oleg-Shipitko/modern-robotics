@@ -1322,7 +1322,7 @@
  {
   "id": "iql",
   "t": "IQL",
-  "d": "An offline RL method (Kostrikov, Nair, Levine, 2021) that never evaluates actions outside the data: V(s) is an expectile of the Q estimates of recorded actions, the Q target is r + γV(s′), and the policy is imitation learning weighted by exp(β·(Q − V)).",
+  "d": "An offline RL method (Kostrikov, Nair, Levine, 2021) that never evaluates actions outside the data: V(s) is an expectile of the Q estimates of recorded actions, the target value for Q is r + γV(s′), and the policy is imitation learning weighted by exp(β·(Q − V)).",
   "a": "(?-i:IQL)|implicit Q-learning"
  },
  {
