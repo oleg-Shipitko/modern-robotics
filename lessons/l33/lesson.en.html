@@ -121,7 +121,7 @@
     </div>
     <figure class="card flow-card">
       <canvas data-anim="rt2" width="720" height="300" role="img" aria-label="The data path in RT-2: the camera image and the command become tokens and pass through the vision encoder and the language model, the model outputs action tokens, they are converted into eight numbers and sent to the robot; below, a web pair with a question about an image gets an answer in words from the same model"></canvas>
-      <figcaption class="cv-note">This is a diagram, not a drawing of the robot. The path from the robot camera shows one control step, and the path from the web pair shows an example of web data. Orange marks the action tokens and the command to the robot, blue the image patches, purple the words of the answer. Click the diagram to pause it.</figcaption>
+      <figcaption class="cv-note">The path from the robot camera shows one control step. The path from the web pair shows an example of web data, which the model trains on together with the robot data. Orange marks the action tokens and the command to the robot, blue the image patches, purple the words of the answer. Click the diagram to pause it.</figcaption>
     </figure>
     <div class="prose" style="margin:22px 0 22px;max-width:820px">
       <p>The authors measured what this gives in about 6,000 trials on a real robot. On the familiar tasks from the RT-1 set, more than 200 commands, RT-2 and RT-1 performed alike: 91–93% versus 92%. The difference showed up in generalization to new objects, new backgrounds and new environments. This test used over 280 commands, and each category came in an easy and a hard version. Hover over a table cell to see the condition.</p>
