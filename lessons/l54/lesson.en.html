@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>5.4 Sim-to-real transfer: randomization — Modern Robotics and Physical AI</title>
+<meta name="description" content="Lesson 5.4 of the “Modern Robotics and Physical AI” course: how policies trained with reinforcement learning in a simulator are transferred to a robot. Dynamics randomization by Peng et al., the actuator models of Tan et al. and Hwangbo et al., and automatic domain randomization (ADR) from OpenAI's Rubik's cube work. Use a map of worlds to find what throws off the policy of Ada's arm, compare training with and without randomization on six real arms, choose the width of the ranges and watch them grow on their own.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<script>
+  (function () { try { var t = localStorage.getItem('mr-theme'); if (t) document.documentElement.dataset.theme = t; else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme = 'dark'; } catch (e) {} })();
+</script>
+<style>
+/*@@CSS@@*/
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html#program" title="To the course program"><div>Modern Robotics and Physical AI<small>Lesson 5.4 · Sim-to-real transfer: randomization</small></div></a>
+    <nav class="toc" aria-label="Lesson sections">
+      <a href="#gap">The gap</a>
+      <a href="#probe">Map of worlds</a>
+      <a href="#dr">Randomization</a>
+      <a href="#compare">With and without</a>
+      <a href="#actuator">Actuator</a>
+      <a href="#width">Width</a>
+      <a href="#auto">ADR</a>
+      <a href="#adr">ADR on Ada</a>
+      <a href="#today">Today</a>
+      <a href="#quiz">Quiz</a>
+      <a href="#finale">Takeaways</a>
+    </nav>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Toggle theme">◐</button>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main>
+
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="kicker"><span class="num">5.4</span> Part 5 · Reinforcement learning</div>
+    <h1>Sim-to-real transfer: <span class="amp">dynamics randomization</span></h1>
+    <p class="lead">In lessons 5.2 and 5.3, policies learned in a simulator, where a step costs almost nothing: PPO trains walking on thousands of copies of a robot in minutes. But a simulator is a single model of the robot, with one set of masses, one friction value and motors that execute a command instantly. On a real arm, the cup may be heavier, the joints stiffer and the motors weaker, and the command reaches the actuator late, so a policy learned on one exact model can oscillate and miss on the robot. In 2018, Peng et al. trained an arm to push a puck and varied 95 simulator parameters in every episode: on the real robot, such policies brought the puck to the goal in 67–89% of attempts, while the policy trained without these variations succeeded in none of 10. Tan et al. and Hwangbo et al. added an actuator model and latency to the simulator, and in 2019 OpenAI made the variation ranges grow on their own, and a hand trained only in simulation solved a Rubik's cube on the real robot. We'll look at what exactly doesn't match, how to train a policy on many worlds at once, what this costs, and how to choose the width of the ranges without tuning them by hand.</p>
+    <div class="hero-meta"><span>≈ 50 minutes</span><span>three labs, an interactive and a quiz</span><span id="heroMis">missions with a goal</span></div>
+    <div class="hero-list">
+      <div><b>MAP OF WORLDS</b>Test Ada's arm, trained in one exact world, with cups of other masses, with command latency and with weak motors, and find what throws it off the most</div>
+      <div><b>ONE BUDGET</b>Train two arms for the same number of steps, one in a single world and one in worlds with random physics, and compare them on Ada's six real arms</div>
+      <div><b>WIDTH</b>Choose how much to vary the world in training so that the arm both copes on the real arms and doesn't become slow</div>
+      <div><b>GROWING RANGES</b>Watch the variation ranges widen on their own while Ada copes, and see where they stop</div>
+    </div>
+    <p style="margin-top:28px"><a class="btn primary" href="#gap">Start the lesson ↓</a></p>
+  </div>
+</section>
+
+<section class="recall-sec" id="recall" aria-label="Warm-up on the previous lesson">
+  <div class="wrap"><div class="card recall" data-recall></div></div>
+  <script type="application/json" id="recallData">{"n": "5.3", "title": "Off-policy and SAC", "href": "5-3-sac.html", "q": [{"q": "Why can SAC learn from transitions that its old policy collected, while PPO can't?", "o": ["SAC stores more data", "The Q-function's target r + γ·(estimate of the next state) doesn't depend on who chose the recorded action, while PPO's policy gradient holds only for actions of the current policy", "PPO can't handle continuous actions"], "a": 1, "e": "In the lesson's interactive, by step 1,000 the transitions of the first, almost random episode had been in batches 73 times on average, and without the buffer, the average success fell from 96 to 52%.", "sec": "dqn", "secTitle": "The Q-function learns from any transitions: DQN and the replay buffer"}, {"q": "PPO and SAC learn to reach with Ada's arm on the same step budget. What is true?", "o": ["SAC is faster both in steps and in compute", "SAC is faster in steps (90% by step 500 versus 1,250 for PPO), but it spends three times more compute per step, and to reach 90%, both need about the same amount of compute", "PPO is faster in steps: it has clipping"], "a": 1, "e": "That's why PPO is the usual choice in simulation, where steps are cheap and robots run in parallel, while off-policy methods are chosen on a real robot, where every step is expensive.", "sec": "race", "secTitle": "PPO and SAC on the same arm: success by interaction steps"}, {"q": "What does the temperature α do in SAC?", "o": ["It sets the learning rate", "It sets the weight of the bonus for randomness next to the reward: with a small α, the policy sticks to one strategy, and with a large one, it sticks to none; in the second version of SAC, α tunes itself", "It limits how much the policy can change per step"], "a": 1, "e": "With α = 0.01, Ada drove to one shelf in 98% of attempts; with α = 1, only 3% of attempts ended at a shelf; with automatic α, 100% went to one shelf.", "sec": "alpha", "secTitle": "The temperature α: one strategy, two or none"}]}</script>
+</section>
+
+<section class="section alt" id="gap">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">1</span> The gap</div>
+      <h2>How an arm in the simulator differs from a real one</h2>
+      <p>In lesson 5.2, Rudin et al. trained the ANYmal quadruped to walk on 4,096 copies at once, and 20 minutes on a single GPU were enough. In lesson 5.3, SAC saved steps because on a real robot, every step costs time and wear. We'd like the best of both: train the policy in a simulator, where a step is almost free, and transfer it to the robot without fine-tuning. Lesson 4.5 showed what gets in the way for vision: light, paint and shadows in the renderer differ from what the camera sees, and image randomization helps, with random tablecloths, light and paint in every training scene. For a policy that commands motors, the gap lies elsewhere: in the dynamics, that is, in how the body responds to a command.</p>
+      <p>The simulator knows the robot's <strong>nominal model</strong>: the masses and dimensions of the links from the drawings, the friction from the datasheet, and a motor that delivers exactly the torque requested, at the same instant. On a real robot, everything is a little different. The masses are known with an error: Hwangbo et al. estimate that ANYmal's inertia differs from the drawings by up to 20% because of the cables and electronics the drawings leave out. Friction varies from joint to joint and over time. A motor can't deliver more than its limit: Tan et al. write that in a real motor, the torque stops growing along with the current. And the command doesn't arrive instantly. On the Minitaur quadruped, 15–19 ms passed between the policy and the motor, while in the Bullet simulator, where the policy was trained, a command took effect immediately. The time from the policy's decision until the actuator starts executing it is called <strong>control latency</strong>.</p>
+      <p>Each mismatch seems small on its own. But Peng et al. sent the same trajectory to the Fetch arm in the simulator and to the real one and got noticeably different joint angles. And a policy trained with reinforcement learning actively seeks out the ways the simulator differs from the world: the authors write plainly that such policies tend to exploit the idiosyncrasies of the simulator. The diagram below shows how latency and a weak motor change the path of the same command.</p>
+    </div>
+    <figure class="card flow-card">
+      <canvas data-anim="gaploop" width="720" height="330" role="img" aria-label="Diagram: at the top, the simulator, where the policy's command reaches the motor at once and the arm with a light cup approaches the target; at the bottom, the real arm, where the command waits in a queue, the motor is weaker, the cup is heavier and the arm oscillates around the target"></canvas>
+      <figcaption class="cv-note">The path of a command around the loop “policy → actuator → arm → sensors → policy,” 20 times per second. Orange dots are the policy's commands, and blue ones are sensor readings. The top row shows the nominal world of the simulator: the command reaches the motor at once. The bottom row shows the real arm: the command waits in a queue for 40 ms, the motor delivers 85% of the torque, and the gripper holds a 0.5 kg mug instead of a 0.25 kg cup. The chart shows the distance from the gripper to the target over 2 seconds. The curves are computed by the lesson's engine for a simple controller that moves the gripper toward the target in proportion to the error and brakes by velocity, with the same settings in both worlds. Click the diagram to pause it.</figcaption>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>In the nominal world, the same controller brings the gripper to the target in 0.6 seconds and holds it there, while on the real arm, it moves more slowly and oscillates around the target until the end of the attempt. Which of the mismatches are dangerous for a policy trained with reinforcement learning, and which will it survive? Let's test this on Ada's arm.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="probe">
+  <div class="wrap">
+    <div class="lab-badge"><i>🧩</i> Interactive</div>
+    <h2>A map of worlds: where a policy from an exact simulator stops coping</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p class="ada-note"><svg class="ada-ico" viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="10" width="48" height="42" rx="18" fill="#f4efe6" stroke="#3d3c38" stroke-width="3"/><rect x="15" y="19" width="34" height="22" rx="10" fill="#1f2430"/><ellipse cx="25" cy="30" rx="4" ry="5.5" fill="#eb6834"/><ellipse cx="39" cy="30" rx="4" ry="5.5" fill="#eb6834"/></svg><span>Ada is a home humanoid on a wheeled base; the course labs are built around her. More about her in <a href="0-1-dve-paradigmy.html#ada">lesson 0.1</a>.</span></p>
+      <p>Ada's arm is the same as in lesson 0.3: it has a shoulder, an elbow and links of 0.5 and 0.4 m, and it holds a cup in its gripper. Now the arm has dynamics: masses at the ends of the links, inertia, gravity. Each joint is driven by a PD controller with gravity compensation, as in lesson 0.3, and the controller computes the compensation for a cup of nominal mass. Twenty times per second, the policy decides where to move the gripper, by up to 10 cm horizontally and vertically, and the arm controller converts this shift into joint targets. Ada has to bring the cup to a target that appears in a new place in every attempt and hold it there. An attempt lasts 2 seconds and succeeds if, for the last half second, the gripper stays within 3 cm of the target.</p>
+      <p>The policy was trained by PPO from lesson 5.2 for 12,000 steps, that is, 300 attempts of 2 seconds each, in the nominal world: a 0.25 kg cup, 0.1 N·m of joint friction, no latency, and motors that deliver 100% of their torque. In this world, it holds the cup in all 20 test attempts. The map shows worlds it has never seen. The horizontal axis is the command latency, the vertical axis is the cup mass, and the other parameters are nominal. Click a cell, and Ada will make 20 attempts in that world, at the same 20 targets.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="map-wrap"><canvas id="pMap" class="map-cv" width="560" height="330" role="img" aria-label="Map of worlds: command latency from 0 to 80 ms on the horizontal axis, cup mass from 0.1 to 1 kg on the vertical axis; opened cells are colored by the share of successful attempts"></canvas></div>
+        <p class="cv-note" id="pMapNote">The map of worlds. Each cell is a world with those parameters, and its color shows the share of 20 attempts in which Ada held the cup at the target: green means all of them, red means none, and gray means the cell isn't opened yet. The black ring marks the nominal world in which the policy was trained, and the frame marks the selected cell. Click a cell to open it.</p>
+        <div class="ctl-row" id="wrapPAxes"><div class="ctl"><span class="ctl-l">Map</span><div class="seg" id="pAxes" role="group" aria-label="Which parameters are on the axes"><button type="button" data-v="dm" aria-pressed="true">latency × cup mass</button><button type="button" data-v="sf" aria-pressed="false">motor strength × friction</button></div></div><button type="button" class="btn sm" id="pAll">Open the whole map</button></div>
+        <canvas id="pCv" class="solo-cv" width="360" height="360" role="img" aria-label="Side view: Ada, her arm with the cup, the target and the gripper's path in the selected world"></canvas>
+        <p class="cv-note">A side view of the selected world: Ada stands on the left, the arm is shown at the end of the attempt, the orange line is the gripper's path over 2 seconds, and the dots mark its position every 0.05 s. The green ring is the target, and the dashed circle is the 3 cm zone.</p>
+        <div class="prog-line" id="pProg" hidden><i></i></div>
+        <div class="readout" id="pOut"></div>
+      </div>
+      <div class="card guide-card"><div id="pMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: the arm dynamics, an actuator with latency and the spread across seeds</summary><div class="body">
+      <p><b>Dynamics.</b> Let \(q\) be the shoulder and elbow angles, and \(\dot q\) and \(\ddot q\) their velocities and accelerations. The arm's motion obeys the equation from lesson 0.3:</p>
+      <div class="formula">\[ M(q)\,\ddot q + C(q, \dot q) + G(q) = \tau. \]</div>
+      <p>Here \(M(q)\) is the inertia matrix, \(C\) holds the centrifugal and Coriolis torques, \(G(q)\) is the gravity torque, and \(\tau\) is the motor torques. The masses are point masses: 1.2 kg at the elbow and 0.9 kg at the gripper, plus the cup \(m\). The integration step is 5 ms.</p>
+      <p><b>The actuator.</b> The policy outputs a gripper shift, and the arm controller converts it into joint targets \(q^*\) through the Jacobian. The motor of joint \(i\) delivers</p>
+      <div class="formula">\[ \tau_i = s \cdot \operatorname{clip}\bigl(K_{p,i}\,(q^*_i - q_i) - K_{d,i}\,\dot q_i + \hat G_i(q),\ \pm\tau_{\max,i}\bigr) - \tau_{\text{fr},i}. \]</div>
+      <p>Here \(K_p\) and \(K_d\) are the PD controller gains (110 and 55 N·m/rad, 7 and 3.5 N·m·s/rad), \(\hat G\) is the gravity compensation computed for the nominal 0.25 kg cup, \(\tau_{\max}\) is the torque limit (30 and 14 N·m), \(s\) is the motor strength as a fraction of nominal, and \(\tau_{\text{fr}}\) is the joint friction: dry friction of magnitude \(f\) plus viscous friction \(0.3 f \dot q\). The latency \(d\) works like this: a new joint target takes effect \(d\) ms after the policy's decision, and until then, the actuator keeps driving toward the previous one.</p>
+      <p><b>The policy and the test.</b> The observation contains the joint angles and velocities and the vector from the gripper to the target. The policy has no memory: it sees only the current moment. The 20 test targets are the same in all worlds, and during the test, the policy acts with its mean action, without randomness.</p>
+      <p><b>Spread.</b> The numbers in the missions are computed for random seed 3. Across six seeds, with a 1 kg mug and no latency, 90–100% of attempts succeed, and with 40 ms of latency and the nominal cup, 30–55%. The boundary beyond which Ada holds the cup in fewer than half of the attempts lies at 40–50 ms. With motors at 60%, 70–85% of attempts succeed, and at 50%, 45–65%, while joint friction of up to 1.3 N·m has almost no effect.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px" id="probeAfter">
+      <p>The policy survives a heavy cup and stiff joints. These are constant disturbances: the arm sags or moves more slowly, the policy sees that the gripper isn't where it should be, and corrects. Latency is different: it breaks the feedback loop itself. The policy corrects an error that no longer exists by the time the command is executed, and the arm oscillates around the target. Weak motors are a third case: when there isn't enough torque to hold the cup, no policy will help. And Ada's real arms have latencies of 25–45 ms. How do you train a policy that survives this too, without knowing in advance which arm it will get?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="dr">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">2</span> Randomization</div>
+      <h2>Dynamics randomization: learning on many worlds at once</h2>
+      <p>The policy from the exact simulator saw one world and adapted to it, including its errors. You could spend years refining the simulator, but you can't measure everything: Tobin et al. list nonrigidity, gear backlash and wear-and-tear, which the model doesn't have at all, and latency also changes from run to run. Lesson 4.5 offered another way for images: make the simulator not exact but varied, so that the real world becomes one of the variants for the model. Peng et al. (OpenAI and UC Berkeley, 2018) carried this idea over to physics. At the start of every episode, the dynamics parameters are drawn at random from given ranges, and the policy learns on all these worlds at once. This is called <strong>dynamics randomization</strong>. Training looks for the policy with the highest expected return, averaged not only over trajectories, as in lesson 5.2, but also over worlds:</p>
+      <div class="formula">\[ \max_{\pi}\ \mathbb{E}_{\mu \sim \rho_\mu}\Bigl[\ \mathbb{E}_{\tau \sim p(\tau \mid \pi, \mu)}\Bigl[\ \sum_{t=0}^{T-1} r(s_t, a_t) \Bigr] \Bigr]. \]</div>
+      <p>Here \(\pi\) is the policy, \(\mu\) is a set of dynamics parameters (masses, friction, latency), \(\rho_\mu\) is the distribution they are drawn from, \(\tau\) is the trajectory of one episode, \(p(\tau \mid \pi, \mu)\) is the probability of getting it when acting with policy \(\pi\) in a world with parameters \(\mu\), \(r(s_t, a_t)\) is the reward at step \(t\), and \(T\) is the episode length. Without randomization, there is no outer average: there is one world, and \(\mu\) is always nominal.</p>
+      <p>In Peng et al.'s work, a Fetch arm with seven degrees of freedom has to push a puck to a random point on a table. The reward is binary: 0 if the puck is at the goal and −1 otherwise. In total, 95 parameters were varied: the link masses from 0.25 to 4 times nominal, joint damping, the puck's mass from 0.1 to 0.4 kg and its friction from 0.1 to 5, the table height, the controller gains from half to twice nominal, observation noise and the time between actions. With the random time between actions, the authors modeled the controller's latency. Masses and friction stay fixed for the whole episode, while the time between actions and the noise change at every step. Training took about 100 million steps, roughly 8 hours on a 100-core cluster, and the authors did almost no calibration of the simulator to the robot.</p>
+      <p>On the real robot, the policy trained without randomization failed in all 10 attempts. With randomization, a network without memory brought the puck to the goal in 67% of attempts, and a network with memory, an LSTM that receives the current state and the previous action as input, in 89% of 28 attempts, almost as in simulation (91%). When a packet of chips was attached to the bottom of the puck, changing its friction against the table, success stayed at the same level: 91%. An ablation showed which randomizations matter most: without the random time between actions, success fell to 29%; without observation noise, to 25%; with fixed link masses, to 64%; and with fixed puck friction, to 48%.</p>
+      <p>Briefly, why the policy needs memory: from how the world responded to its past actions, it can work out which of the worlds it is in. We'll discuss this in detail in the next lesson. Here we're interested in randomization itself, so we'll test it on Ada's arm without memory: the policy sees only the current state.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="compare">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 1</div>
+    <h2>With and without randomization: one budget, the same real arms</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>We'll train two arms the same way: PPO from lesson 5.2 with the same networks, reward and random seed, 12,000 steps each. The first one learns only in the nominal world; this is the policy from the interactive above. The second gets a new world at the start of every attempt: cup mass from 0.1 to 0.6 kg, joint friction from 0 to 0.5 N·m, latency from 0 to 50 ms, motor strength from 75 to 110%. As Peng et al. did, we draw the mass uniformly on a log scale, and everything else uniformly.</p>
+      <p>We test both on Ada's six “real” arms. They run in the same simulator, but with parameters that weren't in training: each arm has its own cup, its own joints, its own link latency and its own motor wear, listed in the table under the scene. The real gap is bigger: a physical arm has backlash, compliance and much else that our model lacks. Each policy makes 20 attempts on each arm, at the same targets as in the interactive.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="duo" id="cDuo">
+          <figure class="pane"><figcaption class="pane-head"><b style="--c:var(--hybrid)">No randomization</b><span>trained in one nominal world</span></figcaption><canvas id="cCvN" width="360" height="360" role="img" aria-label="Side view: an attempt by the arm trained without randomization, on the selected real arm"></canvas><div class="pane-stat" id="cStatN"></div></figure>
+          <figure class="pane"><figcaption class="pane-head"><b style="--c:var(--e2e)">With randomization</b><span>a new world every attempt</span></figcaption><canvas id="cCvR" width="360" height="360" role="img" aria-label="Side view: an attempt by the arm trained with randomization, on the same real arm"></canvas><div class="pane-stat" id="cStatR"></div></figure>
+        </div>
+        <p class="cv-note">Side view: both scenes show the same real arm and the same target. The target is the green ring, and the dashed circle around it is the 3 cm zone. The colored line is the gripper's path over 2 seconds, and the arm is shown at the end of the attempt. Under the scenes is the share of successful attempts on all six arms. The table below lists the six real arms: their parameters and how many of 20 attempts each policy succeeded in. Click a row to show that arm in the scenes.</p>
+        <div class="arms" id="cArms" role="table" aria-label="Ada's six real arms: parameters and successful attempts of both policies"></div>
+        <div class="ctl-row" id="wrapCSeed"><div class="ctl"><span class="ctl-l">Random seed</span><div class="seg" id="cSeed" role="group" aria-label="Random seed"><button type="button" data-v="1" aria-pressed="false">1</button><button type="button" data-v="2" aria-pressed="false">2</button><button type="button" data-v="3" aria-pressed="true">3</button><button type="button" data-v="4" aria-pressed="false">4</button></div></div><button type="button" class="btn primary sm" id="cSeedRun">Train both</button></div>
+        <div class="prog-line" id="cProg" hidden><i></i></div>
+        <div class="readout" id="cOut"></div>
+      </div>
+      <div class="card guide-card"><div id="cMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: PPO training, the test and the spread across seeds</summary><div class="body">
+      <p><b>PPO.</b> Everything is as in lesson 5.2. A rollout consists of 10 attempts of 40 steps each, and it goes through 8 epochs of updates in mini-batches of 100 steps, with the probability ratio clipped to \(1 \pm 0.2\). Advantages are computed with GAE with \(\lambda = 0.95\) and discount \(\gamma = 0.95\), and the Adam step size is 0.003. The policy is a Gaussian: a network with two layers of 24 neurons outputs the mean gripper shift, and the spread is set by a single shared trainable parameter. The value is computed by a network of the same kind. The reward per step is \(-2d\), where \(d\) is the distance from the gripper to the target in meters; 1 is added while the gripper is within 3 cm of the target, and a small penalty for abrupt commands is subtracted.</p>
+      <p><b>Randomization.</b> The world is drawn once at the start of an attempt and kept until its end. The policy doesn't know which world it got: its input has only the joint angles and velocities and the vector to the target.</p>
+      <p><b>Time to target</b> is counted up to the moment from which the gripper entered the 3 cm zone and didn't leave it until the end of the attempt, and it's averaged over successful attempts.</p>
+      <p><b>Spread.</b> The numbers in the missions are computed for seed 3. Across six seeds, without randomization, 48–88% of attempts on the real arms succeed, and with randomization, 97–100%. Without randomization, the worst arm is Ada 4 with 45 ms of latency: 10–50%. In the nominal world, both policies hold the cup in all attempts, but the policy without randomization reaches the target faster on all six seeds.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px" id="compareAfter">
+      <p>With the same budget, randomization pulled through all six arms, and the price was speed in the nominal world. But our “real” arms differ from the nominal one in exactly the parameters we varied during training. If the gap lies in something the simulator can't do at all, such as how the actuator works, varying parameters is useless. What then?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="actuator">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">3</span> Actuator</div>
+      <h2>Actuator model and latency: bringing the simulator closer to the robot</h2>
+      <p>Randomization helps when the real world resembles one of the simulator's variants. But if the simulator is built differently from the robot, no matter how you vary the parameters, the real world won't be among the variants. Tan et al. (Google, 2018) ran into this with the Minitaur quadruped. Its eight direct-drive motors are run by a position controller, and in the Bullet simulator, this controller was modeled as a constraint that is satisfied exactly by the end of the step. The authors write that with large gains, such motors “can remain stable in simulation but oscillate in reality.” The policy trained in this simulator learned a slow walk, and the real Minitaur fell to the ground immediately.</p>
+      <p>So the authors brought the simulator closer to the robot. They took the Minitaur apart and weighed and measured its links. They described the motor as an ideal DC motor, with a correction: in a real one, the torque stops growing along with the current, and they set this dependence with a piecewise linear function fitted to measurements. They measured the latency, 3 ms for the motor controller on the microcontroller and 15–19 ms for the policy on the onboard computer, and added it to the simulator. The authors' conclusion: without the actuator model or without the latency, the learned policies don't work on the robot. With both, the Minitaur learned to gallop and trot: the gallop reached 1.34 m/s in simulation and 1.18 m/s on the robot and used 35% less power than a hand-tuned gallop. They used randomization too, with mass ±20%, latency 0–40 ms, motor strength 80–120% and ground friction 0.5–1.25, but noted that “if the model discrepancy is too big, even a robust controller trained with random perturbations cannot overcome the reality gap.”</p>
+      <p>The Minitaur's motor can be described by a formula because its drive is direct. With ANYmal's series elastic actuators, this didn't work. In lesson 0.2, we trained a small network to reproduce a real actuator from its recordings: that's an <a href="0-2-ustroystvo-robota.html#model">actuator model from data</a>. Hwangbo et al. (ETH Zurich and Intel, 2019) did this for all 12 of ANYmal's actuators: a network with three layers of 32 neurons predicts the torque from the position errors and velocities over the last 0.02 s. The data, more than a million examples, were collected in less than 4 minutes. The network's mean error was 0.74 N·m versus 3.55 N·m for the ideal actuator model. For comparison, the authors trained policies with an ideal actuator and with an analytical model that they had tuned for more than a week. Neither could make a single step without falling: the legs shook violently, and the authors attribute this to delays that these models get wrong.</p>
+      <p>ANYmal's policy was trained in a simulator with these actuator networks inside: it computed almost 500,000 steps per second on a single computer, and training took no more than 11 hours. The error of the inertia estimated from the drawings, up to 20%, was handled by randomization: 30 variants of the robot with link masses ±15% and centers of mass ±2 cm. ANYmal reached 1.5 m/s, 25% faster than the previous record for this robot. The authors sum up what each technique did: the learned actuator model significantly reduces the reality gap, while the randomness in the model makes the policy sufficiently conservative. And they write that in practice, both approaches, a more accurate model and a more robust policy, “are typically employed in conjunction.” So how much of this caution is needed?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="width">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 2</div>
+    <h2>Range width: reliability versus speed</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>The ranges in lab 1 were chosen to roughly match the spread of the real arms; let's call this width ×1. The slider changes it with a single multiplier for all four parameters. At ×½, the training latency goes up to 25 ms, and the cup mass up to 0.43 kg. At ×2, the latency goes up to 100 ms, the mass up to 0.95 kg, and the motor strength goes down to 50%. At ×0, there's no randomization. For each width, the policy is trained from scratch for 12,000 steps with the same seed, and the test is the same: six real arms, 20 attempts each.</p>
+      <p>At the top is the map of worlds, as in the interactive, for the policy of the selected width: the orange frame is the region from which worlds were drawn during training, and the dots are the real arms. At the bottom is where each width ended up on two measures at once: how many attempts succeeded on the real arms and how long, on average, the trip to the target took in successful attempts.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="ctl-row cap-top" id="wrapWK"><label class="hd-range"><span>Range width</span><input id="wK" type="range" min="0" max="4" step="1" value="2" aria-label="Range width: ×0, ×½, ×1, ×2 or ×3"><output>×1</output></label></div>
+        <p class="ranges-line muted-s" id="wRanges"></p>
+        <div class="map-wrap"><canvas id="wMap" class="map-cv" width="560" height="330" role="img" aria-label="Map of worlds for the policy of the selected width: latency on the horizontal axis, cup mass on the vertical axis; the frame is the training region, the dots are the real arms"></canvas></div>
+        <p class="cv-note">The map of worlds: each cell is 20 attempts in a world with that latency and cup mass, with the other parameters nominal, and the color shows the share of successful ones. The orange dashed frame surrounds the cells whose latency and mass fell within the training ranges. The numbered blue dots are Ada's real arms (they have their own friction and motor strength, so their positions on the map are approximate). The black ring is the nominal world.</p>
+        <div class="chart"><canvas id="wChart" width="640" height="260" role="img" aria-label="Chart: time to target on the real arms in seconds on the horizontal axis, the share of successful attempts on the vertical axis; each dot is one range width"></canvas></div>
+        <p class="cv-note">The chart: the horizontal axis shows how long, on average, the trip to the target took in successful attempts on the real arms, in seconds; the vertical axis shows the share of successful attempts on the six arms. Each dot is the policy of one width, and the label next to the dot is the multiplier. The best place to be is the upper left corner: reliable and fast.</p>
+        <div class="prog-line" id="wProg" hidden><i></i></div>
+        <div class="readout" id="wOut"></div>
+      </div>
+      <div class="card guide-card"><div id="wMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: how the width works and the spread across seeds</summary><div class="body">
+      <p><b>Width.</b> For each parameter, the shifts of the range boundaries from nominal at width ×1 are fixed: cup mass from −0.15 to +0.35 kg, joint friction from −0.1 to +0.4 N·m, latency from 0 to +50 ms, motor strength from −25 to +10%. At width \(k\), the range equals the nominal value plus these shifts multiplied by \(k\), within physical limits: the mass is at least 0.02 kg, friction is at least zero, latency is at most 150 ms, and motor strength is at least 30%. At ×3, the ranges are: cup up to 1.3 kg, friction up to 1.3 N·m, latency up to 150 ms, motors from 30% strength.</p>
+      <p><b>Why slower.</b> A policy without memory doesn't know which world it got, and it picks one behavior for all the training worlds. If those include a world with 150 ms of latency, a fast approach to the target ends in oscillation there, and the reward over all such worlds pulls the policy toward a slow, cautious approach, even in a world with short latency. Tan et al. saw the same on the Minitaur: with randomization, the returns have a lower mean but also a smaller spread across worlds, and in the authors' words, “the controllers learn to behave conservatively.”</p>
+      <p><b>Spread.</b> The numbers in the missions are computed for seed 3. Across six seeds, ×½ gives 94–100% successful attempts on the real arms, and ×1 gives 97–100%. Width ×3 gives 40–98% successful attempts versus 97–100% for ×1, and the arm takes 0.84–1.02 s to reach the target versus 0.69–0.78 s, so it is slower on all six seeds. On one of them, the ×3 policy never learned the task in 12,000 steps: even in the nominal world, it held the cup in 3 attempts out of 20.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px" id="widthAfter">
+      <p>Even narrow randomization shifts the policy toward behavior that transfers beyond the training range. Too wide a range makes it cautious all the time: there are too many worlds where a fast approach is dangerous. That's why the width is chosen to match the real spread with a small margin, as Tan et al. did, and for that, you need to know the spread. In Dactyl from lesson 4.5, the ranges had to be tuned by hand, and the full randomization cost 100 years of simulated experience versus 3 years without it. Can the ranges be chosen automatically?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="auto">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">4</span> ADR</div>
+      <h2>Automatic domain randomization: the ranges grow on their own</h2>
+      <p>Tuning the ranges by hand is expensive: in Dactyl, as the authors write, it “required a significant amount of manual tuning and a tight iteration loop between randomization design in simulation and validation on a robot.” By the time of the Rubik's cube work (OpenAI, 2019), the Shadow hand and the simulator had changed, and the old manual randomization no longer transferred: a policy trained with it on the new setup made 42.5 turns of the cube in a row on average in simulation and 2.7 on the real hand. Instead of tuning the ranges again, the authors made them tune themselves. This is <strong>automatic domain randomization</strong> (ADR).</p>
+      <p>Training starts in a single world, with the parameters measured during calibration of the real hand. Each parameter has its own interval \([\phi^L_i,\ \phi^H_i]\) from which it is drawn, and at first, both ends coincide with the calibrated value. From time to time, ADR sets one random parameter to one of the boundaries of its interval, draws the rest from their current intervals, and checks whether the policy copes. The results are accumulated separately for each boundary. When \(m\) of them have accumulated, ADR compares their mean \(\bar p\) with two thresholds:</p>
+      <div class="formula">\[ \bar p \ge t_H\ \Rightarrow\ \text{the boundary moves outward by } \Delta, \qquad \bar p \le t_L\ \Rightarrow\ \text{inward by } \Delta. \]</div>
+      <p>Here \(t_H\) and \(t_L\) are the upper and lower performance thresholds, and \(\Delta\) is the step size. OpenAI measures performance by the number of successful turns in a row in an episode, with these settings: \(t_H = 20\), \(t_L = 10\), \(m = 240\), \(\Delta = 0.02\); boundary checks are done in half of the episodes. This creates a <strong>curriculum</strong>: first, the policy solves the task in a single world, and then worlds are added exactly as fast as it masters them. The authors measure how wide the distribution is with the ADR entropy: the mean over the parameters of the logarithm of the interval widths.</p>
+    </div>
+    <figure class="card flow-card">
+      <canvas data-anim="adrloop" width="720" height="320" role="img" aria-label="Diagram of the ADR loop: a world from the current ranges, collecting experience, a PPO step; a boundary check of one parameter; the range widens if the success rate is at least the threshold and narrows if it is at most the lower threshold"></canvas>
+      <figcaption class="cv-note">The ADR loop. Ordinary training runs around the circle: a world is drawn from the current ranges, the policy collects experience, and PPO updates it. During a boundary check, one parameter is set to the edge of its range, and depending on the share of successful attempts, the edge moves outward (if the share is at least the threshold \(t_H\)) or back (if it is at most \(t_L\)). The blue bars are the ranges, and the orange mark is the boundary being checked. The numbers in the diagram are illustrative. Click the diagram to pause it.</figcaption>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>On the same new setup, ADR was trained for as long as the manual randomization, about 14 days. A snapshot of the policy taken when the ADR entropy reached 0.126 nats per parameter made 13.3 turns in a row on average on the real hand, versus 2.7 for the manual one; the wider the ranges had managed to become, the better the transfer. A policy trained longer and at a larger scale made 32 turns on average and 42 at the median. The authors also compared ADR with fixed ranges of different widths: “the larger the fixed randomization entropy, the longer it takes to train from scratch,” while ADR “makes progress much faster due to its curriculum property.”</p>
+      <p>The policy for the Rubik's cube was trained for several months, about 13,000 years of simulated experience. With it, the Shadow hand solved a cube whose solution required 15 face rotations in 60% of attempts, and one requiring 26 rotations in 20%. Without being trained on such disturbances, it kept turning the cube in a rubber glove, with its fingers tied together, and while the cube was poked with a pen and a plush giraffe. The authors explain this by <strong>meta-learning</strong>: in the first seconds of an attempt, a policy with memory figures out which world it is in; from the LSTM's hidden state, the cube size can be predicted with over 80% accuracy. Nobody programmed this ability; it emerged from the breadth of the worlds. Let's see how ADR widens the ranges of Ada's arm.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="adr">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 3</div>
+    <h2>ADR on Ada's arm: where the ranges stop</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>All four ranges start at nominal: a 0.25 kg cup, 0.1 N·m of friction, zero latency, motors at 100%. Half of the attempts are boundary attempts: in them, one random parameter is set to its current boundary. When a boundary has accumulated 5 such attempts, ADR looks at the share of successful ones: if it's 80% or more, the boundary moves outward by a quarter of the ×1 width from lab 2, and if it's 40% or less, it moves back, but not past nominal. Boundary attempts are used for training too. The training is done by the same PPO and lasts 24,000 steps.</p>
+      <p>At the top are the ranges of the four parameters at the selected moment of training. The slider below them moves this moment. At the bottom is the share of successful attempts on the six real arms over the course of training.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="ranges" id="aRanges" aria-label="The ranges of the four parameters at the selected moment of training"></div>
+        <p class="cv-note">Each bar shows the range from which ADR draws the parameter at this moment of training: the orange one is ADR's, and the gray dashed frame is the fixed wide range for comparison in the second mission. The black tick is nominal, and the blue ticks are Ada's real arms.</p>
+        <div class="ctl-row" id="wrapAAt"><label class="hd-range"><span>Training moment, step</span><input id="aAt" type="range" min="0" max="24000" step="1200" value="24000"><output>24,000</output></label></div>
+        <div class="chart"><canvas id="aChart" width="640" height="260" role="img" aria-label="Chart: the share of successful attempts on the six real arms over the course of training, for ADR and for a fixed wide range"></canvas></div>
+        <p class="cv-note">The chart: the horizontal axis is training steps, and the vertical axis is the share of successful attempts on the six real arms (120 attempts) for the policy at that moment. The orange line is ADR, the gray dashed one is the fixed ×3 range from the first step, and the vertical dotted line marks the moment shown by the bars.</p>
+        <div class="ctl-row" id="wrapATh"><div class="ctl"><span class="ctl-l">Expansion threshold t<sub>H</sub></span><div class="seg" id="aTh" role="group" aria-label="Expansion threshold"><button type="button" data-v="0.6" aria-pressed="false">60%</button><button type="button" data-v="0.8" aria-pressed="true">80%</button><button type="button" data-v="1" aria-pressed="false">100%</button></div></div><button type="button" class="btn primary sm" id="aRun">Run ADR</button></div>
+        <div class="prog-line" id="aProg" hidden><i></i></div>
+        <div class="readout" id="aOut"></div>
+      </div>
+      <div class="card guide-card"><div id="aMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: ADR in the paper and here, entropy and the spread across seeds</summary><div class="body">
+      <p><b>The algorithm.</b> The distribution of worlds is a product of uniform intervals, one per parameter: \(\lambda_i \sim U(\phi^L_i, \phi^H_i)\). OpenAI measures the width of the whole distribution with the ADR entropy:</p>
+      <div class="formula">\[ H(P_\phi) = \frac{1}{d} \sum_{i=1}^{d} \log\bigl(\phi^H_i - \phi^L_i\bigr), \]</div>
+      <p>where \(d\) is the number of parameters, and \(\phi^L_i\) and \(\phi^H_i\) are the boundaries of the interval of the \(i\)-th parameter; the entropy is measured in nats per parameter. With probability \(p_b\), a worker performs a boundary check, and otherwise it simply collects experience for training; OpenAI uses \(p_b = 0.5\), and the data from boundary checks also go into training the policy.</p>
+      <p><b>In our version.</b> We use \(p_b = 0.5\), a boundary buffer of \(m = 5\) attempts and thresholds of \(t_H = 80\%\) and \(t_L = 40\%\) successful attempts. The step is a quarter of the shift at width ×1: 0.0375 and 0.0875 kg for the mass, 0.025 and 0.1 N·m for friction, 12.5 ms for latency, 6.25 and 2.5% for motor strength. The lower boundary of latency is zero and doesn't move. We don't show the entropy: for an interval of zero width at the start, it equals minus infinity.</p>
+      <p><b>The comparison.</b> For comparison, we take the fixed ×3 range from lab 2 from the first step, with the same PPO, the same budget and the same seed. “Reached 90%” means the first test (every 1,200 steps) at which the policy holds the cup in at least 108 attempts out of 120.</p>
+      <p><b>Spread.</b> The numbers in the missions are computed for seed 3. Across six seeds, ADR reaches 90% on the real arms by step 3,600–4,800, and the fixed ×3 range by step 10,800–14,400. By the end, ADR succeeds in 97–100% of attempts, and ×3 in 93–100%. ADR's time to target is 0.68–0.73 s, and that of ×3 is 0.75–0.93 s, so ADR is faster on all six seeds. By the end of training, ADR's upper boundary of latency reaches 75–150 ms, the lower boundary of motor strength drops to 63–81%, and the upper boundary of cup mass reaches 0.6–0.78 kg. With the threshold \(t_H = 100\%\), the latency range comes out no wider than with 80% on four seeds out of four, and with 60%, no narrower.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px" id="adrAfter">
+      <p>ADR doesn't know in advance what matters. It widens each range as long as the policy copes at its edge, and finds on its own where the limit lies: the policy learned to survive latency with a large margin, but not weak motors with a heavy cup, because there isn't enough torque there. The curriculum also saves steps: at the start, the policy learns in a simple world, and the hard worlds are added when it's ready for them. What of this lives on in today's systems?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="today">
+  <div class="prose">
+    <div class="kicker"><span class="num">5</span> Today</div>
+    <h2>Actuator models, randomization and curricula together</h2>
+    <p>The recipe of this lesson, a more accurate model where it can be measured and randomization where it can't, has become standard for policies trained with reinforcement learning in simulation. Rudin et al., who in lesson 5.2 trained ANYmal to walk in 20 minutes on 4,096 copies, prepared the transfer to the robot like this: they randomized the ground friction from 0.5 to 1.25, pushed the robots every 10 seconds, accelerating the body to up to 1 m/s in a random direction, and added noise to the observations at a level measured on the real robot. The actuator torques were computed by a network trained on data, as in Hwangbo et al.'s work.</p>
+    <p>Their curriculum works like ADR, only for terrain. Each robot has its own difficulty level: the step height grows from 5 to 20 cm, and the slope up to 25°. A robot that made it to the edge of its terrain gets a higher level in the next episode, and one that didn't cover even half of the required distance gets a lower one. The difficulty adapts to the policy without manual tuning. As lesson 4.5 mentioned, humanoids are taught to walk the same way, such as the legs of HOMIE from lesson 4.2; we'll talk about this in more detail in part 6. For now, Ada has a wheeled base, and her arm in this lesson is the same case, only simpler.</p>
+    <p>Randomization without memory has a ceiling: the policy doesn't know which world it is in and picks one behavior for all worlds, so it is cautious everywhere. On the real ANYmal, Rudin et al. limited the speed to 0.6 m/s because the robot's height map is imprecise, and they pointed to the teacher-student setup of Miki et al. (lesson 5.5), which, in their words, “provided outstanding robustness even in adverse conditions.” Peng et al. already fed the world parameters to the critic as input, and in OpenAI's work, a policy with memory figured out the cube size on its own. How to make use of the fact that everything is known in the simulator, we'll cover in the next lesson.</p>
+  </div>
+</section>
+
+<section class="section" id="quiz">
+  <div class="prose">
+    <div class="kicker"><span class="num">6</span> Check yourself</div>
+    <h2>Eight common misconceptions</h2>
+    <div class="quiz" id="quizBox"></div>
+    <p class="score" id="quizScore" style="margin-top:14px"></p>
+  </div>
+</section>
+
+<section class="section alt" id="finale">
+  <div class="prose">
+    <div class="kicker"><span class="num">7</span> Takeaways</div>
+    <h2>Lesson takeaways</h2>
+    <ol class="takeaways">
+      <li><span>The simulator knows the robot's <strong>nominal model</strong>, while the real robot has different masses, friction and motor strength, plus control latency. Not all mismatches are equally dangerous: on Ada's arm, a 1 kg mug barely bothered the policy from the exact simulator (100% successful attempts), while 40 ms of latency dropped success to 45%.</span></li>
+      <li><span><strong>Dynamics randomization</strong> trains the policy on a distribution of worlds. For Peng et al., the policy without it failed in all 10 attempts on the robot, and the policy with it succeeded in 67–89% of attempts. On Ada's six real arms, with the same budget of 12,000 steps, the share of successful attempts was 78% without randomization and 99% with it.</span></li>
+      <li><span>Robustness is paid for with speed: the policy picks a behavior that is safe in all the training worlds. In the nominal world, the randomized arm took 0.55 s to reach the target versus 0.49 s, and at width ×3 on the real arms, 0.88 s versus 0.72 s at ×1, with no more successful attempts.</span></li>
+      <li><span>Randomization can't cover what the simulator can't do at all. Tan et al. added a motor model and latency, and without them, the Minitaur policies didn't work on the robot; in Hwangbo et al.'s work, ANYmal's actuators are computed by a network trained on 4 minutes of data, and with an ideal actuator, the policy couldn't make a single step. In practice, a more accurate model and randomization go together.</span></li>
+      <li><span><strong>ADR</strong> starts from the calibrated world and widens each range as long as the policy copes at its boundary. For OpenAI, this raised transfer from 2.7 to 13.3 cube turns in a row and made it possible to solve a Rubik's cube. On Ada's arm, ADR reached 90% on the real arms by step 4,800, versus 10,800 for the wide range from the first step, pushed latency out to 75 ms and stopped motor strength at 63%.</span></li>
+    </ol>
+    <h3 style="margin-top:40px">Open questions</h3>
+    <details class="card pad open-q"><summary>A randomized policy works “on average” across all worlds. Why not give it the world parameters as input?</summary><p>In the simulator, the parameters are known, and a policy that sees them can be fast where the world allows it and cautious where it doesn't. But a real robot has no masses, friction or latency at its input: they have to be estimated from how the arm responds to commands. Peng et al. gave the parameters only to the critic, which is needed only during training, and gave the policy memory. How to turn the simulator's knowledge into a policy that doesn't need it on the robot, we'll cover in lesson 5.5.</p></details>
+    <details class="card pad open-q"><summary>How do you tell what exactly to randomize and how widely?</summary><p>You can measure what can be measured, such as masses, latencies and motor characteristics, and randomize around the measured values with a margin, as Tan et al. did. You can check with an ablation what matters for transfer, as Peng et al. did, for whom random latency turned out to matter more than the masses. Or you can hand the choice over to ADR, but then you need to check that the ranges grew toward where the real robot lies, and not into worlds that don't exist: wide worlds make the policy more cautious.</p></details>
+    <h3 style="margin-top:34px">Paper guide</h3>
+    <p><a href="https://arxiv.org/abs/1710.06537" target="_blank" rel="noopener">X. B. Peng, M. Andrychowicz, W. Zaremba, P. Abbeel, “Sim-to-Real Transfer of Robotic Control with Dynamics Randomization”, ICRA 2018</a>.</p>
+    <ul class="links">
+      <li><strong>Read closely</strong><span>Sections IV-C and IV-D and Table I: which parameters to vary, within what limits, and why latency is modeled with a random time between actions. Tables II and III: which architectures and which randomizations are needed for transfer to the real arm.</span></li>
+      <li><strong>Safe to skip</strong><span>Section III-B on Hindsight Experience Replay and the details of Algorithm 1: for the idea of randomization, the training objective from Section IV is enough.</span></li>
+      <li><strong>Question to keep in mind</strong><span>Why did success on the robot fall to 25% without observation noise, even though noise isn't dynamics? What else in the real robot, besides the sensors, could it stand in for?</span></li>
+    </ul>
+    <p style="margin-top:18px">Other papers in this lesson: <a href="https://arxiv.org/abs/1804.10332" target="_blank" rel="noopener">Tan et al., 2018</a> (Minitaur, the motor model and latency), <a href="https://arxiv.org/abs/1901.08652" target="_blank" rel="noopener">Hwangbo et al., 2019</a> (ANYmal, the actuator network), <a href="https://arxiv.org/abs/1910.07113" target="_blank" rel="noopener">OpenAI, 2019</a> (the Rubik's cube, ADR), <a href="https://arxiv.org/abs/1808.00177" target="_blank" rel="noopener">OpenAI, 2018</a> (Dactyl), <a href="https://arxiv.org/abs/1703.06907" target="_blank" rel="noopener">Tobin et al., 2017</a> (domain randomization), <a href="https://arxiv.org/abs/2109.11978" target="_blank" rel="noopener">Rudin et al., 2021</a> (walking in minutes, a terrain curriculum).</p>
+    <h3 style="margin-top:34px">Resources</h3>
+    <ul class="links">
+      <li><a href="https://youtu.be/XUW0cnvqbwM" target="_blank" rel="noopener">Video for Peng et al.</a><span>The Fetch arm pushes the puck, including one with a packet of chips attached</span></li>
+      <li><a href="https://www.youtube.com/watch?v=lUZUr7jxoqM" target="_blank" rel="noopener">Video for Tan et al.</a><span>The Minitaur's gallop and trot in simulation and on the robot</span></li>
+      <li><a href="https://openai.com/blog/solving-rubiks-cube/" target="_blank" rel="noopener">Solving Rubik’s Cube with a Robot Hand</a><span>OpenAI's post with videos of ADR and the disturbances</span></li>
+      <li><a href="https://leggedrobotics.github.io/legged_gym/" target="_blank" rel="noopener">legged_gym</a><span>The open code of Rudin et al.: parallel training of walking with randomization and a curriculum</span></li>
+    </ul>
+    <div class="bridge-note"><p>Randomization carries the policy over to the real robot: it works in all worlds at once, but cautiously, because without knowing which world it is in, it prepares for the worst. Yet the simulator knows everything about its world: the floor friction, the mass of the load, the terrain.</p><p class="bridge-to"><!--if:5-5-privilegirovannyy-uchitel.html--><a href="5-5-privilegirovannyy-uchitel.html"><!--/if-->Lesson 5.5 · Learning with privileged information: how to pass this knowledge to a policy that has only its sensors<!--if:5-5-privilegirovannyy-uchitel.html--></a><!--/if--></p></div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Lesson 5.4 of the “Modern Robotics and Physical AI” course. All training in the labs runs in your browser with a fixed random seed; Ada's “real” arms run in the same simulator with different parameters; the numbers from the papers are taken from the original sources.
+</footer>
+<div class="tooltip" id="tooltip" role="tooltip"></div>
+<script>
+/*@@JS@@*/
+</script>
+</body>
+</html>
