@@ -361,7 +361,7 @@ const Trio = (() => {
     c.globalAlpha = 1; c.strokeStyle = P.line; c.lineWidth = 1;
     for (const v of [0, 50, 100, 150]) { c.beginPath(); c.moveTo(L, Y(v)); c.lineTo(L + gw, Y(v)); c.stroke(); K.label(c, k, String(v), L - 6, Y(v), { px: 10.5, color: P.ink3, align: 'right', halo: false }); }
     for (const s of [0, 200, 400, 600]) K.label(c, k, String(s), X(s), T + gh + 11 * ky, { px: 10.5, color: P.ink3, halo: false });
-    c.setLineDash([3, 4]); c.strokeStyle = P.ink3; DOORS.forEach((s, i) => { c.beginPath(); c.moveTo(X(s), T); c.lineTo(X(s), T + gh); c.stroke(); K.label(c, k, narrow ? (i ? 'кухня' : 'гостиная') : (i ? 'дверь на кухню' : 'дверь в гостиную'), X(s) + 3, T + 8 * ky, { px: 9.5, color: P.ink3, align: 'left', haloColor: P.surf }); }); c.setLineDash([]);
+    c.setLineDash([3, 4]); c.strokeStyle = P.ink3; DOORS.forEach((s, i) => { c.beginPath(); c.moveTo(X(s), T); c.lineTo(X(s), T + gh); c.stroke(); K.label(c, k, narrow ? (i ? 'кухня' : 'гостиная') : (i ? 'дверь на кухню' : 'дверь в гостиную'), X(s) + 3, T + 8 * ky, { px: 10, color: P.ink3, align: 'left', haloColor: P.surf }); }); c.setLineDash([]);
     K.label(c, k, narrow ? 'по маршруту, см' : 'сколько проехала по маршруту, см', L + gw / 2, H - 7 * ky, { px: 10.5, color: P.ink3, halo: false });
     K.label(c, k, 'скорость, см/с', 4, 9 * ky, { px: 10.5, color: P.ink3, align: 'left', halo: false });
     const r = st.res[st.floor];
@@ -633,9 +633,9 @@ const Adapt = (() => {
     c.strokeStyle = P.line; c.lineWidth = 1;
     for (const m of [0.3, 0.45, 0.7, 1]) { c.beginPath(); c.moveTo(L, Y(m)); c.lineTo(L + gw, Y(m)); c.stroke(); K.label(c, k, fmt(m, 2), L - 6, Y(m), { px: 10.5, color: P.ink3, align: 'right', halo: false }); }
     for (let t = 0; t <= tmax + 1e-9; t += 1) K.label(c, k, String(t), X(t), T + gh + 14 + 14 * ky, { px: 10.5, color: P.ink3, halo: false });
-    K.label(c, k, 'время поездки, с', L + gw / 2, H - 6 * ky, { px: 10.5, color: P.ink3, halo: false });
+    K.label(c, k, 'время поездки, с', L + gw / 2, H - 8 * ky, { px: 10.5, color: P.ink3, halo: false });
     K.label(c, k, 'сцепление μ', 4, 10 * ky, { px: 10.5, color: P.ink3, align: 'left', halo: false });
-    const lg = (x, col, txt, line) => { c.fillStyle = col; if (line) c.fillRect(x, 9 * ky, 14 * ky, 2.6 * ky); else c.fillRect(x, 7.5 * ky, 12 * ky, 5 * ky); K.label(c, k, txt, x + 17 * ky, 10 * ky, { px: 9.5, weight: 650, color: col, align: 'left', halo: false }); };
+    const lg = (x, col, txt, line) => { c.fillStyle = col; if (line) c.fillRect(x, 9 * ky, 14 * ky, 2.6 * ky); else c.fillRect(x, 7.5 * ky, 12 * ky, 5 * ky); K.label(c, k, txt, x + 17 * ky, 10 * ky, { px: 10, weight: 650, color: col, align: 'left', halo: false }); };
     lg(W * 0.3, P.e2e, 'оценка μ̂', true); lg(W * 0.53, P.cl, 'тормозит'); lg(W * 0.74, P.bad, 'скользит');
     if (!r) { K.label(c, k, st.busy ? 'модуль учится…' : (narrow ? 'появится после поездки' : free() ? 'график появится после поездки: нажми «Поехать»' : 'график появится после поездки: нажми кнопку миссии'), L + gw / 2, T + gh / 2, { px: 12.5, weight: 700, color: P.ink2, haloColor: P.surf }); return; }
     const dt = 0.1;
