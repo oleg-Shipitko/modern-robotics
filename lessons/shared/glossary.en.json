@@ -1244,8 +1244,8 @@
  {
   "id": "actor-critic",
   "t": "Actor-critic",
-  "d": "A pair of networks: the actor outputs the action (or a distribution over actions), the critic estimates its value Q(s, a) and tells the actor which way to shift the action. DDPG, TD3 and SAC are built this way.",
-  "a": "actor-critic"
+  "d": "A pair of networks trained together: the actor chooses the action (or a distribution over actions), and the critic estimates how good it is. In PPO the critic predicts the state value V(s), which is used to compute the advantage; in DDPG, TD3 and SAC the critic estimates the action value Q(s, a) and tells the actor which way to shift the action.",
+  "a": "actor[-–]critic|actor and critic"
  },
  {
   "id": "overestimation",
