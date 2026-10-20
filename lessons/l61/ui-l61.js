@@ -382,7 +382,7 @@ const Reward = (() => {
   function drawPanes() {
     const P = pal();
     Pane.draw($('#rCvL'), st.left, { title: st.left ? `награда: ${setName(st.left.id)}` : 'набор, который ты собрал', titleShort: st.left ? setName(st.left.id) : 'твой набор', color: P.e2e, empty: st.busy ? 'Ада идёт…' : 'нажми кнопку миссии', emptyShort: 'нажми кнопку миссии' });
-    Pane.draw($('#rCvR'), st.right, { title: 'полная награда для сравнения', titleShort: 'полная награда', color: P.cl, empty: 'Ада с полной наградой выйдет при запуске', emptyShort: 'выйдет при запуске' });
+    Pane.draw($('#rCvR'), st.right, { title: 'полная награда для сравнения', titleShort: 'полная награда', color: P.cl, empty: 'Ада выйдет при запуске', emptyShort: 'выйдет при запуске' });
   }
   function statLine(R) { if (!R) return 'ещё не запускалась'; const s = R.stats(); return `${fmt(s.v, 2)} м/с, ${fmt(s.dist, 1)} м за ${sec(s.secs)}${s.fell != null ? `, падение на ${sec(s.fell * E.DT)}` : ''}${s.lying > 0.3 ? `, корпус на полу ${fmt(s.lying * 100, 0)}% времени` : ''}; бедро ${fmt(s.hip * 100, 0)} см, наклон ${fmt(s.pitch, 2)} рад, Σ τ² ${fmt(s.tau, 0)}`; }
   function render() {
@@ -464,7 +464,7 @@ const Command = (() => {
   function drawChart() {
     const cv = $('#cmChart'), narrow = canvasNarrow(cv, 640), W = narrow ? 380 : 640, H = narrow ? 220 : 200;
     if (cv.style.aspectRatio !== `${W} / ${H}`) cv.style.aspectRatio = `${W} / ${H}`;
-    const { c, k } = K.fit(cv, W, H), P = pal(), L = narrow ? 36 : 44, R = 12, T = narrow ? 44 : 30, B = narrow ? 34 : 30, gw = W - L - R, gh = H - T - B;
+    const { c, k } = K.fit(cv, W, H), P = pal(), L = narrow ? 36 : 44, R = 12, T = narrow ? 44 : 30, B = narrow ? 38 : 34, gw = W - L - R, gh = H - T - B;   // деления оси выше подписи «секунды прогона»
     c.fillStyle = P.surf; c.fillRect(0, 0, W, H);
     const X = (t) => L + gw * t / (STEPS * E.DT), Y = (v) => T + gh * (1 - (v + 0.2) / 1.6);
     c.strokeStyle = P.grid; c.lineWidth = 1;
@@ -474,7 +474,7 @@ const Command = (() => {
     K.label(c, k, narrow ? 'скорость, м/с' : 'скорость корпуса вперёд, м/с', L, 10, { px: 10, color: P.ink3, align: 'left', halo: false });
     // легенда: в узкой раскладке — вторая строка над графиком
     let lx = narrow ? L : L + 200 / Math.max(1, k); const ly = narrow ? 27 : 10;
-    for (const [name, col, dash] of [['команда', P.ink2, true], ['случайные команды', P.e2e], ['одна команда', P.cl]]) {
+    for (const [name, col, dash] of [['команда', P.ink2, true], [narrow ? 'случайные' : 'случайные команды', P.e2e], [narrow ? 'одна' : 'одна команда', P.cl]]) {
       if (dash) { c.setLineDash([4, 4]); c.strokeStyle = col; c.lineWidth = 1.4; c.beginPath(); c.moveTo(lx, ly); c.lineTo(lx + 14, ly); c.stroke(); c.setLineDash([]); } else { c.fillStyle = col; c.fillRect(lx, ly - 2, 14, 4); }
       K.label(c, k, name, lx + 18, ly, { px: 10, color: P.ink2, align: 'left', halo: false }); K.font(c, k, 10, 600); lx += 18 + c.measureText(name).width + 10 * k;
     }
@@ -576,7 +576,7 @@ const Copies = (() => {
     c.strokeStyle = P.grid; c.lineWidth = 1;
     for (const s of [0, 100, 200]) { c.beginPath(); c.moveTo(L, Y(s)); c.lineTo(W - R, Y(s)); c.stroke(); K.label(c, k, String(s), L - 6, Y(s), { px: 10, color: P.ink3, align: 'right', halo: false }); }
     const stepE = maxEp >= 3000 ? 960 : narrow && maxEp > 960 ? 480 : 240;
-    for (let e = 0; e <= maxEp; e += stepE) K.label(c, k, String(e), X(e), H - B + 12, { px: 10, color: P.ink3, halo: false });
+    for (let e = 0; e <= maxEp; e += stepE) { K.font(c, k, 10, 600); const hw = c.measureText(String(e)).width / 2; K.label(c, k, String(e), Math.min(X(e), W - 1 - hw), H - B + 12, { px: 10, color: P.ink3, halo: false }); }   // последнее деление не выходит за край
     K.label(c, k, narrow ? 'эпизодов симуляции' : 'потрачено эпизодов симуляции', L + gw / 2, H - 9, { px: 10, color: P.ink3, halo: false });
     K.label(c, k, narrow ? 'награда ритма' : 'награда ритма за эпизод (вперёд и падение)', L, 10, { px: 10, color: P.ink3, align: 'left', halo: false });
     const all = st.runs.slice(); if (st.cur) all.push({ N: st.cur.N, curve: st.cur.curve, live: true });

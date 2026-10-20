@@ -305,7 +305,7 @@
     { id: 'zvel', t: 'подскоки', en: 'vertical velocity', w: -1.0, f: (c) => sq(c.vy) },
     { id: 'torque', t: 'энергия', en: 'torques', w: -2e-5, f: (c) => c.tau2 },
     { id: 'rate', t: 'плавность', en: 'action rate', w: -0.02, f: (c) => c.rate },
-    { id: 'accel', t: 'рывки суставов', en: 'joint acceleration', w: -1e-7, f: (c) => c.qdd2 },
+    { id: 'accel', t: 'ускорения суставов', en: 'joint acceleration', w: -1e-7, f: (c) => c.qdd2 },
     { id: 'air', t: 'шаги стопы', en: 'feet air time', w: 1.0, f: (c) => (c.cmd > 0.1 ? c.air : 0) },
   ];
   const TERM = {}; TERMS.forEach((t) => { TERM[t.id] = t; });
