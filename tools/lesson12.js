@@ -1,7 +1,9 @@
 // Проверка урока 1.2: проходит все миссии программно — две Ады и итерация DAgger, 40 подсказок учителя
 // (касания сцены через CDP: сначала неудачный выбор у старта, потом удачный), «Ты — эксперт» с эмуляцией
 // перехвата мышью, свободный режим, кривая, которую строишь сам, сортировка, порог ансамбля, квиз;
-// потом телефон 390 px и тёмная тема. Скриншоты — shots/l12-*.png.
+// потом телефон 390 px и тёмная тема. Схемы цикла DAgger и HG-DAgger (shared/anim.js, l12/anim-l12.js) — подписи
+// в канвасе и не налезают (компьютер 1440 и 1280, телефон 390), кадры различаются, набор растёт по оборотам, Ада
+// доезжает на третьем, в HG-DAgger в набор идут только участки человека. Скриншоты — shots/l12-*.png.
 const { launch, sleep } = require('./cdp');
 const path = require('path');
 const URL0 = 'file://' + path.resolve(__dirname, '../site/lessons/1-2-dagger.html');
@@ -18,6 +20,70 @@ async function next(p, root) { await p.eval(`document.querySelector(${JSON.strin
 const waitDone = (p, root, t) => p.waitFor(`(() => { const o = document.querySelector(${JSON.stringify(root)} + ' .g-out'); const b = document.querySelector(${JSON.stringify(root)} + ' .g-go'); return o && !o.hidden && (!b || !b.disabled); })()`, t || 120000);
 const setRange = (p, sel, v) => p.eval(`(() => { const e = document.querySelector(${JSON.stringify(sel)}); e.value = ${v}; e.dispatchEvent(new Event('input', { bubbles: true })); })()`);
 const center = (p, sel) => p.eval(`document.querySelector(${JSON.stringify(sel)}).scrollIntoView({ block: 'center', behavior: 'instant' })`);
+/* ---------- схемы цикла DAgger и HG-DAgger ---------- */
+const SCHEMES = {
+  // шаг 1, поездка 1, разметка 1, в набор 1, разметка 2, поездка 3, итог
+  'dagger-loop': [0.8, 2.0, 3.0, 4.2, 7.4, 11.0, 15.6],
+  // до перехвата, перехват 1, после него, перехват 2, после него, конец поездки, итог со сравнением
+  'hg-dagger': [0.6, 1.2, 1.8, 2.6, 3.4, 4.4, 7.0],
+};
+/** Подписи схемы на каждом кадре: внутри канваса и не налезают; тексты кадров и число разных кадров. Без anim.js схемы нет: none = true. */
+async function schemeLabels(p, kind, frames) {
+  return JSON.parse(await p.eval(`(() => {
+    const cv = document.querySelector('canvas[data-anim=${kind}]');
+    if (!cv || typeof Anim === 'undefined') return JSON.stringify({ none: true, bad: [] });
+    const orig = CanvasRenderingContext2D.prototype.fillText, bad = [], texts = {};
+    let boxes = null, W = 0, H = 0;
+    CanvasRenderingContext2D.prototype.fillText = function (txt, x, y) {
+      if (boxes && this.canvas === cv) {
+        const m = this.measureText(txt), fs = parseFloat(/([\\d.]+)px/.exec(this.font)[1]), a = this.textAlign;
+        const x0 = a === 'center' ? x - m.width / 2 : a === 'right' ? x - m.width : x;
+        boxes.push({ t: String(txt), x0, x1: x0 + m.width, y0: y - fs / 2, y1: y + fs / 2 });
+      }
+      return orig.apply(this, arguments);
+    };
+    const prints = new Set();
+    for (const t of ${JSON.stringify(frames)}) {
+      boxes = []; Anim.seek(cv, t); const b = boxes; boxes = null;
+      { const d = cv.toDataURL(); let hh = 0; for (let i = 0; i < d.length; i += 3) hh = (hh * 31 + d.charCodeAt(i)) >>> 0; prints.add(hh); }
+      [W, H] = cv.style.aspectRatio.split('/').map(Number); texts[t] = b.map((q) => q.t);
+      b.forEach((q) => { if (q.x0 < 1 || q.x1 > W - 1 || q.y0 < 0 || q.y1 > H) bad.push('t = ' + t + ': за краем «' + q.t + '»'); });
+      for (let i = 0; i < b.length; i++) for (let j = i + 1; j < b.length; j++) {
+        const ox = Math.min(b[i].x1, b[j].x1) - Math.max(b[i].x0, b[j].x0), oy = Math.min(b[i].y1, b[j].y1) - Math.max(b[i].y0, b[j].y0);
+        if (ox > 1 && oy > 1) bad.push('t = ' + t + ': «' + b[i].t + '» на «' + b[j].t + '»');
+      }
+    }
+    CanvasRenderingContext2D.prototype.fillText = orig;
+    return JSON.stringify({ layout: cv.dataset.layout, W, H, bad, texts, distinct: prints.size });
+  })()`));
+}
+/** Проверки обеих схем: раскладка, подписи, разные кадры и содержание; shots — моменты снимков для каждой схемы. */
+async function schemeChecks(p, where, layout, shots, prefix) {
+  const NAMES = { 'dagger-loop': 'схема цикла DAgger', 'hg-dagger': 'схема HG-DAgger' };
+  for (const kind of Object.keys(SCHEMES)) {
+    await center(p, `canvas[data-anim=${kind}]`); await sleep(300);
+    const r = await schemeLabels(p, kind, SCHEMES[kind]);
+    if (r.none) { ok(false, `${where}${NAMES[kind]}: схемы нет — в build.py для l12 нужны shared/anim.js и l12/anim-l12.js перед l12/ui-l12.js`); continue; }
+    ok(r.layout === layout && r.bad.length === 0, `${where}${NAMES[kind]} ${r.W}×${r.H}: подписи в канвасе и не налезают` + (r.bad.length ? ': ' + r.bad.slice(0, 4).join('; ') : ''));
+    ok(r.distinct === SCHEMES[kind].length, `${where}${NAMES[kind]}: кадры ${SCHEMES[kind].length} моментов различаются (разных ${r.distinct})`);
+    const tx = (t) => r.texts[String(t)] || [], all = (t) => tx(t).join(' ');
+    if (kind === 'dagger-loop') {
+      const cnt = (t) => { const i = tx(t).indexOf('Набор пар'); return i >= 0 ? +String(tx(t)[i + 1]).replace(/\s/g, '') : NaN; };   // число справа от заголовка набора
+      ok(cnt(0.8) === 2039 && cnt(7.4) === 2079 && cnt(15.6) === 2423, `${where}${NAMES[kind]}: набор растёт по оборотам ${cnt(0.8)} → ${cnt(7.4)} → ${cnt(15.6)}`);
+      ok(tx(15.6).filter((x) => x === 'авария').length === 2 && tx(15.6).includes('доехала') && ['+40 пар', '+125 пар', '+219 пар'].every((x) => tx(15.6).includes(x)) && /За три оборота набор вырос на 384 пары/.test(all(15.6)),
+        `${where}${NAMES[kind]}: обороты 1 и 2 — аварии, третий доезжает; разметка +40, +125, +219`);
+      ok(/Шаг 3: эксперт размечает все 40 состояний/.test(all(3)) && /Шаг 4: новые пары добавляют ко всем старым/.test(all(4.2)), `${where}${NAMES[kind]}: шаги 3 и 4 подписаны`);
+    } else {
+      ok(/человек перехватил управление: без него она бы врезалась/.test(all(1.2)) && /Ада снова на маршруте/.test(all(1.8)), `${where}${NAMES[kind]}: перехват и возврат управления`);
+      ok(tx(7.0).includes('перехватов: 2') && tx(7.0).includes('56 пар') && tx(7.0).includes('203 пары') && /В набор идут только участки, где вёл человек: 56 пар\. DAgger разметил бы все 203 состояния/.test(all(7.0)),
+        `${where}${NAMES[kind]}: два перехвата, в набор 56 пар против 203 у DAgger`);
+    }
+    for (const t of (shots && shots[kind]) || []) {
+      await p.eval(`(() => { const cv = document.querySelector('canvas[data-anim=${kind}]'); Anim.seek(cv, ${t}); cv.classList.remove('paused'); return true; })()`);
+      await p.shotEl(out(`${prefix}-${kind}-${t}.png`), `figure:has(> canvas[data-anim=${kind}])`, layout === 'n' ? 4 : 6);
+    }
+  }
+}
 const sceneRect = (p) => p.eval('(() => { const b = document.querySelector("#scene").getBoundingClientRect(); return { x: b.left, y: b.top, s: b.width / 600 }; })()');
 
 /** Касание сцены мышью в координатах плана дома. */
@@ -53,6 +119,13 @@ async function expertTrip(p) {
   await p.waitFor('window.__lessonReady === true && window.__lab && window.__labCtl', 60000);
   console.log('Десктоп 1440, светлая тема');
   const G = '#guide';
+
+  /* ---------- схемы ---------- */
+  console.log('Схемы цикла DAgger и HG-DAgger');
+  await schemeChecks(p, '', 'w', { 'dagger-loop': [3.0, 7.4, 15.6], 'hg-dagger': [1.2, 2.6, 7.0] }, 'l12-scheme');
+  await p.S('Emulation.setDeviceMetricsOverride', { width: 1280, height: 1000, deviceScaleFactor: 1, mobile: false }); await sleep(400);
+  await schemeChecks(p, '1280: ', 'w');
+  await p.S('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false }); await sleep(400);
 
   /* ---------- L1: две Ады ---------- */
   console.log('Лаборатория: две Ады');
@@ -186,6 +259,7 @@ async function expertTrip(p) {
   const m = await M.page(URL0, { width: 390, height: 844, dpr: 2, mobile: true, light: true });
   await m.waitFor('window.__lessonReady === true && window.__labCtl', 60000);
   ok((await m.eval('document.documentElement.scrollWidth')) === 390, 'ширина страницы 390: ' + await m.eval('document.documentElement.scrollWidth'));
+  await schemeChecks(m, 'телефон: ', 'n', { 'dagger-loop': [7.4], 'hg-dagger': [2.6] }, 'l12-m-scheme');
   await m.waitFor('window.__lab.st.ghost && window.__lab.st.ghost.length === 10', 60000);
   await bet(m, G, 0); await go(m, G); await sleep(2500);
   const sr = await m.eval('(() => { const r = document.querySelector("#scene").getBoundingClientRect(); return { top: Math.round(r.top), bottom: Math.round(r.bottom), ih: innerHeight }; })()');
@@ -208,6 +282,11 @@ async function expertTrip(p) {
   const d = await Dk.page(URL0, { width: 1440, height: 1000, dark: true });
   await d.waitFor('window.__lessonReady === true && window.__labCtl', 60000);
   ok(await d.eval('document.documentElement.dataset.theme === "dark"'), 'тема тёмная');
+  for (const [kind, t] of [['dagger-loop', 7.4], ['hg-dagger', 2.6]]) {
+    await center(d, `canvas[data-anim=${kind}]`); await sleep(300);
+    await d.eval(`(() => { const cv = document.querySelector('canvas[data-anim=${kind}]'); Anim.seek(cv, ${t}); cv.classList.remove('paused'); return true; })()`);
+    await d.shotEl(out(`l12-dark-${kind}.png`), `figure:has(> canvas[data-anim=${kind}])`, 6);
+  }
   await center(d, '#scene'); await d.waitFor('window.__lab.st.ghost && window.__lab.st.ghost.length === 10', 60000);
   await bet(d, G, 1); await go(d, G); await waitDone(d, G, 180000);
   await d.shotEl(out('l12-dark-duel.png'), '#lab .lab', 6);

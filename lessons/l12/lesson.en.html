@@ -82,6 +82,14 @@
       <li><span>Ask the expert to label these states with the correct actions.</span></li>
       <li><span>Add the new examples to <em>all</em> the old ones and retrain the policy. Repeat from step 2.</span></li>
     </ol>
+  </div>
+  <div class="wrap">
+    <figure class="card scheme-fig">
+      <canvas data-anim="dagger-loop" width="720" height="340" role="img" aria-label="Diagram of the DAgger loop, three rounds. The policy is trained on 10 expert demonstrations. The policy drives on its own, the expert labels every state it visited with the correct steering, the new pairs are added to all the old ones, and the policy is retrained. The dataset grows: in the first round Ada crashes at the first doorway, in the second at the second one, and in the third she makes it to the kitchen"></canvas>
+      <figcaption class="cv-note">The diagram shows three rounds of DAgger. In step 1 the policy is trained on 10 expert demonstrations, and the gray band shows where they run. In step 2 the policy drives on its own, and every state it visits is recorded. In step 3 the expert labels these states with the correct steering. Blue dots mark his labels, and blue arcs show where he would turn in places where he disagrees with the policy. In step 4 the new pairs are added to all the old ones and the policy is retrained, and the blue band shows where there are examples now. In the first round Ada crashes at the first doorway; in the second she gets through it and crashes at the second one; and in the third she makes it to the kitchen. The expert in the diagram is a program that knows the route, as in the lab below. The policy in the diagram is a stand-in: instead of a trained network, it takes the steering of the nearest example in the dataset, which is why it errs where there are no examples. How many rounds a real network needs, we'll check in the lab. Click the diagram to pause it.</figcaption>
+    </figure>
+  </div>
+  <div class="prose">
     <p>The loop removes the cause of the drift. In behavior cloning the first error led the policy to places with no examples, and in the worst case errors piled up as \(\varepsilon T^2\). In DAgger, after a few rounds, examples appear exactly where the policy goes. The authors proved that the error then grows linearly with the episode length rather than quadratically.</p>
     <p>There is a caveat: if a single error is irreversible, say Ada falls down the stairs, the gain disappears.</p>
     <details class="deep"><summary>Under the hood: the algorithm and the guarantee</summary><div class="body">
@@ -186,6 +194,14 @@
     <h2>Why DAgger is awkward for humans</h2>
     <p>With a human, DAgger works worse. A program doesn't care who is driving the car; a human does. Try saying how to turn the wheel correctly while watching a video of someone else driving: the reactions are off, there is no feedback, and everything feels delayed. The authors of HG-DAgger (2019) wrote exactly about this: when labeling "from the side", the quality of human labels drops.</p>
     <p>Their solution: the human doesn't label everything in a row, but <strong>takes over control</strong> when he sees danger and hands it back to the policy himself. Only the segments where the human drove go into the data. In the lab this is the "You're the expert" mode.</p>
+  </div>
+  <div class="wrap">
+    <figure class="card scheme-fig">
+      <canvas data-anim="hg-dagger" width="720" height="292" role="img" aria-label="Diagram of HG-DAgger: Ada drives on her own, the human watches and takes over twice when she leaves the route; without a takeover she would have crashed into the corner of a doorway both times. A time bar shows who drives: the policy or the human. Only the pairs from the human's segments go into the dataset, while DAgger would label every state of the drive"></canvas>
+      <figcaption class="cv-note">The diagram shows one drive with HG-DAgger. Ada drives on her own, while the human watches and takes over when she leaves the route. Where the policy drives, the line is orange, and where the human drives, it is blue. The dashed line shows where Ada would have gone without a takeover: both times she would have crashed into the corner of a doorway. Only the pairs from the human's segments go into the dataset, while DAgger would label every state of the drive. The policy and the start are the same as in the DAgger diagram in section 2. In the diagram a program stands in for the human: it takes over when Ada gets more than 12 cm away from the route or turns away from it by more than 0.6 rad, and hands control back when Ada is on the route again. Click the diagram to pause it.</figcaption>
+    </figure>
+  </div>
+  <div class="prose">
     <p>In an experiment on a real car with virtual obstacles, HG-DAgger had no collisions and no departures from the road, though the sample was small.</p>
     <details class="deep"><summary>Under the hood: HG-DAgger</summary><div class="body">
       <p>The policy is an ensemble of networks. The human decides himself when to take over control and when to hand it back. Only "observation → human action" pairs from his segments go into the data; no labels are collected on the policy's segments.</p>

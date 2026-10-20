@@ -1,7 +1,8 @@
 // Проверка урока 1.5: сначала цифры движка в Node, потом все интерактивы в браузере —
 // награда Push-T, денойзинг пачки, сборка цикла, лаборатория (пять миссий и свободный режим, клик по ряду
 // полоски прогонов), интерактив «положение или скорость» (l15/engine.js), схема Real-Time Chunking (shared/anim.js),
-// квиз; тёмная тема и телефон 390 px. Снимки — в shots/l15-*.png.
+// схема устройства Diffusion Policy (shared/anim.js, раздел «Цикл»: подписи в канвасе и не налезают, кадры этапов
+// различаются, на компьютере и телефоне), квиз; тёмная тема и телефон 390 px. Снимки — в shots/l15-*.png.
 const { launch, sleep } = require('./cdp');
 const path = require('path');
 const K = require('../lessons/shared/kettle-core.js');
@@ -11,6 +12,62 @@ const out = (n) => path.resolve(__dirname, '../shots/' + n);
 const f1 = (v, d) => (+v).toFixed(d == null ? 1 : d);
 let fails = 0;
 const check = (ok, msg) => { console.log((ok ? '  ✓ ' : '  ✗ ') + msg); if (!ok) fails++; };
+// схема устройства Diffusion Policy: моменты этапов — наблюдение, энкодеры, признаки, шум, проход по денойзеру,
+// вычитание шума, второй шаг, быстрые шаги, исполнение 8 действий, новые кадры
+const ARCH_T = [0.8, 2.0, 3.6, 4.6, 5.6, 6.4, 7.4, 10, 13.8, 16.6];
+/** Схема на канвасе (shared/anim.js): на каждом кадре подписи внутри канваса и не налезают друг на друга;
+ *  тексты кадров — для проверки содержания. Без anim.js в сборке схемы нет: none = true. */
+async function schemeLabels(p, kind, frames) {
+  return JSON.parse(await p.eval(`(() => {
+    const cv = document.querySelector('canvas[data-anim="${kind}"]');
+    if (!cv || typeof Anim === 'undefined') return JSON.stringify({ none: true, bad: [] });
+    const orig = CanvasRenderingContext2D.prototype.fillText, bad = [], texts = {};
+    let boxes = null, W = 0, H = 0;
+    CanvasRenderingContext2D.prototype.fillText = function (txt, x, y) {
+      if (boxes && this.canvas === cv) {
+        const m = this.measureText(txt), fs = parseFloat(/([\\d.]+)px/.exec(this.font)[1]), a = this.textAlign;
+        const x0 = a === 'center' ? x - m.width / 2 : a === 'right' ? x - m.width : x;
+        boxes.push({ t: String(txt), x0, x1: x0 + m.width, y0: y - fs / 2, y1: y + fs / 2 });
+      }
+      return orig.apply(this, arguments);
+    };
+    const prints = new Set();
+    for (const t of ${JSON.stringify(frames)}) {
+      boxes = []; Anim.seek(cv, t); const b = boxes; boxes = null;
+      { const d = cv.toDataURL(); let hh = 0; for (let i = 0; i < d.length; i += 3) hh = (hh * 31 + d.charCodeAt(i)) >>> 0; prints.add(hh); }
+      [W, H] = cv.style.aspectRatio.split('/').map(Number); texts[t] = b.map((q) => q.t);
+      b.forEach((q) => { if (q.x0 < 1 || q.x1 > W - 1 || q.y0 < 0 || q.y1 > H) bad.push('t = ' + t + ': за краем «' + q.t + '»'); });
+      for (let i = 0; i < b.length; i++) for (let j = i + 1; j < b.length; j++) {
+        const ox = Math.min(b[i].x1, b[j].x1) - Math.max(b[i].x0, b[j].x0), oy = Math.min(b[i].y1, b[j].y1) - Math.max(b[i].y0, b[j].y0);
+        if (ox > 1 && oy > 1) bad.push('t = ' + t + ': «' + b[i].t + '» на «' + b[j].t + '»');
+      }
+    }
+    CanvasRenderingContext2D.prototype.fillText = orig;
+    return JSON.stringify({ layout: cv.dataset.layout, W, H, bad, texts, distinct: prints.size });
+  })()`));
+}
+/** Схема устройства: подписи, различие этапов и содержание кадров; снимки моментов shots. */
+async function archChecks(p, where, layout, shots) {
+  await p.eval(`(() => { const cv = document.querySelector('canvas[data-anim="dp-arch"]'); if (cv) cv.scrollIntoView({ block: 'center' }); return true; })()`); await sleep(250);
+  const r = await schemeLabels(p, 'dp-arch', ARCH_T);
+  if (r.none) { check(false, `${where}схема устройства: схемы нет — в build.py для l15 нужен shared/anim.js перед l15/ui-l15.js`); return; }
+  check(r.layout === layout && r.bad.length === 0, `${where}схема устройства ${r.W}×${r.H}: подписи в канвасе и не налезают на ${ARCH_T.length} моментах` + (r.bad.length ? ': ' + r.bad.slice(0, 4).join('; ') : ''));
+  check(r.distinct === ARCH_T.length, `${where}схема устройства: кадры ${ARCH_T.length} этапов различаются (разных ${r.distinct})`);
+  const tx = (t) => (r.texts[String(t)] || []).join(' ');
+  check(/кадры двух камер/.test(tx(0.8)) && tx(0.8).includes('—') && (r.texts['2'] || []).filter((q) => q === 'ResNet-18').length === 2 && /свой энкодер ResNet-18/.test(tx(2)),
+    `${where}схема устройства: кадры двух камер, у каждой камеры свой энкодер ResNet-18`);
+  check(/один раз на пачку/.test(tx(3.6)) && /гауссова шума/.test(tx(4.6)) && tx(5.6).includes('1 из 16') && /в каждый слой/.test(tx(5.6)) && /как условие/.test(tx(5.6)),
+    `${where}схема устройства: признаки один раз на пачку, пачка из шума, условие входит в каждый слой денойзера`);
+  const fast = /(\d+) из 16/.exec(tx(10));
+  check(/вычитает часть оценённого шума/.test(tx(6.4)) && tx(7.4).includes('2 из 16') && /не запускается заново/.test(tx(7.4)) && fast && +fast[1] > 2 && +fast[1] < 16,
+    `${where}схема устройства: шаг денойзинга вычитает часть шума, энкодер второй раз не считает, на t = 10 шаг ${fast && fast[1]} из 16`);
+  check(tx(13.8).includes('16 из 16') && (r.texts['13.8'] || []).includes('исполняются') && (r.texts['13.8'] || []).includes('не исполняются') && /исполняет первые 8 действий/.test(tx(13.8)) && /новые кадры/.test(tx(16.6)) && /отступающий горизонт/.test(tx(16.6)),
+    `${where}схема устройства: после 16 шагов робот исполняет 8 действий из 16, потом новые кадры — отступающий горизонт`);
+  for (const t of shots) {
+    await p.eval(`(() => { const cv = document.querySelector('canvas[data-anim="dp-arch"]'); Anim.seek(cv, ${t}); cv.classList.remove('paused'); return true; })()`);
+    await p.shotEl(out(`l15-${where ? 'm-' : ''}dp-arch-${t}.png`), 'figure:has(> canvas[data-anim="dp-arch"])', where ? 4 : 6);
+  }
+}
 
 /* Отсылки вперёд: модели из будущих уроков называем по имени, но первое упоминание в тексте урока должно
    сопровождаться номером урока «урок N.M» — в том же предложении или в 160 символах после имени.
@@ -111,6 +168,15 @@ async function desktop() {
   check(tbl.w[2] >= 110 && tbl.pr.slice(0, 3).every((v) => v >= 12), `таблица систем: ширины столбцов ${tbl.w.map((v) => f1(v, 0)).join(' / ')}, отступ справа ${tbl.pr.map((v) => f1(v, 0)).join(' / ')}`);
   await p.shotEl(out('l15-speed.png'), '#speed .tbl-wrap', 6);
   check(await p.eval('/11 миссий с целью/.test(document.querySelector(".hero-meta").textContent) && /4 интерактива/.test(document.querySelector(".hero-meta").textContent) && !!document.querySelector(".toc a[href=\'#posvel\']") && document.querySelector("#posvel h2").textContent === "Положение или скорость: что выдаёт политика"'), 'шапка: 11 миссий, 4 интерактива; раздел «Положение или скорость» в оглавлении');
+
+  // --- схема устройства Diffusion Policy: в разделе «Цикл» после абзаца о цикле и до сборки цикла
+  const archPos = await p.eval(`(() => { const f = document.querySelector('figure:has(> canvas[data-anim="dp-arch"])'); if (!f) return null; const sec = f.closest('section'), prev = f.previousElementSibling, next = f.nextElementSibling;
+    return { sec: sec && sec.id, prev: prev ? prev.textContent : '', next: next ? next.textContent : '', beforePipe: !!(f.compareDocumentPosition(document.querySelector('#pipeLine')) & Node.DOCUMENT_POSITION_FOLLOWING),
+      on: typeof Anim !== 'undefined' && Anim.kinds().includes('dp-arch') && f.querySelector('canvas').dataset.animOn === '1', cap: f.querySelector('figcaption.cv-note').textContent, katex: !!f.querySelector('.katex') }; })()`);
+  check(archPos && archPos.on && archPos.sec === 'scheme' && /отступающий горизонт/.test(archPos.prev) && /^\s*Собери этот цикл сам/.test(archPos.next) && archPos.beforePipe, 'схема устройства: зарегистрирована и смонтирована, стоит в разделе «Цикл» после абзаца об отступающем горизонте и до сборки цикла');
+  check(archPos && /ResNet-18/.test(archPos.cap) && /называют UNet/.test(archPos.cap) && /множитель и сдвиг/.test(archPos.cap) && /называют FiLM/.test(archPos.cap) && /16 действий/.test(archPos.cap) && /первые 8 действий/.test(archPos.cap) && /на реальном Push-T — 6/.test(archPos.cap) && /условные/.test(archPos.cap) && !/слева|справа/.test(archPos.cap) && !archPos.katex,
+    'схема устройства: подпись объясняет UNet и FiLM простыми словами, называет 16 действий и исполнение 8 (на реальном Push-T — 6), говорит об упрощениях, без «слева/справа» и формул');
+  await archChecks(p, '', 'w', [2.0, 5.6, 13.8]);
 
   // --- 1. Push-T: перетащить блок мышью, повернуть ползунком, подогнать стрелками
   await center(p, '#ptCv');
@@ -257,8 +323,8 @@ async function desktop() {
   check(rtc.moves && rtc.layout === 'w', `схема RTC движется (до и во время счёта, стык и финал — разные кадры), раскладка широкая: ${rtc.layout}`);
   const rtcNote = await p.eval('document.querySelector("canvas[data-anim=rtc]").parentElement.querySelector("figcaption.cv-note").textContent');
   check(await p.eval('document.querySelectorAll("#rtcLegend span").length === 6') && /по горизонтали шаги управления/.test(rtcNote) && /заморожены/.test(rtcNote) && /занята 4 шага/.test(rtcNote) && /скачком/.test(rtcNote) && !(await p.eval('document.querySelector("canvas[data-anim=rtc]").parentElement.querySelector(".katex")')), 'схема RTC: легенда из шести значков, подпись объясняет оси, заморозку, задержку 4 шага и скачок, формул нет');
-  await p.eval('Anim.seek(document.querySelector("canvas[data-anim=rtc]"), 3.6)'); await p.shotEl(out('l15-rtc.png'), 'figure.scheme-fig', 6);
-  await p.eval('Anim.seek(document.querySelector("canvas[data-anim=rtc]"), 9.5)'); await p.shotEl(out('l15-rtc-end.png'), 'figure.scheme-fig', 6);
+  await p.eval('Anim.seek(document.querySelector("canvas[data-anim=rtc]"), 3.6)'); await p.shotEl(out('l15-rtc.png'), 'figure:has(> canvas[data-anim=rtc])', 6);
+  await p.eval('Anim.seek(document.querySelector("canvas[data-anim=rtc]"), 9.5)'); await p.shotEl(out('l15-rtc-end.png'), 'figure:has(> canvas[data-anim=rtc])', 6);
 
   // --- квиз
   await center(p, '#quizBox');
@@ -284,7 +350,8 @@ async function desktop() {
   await q.shotEl(out('l15-lab-dark.png'), '#lab .lab', 6);
   await center(q, '#pvMis'); await bet(q, '#pvMis', 'Скоростной'); await go(q, '#pvMis', 'pv');
   await q.shotEl(out('l15-posvel-dark.png'), '#posvel .lab', 6);
-  await center(q, 'canvas[data-anim=rtc]'); await q.eval('Anim.seek(document.querySelector("canvas[data-anim=rtc]"), 9.5)'); await q.shotEl(out('l15-rtc-dark.png'), 'figure.scheme-fig', 6);
+  await center(q, 'canvas[data-anim=rtc]'); await q.eval('Anim.seek(document.querySelector("canvas[data-anim=rtc]"), 9.5)'); await q.shotEl(out('l15-rtc-dark.png'), 'figure:has(> canvas[data-anim=rtc])', 6);
+  await center(q, 'canvas[data-anim="dp-arch"]'); await q.eval('(() => { const cv = document.querySelector(\'canvas[data-anim="dp-arch"]\'); Anim.seek(cv, 5.6); cv.classList.remove("paused"); })()'); await q.shotEl(out('l15-dp-arch-dark.png'), 'figure:has(> canvas[data-anim="dp-arch"])', 6);
   check(q.logs.length === 0, 'консоль тёмной темы: ' + (q.logs.join(' | ') || 'чисто'));
   await B2.close();
 }
@@ -323,6 +390,7 @@ async function phone() {
   await center(m, '#pvMis'); await bet(m, '#pvMis', 'Скоростной'); await go(m, '#pvMis', 'pv');
   check(await done(m, 'pv'), 'телефон: положения/скорости М1 пройдена');
   await m.shotEl(out('l15-m-posvel.png'), '#posvel .lab', 4);
+  await archChecks(m, 'телефон: ', 'n', [13.8]);
   const mrtc = await m.eval(`(() => { const cv = document.querySelector('canvas[data-anim="rtc"]'); Anim.seek(cv, 3.6); const x = cv.toDataURL(); Anim.seek(cv, 9.5); return { moves: x !== cv.toDataURL(), layout: cv.dataset.layout }; })()`);
   check(mrtc.moves && mrtc.layout === 'n', `телефон: схема RTC в узкой раскладке (${mrtc.layout}) и движется`);
   await m.eval('document.querySelector("canvas[data-anim=rtc]").scrollIntoView({ block: "start", behavior: "instant" })'); await sleep(200);

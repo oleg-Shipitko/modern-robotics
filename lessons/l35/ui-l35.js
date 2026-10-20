@@ -6,8 +6,9 @@
    2) голова действий: регрессия, токены и диффузия на столе с двумя
       мисками — ответы по одному, ползунок корзин и доли записей;
    3) таблицы OpenVLA по категориям с наведением и поиском строк;
-   схема LoRA на shared/anim.js (build.py не подключает flow.js урока,
-   поэтому схема — в этом файле). Движок — l35/engine.js (без DOM).
+   схемы на shared/anim.js: LoRA, устройство Octo и устройство OpenVLA
+   (build.py не подключает flow.js урока, поэтому схемы — в этом файле).
+   Движок — l35/engine.js (без DOM).
    ===================================================================== */
 'use strict';
 
@@ -536,6 +537,422 @@ Anim.add('lora', (() => {
     narrow: { W: 360, H: 420, draw(c, k, t, P, A) { scheme(c, k, t, P, A, { x: [26, 0, 0, 0, 334], vy: 130, vg: 22, mid: 185, W: [78, 120, 176, 100], A: [54, 270, 86, 50], B: [204, 270, 86, 50], r: [172, 295], sum: [300, 200], cap: [180, 24], cnt: [180, 400] }); } },
   };
 })());
+
+/* =====================================================================
+   Схемы устройства моделей (shared/anim.js), по образцу схем урока 2.1:
+     octo-arch    (раздел 2) — Octo: команда → языковой энкодер t5-base → 16 токенов
+                  задачи (вместо команды может быть картинка цели); кадры двух камер на
+                  двух шагах → небольшая свёрточная сеть → патчи 16 × 16 → токены
+                  наблюдения; после наблюдений каждого шага — токен-считыватель. Маска по
+                  дугам: наблюдение видит задачу и наблюдения своего и прошлых шагов, но не
+                  будущих и не считыватели; считыватель читает задачу и наблюдения. Выход
+                  считывателя → диффузионная голова → 20 шагов денойзинга → пачка действий;
+     openvla-arch (раздел 3) — OpenVLA: квадраты картинки читают DINOv2 и SigLIP, признаки
+                  ставят рядом, проектор переводит их в токены картинки для Llama 2;
+                  команда → токены словаря Llama; Llama 2 дописывает 7 токенов действия по
+                  одному, и каждый новый становится входом для следующего; токен — номер
+                  одной из 256 корзин между 1-м и 99-м процентилем, по нему получается число.
+   Цвета по соглашению anim.js: оранжевый — то, что считается сейчас (и токены действия),
+   синий — измеренное (кадры камер и их токены), серый — неподвижное (токены команды).
+   В схеме OpenVLA признаки DINOv2 синие («где»), SigLIP — фиолетовые («что»), как два
+   потока CLIPort в уроке 2.1. Числа действия и границы корзин условные.
+   Без shared/anim.js схем нет, а остальной урок работает.
+   ===================================================================== */
+(() => {
+  const KINDS = ['octo-arch', 'openvla-arch'];
+  if (typeof Anim === 'undefined') {
+    document.querySelectorAll(KINDS.map((x) => `canvas[data-anim=${x}]`).join(',')).forEach((cv) => { const f = cv.closest('figure'); if (f) f.hidden = true; });
+    return;
+  }
+  const K = HeroKit;
+  const hash = (i) => { const x = Math.sin(i * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
+  const num1 = (v) => (Math.abs(v) < 0.05 ? 0 : v).toLocaleString('ru-RU', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).replace('-', '−');
+  const sgn1 = (v) => (v >= 0.05 ? '+' : '') + num1(v);
+  /** Фраза — в строки не шире maxW; неразрывный пробел ( ) не даёт разорвать слова. */
+  function wrap(c, k, text, maxW, px, weight) {
+    K.font(c, k, px, weight); const ws = text.split(' '), out = []; let cur = '';
+    for (const w of ws) { const t2 = cur ? cur + ' ' + w : w; if (cur && c.measureText(t2).width > maxW) { out.push(cur); cur = w; } else cur = t2; }
+    if (cur) out.push(cur); return out;
+  }
+  /** Подпись, ужатая до ширины maxW; массив — несколько строк, y — середина блока; o.wrap — перенос по словам,
+   *  o.top — y задаёт первую строку, а не середину. */
+  function txt(c, k, text, x, y, maxW, o) {
+    o = Object.assign({ px: 11, weight: 600, halo: false }, o || {});
+    const lines = Array.isArray(text) ? text : o.wrap && maxW ? wrap(c, k, text, maxW, o.px, o.weight) : [text]; let px = o.px;
+    K.font(c, k, px, o.weight, o.mono);
+    const w = Math.max(...lines.map((s) => c.measureText(s).width));
+    if (maxW && w > maxW) px = Math.max(7, px * maxW / w);
+    const lh = px * k * (o.lh || 1.28), y0 = o.top ? y : y - (lines.length - 1) * lh / 2;
+    lines.forEach((s, i) => K.label(c, k, s, x, y0 + i * lh, Object.assign({}, o, { px })));
+  }
+  /** Блок сети: скруглённый прямоугольник с названием и строкой пояснения; on — блок сейчас считает. */
+  function box(c, k, A, P, b, title, sub, on, col) {
+    const [x, y, w, h] = b, cc = col || P.mot;
+    A.rect(c, x, y, w, h, 9, on ? A.alpha(cc, 0.13) : P.surf, on ? cc : P.line, on ? 1.8 : 1.2);
+    K.font(c, k, 11, 750);
+    const lines = Array.isArray(title) ? title : c.measureText(title).width > (w - 10) * 1.12 ? wrap(c, k, title, w - 10, 11, 750) : [title];
+    const n = lines.length + (sub ? 1 : 0), lh = 13 * k, y0 = y + h / 2 - (n - 1) * lh / 2;
+    lines.forEach((t, i) => txt(c, k, t, x + w / 2, y0 + i * lh, w - 10, { px: 11, weight: 750, color: P.ink }));
+    if (sub) txt(c, k, sub, x + w / 2, y0 + lines.length * lh, w - 10, { px: 10, weight: 600, color: P.ink3 });
+  }
+  /** Точка на ломаной по доле длины s ∈ [0, 1]. */
+  function along(pts, s) {
+    const L = []; let tot = 0; for (let i = 1; i < pts.length; i++) { const d = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); L.push(d); tot += d; }
+    let r = Math.max(0, Math.min(1, s)) * tot;
+    for (let i = 0; i < L.length; i++) { if (r <= L[i] || i === L.length - 1) { const f = L[i] ? Math.min(1, r / L[i]) : 0; return [pts[i][0] + (pts[i + 1][0] - pts[i][0]) * f, pts[i][1] + (pts[i + 1][1] - pts[i][1]) * f]; } r -= L[i]; }
+    return pts[pts.length - 1];
+  }
+  /** Стрелка по ломаной. */
+  function poly(c, A, pts, col, lw, dash) {
+    if (!pts || pts.length < 2) return;
+    const a = pts[pts.length - 2], b = pts[pts.length - 1];
+    if (pts.length > 2) A.line(c, pts.slice(0, -1), col, lw, dash);
+    if (dash) { A.line(c, [a, b], col, lw, dash); A.arrow(c, b[0] - (b[0] - a[0]) * 0.001, b[1] - (b[1] - a[1]) * 0.001, b[0], b[1], col, lw, 6); }
+    else A.arrow(c, a[0], a[1], b[0], b[1], col, lw, 6);
+  }
+  /** Точки бегут по ломаной, пока prog между 0 и 1. */
+  function dots(c, A, pts, prog, col) {
+    if (prog <= 0 || prog >= 1 || !pts) return;
+    for (let i = 0; i < 3; i++) { const q = along(pts, (prog * 1.6 + i / 3) % 1); A.circle(c, q[0], q[1], 2.6, col); }
+  }
+  /** Токен — квадратик; hollow — только контур. */
+  function tok(c, A, P, x, y, s, col, hollow) {
+    if (hollow) A.rect(c, x, y, s, s, 2.5, P.surf, col, 1.6);
+    else A.rect(c, x, y, s, s, 2.5, col, null);
+  }
+  /** Команда словами — в скруглённой рамке. */
+  function chip(c, k, A, P, text, b, on) {
+    const [x, y, w, h] = b;
+    A.rect(c, x, y, w, h, 9, P.surf, on ? P.ink2 : P.ink3, on ? 1.6 : 1.3);
+    txt(c, k, text, x + w / 2, y + h / 2, w - 12, { px: 10.5, weight: 650, color: P.ink, wrap: true });
+  }
+  /* ---------- кадры камер: стол, предметы, губки захвата ---------- */
+  const tableCol = (P) => (P.dark ? '#5a4a36' : '#e3d3b6');
+  function frame(c, A, P, x, y, w, h, kind, on) {
+    const s = Math.min(w, h), dk = P.dark;
+    c.save(); c.beginPath(); c.roundRect(x, y, w, h, 4); c.clip();
+    c.fillStyle = tableCol(P); c.fillRect(x, y, w, h);
+    const plate = (px, py, r) => { A.circle(c, px, py, r, dk ? '#d9d6cf' : '#fbfaf7', dk ? '#9c978c' : '#c4bdae', 1); A.circle(c, px, py, r * 0.6, null, dk ? '#b3aea3' : '#e2ddd2', 0.8); };
+    const knife = (kx, ky, L, ang, lw) => { c.save(); c.translate(kx, ky); c.rotate(ang); A.line(c, [[0, 0], [L * 0.55, 0]], dk ? '#c9ccd2' : '#8f97a2', lw); A.line(c, [[-L * 0.45, 0], [0, 0]], dk ? '#1f1b18' : '#3b3530', lw * 1.3); c.restore(); };
+    const jaws = (jx, jy, sc) => { c.fillStyle = dk ? '#1d1b19' : '#46423e'; c.fillRect(jx - sc * 0.5, jy - sc * 0.12, sc, sc * 0.16); c.fillRect(jx - sc * 0.5, jy, sc * 0.2, sc * 0.45); c.fillRect(jx + sc * 0.3, jy, sc * 0.2, sc * 0.45); };
+    if (kind === 'side') { plate(x + w * 0.68, y + h * 0.6, s * 0.24); knife(x + w * 0.3, y + h * 0.66, s * 0.5, -0.35, 2); jaws(x + w * 0.4, y + h * 0.1, s * 0.34); }
+    else if (kind === 'wrist') { plate(x + w * 0.72, y + h * 0.78, s * 0.55); knife(x + w * 0.42, y + h * 0.45, s * 1.1, -0.25, 3); c.fillStyle = dk ? '#1d1b19' : '#46423e'; c.fillRect(x, y + h * 0.7, w * 0.13, h * 0.3); c.fillRect(x + w * 0.87, y + h * 0.7, w * 0.13, h * 0.3); }
+    else if (kind === 'goal') { plate(x + w * 0.58, y + h * 0.55, s * 0.36); knife(x + w * 0.56, y + h * 0.55, s * 0.5, -0.35, 1.8); }
+    else if (kind === 'carrot') {
+      A.circle(c, x + w * 0.7, y + h * 0.62, s * 0.21, dk ? '#7f9fc2' : '#a9c3de', dk ? '#5d7ea3' : '#6f8fb0', 1.2);
+      A.circle(c, x + w * 0.7, y + h * 0.62, s * 0.13, dk ? '#6d8db0' : '#c4d7ea', null);
+      c.save(); c.translate(x + w * 0.32, y + h * 0.6); c.rotate(0.45);
+      c.beginPath(); c.moveTo(-s * 0.2, -s * 0.06); c.lineTo(s * 0.18, 0); c.lineTo(-s * 0.2, s * 0.06); c.closePath(); c.fillStyle = '#e8772e'; c.fill();
+      A.line(c, [[-s * 0.2, 0], [-s * 0.29, -s * 0.06]], '#3f8f3a', 2); A.line(c, [[-s * 0.2, 0], [-s * 0.3, s * 0.03]], '#3f8f3a', 2);
+      c.restore();
+      jaws(x + w * 0.44, y + h * 0.1, s * 0.26);
+    }
+    c.restore();
+    A.rect(c, x, y, w, h, 4, null, on ? P.ink : P.line, on ? 1.6 : 1);
+  }
+
+  /* ---------- octo-arch: токены задачи и наблюдений, маска, считыватели и диффузионная голова ---------- */
+  (() => {
+    const T = 18, PH = { tsk: [0.2, 1.6], obs: [1.6, 3.6], rd: [3.6, 4.6], mA: [4.8, 6.8], mB: [6.8, 8.8], mC: [8.8, 10.8], hd: [11.0, 14.4], out: [14.4, 15.2], fade: [17.2, 18] };
+    // группы последовательности: задача, наблюдение шага 1, считыватель 1, наблюдение шага 2, считыватель 2 (на схеме — по нескольку квадратиков)
+    const GR = [{ n: 4, kind: 'task' }, { n: 5, kind: 'obs' }, { n: 1, kind: 'rd' }, { n: 5, kind: 'obs' }, { n: 1, kind: 'rd' }];
+    const NPT = 22, TGT = Array.from({ length: NPT }, (_, i) => 0.6 * Math.sin(Math.PI * i / (NPT - 1) * 1.4 + 0.3) - 0.15), NOISE = Array.from({ length: NPT }, (_, i) => (hash(i + 3) + hash(i + 40) - 1) * 1.6);
+    function draw(c, k, t, P, A, G) {
+      const { seg, ease } = A, u = ((t % T) + T) % T;
+      const pT = seg(u, ...PH.tsk), pO = seg(u, ...PH.obs), pR = seg(u, ...PH.rd), pA = seg(u, ...PH.mA), pB = seg(u, ...PH.mB), pC = seg(u, ...PH.mC), pH = seg(u, ...PH.hd), pX = seg(u, ...PH.out);
+      const fade = 1 - seg(u, ...PH.fade); c.globalAlpha = fade;
+      const on = (x) => (x ? P.ink2 : P.line);
+      // ---------- входы: задача ----------
+      chip(c, k, A, P, '«положи нож на тарелку»', G.cmd, pT > 0 && pT < 0.5);
+      poly(c, A, G.aCmd, on(pT > 0), 1.4); dots(c, A, G.aCmd, seg(pT, 0, 0.3), P.ink3);
+      box(c, k, A, P, G.t5, 'языковой энкодер', 't5-base, 111 млн', pT > 0.2 && pT < 0.8, P.ink2);
+      const [gx, gy, gw, gh] = G.goal;
+      c.globalAlpha = fade * 0.75; frame(c, A, P, gx, gy, gw, gh, 'goal', false); c.globalAlpha = fade;
+      txt(c, k, 'или картинка цели', G.goalLab[0], G.goalLab[1], G.goalLab[2], { px: 10, color: P.ink3, align: G.goalLab[3] || 'left' });
+      poly(c, A, G.aTask, on(pT > 0.6), 1.5); dots(c, A, G.aTask, seg(pT, 0.6, 1), P.ink3);
+      // ---------- входы: кадры двух камер на двух шагах ----------
+      G.steps.forEach((S, j) => {
+        const act = pO > j * 0.35 && pO < j * 0.35 + 0.45;
+        txt(c, k, j ? 'шаг 2' : 'шаг 1', S.lab[0], S.lab[1], 60, { px: 10.5, weight: 700, color: P.ink2, align: 'left' });
+        frame(c, A, P, ...S.side, 'side', act); frame(c, A, P, ...S.wrist, 'wrist', act);
+        poly(c, A, S.aIn, on(pO > j * 0.35), 1.4); dots(c, A, S.aIn, seg(pO, j * 0.35, j * 0.35 + 0.25), P.out);
+        poly(c, A, S.aOut, on(pO > j * 0.35 + 0.3), 1.5); dots(c, A, S.aOut, seg(pO, j * 0.35 + 0.3, j * 0.35 + 0.6), P.out);
+      });
+      txt(c, k, 'сбоку', G.camLab[0][0], G.camLab[0][1], 50, { px: 10, color: P.ink3 });
+      txt(c, k, 'запястье', G.camLab[1][0], G.camLab[1][1], 60, { px: 10, color: P.ink3 });
+      box(c, k, A, P, G.cnn, 'свёрточная сеть', 'патчи 16 × 16', pO > 0.1 && pO < 0.95, P.out);
+      // ---------- трансформер: последовательность токенов ----------
+      const B = G.tf, F = G.col;
+      A.rect(c, B[0], B[1], B[2], B[3], 12, A.alpha(P.ink3, 0.06), P.ink3, 1.2);
+      txt(c, k, 'трансформер Octo', G.tfT[0], G.tfT[1], 160, { px: 12, weight: 750, color: P.ink, align: 'left' });
+      txt(c, k, '12 слоёв, ширина 768', G.tfS[0], G.tfS[1], 160, { px: 10, color: P.ink3, align: 'left' });
+      const ys = [], gc = [];                               // y каждого квадратика и середина каждой группы
+      { let y = F.y0; GR.forEach((g) => { const a = []; for (let i = 0; i < g.n; i++) { a.push(y); y += F.step; } ys.push(a); gc.push((a[0] + a[a.length - 1] + F.s) / 2); y += F.gap - F.step + F.s; }); }
+      const shown = [pT > 0.6 ? 4 * seg(pT, 0.6, 1) : 0, 5 * seg(pO, 0.25, 0.6), pR > 0 ? 1 : 0, 5 * seg(pO, 0.6, 0.95), pR > 0.5 ? 1 : 0];
+      const rdFull = pC > 0.5 || u >= PH.hd[0];
+      const NAMES = [['задача', '16 токенов'], ['наблюдение 1', '256 + 64'], ['считыватель 1'], ['наблюдение 2', '256 + 64'], ['считыватель 2']];
+      GR.forEach((g, gi) => {
+        const col = g.kind === 'task' ? P.ink3 : g.kind === 'obs' ? P.out : P.mot;
+        for (let i = 0; i < g.n; i++) {
+          const vis = Math.max(0, Math.min(1, shown[gi] - i)); if (vis <= 0) { A.rect(c, F.x, ys[gi][i], F.s, F.s, 2.5, null, P.grid, 1); continue; }
+          c.globalAlpha = fade * vis; tok(c, A, P, F.x, ys[gi][i], F.s, col, g.kind === 'rd' && !rdFull); c.globalAlpha = fade;
+        }
+        const nm = NAMES[gi], lx = F.x - F.labGap;
+        if (nm.length > 1) { txt(c, k, nm[0], lx, gc[gi] - 7, F.labW, { px: 10.5, weight: 700, color: g.kind === 'obs' ? P.out : P.ink2, align: 'right' }); txt(c, k, nm[1], lx, gc[gi] + 7, F.labW, { px: 9.5, color: P.ink3, align: 'right' }); }
+        else txt(c, k, nm[0], lx, gc[gi], F.labW, { px: 10.5, weight: 700, color: P.mot, align: 'right' });
+      });
+      // ---------- маска: дуги от выбранного токена к тем, кого он видит ----------
+      const ax = F.x + F.s + 3, cy = (gi, i) => ys[gi][i] + F.s / 2;
+      const arc = (y1, y2, col, lw, dash, cross) => {
+        const b = Math.min(F.maxB, 16 + Math.abs(y2 - y1) * 0.55);
+        c.beginPath(); c.moveTo(ax, y1); c.quadraticCurveTo(ax + b, (y1 + y2) / 2, ax, y2);
+        c.strokeStyle = col; c.lineWidth = lw; c.setLineDash(dash || []); c.stroke(); c.setLineDash([]);
+        if (cross) K.cross(c, ax + b / 2, (y1 + y2) / 2, 4.5, P.bad, 2);
+      };
+      // правила: [источник, кого видит (группы), кого не видит (группа)]
+      const RULES = [[[1, 2], [0, 1], 3], [[3, 2], [0, 1, 3], 2], [[4, 0], [0, 1, 3], null]];
+      const ps = [pA, pB, pC], ri = pC > 0 ? 2 : pB > 0 ? 1 : pA > 0 ? 0 : -1;
+      if (ri >= 0 && u < PH.hd[0]) {
+        const [[sg, si], seeG, notG] = RULES[ri], p = ps[ri], y0 = cy(sg, si), tg = [];
+        seeG.forEach((g2) => ys[g2].forEach((_, i) => { if (!(g2 === sg && i === si)) tg.push([g2, i]); }));
+        const nOn = Math.ceil(tg.length * Math.min(1, p * 1.6));
+        tg.slice(0, nOn).forEach(([g2, i], q) => arc(y0, cy(g2, i), A.alpha(P.mot, 0.3 + 0.55 * hash(q + ri * 17)), 1 + 1.4 * hash(q + ri * 5)));
+        if (notG != null && p > 0.3) arc(y0, gc[notG], A.alpha(P.ink3, 0.85), 1.5, [4, 3], true);
+        A.rect(c, F.x - 2, ys[sg][si] - 2, F.s + 4, F.s + 4, 3.5, null, P.ink, 1.8);
+      }
+      // ---------- что видит маска: правило словами ----------
+      const M = G.mask;
+      txt(c, k, 'Маска внимания', M.t[0], M.t[1], M.w, { px: 12, weight: 750, color: P.ink, align: 'left' });
+      const rule = ri < 0 || u >= PH.hd[0] && ri < 0 ? 'Маска решает, какие токены видит каждый токен.'
+        : ri === 0 ? 'Наблюдение 1 видит задачу и само себя, но не наблюдение 2: оно из будущего.'
+        : ri === 1 ? 'Наблюдение 2 видит задачу и наблюдения обоих шагов, но не считыватель.'
+        : 'Считыватель читает задачу и наблюдения своего и прошлых шагов, а его не читает никто.';
+      txt(c, k, rule, M.r[0], M.r[1], M.w, { px: 11, weight: 650, color: P.ink2, align: 'left', wrap: true, top: true, lh: 1.32 });
+      const [lx, ly, ldy] = M.leg;
+      A.line(c, [[lx, ly], [lx + 24, ly]], A.alpha(P.mot, 0.8), 2);
+      txt(c, k, 'видит', lx + 30, ly, 60, { px: 10, color: P.ink3, align: 'left' });
+      A.line(c, [[lx + ldy[0], ly + ldy[1]], [lx + ldy[0] + 24, ly + ldy[1]]], A.alpha(P.ink3, 0.8), 1.4, [4, 3]); K.cross(c, lx + ldy[0] + 12, ly + ldy[1], 4, P.bad, 2);
+      txt(c, k, 'не видит', lx + ldy[0] + 30, ly + ldy[1], 70, { px: 10, color: P.ink3, align: 'left' });
+      // ---------- выход считывателя → диффузионная голова → пачка ----------
+      poly(c, A, G.aRd, on(pH > 0), 1.6); dots(c, A, G.aRd, seg(pH, 0, 0.2), P.mot);
+      const steps = pH <= 0.15 ? 0 : Math.min(20, Math.ceil((pH - 0.15) / 0.8 * 20)), denoise = pH > 0.15 && pH < 0.95;
+      box(c, k, A, P, G.head, 'диффузионная голова', '3 слоя по 256', denoise);
+      A.line(c, G.loop, denoise ? P.mot : P.line, denoise ? 1.6 : 1.2, [4, 3], -u * 24);
+      const lp = G.loop[G.loop.length - 1], lq = G.loop[G.loop.length - 2];
+      A.arrow(c, lq[0] + (lp[0] - lq[0]) * 0.6, lq[1] + (lp[1] - lq[1]) * 0.6, lp[0], lp[1], denoise ? P.mot : P.line, denoise ? 1.6 : 1.2, 5);
+      txt(c, k, '× 20', G.loopLab[0], G.loopLab[1], 40, { px: 10, mono: true, weight: 700, color: denoise ? P.mot : P.ink3 });
+      poly(c, A, G.aHead, on(steps > 0), 1.5);
+      const [qx, qy, qw, qh] = G.chunk, mid = qy + qh / 2, sy = qh * 0.3, uu = steps / 20;
+      A.rect(c, qx, qy, qw, qh, 7, P.surf, pX > 0 ? P.mot : P.line, pX > 0 ? 1.6 : 1.2);
+      if (steps > 0) {
+        c.fillStyle = P.mot;
+        const pts = []; for (let i = 0; i < NPT; i++) { const v = NOISE[i] * (1 - uu) + TGT[i] * uu, px2 = qx + 6 + (qw - 12) * i / (NPT - 1); pts.push([px2, mid - v * sy]); c.beginPath(); c.arc(px2, mid - v * sy, 1.8, 0, Math.PI * 2); c.fill(); }
+        if (steps >= 20) A.line(c, pts, P.mot, 1.4);
+      }
+      txt(c, k, 'пачка действий', G.chunkLab[0], G.chunkLab[1], qw + 20, { px: 10, color: P.ink2 });
+      if (steps > 0) txt(c, k, `шаг денойзинга ${steps} из 20`, G.cnt[0], G.cnt[1], G.cnt[3], { px: 10, weight: 700, color: P.mot, align: G.cnt[2] });
+      // ---------- что происходит ----------
+      const st = u < PH.obs[0] ? 'Команду читает языковой энкодер t5-base: получается 16 токенов задачи.'
+        : u < PH.rd[0] ? 'Кадры двух камер на двух шагах проходят свёрточную сеть и режутся на патчи 16 × 16.'
+        : u < PH.mA[0] ? 'После наблюдений каждого шага в последовательность вставляют токен-считыватель.'
+        : u < PH.hd[0] ? 'Трансформер читает все токены, а маска внимания решает, кто кого видит.'
+        : u < PH.out[0] ? 'Выход считывателя получает диффузионная голова: за 20 шагов денойзинга шум становится пачкой действий.'
+        : 'Основа считается один раз, а все 20 шагов денойзинга идут в маленькой голове.';
+      txt(c, k, st, G.st[0], G.st[1], G.st[2], { px: 11.5, weight: 700, color: P.ink, align: 'left', wrap: true, lh: 1.35, top: true });
+      c.globalAlpha = 1;
+    }
+    Anim.add('octo-arch', {
+      W: 720, H: 404, start: 15.0, narrowAt: 720,
+      draw(c, k, t, P, A) {
+        draw(c, k, t, P, A, {
+          cmd: [14, 16, 182, 28], aCmd: [[105, 44], [105, 54]], t5: [14, 56, 182, 40], aTask: [[196, 76], [204, 90]],
+          goal: [14, 104, 34, 24], goalLab: [54, 116, 140],
+          steps: [
+            { lab: [14, 145], side: [14, 154, 48, 38], wrist: [66, 160, 32, 24], aIn: [[100, 173], [107, 173]], aOut: [[198, 173], [204, 168]] },
+            { lab: [14, 211], side: [14, 220, 48, 38], wrist: [66, 226, 32, 24], aIn: [[100, 239], [107, 239]], aOut: [[198, 239], [204, 272]] },
+          ],
+          camLab: [[38, 270], [82, 270]], cnn: [108, 150, 90, 112],
+          tf: [206, 14, 272, 332], tfT: [218, 32], tfS: [218, 48],
+          col: { x: 345, s: 10, step: 13, gap: 16, y0: 70, labGap: 9, labW: 120, maxB: 112 },
+          mask: { t: [494, 30], r: [494, 52], w: 212, leg: [494, 134, [0, 18]] },
+          aRd: [[358, 322], [488, 322]], head: [490, 299, 104, 46], loop: [[578, 299], [578, 285], [506, 285], [506, 297]], loopLab: [542, 277],
+          aHead: [[594, 322], [604, 322]], chunk: [606, 293, 100, 58], chunkLab: [656, 283], cnt: [706, 364, 'right', 200],
+          st: [14, 382, 692],
+        });
+      },
+      narrow: {
+        W: 360, H: 850,
+        draw(c, k, t, P, A) {
+          draw(c, k, t, P, A, {
+            cmd: [14, 14, 230, 28], aCmd: [[129, 42], [129, 50]], t5: [14, 52, 230, 40], aTask: [[244, 72], [334, 72], [334, 276]],
+            goal: [14, 100, 32, 24], goalLab: [52, 112, 180],
+            steps: [
+              { lab: [14, 140], side: [14, 148, 56, 42], wrist: [76, 154, 38, 28], aIn: [[116, 169], [126, 169]], aOut: [[175, 252], [175, 276]] },
+              { lab: [14, 204], side: [14, 212, 56, 42], wrist: [76, 218, 38, 28], aIn: [[116, 233], [126, 233]], aOut: null },
+            ],
+            camLab: [[42, 264], [95, 264]], cnn: [128, 146, 94, 106],
+            tf: [14, 278, 332, 400], tfT: [26, 296], tfS: [26, 312],
+            col: { x: 150, s: 9, step: 12, gap: 15, y0: 430, labGap: 9, labW: 120, maxB: 170 },
+            mask: { t: [26, 336], r: [26, 356], w: 308, leg: [26, 408, [110, 0]] },
+            aRd: [[154.5, 669], [154.5, 700]], head: [40, 702, 150, 46], loop: [[176, 748], [176, 760], [54, 760], [54, 750]], loopLab: [115, 772],
+            aHead: [[190, 725], [204, 725]], chunk: [206, 696, 140, 58], chunkLab: [276, 686], cnt: [276, 772, 'center', 150],
+            st: [14, 796, 332],
+          });
+        },
+      },
+    });
+  })();
+
+  /* ---------- openvla-arch: два энкодера, проектор, Llama 2 и семь токенов действия по одному ---------- */
+  (() => {
+    const T = 18, PH = { img: [0.2, 1.0], enc: [1.0, 2.6], cat: [2.6, 3.6], proj: [3.6, 4.8], txt: [4.8, 6.2], gen: [6.4, 13.4], act: [13.6, 14.6], fade: [17.2, 18] };
+    // 7 чисел действия: смещение захвата по x, y, z (см), поворот (°) и раскрытие захвата. Числа и границы корзин условные:
+    // ось от 1-го до 99-го процентиля делят на 256 равных корзин, токен — номер корзины, число — её середина.
+    const DIMS = [[-2, 2, 0.6], [-2, 2, -0.3], [-2, 2, -0.9], [-6, 6, 1], [-6, 6, -2], [-6, 6, 0.5], [0, 1, 1]].map(([lo, hi, v]) => {
+      const bin = Math.max(0, Math.min(255, Math.floor((v - lo) / (hi - lo) * 256)));
+      return { lo, hi, bin, val: lo + (bin + 0.5) * (hi - lo) / 256 };
+    });
+    const NI = 5, NT = 4, NA = 7;                          // на схеме: 5 токенов картинки, 4 токена команды, 7 токенов действия
+    function draw(c, k, t, P, A, G) {
+      const { seg, ease, lerp } = A, u = ((t % T) + T) % T;
+      const pI = seg(u, ...PH.img), pE = seg(u, ...PH.enc), pC = ease(seg(u, ...PH.cat)), pP = seg(u, ...PH.proj), pX = seg(u, ...PH.txt), pG = seg(u, ...PH.gen), pA = seg(u, ...PH.act);
+      const fade = 1 - seg(u, ...PH.fade); c.globalAlpha = fade;
+      const on = (x) => (x ? P.ink2 : P.line);
+      // какой токен действия сейчас и доля его шага: до 0,4 Llama читает вход, 0,4–0,6 новый токен встаёт в конец,
+      // с 0,6 его номер корзины становится числом
+      const jf = pG * NA, cur = pG <= 0 ? -1 : pG >= 1 ? NA : Math.min(NA - 1, Math.floor(jf)), ls = pG >= 1 ? 1 : jf - Math.floor(jf);
+      const made = (j) => j < cur || (j === cur && ls >= 0.4), decoded = (j) => j < cur || (j === cur && ls >= 0.62);
+      const R = G.row, rx = (i) => R.x0 + i * R.step, gl = R.y + R.s / 2;
+      // ---------- картинка и два энкодера ----------
+      const [ix, iy, is] = G.img;
+      frame(c, A, P, ix, iy, is, is, 'carrot', pE > 0 && pE < 1);
+      const cut = seg(pI, 0.3, 1);
+      if (cut > 0) for (let i = 1; i < 4; i++) {
+        A.line(c, [[ix + i * is / 4, iy], [ix + i * is / 4, iy + is]], A.alpha(P.out, 0.8 * cut), 1.2);
+        A.line(c, [[ix, iy + i * is / 4], [ix + is, iy + i * is / 4]], A.alpha(P.out, 0.8 * cut), 1.2);
+      }
+      txt(c, k, 'картинка 224 × 224', G.imgLab[0], G.imgLab[1], G.imgLab[2], { px: 10.5, color: P.ink2 });
+      G.aImg.forEach((pts) => { poly(c, A, pts, on(pE > 0), 1.5); dots(c, A, pts, seg(pE, 0, 0.45), P.out); });
+      box(c, k, A, P, G.dino, 'DINOv2', 'где что лежит', pE > 0.3 && pE < 1, P.out);
+      box(c, k, A, P, G.sig, 'SigLIP', 'что на снимке', pE > 0.3 && pE < 1, P.spr);
+      const [cw, ch] = G.cell;
+      const strip = (x, y, col, g, off) => { for (let i = 0; i < 4; i++) { const v = Math.max(0, Math.min(1, g * 4 - i)); A.rect(c, x + i * cw + 0.5, y, cw - 1, ch, 2, v > 0 ? A.alpha(col, 0.25 + 0.6 * hash(i + off) * v) : P.surf, A.alpha(col, 0.7), 1); } };
+      G.aEnc.forEach((pts) => poly(c, A, pts, on(pE > 0.6), 1.4));
+      strip(G.dS[0], G.dS[1], P.out, seg(pE, 0.6, 1), 1); strip(G.sS[0], G.sS[1], P.spr, seg(pE, 0.6, 1), 9);
+      // признаки двух энкодеров ставят рядом: копии полосок съезжаются в одну
+      G.aCat.forEach((pts) => poly(c, A, pts, on(pC > 0), 1.4));
+      const [qx, qy] = G.cat;
+      for (let i = 0; i < 8; i++) A.rect(c, qx + i * cw + 0.5, qy, cw - 1, ch, 2, P.surf, P.grid, 1);
+      if (pC > 0) for (const [S, col, off, o] of [[G.dS, P.out, 1, 0], [G.sS, P.spr, 9, 4]]) {
+        const x0 = lerp(S[0], qx + o * cw, pC), y0 = lerp(S[1], qy, pC);
+        for (let i = 0; i < 4; i++) A.rect(c, x0 + i * cw + 0.5, y0, cw - 1, ch, 2, A.alpha(col, 0.25 + 0.6 * hash(i + off)), A.alpha(col, 0.7), 1);
+      }
+      txt(c, k, 'признаки рядом', G.catLab[0], G.catLab[1], G.catLab[2], { px: 10.5, color: P.ink2, align: G.catLab[3] || 'center' });
+      poly(c, A, G.aProj, on(pP > 0), 1.5); dots(c, A, G.aProj, seg(pP, 0, 0.3), P.spr);
+      box(c, k, A, P, G.proj, 'проектор', '2 слоя', pP > 0.15 && pP < 0.7);
+      // ---------- команда и её токены ----------
+      chip(c, k, A, P, '«положи морковь в миску»', G.cmd, pX > 0 && pX < 0.4);
+      poly(c, A, G.aCmd, on(pX > 0), 1.5); dots(c, A, G.aCmd, seg(pX, 0, 0.35), P.ink3);
+      box(c, k, A, P, G.tokz, 'токенизатор Llama', null, pX > 0.2 && pX < 0.6, P.ink2);
+      // ---------- вход Llama: токены картинки, команды и уже выданные токены действия ----------
+      G.aIn.forEach((pts, i) => poly(c, A, pts, on(i === 0 ? pP > 0.5 : pX > 0.6), 1.5));
+      [['картинка', 0, NI], ['команда', NI, NT], ['действие', NI + NT, NA]].forEach(([w, a, n]) => txt(c, k, w, (rx(a) + rx(a + n - 1) + R.s) / 2, R.labY, 80, { px: 10, color: P.ink3 }));
+      for (let i = 0; i < NI + NT + NA; i++) A.rect(c, rx(i), R.y, R.s, R.s, 2.5, null, P.grid, 1);
+      const flyIn = (pts, f, i, col) => { const q = along(pts.concat([[rx(i) + R.s / 2, gl]]), f); tok(c, A, P, q[0] - R.s / 2, q[1] - R.s / 2, R.s, col); };
+      for (let i = 0; i < NI; i++) {                                    // токены картинки выходят из проектора
+        const f = ease(seg(pP, 0.45 + i * 0.07, 0.7 + i * 0.06)); if (f > 0) flyIn(G.aIn[0], f, i, P.out);
+      }
+      for (let i = 0; i < NT; i++) {                                    // токены команды: у токенизатора, потом на вход
+        const a = seg(pX, 0.4 + i * 0.04, 0.5 + i * 0.04); if (a <= 0) continue;
+        const f = ease(seg(pX, 0.62 + i * 0.05, 0.85 + i * 0.05)), x0 = G.tTok[0] + i * R.step, y0 = G.tTok[1];
+        if (f <= 0) tok(c, A, P, x0, y0, R.s, P.ink3); else flyIn([[x0 + R.s / 2, y0 + R.s / 2]].concat(G.aIn[1].slice(1)), f, NI + i, P.ink3);
+      }
+      // ---------- Llama 2: читает вход и дописывает в конец новый токен ----------
+      const L = G.llama, busy = pG > 0 && pG < 1 && ls < 0.4, below = L[1] > R.y;
+      A.rect(c, L[0], L[1], L[2], L[3], 10, busy ? A.alpha(P.mot, 0.12) : A.alpha(P.ink3, 0.08), busy ? P.mot : P.ink3, busy ? 1.8 : 1.3);
+      txt(c, k, 'Llama 2', G.llT[0], G.llT[1], 120, { px: 12, weight: 750, color: P.ink, align: 'left' });
+      txt(c, k, '7 млрд параметров', G.llS[0], G.llS[1], 140, { px: 10, color: P.ink3, align: 'left' });
+      if (pG > 0) txt(c, k, pG >= 1 ? 'все 7 токенов' : `токен ${cur + 1} из 7`, G.llC[0], G.llC[1], 110, { px: 10.5, weight: 700, color: P.mot, align: 'right' });
+      const edge = below ? L[1] : L[1] + L[3];
+      if (busy) for (let i = 0; i < 5; i++) { const x = rx(Math.floor(hash(i + cur * 7) * (NI + NT + cur))) + R.s / 2, y = lerp(below ? R.y + R.s : R.y, below ? L[1] + L[3] * 0.45 : L[1] + L[3] * 0.55, ((ls / 0.4) * 1.3 + i / 5) % 1); A.circle(c, x, y, 2.4, P.mot); }
+      for (let j = 0; j < NA; j++) {
+        if (!made(j)) continue;
+        const x1 = rx(NI + NT + j), f = j === cur ? ease(seg(ls, 0.4, 0.6)) : 1;
+        tok(c, A, P, x1, lerp(edge + (below ? -R.s * 0.2 : -R.s * 0.8), R.y, f), R.s, P.mot);
+        if (j === cur && pG < 1) A.rect(c, x1 - 2, R.y - 2, R.s + 4, R.s + 4, 3.5, null, P.ink, 1.6);
+      }
+      // ---------- корзины: номер токена → число ----------
+      const X = G.axis, bw = (X.x1 - X.x0) / 256, jj = pG >= 1 ? NA - 1 : cur, S = G.cells, sx = (j) => S.x0 + j * S.step;
+      A.rect(c, X.x0, X.y - 4, X.x1 - X.x0, 8, 3, P.surf2, P.line, 1);
+      for (let b = 32; b < 256; b += 32) A.line(c, [[X.x0 + b * bw, X.y - 4], [X.x0 + b * bw, X.y + 4]], P.grid, 1);
+      txt(c, k, '1-й процентиль', X.x0, X.endY, 120, { px: 10, color: P.ink3, align: 'left' });
+      txt(c, k, '99-й процентиль', X.x1, X.endY, 120, { px: 10, color: P.ink3, align: 'right' });
+      if (jj >= 0 && made(jj)) {
+        const d = DIMS[jj], mx = X.x0 + (d.bin + 0.5) * bw, live = jj === cur && pG < 1;
+        A.rect(c, mx - 2, X.y - 8, 4, 16, 1.5, P.mot, null);
+        txt(c, k, `корзина ${d.bin} из 256`, Math.max(X.x0 + 58, Math.min(X.x1 - 58, mx)), X.binY, 120, { px: 10, weight: 700, color: P.mot });
+        if (live && G.link) {
+          A.line(c, [[rx(NI + NT + jj) + R.s / 2, R.y + R.s + 3], [mx, X.binY - 8]], A.alpha(P.mot, 0.65), 1.2, [3, 3]);
+          if (ls >= 0.62) A.line(c, [[mx, X.y + 9], [sx(jj) + S.w / 2, S.y - 2]], A.alpha(P.mot, 0.65), 1.2, [3, 3]);
+        }
+      }
+      // ---------- действие: 7 чисел ----------
+      for (let j = 0; j < NA; j++) {
+        const x = sx(j), ok = decoded(j), now = j === cur && pG < 1;
+        A.rect(c, x, S.y, S.w, S.h, 4, ok ? A.alpha(P.mot, pA > 0 ? 0.22 : 0.1) : P.surf, ok ? (now || pA > 0 ? P.mot : A.alpha(P.mot, 0.55)) : P.grid, now ? 1.8 : 1.1);
+        if (ok) txt(c, k, j === NA - 1 ? num1(DIMS[j].val) : sgn1(DIMS[j].val), x + S.w / 2, S.y + S.h / 2 + 0.5, S.w - 4, { px: 9.5, weight: 700, mono: true, color: P.ink });
+      }
+      const grp = (a, b, text) => { const x0 = sx(a), x1 = sx(b) + S.w; A.line(c, [[x0 + 1, S.brY], [x1 - 1, S.brY]], P.ink3, 1); txt(c, k, text, (x0 + x1) / 2, S.labY, x1 - x0 + 12, { px: 10, color: P.ink3 }); };
+      grp(0, 2, 'смещение, см'); grp(3, 5, 'поворот, °'); grp(6, 6, 'захват');
+      // ---------- что происходит ----------
+      const st = u < PH.cat[0] ? 'Каждый квадрат картинки читают два энкодера: DINOv2 и SigLIP.'
+        : u < PH.proj[0] ? 'Признаки квадрата от двух энкодеров ставят рядом в один вектор.'
+        : u < PH.txt[0] ? 'Проектор переводит эти векторы в токены картинки для Llama 2.'
+        : u < PH.gen[0] ? 'Команду режут на токены словаря Llama и ставят после токенов картинки.'
+        : u < PH.gen[0] + (PH.gen[1] - PH.gen[0]) / NA ? 'Llama 2 выдаёт первый токен действия: это номер одной из 256 корзин.'
+        : u < PH.act[0] ? 'Новый токен встаёт в конец входа, и модель выдаёт следующий: всего 7 токенов.'
+        : 'Семь чисел уходят руке. С новым кадром всё повторяется, около 6 раз в секунду.';
+      txt(c, k, st, G.st[0], G.st[1], G.st[2], { px: 11.5, weight: 700, color: P.ink, align: 'left', wrap: true, lh: 1.35, top: true });
+      c.globalAlpha = 1;
+    }
+    Anim.add('openvla-arch', {
+      W: 720, H: 252, start: 13.9, narrowAt: 720,
+      draw(c, k, t, P, A) {
+        draw(c, k, t, P, A, {
+          img: [14, 30, 84], imgLab: [56, 128, 106],
+          dino: [116, 20, 112, 46], sig: [116, 80, 112, 46], aImg: [[[98, 62], [114, 45]], [[98, 82], [114, 101]]],
+          cell: [9, 14], dS: [240, 36], sS: [240, 96], aEnc: [[[228, 43], [238, 43]], [[228, 103], [238, 103]]],
+          cat: [296, 66], aCat: [[[277, 43], [287, 43], [287, 70], [294, 70]], [[277, 103], [287, 103], [287, 76], [294, 76]]], catLab: [332, 92, 100],
+          aProj: [[369, 73], [382, 73]], proj: [384, 51, 76, 44],
+          cmd: [14, 150, 126, 40], aCmd: [[140, 170], [154, 170]], tokz: [156, 150, 112, 40], tTok: [284, 165],
+          aIn: [[[460, 73], [469, 73], [469, 91], [481, 91]], [[268, 170], [469, 170], [469, 91], [481, 91]]],
+          row: { x0: 486, step: 13, s: 10, y: 86, labY: 108 }, llama: [476, 14, 230, 56], llT: [488, 33], llS: [488, 52], llC: [698, 42], link: true,
+          axis: { x0: 486, x1: 696, y: 150, binY: 132, endY: 168 },
+          cells: { x0: 486, step: 30.5, w: 28, y: 182, h: 22, brY: 210, labY: 222 },
+          st: [14, 208, 440],
+        });
+      },
+      narrow: {
+        W: 360, H: 604,
+        draw(c, k, t, P, A) {
+          draw(c, k, t, P, A, {
+            img: [77, 14, 76], imgLab: [115, 102, 120],
+            dino: [12, 116, 104, 44], sig: [120, 116, 104, 44], aImg: [[[100, 90], [64, 114]], [[130, 90], [172, 114]]],
+            cell: [8, 12], dS: [48, 176], sS: [156, 176], aEnc: [[[64, 160], [64, 174]], [[172, 160], [172, 174]]],
+            cat: [83, 214], aCat: [[[64, 188], [64, 200], [94, 212]], [[172, 188], [172, 200], [136, 212]]], catLab: [154, 220, 100, 'left'],
+            aProj: [[115, 226], [115, 250]], proj: [65, 252, 100, 40],
+            cmd: [232, 40, 114, 46], aCmd: [[289, 86], [289, 114]], tokz: [232, 116, 114, 44], tTok: [263, 176],
+            aIn: [[[115, 292], [115, 306], [108.5, 306], [108.5, 324]], [[289, 188], [289, 306], [167, 306], [167, 324]]],
+            row: { x0: 76, step: 13, s: 10, y: 326, labY: 350 }, llama: [14, 364, 332, 54], llT: [26, 383], llS: [26, 402], llC: [336, 392], link: false,
+            axis: { x0: 43, x1: 317, y: 452, binY: 436, endY: 470 },
+            cells: { x0: 43, step: 40, w: 34, y: 486, h: 24, brY: 516, labY: 528 },
+            st: [14, 552, 332],
+          });
+        },
+      },
+    });
+  })();
+})();
 
 /* ---------- Квиз ---------- */
 function renderQuiz(boxSel, Q, scoreSel) {

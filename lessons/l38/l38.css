@@ -118,3 +118,10 @@ html[lang="en"] .journal ol:empty::before { content: "Press “Play”: the step
   .dialog { font-size: 12.5px; padding: 12px 14px; }
   .prompt code { font-size: 12.5px; }
 }
+
+/* схема двухэтапного инференса π0.5 (shared/anim.js) */
+.scheme-fig { margin: 0; padding: 14px 16px 12px; max-width: 820px; }
+.scheme-fig canvas { display: block; width: 100%; height: auto; }
+.scheme-fig figcaption { margin: 8px 2px 0; }
+.scheme-fig canvas[data-layout="n"] { max-width: 460px; margin: 0 auto; }
+@media (max-width: 520px) { .scheme-fig { padding: 10px 10px 8px; } }

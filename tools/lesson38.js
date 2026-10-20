@@ -1,5 +1,7 @@
 // Урок 3.8 «Обобщение и рассуждение: от π0.5 до π0.7»: лаборатории дают обещанные в тексте исходы, миссии проходятся
 // через интерфейс, схема изоляции знаний движется, консоль чиста, телефон без горизонтальной прокрутки. Снимки — shots/l38-*.png.
+// Схема двухэтапного инференса π0.5 (shared/anim.js) — подписи в канвасе и не налезают на десяти моментах, кадры
+// этапов различаются, на кадрах видны оба шага и оба круга подзадач; на компьютере и на телефоне.
 // Урок собирается на дату выпуска: MR_ASOF=2026-10-17 python3 lessons/build.py l38.
 const path = require('path');
 const { launch, sleep } = require('./cdp');
@@ -27,6 +29,55 @@ const nextMission = (p, mis) => p.eval(`(() => { const b = document.querySelecto
 const critOk = (p, mis) => p.eval(`(() => { const li = [...document.querySelectorAll('${mis} .m-crit li')]; return li.length > 0 && li.every((x) => x.className === 'ok'); })()`);
 const outText = (p, mis) => p.eval(`(document.querySelector('${mis} .g-out:not([hidden])') || {}).textContent || ''`);
 const text = (p, sel) => p.eval(`document.querySelector('${sel}').textContent.replace(/\\s+/g, ' ')`);
+// схема двухэтапного инференса π0.5: моменты этапов (входы, шаг 1, подзадача на вход, шаг 2, исполнение, второй круг, итог)
+const PI_T = [0.6, 2.4, 4.1, 6.4, 8.4, 9.6, 11.2, 13.8, 15.8, 18.0];
+/** Схема на shared/anim.js: на каждом кадре подписи внутри канваса и не налезают друг на друга; тексты кадров и число разных кадров. */
+async function schemeLabels(p, kind, frames) {
+  return JSON.parse(await p.eval(`(() => {
+    const cv = document.querySelector('canvas[data-anim=${kind}]');
+    if (!cv || typeof Anim === 'undefined') return JSON.stringify({ none: true, bad: [] });
+    const orig = CanvasRenderingContext2D.prototype.fillText, bad = [], texts = {};
+    let boxes = null, W = 0, H = 0;
+    CanvasRenderingContext2D.prototype.fillText = function (txt, x, y) {
+      if (boxes && this.canvas === cv) {
+        const m = this.measureText(txt), fs = parseFloat(/([\\d.]+)px/.exec(this.font)[1]), a = this.textAlign;
+        const x0 = a === 'center' ? x - m.width / 2 : a === 'right' ? x - m.width : x;
+        boxes.push({ t: String(txt), x0, x1: x0 + m.width, y0: y - fs / 2, y1: y + fs / 2 });
+      }
+      return orig.apply(this, arguments);
+    };
+    const prints = new Set();
+    for (const t of ${JSON.stringify(frames)}) {
+      boxes = []; Anim.seek(cv, t); const b = boxes; boxes = null;
+      { const d = cv.toDataURL(); let hh = 0; for (let i = 0; i < d.length; i += 3) hh = (hh * 31 + d.charCodeAt(i)) >>> 0; prints.add(hh); }
+      [W, H] = cv.style.aspectRatio.split('/').map(Number); texts[t] = b.map((q) => q.t);
+      b.forEach((q) => { if (q.x0 < 1 || q.x1 > W - 1 || q.y0 < 0 || q.y1 > H) bad.push('t = ' + t + ': за краем «' + q.t + '»'); });
+      for (let i = 0; i < b.length; i++) for (let j = i + 1; j < b.length; j++) {
+        const ox = Math.min(b[i].x1, b[j].x1) - Math.max(b[i].x0, b[j].x0), oy = Math.min(b[i].y1, b[j].y1) - Math.max(b[i].y0, b[j].y0);
+        if (ox > 1 && oy > 1) bad.push('t = ' + t + ': «' + b[i].t + '» на «' + b[j].t + '»');
+      }
+    }
+    CanvasRenderingContext2D.prototype.fillText = orig;
+    return JSON.stringify({ layout: cv.dataset.layout, W, H, bad, texts, distinct: prints.size });
+  })()`));
+}
+/** Схема π0.5: подписи, различие кадров и что показано на шагах 1 и 2 обоих кругов; снимки кадров shots. */
+async function piChecks(p, where, layout, shots) {
+  await p.eval(`(() => { const cv = document.querySelector('canvas[data-anim=pi05-infer]'); if (cv) cv.scrollIntoView({ block: 'center' }); return true; })()`); await sleep(250);
+  const r = await schemeLabels(p, 'pi05-infer', PI_T);
+  if (r.none) { check(false, `${where}схема π0.5: схемы нет, в build.py для l38 нужен shared/anim.js перед l38/ui-l38.js`); return; }
+  check(r.layout === layout && r.bad.length === 0, `${where}схема π0.5 ${r.W}×${r.H}: подписи в канвасе и не налезают` + (r.bad.length ? ': ' + r.bad.slice(0, 4).join('; ') : ''));
+  check(r.distinct === PI_T.length, `${where}схема π0.5: кадры ${PI_T.length} этапов различаются (разных ${r.distinct})`);
+  const tx = (t) => (r.texts[String(t)] || []).join(' ');
+  check(/пишет подзадачу/.test(tx(2.4)) && /^Шаг 1:/.test((r.texts['2.4'] || []).find((q) => /^Шаг/.test(q)) || '')
+    && /«возьми тарелку»/.test(tx(6.4)) && /шаг flow \d+ из 10/.test(tx(6.4)) && /Шаг 2: эксперт действий/.test(tx(6.4))
+    && /«положи/.test(tx(11.2)) && /мойку»/.test(tx(15.8)) && /^Так шаг за шагом/.test((r.texts['18'] || []).find((q) => /^Так/.test(q)) || ''),
+    `${where}схема π0.5: шаг 1 пишет подзадачу, шаг 2 строит пачку за 10 шагов flow, второй круг — «положи тарелку в мойку»`);
+  for (const t of shots) {
+    await p.eval(`(() => { const cv = document.querySelector('canvas[data-anim=pi05-infer]'); Anim.seek(cv, ${t}); cv.classList.remove('paused'); return true; })()`);
+    await p.shotEl(out(`l38-${where ? 'm-' : ''}pi05-infer-${t}.png`), 'figure:has(> canvas[data-anim=pi05-infer])', where ? 4 : 6);
+  }
+}
 
 (async () => {
   // ---------- числа «Под капотом» лаборатории 1: считаются в Node тем же движком ----------
@@ -55,6 +106,7 @@ const text = (p, sel) => p.eval(`document.querySelector('${sel}').textContent.re
   check(anim.ab && anim.bc, 'схема изоляции знаний движется: кадры в 1,2 с, 4,6 с и 7,5 с разные');
   await p.eval(`(() => { const cv = document.querySelector('canvas[data-anim="ki"]'); Anim.seek(cv, 4.6); return true; })()`);
   await p.shotEl(out('l38-ki.png'), '#ki .flow-card', 6);
+  await piChecks(p, '', 'w', [2.4, 6.4, 15.8]);
 
   // ---------- лаборатория 1 ----------
   console.log('лаборатория 1: уборка стола');
@@ -132,6 +184,8 @@ const text = (p, sel) => p.eval(`document.querySelector('${sel}').textContent.re
   await p.eval(`document.getElementById('homes').scrollIntoView({ behavior: 'instant' }); true`); await sleep(300); await p.shotEl(out('l38-lab2-dark.png'), '#homes .lab', 6);
   await p.eval(`(() => { const cv = document.querySelector('canvas[data-anim="ki"]'); Anim.seek(cv, 7.5); return true; })()`);
   await p.shotEl(out('l38-ki-dark.png'), '#ki .flow-card', 6);
+  await p.eval(`(() => { const cv = document.querySelector('canvas[data-anim=pi05-infer]'); cv.scrollIntoView({ block: 'center' }); Anim.seek(cv, 6.4); cv.classList.remove('paused'); return true; })()`); await sleep(200);
+  await p.shotEl(out('l38-pi05-infer-dark.png'), 'figure:has(> canvas[data-anim=pi05-infer])', 6);
   check(!p.logs.length, 'консоль после тёмной темы: ' + (p.logs.join(' | ') || 'чисто'));
 
   console.log('телефон');
@@ -143,6 +197,7 @@ const text = (p, sel) => p.eval(`document.querySelector('${sel}').textContent.re
   const wide = await m.eval(`[...document.querySelectorAll('.lab')].filter((l) => { const card = l.closest('.wrap') || l.parentElement; return l.scrollWidth > card.clientWidth + 1 || [...l.querySelectorAll('.card')].some((c) => c.scrollWidth > c.clientWidth + 1); }).length`);
   check(wide === 0, 'ни одна лаборатория не шире своей карточки: ' + wide);
   await m.S('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+  await piChecks(m, 'телефон: ', 'n', [6.4]);
   await m.eval(`(() => { const cv = document.querySelector('canvas[data-anim="ki"]'); Anim.seek(cv, 4.6); return true; })()`);
   for (const [id, sel, n] of [['mix', '#mix .mix-grid', 'l38-m-mix.png'], ['ki', '#ki .flow-card', 'l38-m-ki.png'], ['lab', '#lab .lab', 'l38-m-lab1.png'], ['homes', '#homes .lab', 'l38-m-lab2.png'], ['axis', '#axisSort', 'l38-m-axis.png']]) {
     await m.eval(`document.getElementById('${id}').scrollIntoView({ behavior: 'instant' }); true`); await sleep(300);

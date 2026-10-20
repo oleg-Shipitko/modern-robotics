@@ -4,9 +4,9 @@
    (перемотка шагов: где выбирается сторона); собери политику по шагам;
    лаборатория «Ада и диффузионная политика» на миссиях (shared/missions.js):
    десять прогонов, регрессия рядом, исполнение по одному шагу, шаги
-   денойзинга, сколько исполнять из 16 при сдвиге чайника; схема
-   Real-Time Chunking (shared/anim.js); интерактив «положение или скорость»
-   (lessons/l15/engine.js); квиз.
+   денойзинга, сколько исполнять из 16 при сдвиге чайника; схема устройства
+   Diffusion Policy и схема Real-Time Chunking (shared/anim.js); интерактив
+   «положение или скорость» (lessons/l15/engine.js); квиз.
    Движок без DOM — shared/kettle-core.js, рисование — shared/kettle-draw.js.
    ===================================================================== */
 'use strict';
@@ -303,6 +303,300 @@ const Pipe = (() => {
   ];
   function init() { ctl = mountMissions('#pipeMis', missions, api, { scene: '#pipeLine' }); render(); return ctl; }
   return { init, api, st };
+})();
+
+/* ===================== 3а. Схема устройства Diffusion Policy (shared/anim.js, ключ 'dp-arch') =====================
+   Один оборот цикла политики из статьи (вариант на UNet) по этапам: кадры двух камер и положение захвата за два
+   последних шага управления → у каждой камеры свой энкодер ResNet-18 → признаки наблюдения, один раз на пачку →
+   условие: признаки и номер шага денойзинга входят в каждый слой денойзера (в статье — FiLM) → денойзер, одномерная
+   сеть по времени пачки (UNet: сжимает пачку по времени, разворачивает обратно, прямые связи между уровнями),
+   получает зашумлённую пачку из 16 действий и оценивает шум → шаг денойзинга вычитает часть шума, всего 16 шагов →
+   робот исполняет первые 8 действий → новые кадры и новая пачка из свежего шума (отступающий горизонт).
+   Упрощения: у действия одно число вместо двух координат цели захвата, денойзер точный, кадры и числа условные.
+   Цвета: синий — наблюдение и признаки, фиолетовый — условие, оранжевый — пачка и сеть, которая сейчас считает,
+   серый — шум. */
+const DpArch = (() => {
+  const T = 18, PH = { obs: [0.2, 1.2], enc: [1.2, 2.8], feat: [2.8, 4.0], noise: [4.0, 5.0], exec: [12.6, 15.0], loop: [15.2, 16.8], fade: [17.2, 18] };
+  const N = 16, TA = 8, NS = 16, D0 = 5.0, SLOW = 1.6, D2 = D0 + 2 * SLOW, D1 = 12.4, FAST = (D1 - D2) / (NS - 2);
+  const IN = 0.14, NET = 0.64, OUT = 0.76;               // доли шага денойзинга: вход пачки, проход по сети, выход оценки шума, вычитание
+  const sm = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
+  const hash = (i) => { const x = Math.sin(i * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
+  // пачка: чистая — плавная кривая, шум — гауссов с зерном; по шагам денойзинга доля пачки растёт как синус, доля шума падает как косинус
+  const A0 = Array.from({ length: N }, (_, j) => 0.8 * (2 * sm(j / (N - 1)) - 1));
+  const EPS = (() => { const r = HeroKit.rng(221); return Array.from({ length: N }, () => HeroKit.randn(r)); })();
+  const ang = (s) => Math.pow(Math.max(0, Math.min(NS, s)) / NS, 0.7) * Math.PI / 2;
+  const sigOf = (s) => Math.sin(ang(s)), noiOf = (s) => Math.cos(ang(s));   // доля пачки и доля шума после s шагов денойзинга
+  const chunkAt = (s) => A0.map((a, j) => sigOf(s) * a + noiOf(s) * EPS[j]);
+  /** Шаг денойзинга в момент u: s — номер (1…16), f — доля шага; до денойзинга s = 0, после — s = 16, f = 1. */
+  function stepAt(u) {
+    if (u < D0) return { s: 0, f: 0, slow: true };
+    if (u < D2) { const q = (u - D0) / SLOW; return { s: 1 + Math.floor(q), f: q - Math.floor(q), slow: true }; }
+    const q = (u - D2) / FAST;
+    if (q >= NS - 2) return { s: NS, f: 1, slow: false, done: true };
+    return { s: 3 + Math.floor(q), f: q - Math.floor(q), slow: false };
+  }
+  /** Сколько шагов денойзинга уже сделано к моменту u (дробное: вычитание идёт плавно). */
+  function doneAt(u) { const q = stepAt(u); if (q.s === 0) return 0; if (q.done) return NS; return q.s - 1 + sm((q.f - OUT) / (1 - OUT)); }
+
+  /* ---------- рисование ---------- */
+  /** Точка на ломаной на доле f её длины. */
+  function along(pts, f) {
+    const ls = []; let tot = 0;
+    for (let i = 1; i < pts.length; i++) { const l = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); ls.push(l); tot += l; }
+    let d = f * tot;
+    for (let i = 0; i < ls.length; i++) { if (d <= ls[i] || i === ls.length - 1) { const q = ls[i] ? Math.min(1, d / ls[i]) : 0; return [pts[i][0] + (pts[i + 1][0] - pts[i][0]) * q, pts[i][1] + (pts[i + 1][1] - pts[i][1]) * q]; } d -= ls[i]; }
+    return pts[pts.length - 1];
+  }
+  /** Точки бегут по ломаной, пока prog между 0 и 1. */
+  function flow(c, A, pts, prog, col) { if (prog <= 0 || prog >= 1) return; for (let i = 0; i < 3; i++) { const p = along(pts, (prog * 1.5 + i / 3) % 1); A.circle(c, p[0], p[1], 2.6, col); } }
+  /** Ломаная со стрелкой на конце. */
+  function poly(c, A, pts, col, lw, dash) {
+    if (pts.length > 2) A.line(c, pts.slice(0, -1), col, lw, dash);
+    const a = pts[pts.length - 2], b = pts[pts.length - 1];
+    A.arrow(c, a[0], a[1], b[0], b[1], col, lw, 6);
+  }
+  const L = (c, k, A, text, x, y, o) => A.lab(c, k, text, x, y, Object.assign({ halo: false }, o));
+  /** Подпись в несколько строк: '\n' разделяет строки, y — середина блока. */
+  function lines(c, k, A, text, x, y, o) {
+    const ls = String(text).split('\n'), lh = (o.px || 11) * k * 1.25, y0 = y - (ls.length - 1) * lh / 2;
+    ls.forEach((s, i) => L(c, k, A, s, x, y0 + i * lh, o));
+  }
+  /** Подпись по словам в строки не шире maxW, первая строка — на y. */
+  function wrap(c, k, A, text, x, y, maxW, o) {
+    HeroKit.font(c, k, o.px, o.weight); const ws = String(text).split(' '), out = []; let cur = '';
+    for (const w of ws) { const t2 = cur ? cur + ' ' + w : w; if (cur && c.measureText(t2).width > maxW) { out.push(cur); cur = w; } else cur = t2; }
+    if (cur) out.push(cur);
+    out.forEach((s, i) => L(c, k, A, s, x, y + i * o.px * k * 1.35, o));
+  }
+  /** Блок сети: название и строка пояснения; on — блок сейчас считает. */
+  function box(c, k, A, P, b, title, sub, on) {
+    const [x, y, w, h] = b;
+    A.rect(c, x, y, w, h, 8, on ? A.alpha(P.mot, 0.13) : P.surf, on ? P.mot : P.line, on ? 1.8 : 1.2);
+    L(c, k, A, title, x + w / 2, y + h / 2 - 7, { px: 11, weight: 750, color: P.ink });
+    L(c, k, A, sub, x + w / 2, y + h / 2 + 8, { px: 10, weight: 600, color: P.ink3, mono: true });
+  }
+  // кадры Push-T: стол, зелёный контур цели, серый Т-блок и толкатель робота; камера 2 смотрит сбоку (скос и сжатие).
+  // st: 0 — кадр прошлого шага управления, 1 — текущего, 2 — кадр после исполнения 8 действий
+  const SCN = [{ p: [-0.36, 0.2], b: [-0.08, 0.04, -0.55] }, { p: [-0.3, 0.17], b: [-0.08, 0.04, -0.55] }, { p: [-0.17, 0.1], b: [-0.02, 0.01, -0.3] }];
+  const TEE = [[-0.2, -0.13], [0.2, -0.13], [0.2, -0.03], [0.05, -0.03], [0.05, 0.23], [-0.05, 0.23], [-0.05, -0.03], [-0.2, -0.03]];
+  function tee(c, x, y, a, s, fill, stroke) {
+    c.save(); c.translate(x, y); c.rotate(a); c.beginPath();
+    TEE.forEach(([u, v], i) => (i ? c.lineTo(u * s, v * s) : c.moveTo(u * s, v * s))); c.closePath();
+    if (fill) { c.fillStyle = fill; c.fill(); }
+    if (stroke) { c.setLineDash([2.5, 2]); c.strokeStyle = stroke; c.lineWidth = 1.1; c.stroke(); c.setLineDash([]); }
+    c.restore();
+  }
+  function frame(c, A, P, x, y, w, h, cam, st, a) {
+    if (a <= 0) return;
+    const ga = c.globalAlpha; c.globalAlpha = ga * a;
+    A.rect(c, x, y, w, h, 4, P.surf2, P.line, 1);
+    c.save(); c.beginPath(); c.roundRect(x + 1, y + 1, w - 2, h - 2, 3); c.clip();
+    c.translate(x + w / 2, y + h / 2);
+    if (cam === 2) c.transform(1, 0, -0.38, 0.7, 0, 1);
+    const s = w * 0.7, q = SCN[st];
+    tee(c, 0.24 * w, -0.03 * w, Math.PI / 4, s, A.alpha(P.good, 0.08), P.good);
+    tee(c, q.b[0] * w, q.b[1] * w, q.b[2], s, A.alpha(P.ink3, 0.8), null);
+    A.circle(c, q.p[0] * w, q.p[1] * w, 2.6, P.out, null);
+    c.restore(); c.globalAlpha = ga;
+  }
+  /** Ряд клеток слоя денойзера: on — сейчас считает, was — уже посчитан на этом шаге. */
+  function layer(c, A, P, b, on, was, fast) {
+    const { x, y, n, cw, h } = b;
+    for (let i = 0; i < n; i++) {
+      const fill = on ? A.alpha(P.mot, (fast ? 0.25 : 0.35) + 0.45 * hash(i + n * 7)) : was ? A.alpha(P.mot, 0.14) : P.surf;
+      A.rect(c, x + i * cw + 0.6, y, cw - 1.2, h, 1.5, fill, on ? P.mot : P.line, 1);
+    }
+  }
+
+  function draw(c, k, t, P, A, G) {
+    const { seg, ease } = A, u = ((t % T) + T) % T;
+    const fade = 1 - seg(u, ...PH.fade); c.globalAlpha = fade;
+    const pObs = seg(u, ...PH.obs), pEnc = seg(u, ...PH.enc), pFeat = seg(u, ...PH.feat), pNoise = seg(u, ...PH.noise), pExec = seg(u, ...PH.exec), pLoop = seg(u, ...PH.loop);
+    const q = stepAt(u), den = u >= D0 && !q.done, f = q.f, cond = pFeat >= 0.85;
+    const on = (x) => (x ? P.ink2 : P.line);
+    // ---------- наблюдение: два кадра каждой камеры и положение захвата ----------
+    L(c, k, A, 'наблюдение: 2 последних шага управления', G.titleA[0], G.titleA[1], { px: 11, weight: 750, color: P.ink2, align: 'left' });
+    const nf = ease(seg(pLoop, 0.25, 0.75));                      // новые кадры после исполнения
+    G.cams.forEach((cm, i) => {
+      const a = seg(pObs, i * 0.2, 0.6 + i * 0.2);
+      frame(c, A, P, cm.x + G.off[0], cm.y + G.off[1], cm.w, cm.h, i + 1, 0, a * (1 - nf));
+      frame(c, A, P, cm.x + G.off[0], cm.y + G.off[1], cm.w, cm.h, i + 1, 1, a * nf);
+      frame(c, A, P, cm.x, cm.y, cm.w, cm.h, i + 1, 1, a * (1 - nf));
+      frame(c, A, P, cm.x, cm.y, cm.w, cm.h, i + 1, 2, a * nf);
+      if (a > 0) L(c, k, A, i ? 'камера 2' : 'камера 1', cm.lab[0], cm.lab[1], { px: 10, color: P.ink3 });
+    });
+    const aPos = seg(pObs, 0.4, 1);
+    if (aPos > 0) {
+      const [x, y, w, h] = G.pos, ga = c.globalAlpha; c.globalAlpha = ga * aPos;
+      A.rect(c, x, y, w, h, h / 2.2, A.alpha(P.out, 0.1), P.out, 1.3);
+      L(c, k, A, 'положение захвата', x + w / 2, y + h / 2, { px: 10.5, weight: 650, color: P.ink });
+      c.globalAlpha = ga;
+    }
+    // ---------- энкодеры: свой ResNet-18 у каждой камеры, признаки — один раз на пачку ----------
+    G.aCam.forEach((ar) => { poly(c, A, ar, on(pEnc > 0), 1.5); flow(c, A, ar, seg(pEnc, 0, 0.35), P.out); });
+    G.encs.forEach((b) => box(c, k, A, P, b, 'энкодер', 'ResNet-18', pEnc > 0.2 && pEnc < 0.8));
+    G.aEnc.forEach((ar) => { poly(c, A, ar, on(pEnc > 0.6), 1.5); flow(c, A, ar, seg(pEnc, 0.6, 0.95), P.out); });
+    poly(c, A, G.aPos, on(pFeat > 0), 1.5); flow(c, A, G.aPos, seg(pFeat, 0, 0.4), P.out);
+    // столбец признаков наблюдения: группы клеток от камеры 1, камеры 2 и положения
+    const C = G.col, fillG = [seg(pEnc, 0.7, 1), seg(pEnc, 0.75, 1), seg(pFeat, 0.3, 0.6)];
+    A.rect(c, C.box[0], C.box[1], C.box[2], C.box[3], 5, null, pFeat > 0.5 ? A.alpha(P.out, 0.8) : P.line, pFeat > 0.5 ? 1.5 : 1);
+    C.cells.forEach(([x, y, gi], i) => { const g = fillG[gi]; A.rect(c, x, y, C.cw, C.cw, 2, g > 0 ? A.alpha(P.out, (0.2 + 0.6 * hash(i + 3)) * g) : P.surf, g > 0 ? A.alpha(P.out, 0.7) : P.line, 1); });
+    lines(c, k, A, 'признаки\nнаблюдения', G.colLab[0], G.colLab[1], { px: 11, weight: 700, color: pEnc > 0.7 ? P.ink2 : P.ink3, align: G.colLab[2] });
+    if (pFeat > 0.5) L(c, k, A, 'один раз на пачку', G.onceLab[0], G.onceLab[1], { px: 10, weight: 600, color: P.ink3, align: G.onceLab[2] });
+    poly(c, A, G.aCol, on(pFeat > 0.5), 1.5); flow(c, A, G.aCol, seg(pFeat, 0.5, 0.9), P.out);
+    // ---------- условие: признаки наблюдения и номер шага денойзинга ----------
+    const D = G.cond, aD = seg(pFeat, 0.7, 1), pulse = den && f > IN && f < NET;
+    L(c, k, A, 'условие', D.lab[0], D.lab[1], { px: 11, weight: 750, color: cond ? P.spr : P.ink3, align: D.lab[2] || 'center' });
+    A.rect(c, D.x - 4, D.y - 4, D.nb * D.cw + D.cw + 12, D.cw + 11, 6, pulse ? A.alpha(P.spr, q.slow ? 0.12 : 0.06) : P.surf, cond ? P.spr : P.line, cond ? 1.6 : 1.1);
+    for (let i = 0; i < D.nb; i++) A.rect(c, D.x + i * D.cw + 0.6, D.y, D.cw - 1.2, D.cw + 3, 2, aD > 0 ? A.alpha(P.out, (0.2 + 0.6 * hash(i + 11)) * aD) : P.surf, aD > 0 ? A.alpha(P.out, 0.7) : P.line, 1);
+    A.rect(c, D.x + D.nb * D.cw + 4.6, D.y, D.cw - 1.2, D.cw + 3, 2, q.s > 0 ? A.alpha(P.spr, 0.55) : P.surf, q.s > 0 ? P.spr : P.line, 1);
+    // номер шага денойзинга
+    const [hx, hy, hw, hh] = G.chip;
+    A.rect(c, hx, hy, hw, hh, 8, q.s > 0 ? A.alpha(P.spr, 0.08) : P.surf, q.s > 0 ? P.spr : P.line, 1.3);
+    lines(c, k, A, 'номер шага\nденойзинга', hx + hw / 2, hy + hh * 0.34, { px: 10, weight: 600, color: P.ink2 });
+    L(c, k, A, q.s > 0 ? `${q.s} из 16` : '—', hx + hw / 2, hy + hh * 0.77, { px: 12, weight: 750, mono: true, color: q.s > 0 ? P.spr : P.ink3 });
+    poly(c, A, G.aChip, q.s > 0 ? A.alpha(P.spr, 0.8) : P.line, 1.5);
+    // ---------- денойзер: одномерная сеть по времени пачки, условие входит в каждый слой ----------
+    const UP = G.U, B = UP.blocks, ab = den && f >= IN && f < NET ? Math.floor((f - IN) / ((NET - IN) / 5)) : -1;
+    A.rect(c, UP.box[0], UP.box[1], UP.box[2], UP.box[3], 8, P.surf2, den ? A.alpha(P.mot, 0.45) : P.line, 1);
+    UP.links.forEach((ar, i) => poly(c, A, ar, den && ab > i ? P.ink2 : P.line, 1.4));
+    UP.skips.forEach((ar, i) => { const hot = den && ab === 4 - i; poly(c, A, ar, hot ? P.ink2 : A.alpha(P.ink3, 0.55), hot ? 1.6 : 1.1, [3, 3]); });
+    B.forEach((b, i) => {
+      const fan = [G.fan, b.m], hot = ab === i;
+      A.line(c, fan, cond ? A.alpha(P.spr, hot ? 0.95 : 0.4) : A.alpha(P.ink3, 0.3), hot ? 1.7 : 1.1, [4, 3]);
+      if (hot && q.slow) { const p = along(fan, sm((f - IN - i * (NET - IN) / 5) / ((NET - IN) / 5) * 1.4)); A.circle(c, p[0], p[1], 2.8, P.spr); }
+      layer(c, A, P, b, hot, den && ab > i, !q.slow);
+      if (cond) A.circle(c, b.m[0], b.m[1], 2.6, P.spr, null);
+    });
+    if (cond) L(c, k, A, 'в каждый слой', G.fanLab[0], G.fanLab[1], { px: 10, weight: 650, color: P.spr, align: G.fanLab[2] });
+    L(c, k, A, 'денойзер', UP.lab[0], UP.lab[1], { px: 11, weight: 750, color: den ? P.ink : P.ink2 });
+    L(c, k, A, 'одномерная сеть по времени пачки', UP.lab[0], UP.lab[1] + 13.5, { px: 10, weight: 600, color: P.ink3 });
+    // ---------- пачка: 16 действий ----------
+    const F = G.F, sDone = doneAt(u), ys = chunkAt(sDone);
+    A.rect(c, F.x, F.y, F.w, F.h, 8, P.surf2, P.line, 1);
+    L(c, k, A, 'пачка: 16 действий', F.x + F.w / 2, F.y + 11, { px: 11, weight: 750, color: P.ink2 });
+    A.line(c, [[F.x0 - 6, F.cy], [F.x0 + 15 * F.dx + 6, F.cy]], P.grid, 1);
+    const ex = pExec > 0 ? pExec * TA : 0, ne = Math.floor(ex + 1e-9), dim = 1 - 0.5 * ease(seg(pLoop, 0, 0.5));
+    if (den && q.slow && f >= OUT) {                              // вычитание: серые стрелки — часть шума, которую убирают на этом шаге
+      const ya = chunkAt(q.s - 1), yb = chunkAt(q.s);
+      for (let j = 0; j < N; j++) { const y1 = F.cy - ya[j] * F.amp, y2 = F.cy - yb[j] * F.amp; if (Math.abs(y2 - y1) > 3) A.arrow(c, F.x0 + j * F.dx + 5, y1, F.x0 + j * F.dx + 5, y2, A.alpha(P.ink3, 0.8), 1.2, 4); }
+    }
+    if (pNoise > 0) for (let j = 0; j < N; j++) {
+      const a = seg(pNoise, j / 22, j / 22 + 0.3); if (a <= 0) continue;
+      const x = F.x0 + j * F.dx, y = F.cy - ys[j] * F.amp, done = j < ne, cur = pExec > 0 && pExec < 1 && j === ne && j < TA, gone = pExec > 0 && j >= TA;
+      const ga = c.globalAlpha; c.globalAlpha = ga * a * dim * (gone ? 0.4 : 1);
+      if (q.done && j > 0) A.line(c, [[x - F.dx, F.cy - ys[j - 1] * F.amp], [x, y]], A.alpha(P.mot, 0.45), 1.2);
+      if (cur) A.circle(c, x, y, 6.5, null, P.mot, 1.4);
+      A.circle(c, x, y, done ? 3.8 : 3.3, done ? P.mot : P.surf, gone ? P.ink3 : P.mot, 1.6);
+      c.globalAlpha = ga;
+    }
+    if (pExec > 0) {
+      const ga = c.globalAlpha; c.globalAlpha = ga * Math.min(1, pExec * 5) * dim;
+      const xa = F.x0 - 3, xm = F.x0 + (TA - 1) * F.dx + 3, xb = F.x0 + TA * F.dx - 3, xe = F.x0 + 15 * F.dx + 3, yb = F.br;
+      A.line(c, [[xa, yb - 4], [xa, yb], [xm, yb], [xm, yb - 4]], P.mot, 1.4);
+      A.line(c, [[xb, yb - 4], [xb, yb], [xe, yb], [xe, yb - 4]], P.ink3, 1.2);
+      L(c, k, A, 'исполняются', (xa + xm) / 2, yb + 10, { px: F.bpx, weight: 700, color: P.mot });
+      L(c, k, A, 'не исполняются', (xb + xe) / 2, yb + 10, { px: F.bpx, weight: 600, color: P.ink3 });
+      c.globalAlpha = ga;
+    }
+    poly(c, A, G.aF, den && f < IN + 0.02 ? P.ink2 : on(u >= D0), 1.5); if (den && q.slow) flow(c, A, G.aF, seg(f, 0, IN), P.mot);
+    // ---------- оценка шума: новая оценка ярче, при вычитании столбики укорачиваются ----------
+    const H = G.Gp;
+    let nNow = 0, fresh = false;
+    if (den) {
+      if (f < NET) nNow = q.s > 1 ? noiOf(q.s - 1) : 0;
+      else if (f < OUT) { nNow = q.s > 1 ? noiOf(q.s - 1) : noiOf(0) * sm((f - NET) / (OUT - NET)); fresh = true; }
+      else nNow = A.lerp(noiOf(q.s - 1), noiOf(q.s), sm((f - OUT) / (1 - OUT)));
+    }
+    A.rect(c, H.x, H.y, H.w, H.h, 8, P.surf2, P.line, 1);
+    L(c, k, A, 'оценка шума', H.x + H.w / 2, H.y + 11, { px: 11, weight: 750, color: P.ink2 });
+    A.line(c, [[H.x0 - 6, H.cy], [H.x0 + 15 * H.dx + 6, H.cy]], P.grid, 1);
+    if (nNow > 0.002) for (let j = 0; j < N; j++) { const v = EPS[j] * nNow * H.amp, x = H.x0 + j * H.dx; c.fillStyle = A.alpha(P.ink3, fresh && q.slow ? 0.95 : 0.7); c.fillRect(x - H.bw / 2, Math.min(H.cy, H.cy - v), H.bw, Math.abs(v)); }
+    poly(c, A, G.aG, den && f >= NET && f < OUT ? P.ink2 : on(u >= D0), 1.5); if (den && q.slow) flow(c, A, G.aG, seg(f, NET, OUT), P.mot);
+    // ---------- шаг денойзинга: вычесть часть шума ----------
+    const sub = den && f >= OUT;
+    poly(c, A, G.ret, sub ? P.ink2 : on(u >= D0), sub ? 1.8 : 1.4); if (den && q.slow) flow(c, A, G.ret, seg(f, OUT, 1), P.ink3);
+    L(c, k, A, 'шаг денойзинга: вычесть часть шума', G.retLab[0], G.retLab[1], { px: 10.5, weight: 650, color: sub ? P.ink : P.ink3, halo: G.retLab[2], haloColor: P.surf2 });
+    // ---------- отступающий горизонт: новые кадры ----------
+    const lp = pLoop > 0 && pLoop < 1;
+    poly(c, A, G.loop, lp ? P.mot : A.alpha(P.ink3, 0.6), lp ? 1.8 : 1.2, [5, 4]); flow(c, A, G.loop, seg(pLoop, 0, 0.6), P.mot);
+    L(c, k, A, 'новые кадры', G.loopLab[0], G.loopLab[1], { px: 10, weight: 650, color: lp ? P.mot : P.ink3, align: G.loopLab[2] });
+    // ---------- что происходит ----------
+    const stT = u < PH.enc[0] ? 'Политика берёт кадры двух камер и положение захвата за два последних шага управления.'
+      : u < PH.feat[0] ? 'У каждой камеры свой энкодер ResNet-18, он превращает кадры в признаки.'
+      : u < PH.noise[0] ? 'Признаки кадров и положение захвата составляют признаки наблюдения, их считают один раз на пачку.'
+      : u < D0 ? 'Пачку из 16 действий начинают с чистого гауссова шума.'
+      : u < D0 + SLOW * OUT ? 'Денойзер оценивает шум в пачке, а признаки наблюдения и номер шага денойзинга входят в каждый его слой как условие.'
+      : u < D0 + SLOW ? 'Шаг денойзинга вычитает часть оценённого шума, и пачка становится чище.'
+      : u < D2 ? 'Энкодер при этом не запускается заново: условие то же, меняется только номер шага денойзинга.'
+      : u < PH.exec[0] ? 'За 16 шагов денойзинга шум превращается в связную пачку.'
+      : u < PH.loop[0] ? 'Робот исполняет первые 8 действий пачки, по одному на шаг управления, 10 раз в секунду.'
+      : 'Потом политика берёт новые кадры и строит новую пачку из свежего шума: это отступающий горизонт.';
+    wrap(c, k, A, stT, G.st[0], G.st[1], G.st[2], { px: 11.5, weight: 700, color: P.ink, align: 'left' });
+    c.globalAlpha = 1;
+  }
+
+  /* ---------- раскладки: широкая (слева направо) и узкая для телефона ---------- */
+  // клетки столбца признаков: 4 от камеры 1, 4 от камеры 2, 2 от положения захвата; centers — середины групп
+  const colCells = (x, centers, cs, gap) => { const out = []; [[centers[0], 4, 0], [centers[1], 4, 1], [centers[2], 2, 2]].forEach(([cy, n, gi]) => { for (let i = 0; i < n; i++) out.push([x, cy - (n * cs + (n - 1) * gap) / 2 + i * (cs + gap), gi]); }); return out; };
+  /** Слой денойзера: ряд из n клеток шириной cw; m — точка, где в слой входит условие. */
+  const blk = (x, y, n, cw, h, m) => ({ x, y, n, cw, h, m });
+  const WIDE = {
+    titleA: [14, 13], off: [5, -5],
+    cams: [{ x: 20, y: 32, w: 58, h: 38, lab: [49, 80] }, { x: 20, y: 94, w: 58, h: 38, lab: [49, 142] }],
+    pos: [14, 152, 112, 20],
+    aCam: [[[80, 51], [102, 51]], [[80, 113], [102, 113]]],
+    encs: [[104, 32, 92, 38], [104, 94, 92, 38]],
+    aEnc: [[[198, 51], [219, 51]], [[198, 113], [219, 113]]], aPos: [[128, 162], [219, 162]],
+    col: { cw: 11, box: [218, 23, 19, 155], cells: colCells(222, [51, 113, 162], 11, 1.5) },
+    colLab: [248, 80, 'left'], onceLab: [248, 121, 'left'], aCol: [[240, 102], [330, 102]],
+    cond: { x: 337, y: 95, nb: 6, cw: 13, lab: [384, 79] },
+    chip: [566, 76, 120, 52], aChip: [[564, 102], [442, 102]],
+    fan: [384, 120], fanLab: [434, 160, 'left'],
+    U: {
+      box: [222, 204, 328, 150],
+      blocks: [blk(232, 218, 16, 5.5, 14, [308, 217]), blk(262, 256, 8, 7, 18, [318, 255]), blk(366, 292, 4, 9, 22, [384, 291]), blk(450, 256, 8, 7, 18, [450, 255]), blk(448, 218, 16, 5.5, 14, [460, 217])],
+      links: [[[290, 232], [290, 254]], [[318, 272], [364, 300]], [[404, 300], [448, 272]], [[478, 256], [478, 234]]],
+      skips: [[[320, 225], [446, 225]], [[318, 265], [448, 265]]],
+      lab: [386, 331],
+    },
+    F: { x: 14, y: 204, w: 184, h: 150, x0: 30, dx: 10.4, cy: 284, amp: 24, br: 330, bpx: 10 },
+    aF: [[200, 225], [230, 225]],
+    Gp: { x: 560, y: 204, w: 146, h: 150, x0: 573, dx: 8.0, cy: 284, amp: 22, bw: 5 },
+    aG: [[538, 225], [558, 225]],
+    ret: [[633, 356], [633, 372], [106, 372], [106, 357]], retLab: [386, 372, true],
+    loop: [[14, 290], [6, 290], [6, 51], [17, 51]], loopLab: [12, 190, 'left'],
+    st: [14, 400, 692],
+  };
+  const NARROW = {
+    titleA: [14, 13], off: [5, -5],
+    cams: [{ x: 18, y: 32, w: 58, h: 38, lab: [47, 80] }, { x: 18, y: 94, w: 58, h: 38, lab: [47, 142] }],
+    pos: [12, 152, 138, 20],
+    aCam: [[[78, 51], [94, 51]], [[78, 113], [94, 113]]],
+    encs: [[96, 32, 80, 38], [96, 94, 80, 38]],
+    aEnc: [[[178, 51], [197, 51]], [[178, 113], [197, 113]]], aPos: [[152, 162], [197, 162]],
+    col: { cw: 11, box: [196, 23, 19, 155], cells: colCells(200, [51, 113, 162], 11, 1.5) },
+    colLab: [224, 66, 'left'], onceLab: [224, 100, 'left'], aCol: [[206, 180], [206, 201]],
+    cond: { x: 110, y: 208, nb: 6, cw: 13, lab: [150, 191] },
+    chip: [238, 188, 112, 54], aChip: [[236, 215], [213, 215]],
+    fan: [158, 230], fanLab: [104, 242, 'right'],
+    U: {
+      box: [8, 252, 344, 132],
+      blocks: [blk(24, 264, 16, 5.5, 14, [106, 263]), blk(50, 298, 8, 7, 18, [106, 297]), blk(162, 324, 4, 9, 22, [180, 323]), blk(254, 298, 8, 7, 18, [254, 297]), blk(248, 264, 16, 5.5, 14, [254, 263])],
+      links: [[[78, 278], [78, 296]], [[106, 312], [160, 332]], [[198, 332], [252, 312]], [[282, 298], [282, 280]]],
+      skips: [[[112, 271], [246, 271]], [[106, 307], [252, 307]]],
+      lab: [180, 360],
+    },
+    F: { x: 8, y: 400, w: 184, h: 118, x0: 22, dx: 10.4, cy: 462, amp: 19, br: 492, bpx: 9 },
+    aF: [[40, 398], [40, 280]],
+    Gp: { x: 200, y: 400, w: 152, h: 118, x0: 212, dx: 8.5, cy: 462, amp: 18, bw: 4.5 },
+    aG: [[320, 280], [320, 398]],
+    ret: [[276, 520], [276, 532], [100, 532], [100, 521]], retLab: [188, 546, false],
+    loop: [[8, 458], [4, 458], [4, 51], [16, 51]], loopLab: [10, 188, 'left'],
+    st: [14, 568, 332],
+  };
+  if (typeof Anim !== 'undefined') Anim.add('dp-arch', { W: 720, H: 432, start: 13.8, narrowAt: 680, draw: (c, k, t, P, A) => draw(c, k, t, P, A, WIDE), narrow: { W: 360, H: 620, draw: (c, k, t, P, A) => draw(c, k, t, P, A, NARROW) } });
+  return { T, PH, stepAt, doneAt, chunkAt, A0, EPS };
 })();
 
 /* ===================== 4. Лаборатория: Ада и диффузионная политика ===================== */

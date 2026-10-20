@@ -102,7 +102,7 @@
 
 <section class="section alt" id="levels">
   <div class="wrap">
-    <div class="prose" style="margin:0;max-width:820px">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
       <div class="kicker"><span class="num">3</span> Subtasks</div>
       <h2>First a subtask in words, then actions</h2>
       <p>The command “clean the kitchen” doesn't say what to do right now. If the model gets it and immediately outputs an action chunk, it has to solve two problems internally at once: what comes next in the task, and how to do it with its hands.</p>
@@ -110,6 +110,12 @@
       <div class="formula">\[ \pi(a, \hat\ell \mid o, \ell) = \pi(a \mid o, \hat\ell)\; \pi(\hat\ell \mid o, \ell), \]</div>
       <p>where \(o\) is the images and the robot's state, \(\ell\) is the person's request, \(\hat\ell\) is the subtask the model named itself, and \(a\) is the action chunk. Such a policy is called <strong>hierarchical</strong>: the high level decides what to do, the low level how. A policy that goes straight from the request to actions we'll call <strong>flat</strong>.</p>
       <p>Previously, the levels were built from two models: in lesson 2.3, a language model chose the skills; in lesson 3.6, a vision-language model dictated the steps to π0; in lesson 3.7, Gemini Robotics-ER gave instructions to the VLA. In π0.5, both levels share the same weights. The authors explain why two levels are needed: the low level benefits from action recordings of any robots, including static ones in other homes, and the high level from step captions, web data and verbal instructions. A short subtask like “put the plate in the sink” shows up in the data of many robots, while a full cleanup of this particular kitchen shows up nowhere.</p>
+    </div>
+    <figure class="card scheme-fig">
+      <canvas data-anim="pi05-infer" width="720" height="356" role="img" aria-label="Diagram of π0.5's two-step inference. In step 1, the vision-language model writes the subtask “pick up the plate” in words from the camera frames, the robot's state and the request “clean the kitchen”. The subtask goes to the input of step 2: the action expert of the same model builds a chunk of 50 actions in 10 flow steps from the frames and the subtask, without the original request. The robot executes the chunk, looks at the scene again, and the model writes the next subtask, “put the plate in the sink”"></canvas>
+      <figcaption class="muted-s">The diagram shows, in simplified form, how π0.5 carries out a long task with one and the same model in two steps. In step 1, the vision-language model looks at the camera frames and the robot's state, reads the request “clean the kitchen” and writes a subtask in words, such as “pick up the plate”. The subtask goes to the input of step 2. In step 2, the model sees the frames and the subtask but not the original request. The action expert reads the keys and values of the vision-language model and builds a chunk of 50 actions in 10 flow steps. The robot executes the chunk and looks at the scene again, and in step 1 the model writes the next subtask: “put the plate in the sink”. In the diagram, one chunk is enough for each subtask. In reality, a subtask takes a few seconds, and, as the authors write, the high level runs less often than the low level. Click the diagram to pause it.</figcaption>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
       <p>Let's see what this does on Ada's table.</p>
     </div>
   </div>

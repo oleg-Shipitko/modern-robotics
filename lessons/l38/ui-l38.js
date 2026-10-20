@@ -2,6 +2,8 @@
    ui-l38.js — урок 3.8 «Обобщение и рассуждение: от π0.5 до π0.7».
    0) анимированная схема изоляции знаний (shared/anim.js): градиент
       эксперта действий идёт в модель зрения и языка или останавливается;
+      схема двухэтапного инференса π0.5: сначала подзадача словами, потом
+      пачка действий от эксперта, робот исполняет и снова смотрит;
    1) лаборатория 1: уборка стола, плоская и иерархическая политика на
       одной сцене рядом (одна модель действий), 20 столов, 2 и 32 записи;
    2) лаборатория 2: 96 записей в 1…96 домах, проверка в 16 новых домах,
@@ -147,6 +149,219 @@ function drawBitmap(c, bm, x, y, w, hgt) { c.imageSmoothingEnabled = false; c.dr
     row(c, k, u, P, A, mk(400), true);
   }
   Anim.add('ki', { W: 720, H: 380, start: 4.6, narrowAt: 600, draw: wide, narrow: { W: 360, H: 790, draw: narrow } });
+})();
+
+/* =====================================================================
+   0б. Схема: двухэтапный инференс π0.5 (раздел «Подзадачи»). Одна модель,
+   два шага. Шаг 1: модель зрения и языка по кадрам, состоянию и просьбе
+   пишет словами подзадачу. Подзадача уходит на вход, и на шаге 2 эксперт
+   действий той же модели по кадрам и подзадаче (просьбу шаг 2 не видит)
+   за 10 шагов flow строит пачку из 50 действий. Робот исполняет пачку,
+   снова смотрит на сцену, и шаг 1 пишет следующую подзадачу. Два круга:
+   «возьми тарелку» и «положи тарелку в мойку». Цвета: серый — модель
+   зрения и языка и просьба, фиолетовый — подзадача словами, оранжевый —
+   эксперт действий и пачка, синий — кадры камер и состояние робота.
+   Сцена — вид сверху, упрощённо.
+   ===================================================================== */
+(() => {
+  if (typeof Anim === 'undefined') { document.querySelectorAll('canvas[data-anim="pi05-infer"]').forEach((cv) => { const f = cv.closest('figure'); if (f) f.hidden = true; }); return; }
+  const K = HeroKit, T = 20;
+  const PH = { inp: [0.2, 1.0], s1: [1.0, 3.6], c1: [3.6, 4.6], s2: [4.6, 7.6], x1: [7.6, 9.2], l1: [9.2, 10.0], s1b: [10.0, 12.0], c2: [12.0, 12.8], s2b: [12.8, 14.8], x2: [14.8, 16.6], fade: [19.2, 20] };
+  const SUB = ['«возьми тарелку»', '«положи тарелку в\u00a0мойку»'];         // подзадачи двух кругов; слова появляются по одному
+  const hash = (i) => { const x = Math.sin(i * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
+  const NPT = 22, TGT = [0, 1].map((q) => Array.from({ length: NPT }, (_, i) => 0.55 * Math.sin(Math.PI * i / (NPT - 1) * (q ? 1.1 : 1.6) + q * 0.8) - 0.1));
+  const NOISE = [0, 1].map((q) => Array.from({ length: NPT }, (_, i) => (hash(i + 7 + q * 50) + hash(i + 31 + q * 50) - 1) * 1.6));
+  function wrap(c, k, text, maxW, px, weight) {
+    K.font(c, k, px, weight); const ws = text.split(' '), out = []; let cur = '';
+    for (const w of ws) { const t2 = cur ? cur + ' ' + w : w; if (cur && c.measureText(t2).width > maxW) { out.push(cur); cur = w; } else cur = t2; }
+    if (cur) out.push(cur); return out;
+  }
+  /** Подпись, ужатая до ширины maxW; o.wrap — перенос по словам, o.top — y задаёт первую строку. */
+  function txt(c, k, text, x, y, maxW, o) {
+    o = Object.assign({ px: 11, weight: 600, halo: false }, o || {});
+    const lines = Array.isArray(text) ? text : o.wrap && maxW ? wrap(c, k, text, maxW, o.px, o.weight) : [text]; let px = o.px;
+    K.font(c, k, px, o.weight, o.mono);
+    const w = Math.max(...lines.map((s) => c.measureText(s).width));
+    if (maxW && w > maxW) px = Math.max(7, px * maxW / w);
+    const lh = px * k * (o.lh || 1.28), y0 = o.top ? y : y - (lines.length - 1) * lh / 2;
+    lines.forEach((s, i) => K.label(c, k, s, x, y0 + i * lh, Object.assign({}, o, { px })));
+  }
+  /** Название блока и строка пояснения посередине блока b; обе строки переносятся по словам. */
+  function boxText(c, k, P, b, title, sub, subCol, subW) {
+    const [x, y, w, h] = b, tl = wrap(c, k, title, w - 14, 11.5, 750), sl = sub ? wrap(c, k, sub, w - 14, 10, subW || 600) : [];
+    const lt = 13.5 * k, ls = 12.5 * k, tot = tl.length * lt + sl.length * ls;
+    let yy = y + h / 2 - tot / 2 + lt / 2;
+    tl.forEach((s) => { txt(c, k, s, x + w / 2, yy, w - 14, { px: 11.5, weight: 750, color: P.ink }); yy += lt; });
+    yy += (ls - lt) / 2;
+    sl.forEach((s) => { txt(c, k, s, x + w / 2, yy, w - 14, { px: 10, weight: subW || 600, color: subCol || P.ink3 }); yy += ls; });
+  }
+  function along(pts, s) {
+    const L = []; let tot = 0; for (let i = 1; i < pts.length; i++) { const d = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); L.push(d); tot += d; }
+    let r = Math.max(0, Math.min(1, s)) * tot;
+    for (let i = 0; i < L.length; i++) { if (r <= L[i] || i === L.length - 1) { const f = L[i] ? Math.min(1, r / L[i]) : 0; return [pts[i][0] + (pts[i + 1][0] - pts[i][0]) * f, pts[i][1] + (pts[i + 1][1] - pts[i][1]) * f]; } r -= L[i]; }
+    return pts[pts.length - 1];
+  }
+  function poly(c, A, pts, col, lw, dash) {
+    if (!pts || pts.length < 2) return;
+    const a = pts[pts.length - 2], b = pts[pts.length - 1];
+    if (pts.length > 2) A.line(c, pts.slice(0, -1), col, lw, dash);
+    if (dash) { A.line(c, [a, b], col, lw, dash); A.arrow(c, b[0] - (b[0] - a[0]) * 0.001, b[1] - (b[1] - a[1]) * 0.001, b[0], b[1], col, lw, 6); }
+    else A.arrow(c, a[0], a[1], b[0], b[1], col, lw, 6);
+  }
+  function dots(c, A, pts, prog, col) {
+    if (prog <= 0 || prog >= 1 || !pts) return;
+    for (let i = 0; i < 3; i++) { const q = along(pts, (prog * 1.6 + i / 3) % 1); A.circle(c, q[0], q[1], 2.6, col); }
+  }
+  /** Кадры камер стопкой: стол, мойка, тарелка и захват; held — тарелка уже в захвате. */
+  function frames(c, A, P, x, y, w, h, held, on) {
+    for (let j = 2; j >= 0; j--) {
+      const fx = x + j * 5, fy = y + j * 4;
+      c.save(); c.beginPath(); c.roundRect(fx, fy, w, h, 4); c.clip();
+      c.fillStyle = P.dark ? '#5a4a36' : '#e3d3b6'; c.fillRect(fx, fy, w, h);
+      if (j === 0) {
+        A.rect(c, fx + w * 0.58, fy + h * 0.2, w * 0.34, h * 0.6, 5, P.dark ? '#3d4650' : '#c9d3dc', P.dark ? '#59636e' : '#9aa7b3', 1);
+        const px = held ? fx + w * 0.38 : fx + w * 0.26, py = held ? fy + h * 0.4 : fy + h * 0.62;
+        A.circle(c, px, py, h * 0.17, P.dark ? '#d9d6cf' : '#fbfaf7', P.dark ? '#9c978c' : '#c4bdae', 1);
+        drawGrip(c, held ? px : fx + w * 0.4, held ? py : fy + h * 0.3, h * 0.15, P.dark ? '#e9e4da' : '#46423e', held);
+      }
+      c.restore();
+      A.rect(c, fx, fy, w, h, 4, null, on && j === 0 ? P.ink : P.line, on && j === 0 ? 1.6 : 1);
+    }
+  }
+  /** Сцена сверху: стол, мойка, тарелка и захват; carry — захват закрыт (тарелка в нём). */
+  function scene(c, A, P, S, g, carry, plate) {
+    const [x, y, w, h] = S, r = Math.min(w, h);
+    A.rect(c, x, y, w, h, 8, P.dark ? '#5a4a36' : '#e8dcc6', P.line, 1);
+    const sink = [x + w * 0.56, y + h * 0.16, w * 0.36, h * 0.68];
+    A.rect(c, ...sink, 8, P.dark ? '#3d4650' : '#c9d3dc', P.dark ? '#59636e' : '#9aa7b3', 1.4);
+    A.circle(c, sink[0] + sink[2] / 2, sink[1] + sink[3] * 0.75, 3, null, P.dark ? '#59636e' : '#9aa7b3', 1.2);
+    A.circle(c, plate[0], plate[1], r * 0.15, P.dark ? '#d9d6cf' : '#fbfaf7', P.dark ? '#9c978c' : '#c4bdae', 1.2);
+    A.circle(c, plate[0], plate[1], r * 0.09, null, P.dark ? '#b3aea3' : '#e2ddd2', 0.8);
+    drawGrip(c, g[0], g[1], r * 0.11, P.dark ? '#e9e4da' : '#46423e', carry);
+  }
+  function draw(c, k, t, P, A, G) {
+    const { seg, ease, lerp } = A, u = ((t % T) + T) % T;
+    const fade = 1 - seg(u, ...PH.fade); c.globalAlpha = fade;
+    const on = (x) => (x ? P.ink2 : P.line);
+    const cyc = u < PH.l1[1] ? 0 : 1;                                   // первый круг — «возьми тарелку», второй — «положи тарелку в мойку»
+    const p1 = seg(u, ...(cyc ? PH.s1b : PH.s1)), pc = seg(u, ...(cyc ? PH.c2 : PH.c1)), p2 = seg(u, ...(cyc ? PH.s2b : PH.s2)), px = seg(u, ...(cyc ? PH.x2 : PH.x1));
+    const pIn = seg(u, ...PH.inp), pL = seg(u, ...PH.l1);
+    const step1 = p1 > 0 && p1 < 1, step2 = p2 > 0 && p2 < 1;
+    // ---------- входы: подзадача (вход шага 2), кадры и состояние, просьба ----------
+    const slotIdx = u < PH.c1[1] ? -1 : u < PH.s1b[0] ? 0 : u < PH.c2[1] ? -1 : 1;   // на шаге 1 второго круга прежней подзадачи на входе нет
+    const [sx, sy, sw, shh] = G.slot;
+    A.rect(c, sx, sy, sw, shh, 9, slotIdx >= 0 ? A.alpha(P.spr, step2 ? 0.16 : 0.08) : P.surf, slotIdx >= 0 ? P.spr : P.line, step2 ? 1.8 : 1.2);
+    if (slotIdx < 0) txt(c, k, 'подзадача', sx + sw / 2, sy + shh / 2, sw - 12, { px: 10.5, color: P.ink3 });
+    else txt(c, k, SUB[slotIdx], sx + sw / 2, sy + shh / 2, sw - 12, { px: 10.5, weight: 700, color: P.ink, wrap: true });
+    const [fx, fy, fw, fh] = G.frames, held = u >= PH.l1[0] + 0.4;
+    c.globalAlpha = fade * Math.min(1, 0.25 + pIn * 2);
+    frames(c, A, P, fx, fy, fw, fh, held, step1 || step2 || (pL > 0.4 && pL < 1));
+    for (let i = 0; i < 6; i++) { const hh = 5 + 12 * hash(i + 3 + (held ? 9 : 0)); A.rect(c, G.state[0] + i * 6, G.state[1] + 16 - hh, 4, hh, 1, P.out, null); }
+    c.globalAlpha = fade;
+    txt(c, k, 'кадры и состояние', G.frLab[0], G.frLab[1], G.frLab[2], { px: 10, color: P.ink2 });
+    const [rx, ry, rw, rh] = G.req;
+    c.globalAlpha = fade * (step2 ? 0.45 : Math.min(1, 0.25 + pIn * 2));
+    A.rect(c, rx, ry, rw, rh, 9, P.surf, step1 ? P.ink2 : P.ink3, step1 ? 1.7 : 1.3);
+    txt(c, k, '«убери кухню»', rx + rw / 2, ry + rh / 2, rw - 12, { px: 10.5, weight: 650, color: P.ink, wrap: true });
+    c.globalAlpha = fade;
+    txt(c, k, 'просьба', G.reqLab[0], G.reqLab[1], G.reqLab[2], { px: 10, color: P.ink3 });
+    // стрелки входов: на шаге 1 работают кадры и просьба, на шаге 2 — кадры и подзадача; просьба на шаге 2 перечёркнута
+    poly(c, A, G.aFr, on(step1 || step2), 1.5); dots(c, A, G.aFr, step1 ? seg(p1, 0, 0.3) : step2 ? seg(p2, 0, 0.25) : 0, P.out);
+    if (step2) { poly(c, A, G.aReq, A.alpha(P.ink3, 0.7), 1.3, [3, 3]); const m = along(G.aReq, 0.5); K.cross(c, m[0], m[1], 4.5, P.bad, 2); }
+    else { poly(c, A, G.aReq, step1 ? P.ink2 : P.line, 1.5); dots(c, A, G.aReq, step1 ? seg(p1, 0, 0.3) : 0, P.ink3); }
+    poly(c, A, G.aSlot, step2 ? P.spr : P.line, 1.5); dots(c, A, G.aSlot, step2 ? seg(p2, 0, 0.25) : 0, P.spr);
+    // ---------- одна модель: модель зрения и языка и эксперт действий ----------
+    const [mx, my, mw, mh] = G.model;
+    A.rect(c, mx, my, mw, mh, 12, A.alpha(P.ink3, 0.05), P.ink3, 1.2);
+    txt(c, k, 'одна модель π0.5', G.mT[0], G.mT[1], 200, { px: 12, weight: 750, color: P.ink, align: 'left' });
+    const V = G.vlm;
+    A.rect(c, V[0], V[1], V[2], V[3], 10, step1 ? A.alpha(P.ink3, 0.24) : step2 ? A.alpha(P.ink3, 0.13) : P.surf, step1 ? P.ink : P.ink3, step1 ? 1.9 : 1.3);
+    boxText(c, k, P, V, 'модель зрения и языка', step1 ? 'пишет подзадачу' : step2 ? 'читает кадры и подзадачу' : 'PaliGemma');
+    const X = G.exp, xOn = step2 && p2 >= 0.15;
+    A.rect(c, X[0], X[1], X[2], X[3], 10, xOn ? A.alpha(P.mot, 0.2) : A.alpha(P.mot, 0.06), xOn ? P.mot : A.alpha(P.mot, 0.6), xOn ? 1.9 : 1.3);
+    const flow = step2 ? Math.min(10, Math.max(0, Math.ceil((p2 - 0.15) / 0.8 * 10))) : 0;
+    boxText(c, k, P, X, 'эксперт действий', flow > 0 ? `шаг flow ${flow} из 10` : '300 млн параметров', flow > 0 ? P.mot : P.ink3, flow > 0 ? 700 : 600);
+    A.line(c, G.link, xOn ? A.alpha(P.ink2, 0.85) : P.line, 1.5, [4, 3], xOn ? -u * 20 : 0);
+    if (G.linkLab) txt(c, k, 'ключи и значения', G.linkLab[0], G.linkLab[1], 120, { px: 9.5, color: P.ink3, align: 'left' });
+    // ---------- выход шага 1: подзадача словами ----------
+    const words = SUB[cyc].split(' '), nW = p1 <= 0.2 ? 0 : Math.min(words.length, Math.ceil((p1 - 0.2) / 0.7 * words.length)), writing = nW > 0 && pc < 1;
+    poly(c, A, G.aSub, on(writing), 1.5);
+    const [ox, oy, ow, oh] = G.sub;
+    A.rect(c, ox, oy, ow, oh, 9, writing ? A.alpha(P.spr, 0.1) : P.surf, writing ? P.spr : P.line, writing ? 1.5 : 1.1);
+    if (writing) txt(c, k, words.slice(0, nW).join(' '), ox + ow / 2, oy + oh / 2, ow - 12, { px: 10.5, weight: 700, color: P.ink, wrap: true });
+    txt(c, k, 'подзадача словами', G.subLab[0], G.subLab[1], G.subLab[2], { px: 10, color: P.ink3 });
+    // подзадача уходит на вход шага 2
+    poly(c, A, G.loop1, pc > 0 && pc < 1 ? P.spr : P.line, 1.3, [5, 4]);
+    if (pc > 0 && pc < 1) { const q = along(G.loop1, ease(pc)); A.rect(c, q[0] - 22, q[1] - 8, 44, 16, 7, A.alpha(P.spr, 0.22), P.spr, 1.3); }
+    // ---------- выход шага 2: пачка действий ----------
+    const built = flow > 0 || (px > 0 && px < 1);
+    poly(c, A, G.aChunk, on(built), 1.5);
+    const [qx, qy, qw, qh] = G.chunk, mid = qy + qh / 2, sy2 = qh * 0.3, uu = px > 0 ? 1 : flow / 10;
+    A.rect(c, qx, qy, qw, qh, 7, P.surf, built && uu >= 1 ? P.mot : P.line, built && uu >= 1 ? 1.6 : 1.1);
+    if (built) {
+      const pts = [];
+      for (let i = 0; i < NPT; i++) { const v = NOISE[cyc][i] * (1 - uu) + TGT[cyc][i] * uu, x2 = qx + 6 + (qw - 12) * i / (NPT - 1); pts.push([x2, mid - v * sy2]); A.circle(c, x2, mid - v * sy2, 1.8, P.mot); }
+      if (uu >= 1) A.line(c, pts, P.mot, 1.4);
+    }
+    txt(c, k, 'пачка из 50 действий', G.chLab[0], G.chLab[1], G.chLab[2], { px: 10, color: P.ink2, align: G.chLab[3] || 'center' });
+    // ---------- робот исполняет пачку ----------
+    poly(c, A, G.aScene, on(px > 0 && px < 1), 1.5); dots(c, A, G.aScene, seg(px, 0, 0.3), P.mot);
+    const S = G.scene, home = [S[0] + S[2] * 0.4, S[1] + S[3] * 0.22], pl0 = [S[0] + S[2] * 0.26, S[1] + S[3] * 0.64], pl1 = [S[0] + S[2] * 0.74, S[1] + S[3] * 0.5];
+    let grip = home, plate = pl0, carry = false;
+    if (cyc === 0) { const f = ease(seg(px, 0.15, 0.85)); grip = [lerp(home[0], pl0[0], f), lerp(home[1], pl0[1], f)]; carry = px > 0.85 || u >= PH.l1[0]; }
+    else { const f = ease(seg(px, 0.15, 0.85)); grip = [lerp(pl0[0], pl1[0], f), lerp(pl0[1], pl1[1], f)]; plate = px >= 0.92 ? pl1 : grip; carry = px < 0.92; }
+    scene(c, A, P, S, grip, carry, plate);
+    txt(c, k, 'робот исполняет пачку', G.scLab[0], G.scLab[1], G.scLab[2], { px: 10, color: px > 0 && px < 1 ? P.ink : P.ink3 });
+    // робот снова смотрит: новые кадры
+    poly(c, A, G.loop2, pL > 0 && pL < 1 ? P.out : P.line, 1.3, [5, 4]); dots(c, A, G.loop2, pL, P.out);
+    txt(c, k, 'робот снова смотрит', G.l2Lab[0], G.l2Lab[1], 160, { px: 10, color: pL > 0 && pL < 1 ? P.out : P.ink3, align: G.l2Lab[2] || 'center' });
+    // ---------- что происходит ----------
+    const st = u < PH.s1[0] ? 'Модель получает кадры камер, состояние робота и просьбу человека.'
+      : u < PH.c1[0] ? 'Шаг 1: модель зрения и языка пишет словами подзадачу на ближайшие секунды.'
+      : u < PH.s2[0] ? 'Подзадача уходит на вход. Шаг 2 видит её и кадры, а исходную просьбу не видит.'
+      : u < PH.x1[0] ? 'Шаг 2: эксперт действий той же модели строит пачку действий за 10 шагов flow.'
+      : u < PH.l1[0] ? 'Робот исполняет пачку: захват идёт к тарелке и берёт её.'
+      : u < PH.s1b[0] ? 'Робот снова смотрит на сцену, и шаг 1 начинается заново.'
+      : u < PH.s2b[0] ? 'Тарелка уже в захвате, и модель пишет следующую подзадачу.'
+      : u < PH.x2[1] ? 'По новой подзадаче эксперт строит новую пачку, и робот несёт тарелку в мойку.'
+      : 'Так шаг за шагом: сначала подзадача словами, потом пачка действий.';
+    txt(c, k, st, G.st[0], G.st[1], G.st[2], { px: 11.5, weight: 700, color: P.ink, align: 'left', wrap: true, lh: 1.35, top: true });
+    c.globalAlpha = 1;
+  }
+  Anim.add('pi05-infer', {
+    W: 720, H: 356, start: 6.4, narrowAt: 720,
+    draw(c, k, t, P, A) {
+      draw(c, k, t, P, A, {
+        slot: [46, 26, 108, 38], frames: [46, 84, 58, 40], state: [120, 92], frLab: [100, 144, 120], req: [46, 160, 108, 28], reqLab: [100, 200, 130],
+        aSlot: [[154, 45], [170, 45], [170, 66], [196, 66]], aFr: [[158, 104], [196, 104]], aReq: [[154, 174], [170, 174], [170, 128], [196, 128]],
+        model: [184, 14, 262, 252], mT: [198, 33],
+        vlm: [198, 48, 234, 96], exp: [198, 170, 234, 82], link: [[315, 145], [315, 169]], linkLab: [324, 157],
+        aSub: [[432, 97], [470, 97]], sub: [472, 78, 234, 38], subLab: [572, 66, 200],
+        loop1: [[690, 78], [690, 7], [100, 7], [100, 24]],
+        aChunk: [[432, 211], [470, 211]], chunk: [472, 182, 118, 58], chLab: [531, 172, 130],
+        aScene: [[590, 211], [604, 211]], scene: [606, 166, 100, 90], scLab: [656, 268, 130],
+        loop2: [[656, 276], [656, 290], [28, 290], [28, 104], [44, 104]], l2Lab: [342, 281],
+        st: [14, 312, 692],
+      });
+    },
+    narrow: {
+      W: 360, H: 614,
+      draw(c, k, t, P, A) {
+        draw(c, k, t, P, A, {
+          slot: [14, 32, 112, 42], req: [136, 32, 100, 28], reqLab: [186, 20, 100], frames: [246, 32, 50, 34], state: [308, 40], frLab: [296, 20, 110],
+          aSlot: [[70, 74], [70, 132]], aReq: [[186, 60], [186, 132]], aFr: [[271, 76], [271, 132]],
+          model: [14, 104, 332, 210], mT: [26, 121],
+          vlm: [26, 134, 308, 68], exp: [62, 226, 272, 72], link: [[198, 202], [198, 226]], linkLab: [206, 214],
+          aSub: [[44, 202], [44, 334]], sub: [14, 336, 160, 44], subLab: [94, 392, 160],
+          loop1: [[14, 358], [6, 358], [6, 53], [12, 53]],
+          aChunk: [[266, 298], [266, 334]], chunk: [196, 336, 150, 52], chLab: [346, 400, 150, 'right'],
+          aScene: [[206, 388], [206, 426]], scene: [206, 428, 130, 92], scLab: [271, 532, 150],
+          loop2: [[336, 474], [354, 474], [354, 49], [346, 49]], l2Lab: [346, 416, 'right'],
+          st: [14, 556, 332],
+        });
+      },
+    },
+  });
 })();
 
 /* =====================================================================

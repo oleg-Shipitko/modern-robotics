@@ -1,5 +1,9 @@
 // Проверка урока 0.4: все миссии пяти лабораторий и калькулятора проходятся программно,
 // сортировка и квиз, тёмная тема, телефон 390 px. Скриншоты — в shots/l04-*.png.
+// Анимированные схемы (shared/anim.js, l04/anim-l04.js): цикл фильтра Калмана, фильтр частиц по шагам и один шаг SLAM —
+// подписи в канвасе, не налезают и не мельче 9,6 px на 8–10 моментах, на ширинах 1440, 1280, 1024, 768, 720, 640, 390 и 360;
+// кадры разных этапов различаются; итоговые кадры и данные: K растёт после провала дальномера и падает при шумном
+// дальномере, два облака частиц сходятся в одно вокруг Ады, перебор поз совпадает с OccMap.match.
 const { launch, sleep } = require('./cdp');
 const path = require('path');
 const URL0 = 'file://' + path.resolve(__dirname, '../site/lessons/0-4-otsenka-sostoyaniya-i-planirovanie.html');
@@ -40,6 +44,94 @@ async function mouseDrag(p, sel, from, to, steps) {
   for (let t = 1; t <= (steps || 8); t++) await p.S('Input.dispatchMouseEvent', { type: 'mouseMoved', x: a.x + (b.x - a.x) * t / (steps || 8), y: a.y + (b.y - a.y) * t / (steps || 8), button: 'left', buttons: 1 });
   await p.S('Input.dispatchMouseEvent', { type: 'mouseReleased', x: b.x, y: b.y, button: 'left', clickCount: 1 });
   await sleep(150);
+}
+
+/* ---------- анимированные схемы ---------- */
+const SCH = { 'kalman-cycle': [1.0, 2.5, 3.9, 5.8, 9, 12.5, 16.5, 19.6, 23.5], 'pf-cycle': [1.5, 3.9, 5.6, 6.6, 8.0, 11.9, 13.5, 16.8, 18.2, 22.6], 'slam-step': [1.5, 3.9, 6.0, 8.5, 12.4, 14.2, 16.5, 19.5] };
+const SCH_SHOT = { 'kalman-cycle': [2.5, 12.5, 19.6], 'pf-cycle': [6.6, 11.9, 22.6], 'slam-step': [3.9, 8.5, 17.0] };
+const SCH_NAME = { 'kalman-cycle': 'схема фильтра Калмана', 'pf-cycle': 'схема фильтра частиц', 'slam-step': 'схема шага SLAM' };
+const chk = (cond, msg) => { console.log((cond ? '  ✓ ' : '  ✗ ') + msg); ok(cond, msg); };
+/** Подписи схемы на кадрах frames: внутри канваса, не налезают друг на друга, не мельче 9,6 экранного пикселя;
+ *  тексты кадров и число разных кадров. Без anim.js в сборке схемы нет: none = true. */
+async function schemeLabels(p, kind, frames) {
+  return JSON.parse(await p.eval(`(() => {
+    const cv = document.querySelector('canvas[data-anim=${kind}]');
+    if (!cv || typeof Anim === 'undefined') return JSON.stringify({ none: true, bad: [], small: [] });
+    const orig = CanvasRenderingContext2D.prototype.fillText, bad = [], small = [], texts = {};
+    let boxes = null, W = 0, H = 0;
+    CanvasRenderingContext2D.prototype.fillText = function (txt, x, y) {
+      if (boxes && this.canvas === cv) {
+        const m = this.measureText(txt), fs = parseFloat(/([\\d.]+)px/.exec(this.font)[1]), a = this.textAlign;
+        const x0 = a === 'center' ? x - m.width / 2 : a === 'right' ? x - m.width : x;
+        boxes.push({ t: String(txt), fs, x0, x1: x0 + m.width, y0: y - fs / 2, y1: y + fs / 2 });
+      }
+      return orig.apply(this, arguments);
+    };
+    const prints = new Set();
+    for (const t of ${JSON.stringify(frames)}) {
+      boxes = []; Anim.seek(cv, t); const b = boxes; boxes = null;
+      { const d = cv.toDataURL(); let hh = 0; for (let i = 0; i < d.length; i += 3) hh = (hh * 31 + d.charCodeAt(i)) >>> 0; prints.add(hh); }
+      [W, H] = cv.style.aspectRatio.split('/').map(Number); texts[t] = b.map((q) => q.t);
+      const kk = W / cv.getBoundingClientRect().width;
+      b.forEach((q) => { if (q.x0 < 1 || q.x1 > W - 1 || q.y0 < 0 || q.y1 > H) bad.push('t = ' + t + ': за краем «' + q.t + '»'); if (q.fs / kk < 9.6) small.push('t = ' + t + ': «' + q.t + '» ' + (q.fs / kk).toFixed(1) + ' px'); });
+      for (let i = 0; i < b.length; i++) for (let j = i + 1; j < b.length; j++) {
+        const ox = Math.min(b[i].x1, b[j].x1) - Math.max(b[i].x0, b[j].x0), oy = Math.min(b[i].y1, b[j].y1) - Math.max(b[i].y0, b[j].y0);
+        if (ox > 1 && oy > 1) bad.push('t = ' + t + ': «' + b[i].t + '» на «' + b[j].t + '»');
+      }
+    }
+    CanvasRenderingContext2D.prototype.fillText = orig;
+    return JSON.stringify({ layout: cv.dataset.layout, W, H, bad, small, texts, distinct: prints.size });
+  })()`));
+}
+const kOf = (texts) => { const s = (texts || []).find((x) => /^K = \d,\d\d$/.test(x)); return s ? +s.slice(4).replace(',', '.') : NaN; };
+/** Три схемы: подписи, различие кадров, содержание кадров и данных, снимки shots/l04-<схема>-<t>.png (телефон — l04-m-…). */
+async function schemeChecks(p, where, layout, shots) {
+  for (const kind of Object.keys(SCH)) {
+    await p.eval(`(() => { const cv = document.querySelector('canvas[data-anim=${kind}]'); if (cv) cv.scrollIntoView({ block: 'center' }); return true; })()`); await sleep(250);
+    const r = await schemeLabels(p, kind, SCH[kind]);
+    if (r.none) { chk(false, `${where}${SCH_NAME[kind]}: схемы нет — в build.py для l04 нужны shared/anim.js и l04/anim-l04.js перед l04/ui-l04.js`); continue; }
+    chk(r.layout === layout && r.bad.length === 0 && r.small.length === 0, `${where}${SCH_NAME[kind]} ${r.W}×${r.H}: подписи в канвасе, не налезают и не мельче 9,6 px` + (r.bad.length || r.small.length ? ': ' + r.bad.concat(r.small).slice(0, 4).join('; ') : ''));
+    chk(r.distinct === SCH[kind].length, `${where}${SCH_NAME[kind]}: кадры ${SCH[kind].length} моментов различаются (разных ${r.distinct})`);
+    const tx = (t) => (r.texts[String(t)] || []).join(' ');
+    if (kind === 'kalman-cycle') {
+      const k1 = kOf(r.texts['5.8']), k8 = kOf(r.texts['19.6']), kw = kOf(r.texts['23.5']);
+      chk(tx(1).includes('Фильтр хранит оценку положения') && /Предсказание: оценку сдвигают/.test(tx(2.5)) && tx(12.5).includes('нет измерения') && /Дальномер молчит/.test(tx(12.5))
+        && k1 > 0.45 && k1 < 0.65 && k8 > 0.65 && kw < 0.3 && /Если дальномер шумит сильнее/.test(tx(23.5)),
+        `${where}схема Калмана: предсказание → коррекция, K = ${k1} на первом шаге, ${k8} после провала дальномера, ${kw} при шумном дальномере`);
+    }
+    if (kind === 'pf-cycle') {
+      const d = JSON.parse(await p.eval(`(() => { const D = window.__anim04.pf(), a0 = window.__anim04.pfA0, a1 = window.__anim04.pfA1;
+        const up = D.S1.filter((q) => q.x < 200 && q.y < 196).length, lo = D.S1.filter((q) => q.x < 200 && q.y > 204).length;
+        const far = D.S3.filter((q) => Math.hypot(q.x - a1.x, q.y - a1.y) > 45).length;
+        const sum = (W, f) => W.reduce((s, w, i) => s + (f(i) ? w : 0), 0);
+        return JSON.stringify({ n: D.S0.length, up, lo, far, w1: sum(D.W1, (i) => D.S0[i].x < 200 && Math.abs(D.S0[i].y - (a0.y + 102)) > 60), w2low: sum(D.W2, (i) => D.S2[i].y > 250) }); })()`));
+      chk(d.n === 30 && d.up >= 10 && d.lo >= 10 && d.w1 > 0.95 && d.w2low < 0.01 && d.far === 0, `${where}схема частиц: 30 частиц; после первого пересэмплирования облака ${d.up} и ${d.lo}; у двери вес нижнего облака ${d.w2low.toFixed(4)}; в конце все частицы ближе 45 см к Аде`);
+      chk(tx(1.5).includes('Ада не знает, где она.') && tx(6.6).includes('такой же скан') && tx(6.6).includes('другой скан') && /остаются два облака/.test(tx(11.9)) && /У двери Ада снимает новый скан/.test(tx(16.8)) && /остаётся одно облако/.test(tx(22.6)),
+        `${where}схема частиц: шаги «разброс → скан и вес → отбор → движение → новый скан» и подписи сравнения сканов`);
+    }
+    if (kind === 'slam-step') {
+      const d = JSON.parse(await p.eval(`(() => { const D = window.__anim04.slam(); return JSON.stringify({ same: Math.abs(D.match.x - D.best.x) < 1e-9 && Math.abs(D.match.y - D.best.y) < 1e-9 && Math.abs(D.match.th - D.best.th) < 1e-9, err: Math.hypot(D.best.x - D.s.x, D.best.y - D.s.y), eth: Math.abs(D.best.th - D.s.th) * 180 / Math.PI, sc0: D.sc0, sc1: D.sc1, changed: D.changed.length }); })()`));
+      chk(d.same && d.err < 5 && d.eth < 1.5 && d.sc1 > d.sc0 * 1.5 && d.changed > 50, `${where}схема SLAM: перебор совпал с OccMap.match, ошибка позы ${d.err.toFixed(1)} см и ${d.eth.toFixed(1)}°, оценка ${d.sc0.toFixed(0)} → ${d.sc1.toFixed(0)}, обновлено клеток ${d.changed}`);
+      chk(tx(1.5).includes('Колёса говорят, куда Ада сдвинулась') && /Сопоставление: перебираем сдвиги/.test(tx(8.5)) && tx(8.5).includes('оценка совпадения') && tx(12.4).includes('точнее: шаг 1,5 см') && /становится поправленной позой/.test(tx(14.2)) && /дорисовывает карту/.test(tx(16.5)),
+        `${where}схема SLAM: предсказание → новый скан → перебор → поправка → карта`);
+    }
+    for (const t of (shots && shots[kind]) || []) {
+      await p.eval(`(() => { const cv = document.querySelector('canvas[data-anim=${kind}]'); Anim.seek(cv, ${t}); cv.classList.remove('paused'); return true; })()`);
+      await p.shotEl(out(`l04-${where ? 'm-' : ''}${kind}-${t}.png`), `figure:has(> canvas[data-anim=${kind}])`, where ? 4 : 6);
+    }
+  }
+}
+/** Подписи схем на других ширинах: ширина окна меняется, схема перерисовывается. */
+async function schemeWidths(p, widths, mobile) {
+  for (const w of widths) {
+    await p.S('Emulation.setDeviceMetricsOverride', { width: w, height: 1000, deviceScaleFactor: 1, mobile: !!mobile });
+    await p.eval(`window.dispatchEvent(new Event('resize')); true`); await sleep(350);
+    for (const kind of Object.keys(SCH)) {
+      await p.eval(`(() => { const cv = document.querySelector('canvas[data-anim=${kind}]'); if (cv) cv.scrollIntoView({ block: 'center' }); return true; })()`); await sleep(150);
+      const r = await schemeLabels(p, kind, SCH[kind]);
+      chk(!r.none && r.bad.length === 0 && r.small.length === 0, `ширина ${w}: ${SCH_NAME[kind]} (${r.layout === 'n' ? 'узкая' : 'широкая'} раскладка) — подписи в канвасе, не налезают и не мельче 9,6 px` + (r.bad.length || r.small.length ? ': ' + r.bad.concat(r.small).slice(0, 3).join('; ') : ''));
+    }
+  }
 }
 
 async function desktop() {
@@ -149,12 +241,20 @@ async function desktop() {
   const ids = await p.eval('(() => { const all = [...document.querySelectorAll("[id]")].map((e) => e.id), d = all.filter((x, i) => all.indexOf(x) !== i); return d.join(",") || "нет"; })()');
   console.log('  повторы id:', ids); ok(ids === 'нет', 'повторяются id');
 
+  console.log('— Схемы');
+  await schemeChecks(p, '', 'w', SCH_SHOT);
   await p.click('#themeBtn'); await sleep(400);
+  for (const [kind, t] of [['kalman-cycle', 12.5], ['pf-cycle', 11.9], ['slam-step', 14.2]]) {
+    if (!(await p.eval(`!!document.querySelector('canvas[data-anim=${kind}]') && typeof Anim !== 'undefined'`))) continue;
+    await p.eval(`(() => { const cv = document.querySelector('canvas[data-anim=${kind}]'); cv.scrollIntoView({ block: 'center' }); Anim.seek(cv, ${t}); cv.classList.remove('paused'); return true; })()`); await sleep(200);
+    await p.shotEl(out(`l04-${kind}-dark.png`), `figure:has(> canvas[data-anim=${kind}])`, 6);
+  }
   await p.shotEl(out('l04-kalman-dark.png'), '#kalman .lab', 6);
   await p.shotEl(out('l04-particles-dark.png'), '#particles .lab', 6);
   await p.shotEl(out('l04-map-dark.png'), '#slam .lab', 6);
   await p.shotEl(out('l04-astar-dark.png'), '#astar .lab', 6);
   await p.shotEl(out('l04-rrt-dark.png'), '#rrt .lab', 6);
+  await schemeWidths(p, [1280, 1024, 768, 720, 640]);
   const logs = p.logs.filter((l) => !/fonts\.g/.test(l));
   console.log('логи десктопа:', logs.join(' | ') || 'нет'); ok(!logs.length, 'есть сообщения в консоли');
   await B.close();
@@ -187,6 +287,11 @@ async function phone() {
   await m.eval('document.querySelectorAll("#todaySeg button")[2].click()');
   await m.shotEl(out('l04-m-today.png'), '#today .stack-card', 4);
   await m.shotEl(out('l04-m-sort.png'), '#methodSort', 4);
+  await m.S('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true }); await sleep(300);
+  console.log('— Схемы на телефоне');
+  await schemeChecks(m, 'телефон: ', 'n', { 'kalman-cycle': [12.5], 'pf-cycle': [11.9], 'slam-step': [8.5] });
+  await schemeWidths(m, [360], true);
+  await m.S('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true }); await sleep(300);
   const w = await m.eval('document.documentElement.scrollWidth');
   console.log('телефон: ширина', w, 'из 390'); ok(w <= 390, 'телефон шире 390');
   const logs = m.logs.filter((l) => !/fonts\.g/.test(l));

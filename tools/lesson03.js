@@ -1,6 +1,9 @@
 // Проверка урока 0.3: сначала цифры движков в Node, потом все миссии в браузере —
 // ползунки, перетаскивание через CDP, ставки, запуски, свободный режим; схема,
 // задача на частоты, квиз, тёмная тема и телефон 390 px. Снимки — в shots/l03-*.png.
+// Анимированные схемы (shared/anim.js, l03/anim-l03.js): контур управления и скользящий горизонт —
+// подписи в канвасе, не налезают и не мельче 9,6 px на 5–9 моментах, на ширинах 1440, 1280, 1024, 768, 720, 640, 390 и 360;
+// кадры разных этапов различаются; итоговые кадры показывают 20 шагов регулятора на цель и доехавшего робота.
 const { launch, sleep } = require('./cdp');
 const path = require('path');
 const Arm = require('../lessons/shared/arm-core.js');
@@ -10,6 +13,78 @@ const out = (n) => path.resolve(__dirname, '../shots/' + n);
 const f1 = (v, d) => (+v).toFixed(d == null ? 1 : d);
 let fails = 0;
 const check = (ok, msg) => { console.log((ok ? '  ✓ ' : '  ✗ ') + msg); if (!ok) fails++; };
+
+/* ---------- анимированные схемы ---------- */
+const SCH = { 'ctrl-loop': [1.2, 2.4, 4.5, 6.2, 10.5, 13, 16], 'mpc-horizon': [1.0, 2.0, 4.0, 5.5, 9.5, 11, 13, 16, 20] };
+const SCH_SHOT = { 'ctrl-loop': [2.4, 10.5, 16], 'mpc-horizon': [2.0, 9.5, 20] };
+const SCH_NAME = { 'ctrl-loop': 'схема контура управления', 'mpc-horizon': 'схема скользящего горизонта' };
+const NO_ANIM = 'схемы нет: в build.py для l03 нужны shared/anim.js и l03/anim-l03.js перед l03/ui-l03.js';
+/** Подписи схемы на кадрах frames: внутри канваса, не налезают друг на друга, не мельче 9,6 экранного пикселя;
+ *  тексты кадров и число разных кадров. Без anim.js в сборке схемы нет: none = true. */
+async function schemeLabels(p, kind, frames) {
+  return JSON.parse(await p.eval(`(() => {
+    const cv = document.querySelector('canvas[data-anim=${kind}]');
+    if (!cv || typeof Anim === 'undefined') return JSON.stringify({ none: true, bad: [], small: [] });
+    const orig = CanvasRenderingContext2D.prototype.fillText, bad = [], small = [], texts = {};
+    let boxes = null, W = 0, H = 0;
+    CanvasRenderingContext2D.prototype.fillText = function (txt, x, y) {
+      if (boxes && this.canvas === cv) {
+        const m = this.measureText(txt), fs = parseFloat(/([\\d.]+)px/.exec(this.font)[1]), a = this.textAlign;
+        const x0 = a === 'center' ? x - m.width / 2 : a === 'right' ? x - m.width : x;
+        boxes.push({ t: String(txt), fs, x0, x1: x0 + m.width, y0: y - fs / 2, y1: y + fs / 2 });
+      }
+      return orig.apply(this, arguments);
+    };
+    const prints = new Set();
+    for (const t of ${JSON.stringify(frames)}) {
+      boxes = []; Anim.seek(cv, t); const b = boxes; boxes = null;
+      { const d = cv.toDataURL(); let hh = 0; for (let i = 0; i < d.length; i += 3) hh = (hh * 31 + d.charCodeAt(i)) >>> 0; prints.add(hh); }
+      [W, H] = cv.style.aspectRatio.split('/').map(Number); texts[t] = b.map((q) => q.t);
+      const kk = W / cv.getBoundingClientRect().width;
+      b.forEach((q) => { if (q.x0 < 1 || q.x1 > W - 1 || q.y0 < 0 || q.y1 > H) bad.push('t = ' + t + ': за краем «' + q.t + '»'); if (q.fs / kk < 9.6) small.push('t = ' + t + ': «' + q.t + '» ' + (q.fs / kk).toFixed(1) + ' px'); });
+      for (let i = 0; i < b.length; i++) for (let j = i + 1; j < b.length; j++) {
+        const ox = Math.min(b[i].x1, b[j].x1) - Math.max(b[i].x0, b[j].x0), oy = Math.min(b[i].y1, b[j].y1) - Math.max(b[i].y0, b[j].y0);
+        if (ox > 1 && oy > 1) bad.push('t = ' + t + ': «' + b[i].t + '» на «' + b[j].t + '»');
+      }
+    }
+    CanvasRenderingContext2D.prototype.fillText = orig;
+    return JSON.stringify({ layout: cv.dataset.layout, W, H, bad, small, texts, distinct: prints.size });
+  })()`));
+}
+/** Обе схемы: подписи, различие кадров, содержание кадров, снимки shots/l03-<схема>-<t>.png (телефон — l03-m-…). */
+async function schemeChecks(p, where, layout, shots) {
+  for (const kind of Object.keys(SCH)) {
+    await p.eval(`(() => { const cv = document.querySelector('canvas[data-anim=${kind}]'); if (cv) cv.scrollIntoView({ block: 'center' }); return true; })()`); await sleep(250);
+    const r = await schemeLabels(p, kind, SCH[kind]);
+    if (r.none) { check(false, `${where}${SCH_NAME[kind]}: ${NO_ANIM}`); continue; }
+    check(r.layout === layout && r.bad.length === 0 && r.small.length === 0, `${where}${SCH_NAME[kind]} ${r.W}×${r.H}: подписи в канвасе, не налезают и не мельче 9,6 px` + (r.bad.length || r.small.length ? ': ' + r.bad.concat(r.small).slice(0, 4).join('; ') : ''));
+    check(r.distinct === SCH[kind].length, `${where}${SCH_NAME[kind]}: кадры ${SCH[kind].length} моментов различаются (разных ${r.distinct})`);
+    const tx = (t) => (r.texts[String(t)] || []).join(' ');
+    // итоговый кадр: подпись «20 шагов регулятора» над полосой времени (на телефоне в две строки), курсора с временем нет
+    if (kind === 'ctrl-loop') check(tx(1.2).includes('Политика выдаёт цель: позу захвата.') && tx(1.2).includes('поза захвата') && /Обратная кинематика переводит позу захвата/.test(tx(2.4)) && /Регулятор сравнивает целевые углы/.test(tx(4.5))
+      && tx(10.5).includes('16 мс') && /20 шагов регулятора/.test(tx(16)) && /На каждую цель политики приходится 20 шагов регулятора/.test(tx(16)) && !/\d мс/.test(tx(16).replace('40 мс', '')),
+      `${where}схема контура: политика → кинематика → регулятор, на 16-й мс курсор, в итоге 20 шагов регулятора на цель`);
+    if (kind === 'mpc-horizon') check(/Планировщик по модели проверяет варианты движения на 7 шагов вперёд/.test(tx(2)) && tx(4).includes('горизонт: 7 шагов') && tx(4).includes('сейчас') && /Робот исполняет только первый шаг/.test(tx(4))
+      && tx(9.5).includes('толчок') && /Толчок сдвинул робота/.test(tx(9.5)) && /Робот доехал до цели/.test(tx(20)),
+      `${where}схема горизонта: варианты на 7 шагов, исполняется первый шаг, толчок, робот доехал`);
+    for (const t of (shots && shots[kind]) || []) {
+      await p.eval(`(() => { const cv = document.querySelector('canvas[data-anim=${kind}]'); Anim.seek(cv, ${t}); cv.classList.remove('paused'); return true; })()`);
+      await p.shotEl(out(`l03-${where ? 'm-' : ''}${kind}-${t}.png`), `figure:has(> canvas[data-anim=${kind}])`, where ? 4 : 6);
+    }
+  }
+}
+/** Подписи схем на других ширинах: ширина окна меняется, схема перерисовывается. */
+async function schemeWidths(p, widths, mobile) {
+  for (const w of widths) {
+    await p.S('Emulation.setDeviceMetricsOverride', { width: w, height: 1000, deviceScaleFactor: 1, mobile: !!mobile });
+    await p.eval(`window.dispatchEvent(new Event('resize')); true`); await sleep(350);
+    for (const kind of Object.keys(SCH)) {
+      await p.eval(`(() => { const cv = document.querySelector('canvas[data-anim=${kind}]'); if (cv) cv.scrollIntoView({ block: 'center' }); return true; })()`); await sleep(150);
+      const r = await schemeLabels(p, kind, SCH[kind]);
+      check(!r.none && r.bad.length === 0 && r.small.length === 0, `ширина ${w}: ${SCH_NAME[kind]} (${r.layout === 'n' ? 'узкая' : 'широкая'} раскладка) — подписи в канвасе, не налезают и не мельче 9,6 px` + (r.bad.length || r.small.length ? ': ' + r.bad.concat(r.small).slice(0, 3).join('; ') : ''));
+    }
+  }
+}
 
 /* ---------- 1. Цифры движков в Node ---------- */
 function nodeNumbers() {
@@ -262,13 +337,21 @@ async function desktop() {
   await p.shotEl(out('l03-stack.png'), '#stack .wrap', 6);
   await p.eval('document.querySelectorAll("#quizBox .q-card").forEach((c) => c.querySelector(".q-opt").click())');
   console.log('  квиз:', await p.eval('document.querySelector("#quizScore").textContent'));
+  // анимированные схемы: контур управления и скользящий горизонт
+  await schemeChecks(p, '', 'w', SCH_SHOT);
   // тёмная тема
   await p.click('#themeBtn'); await sleep(300);
+  for (const [kind, t] of [['ctrl-loop', 10.5], ['mpc-horizon', 13]]) {
+    if (!(await p.eval(`!!document.querySelector('canvas[data-anim=${kind}]') && typeof Anim !== 'undefined'`))) continue;
+    await p.eval(`(() => { const cv = document.querySelector('canvas[data-anim=${kind}]'); cv.scrollIntoView({ block: 'center' }); Anim.seek(cv, ${t}); cv.classList.remove('paused'); return true; })()`); await sleep(200);
+    await p.shotEl(out(`l03-${kind}-dark.png`), `figure:has(> canvas[data-anim=${kind}])`, 6);
+  }
   await p.shotEl(out('l03-pd-dark.png'), '#pd .lab', 6);
   await p.shotEl(out('l03-net-dark.png'), '#netlab .lab', 6);
   await p.shotEl(out('l03-imp-dark.png'), '#imp .lab', 6);
   await p.shotEl(out('l03-mpc-dark.png'), '#mpc .lab', 6);
   await p.shotEl(out('l03-kin-dark.png'), '#kin .duo', 6);
+  await schemeWidths(p, [1280, 1024, 768, 720, 640]);
   check(p.logs.length === 0, 'консоль десктопа: ' + (p.logs.join(' | ') || 'чисто'));
   await B.close();
 }
@@ -304,6 +387,10 @@ async function phone() {
   await m.shotEl(out('l03-m-pd.png'), '#pd .lab', 4);
   await m.shotEl(out('l03-m-jac.png'), '#jac .lab', 4);
   await m.shotEl(out('l03-m-stack.png'), '#stack .wrap', 4);
+  await m.S('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true }); await sleep(300);
+  await schemeChecks(m, 'телефон: ', 'n', { 'ctrl-loop': [10.5], 'mpc-horizon': [9.5] });
+  await schemeWidths(m, [360], true);
+  await m.S('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true }); await sleep(300);
   const wdt = await m.eval('document.documentElement.scrollWidth');
   check(wdt <= 390, `телефон: ширина ${wdt} из 390`);
   check(m.logs.length === 0, 'консоль телефона: ' + (m.logs.join(' | ') || 'чисто'));

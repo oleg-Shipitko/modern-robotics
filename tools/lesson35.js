@@ -1,5 +1,7 @@
 // Урок 3.5 «Открытые VLA: Octo и OpenVLA»: миссии проходятся через интерфейс и дают обещанные в тексте исходы,
 // числа в браузере совпадают с движком в Node, консоль чиста, телефон без горизонтальной прокрутки. Снимки — shots/l35-*.png.
+// Схемы устройства Octo и OpenVLA (shared/anim.js) — подписи в канвасе и не налезают друг на друга на восьми моментах,
+// кадры разных этапов различаются, итоговые кадры показывают нужное; на компьютере и на телефоне.
 // Урок собирается на дату выпуска: MR_ASOF=2026-10-17 python3 lessons/build.py l35.
 const path = require('path');
 const { launch, sleep } = require('./cdp');
@@ -26,6 +28,62 @@ async function viaUI(p, mis, bet) {
 const nextMission = (p, mis) => p.eval(`(() => { const b = document.querySelector('${mis} .g-next'); if (!b || b.hidden) return false; b.click(); return true; })()`);
 const critOk = (p, mis) => p.eval(`(() => { const li = [...document.querySelectorAll('${mis} .m-crit li')]; return li.length > 0 && li.every((x) => x.className === 'ok'); })()`);
 const st = (p, lab) => p.eval(`JSON.stringify(window.__l35.${lab}.api.state())`).then(J);
+// схемы устройства моделей: моменты разных этапов анимации (входы, токены, маска или корзины, итог)
+const ARCH = { 'octo-arch': [0.9, 2.6, 4.2, 5.9, 7.9, 9.8, 12.4, 15.0], 'openvla-arch': [0.8, 2.2, 3.2, 4.4, 5.6, 7.3, 10.0, 13.9] };
+const ARCH_SHOT = { 'octo-arch': [2.6, 7.9, 15.0], 'openvla-arch': [3.2, 7.3, 13.9] };
+/** Схема на shared/anim.js: на каждом кадре подписи внутри канваса и не налезают друг на друга; тексты кадров и число разных кадров. */
+async function schemeLabels(p, kind, frames) {
+  return JSON.parse(await p.eval(`(() => {
+    const cv = document.querySelector('canvas[data-anim=${kind}]');
+    if (!cv || typeof Anim === 'undefined') return JSON.stringify({ none: true, bad: [] });
+    const orig = CanvasRenderingContext2D.prototype.fillText, bad = [], texts = {};
+    let boxes = null, W = 0, H = 0;
+    CanvasRenderingContext2D.prototype.fillText = function (txt, x, y) {
+      if (boxes && this.canvas === cv) {
+        const m = this.measureText(txt), fs = parseFloat(/([\\d.]+)px/.exec(this.font)[1]), a = this.textAlign;
+        const x0 = a === 'center' ? x - m.width / 2 : a === 'right' ? x - m.width : x;
+        boxes.push({ t: String(txt), x0, x1: x0 + m.width, y0: y - fs / 2, y1: y + fs / 2 });
+      }
+      return orig.apply(this, arguments);
+    };
+    const prints = new Set();
+    for (const t of ${JSON.stringify(frames)}) {
+      boxes = []; Anim.seek(cv, t); const b = boxes; boxes = null;
+      { const d = cv.toDataURL(); let hh = 0; for (let i = 0; i < d.length; i += 3) hh = (hh * 31 + d.charCodeAt(i)) >>> 0; prints.add(hh); }
+      [W, H] = cv.style.aspectRatio.split('/').map(Number); texts[t] = b.map((q) => q.t);
+      b.forEach((q) => { if (q.x0 < 1 || q.x1 > W - 1 || q.y0 < 0 || q.y1 > H) bad.push('t = ' + t + ': за краем «' + q.t + '»'); });
+      for (let i = 0; i < b.length; i++) for (let j = i + 1; j < b.length; j++) {
+        const ox = Math.min(b[i].x1, b[j].x1) - Math.max(b[i].x0, b[j].x0), oy = Math.min(b[i].y1, b[j].y1) - Math.max(b[i].y0, b[j].y0);
+        if (ox > 1 && oy > 1) bad.push('t = ' + t + ': «' + b[i].t + '» на «' + b[j].t + '»');
+      }
+    }
+    CanvasRenderingContext2D.prototype.fillText = orig;
+    return JSON.stringify({ layout: cv.dataset.layout, W, H, bad, texts, distinct: prints.size });
+  })()`));
+}
+const NO_ANIM = 'схемы нет: в build.py для l35 нужен shared/anim.js перед l35/ui-l35.js';
+/** Схемы Octo и OpenVLA: подписи в канвасе и не налезают, кадры этапов различаются, содержание кадров маски, корзин и итога. */
+async function archChecks(p, where, layout, shots) {
+  const NAMES = { 'octo-arch': 'схема Octo', 'openvla-arch': 'схема OpenVLA' };
+  for (const kind of Object.keys(ARCH)) {
+    await p.eval(`(() => { const cv = document.querySelector('canvas[data-anim=${kind}]'); if (cv) cv.scrollIntoView({ block: 'center' }); return true; })()`); await sleep(250);
+    const r = await schemeLabels(p, kind, ARCH[kind]);
+    if (r.none) { check(false, `${where}${NAMES[kind]}: ${NO_ANIM}`); continue; }
+    check(r.layout === layout && r.bad.length === 0, `${where}${NAMES[kind]} ${r.W}×${r.H}: подписи в канвасе и не налезают` + (r.bad.length ? ': ' + r.bad.slice(0, 4).join('; ') : ''));
+    check(r.distinct === ARCH[kind].length, `${where}${NAMES[kind]}: кадры ${ARCH[kind].length} этапов различаются (разных ${r.distinct})`);
+    const tx = (t) => r.texts[String(t)] || [];
+    if (kind === 'octo-arch') check(['задача', 'наблюдение 1', 'считыватель 1', 'наблюдение 2', 'считыватель 2'].every((q) => tx(9.8).includes(q))
+      && tx(5.9).some((q) => /^Наблюдение 1 видит задачу/.test(q)) && tx(7.9).some((q) => /^Наблюдение 2 видит задачу/.test(q)) && tx(9.8).some((q) => /^Считыватель читает задачу/.test(q))
+      && tx(15).includes('шаг денойзинга 20 из 20'), `${where}схема Octo: пять групп токенов, три правила маски и 20 шагов денойзинга`);
+    if (kind === 'openvla-arch') check(tx(7.3).includes('токен 1 из 7') && tx(7.3).includes('корзина 166 из 256') && tx(10).includes('токен 4 из 7')
+      && tx(13.9).includes('все 7 токенов') && ['+0,6', '−0,3', '−0,9', '+1,0', '−2,0', '+0,5', '1,0'].every((v) => tx(13.9).includes(v)),
+      `${where}схема OpenVLA: токены действия по одному, номер корзины и семь чисел в итоге`);
+    for (const t of shots[kind] || []) {
+      await p.eval(`(() => { const cv = document.querySelector('canvas[data-anim=${kind}]'); Anim.seek(cv, ${t}); cv.classList.remove('paused'); return true; })()`);
+      await p.shotEl(out(`l35-${where ? 'm-' : ''}${kind}-${t}.png`), `figure:has(> canvas[data-anim=${kind}])`, where ? 4 : 6);
+    }
+  }
+}
 (async () => {
   // эталон в Node: те же предобучение и дообучение, что в браузере
   console.log('движок в Node');
@@ -121,7 +179,9 @@ const st = (p, lab) => p.eval(`JSON.stringify(window.__l35.${lab}.api.state())`)
 
   // ---------- схема, квиз, глоссарий, консоль ----------
   const an = J(await p.eval(`JSON.stringify([...document.querySelectorAll('canvas[data-anim]')].map((cv) => { Anim.seek(cv, 1.1); const a = cv.toDataURL(); Anim.seek(cv, 4.7); const b = cv.toDataURL(); return { k: cv.dataset.anim, moves: a !== b, w: cv.width }; }))`));
-  check(an.length === 1 && an.every((q) => q.moves && q.w > 0), 'схема LoRA движется: ' + an.map((q) => q.k).join(', '));
+  const lora = an.find((q) => q.k === 'lora');
+  check(an.length === 3 && !!lora && lora.moves && lora.w > 0, 'схемы на месте: ' + an.map((q) => q.k).join(', ') + '; схема LoRA движется');
+  await archChecks(p, '', 'w', ARCH_SHOT);
   await p.eval(`document.getElementById('lora').scrollIntoView({ behavior: 'instant' }); true`); await sleep(300); await p.shotEl(out('l35-lora.png'), '#lora .anim-card', 6);
   await p.eval(`document.querySelectorAll('#quizBox .q-card').forEach((c) => c.querySelector('.q-opt').click()); true`);
   check(/^Итог: \d из 8/.test(await p.eval(`document.getElementById('quizScore').textContent`)), 'квиз: ' + await p.eval(`document.getElementById('quizScore').textContent`));
@@ -131,6 +191,10 @@ const st = (p, lab) => p.eval(`JSON.stringify(window.__l35.${lab}.api.state())`)
   check(!p.logs.length, 'консоль: ' + (p.logs.join(' | ') || 'чисто'));
   await p.eval(`document.documentElement.dataset.theme = 'dark'; window.dispatchEvent(new Event('resize')); true`); await sleep(500);
   for (const [id, sel, n] of [['finetune', '#finetune .lab', 'l35-ft-dark.png'], ['heads', '#heads .lab', 'l35-heads-dark.png'], ['results', '#results .lab', 'l35-table-dark.png'], ['lora', '#lora .anim-card', 'l35-lora-dark.png']]) { await p.eval(`document.getElementById('${id}').scrollIntoView({ behavior: 'instant' }); true`); await sleep(300); await p.shotEl(out(n), sel, 6); }
+  for (const [kind, t] of [['octo-arch', 7.9], ['openvla-arch', 10.0]]) {
+    await p.eval(`(() => { const cv = document.querySelector('canvas[data-anim=${kind}]'); cv.scrollIntoView({ block: 'center' }); Anim.seek(cv, ${t}); cv.classList.remove('paused'); return true; })()`); await sleep(200);
+    await p.shotEl(out(`l35-${kind}-dark.png`), `figure:has(> canvas[data-anim=${kind}])`, 6);
+  }
 
   console.log('телефон');
   const m = await B.page(url, { width: 390, height: 844, dpr: 2, mobile: true, light: true });
@@ -145,6 +209,7 @@ const st = (p, lab) => p.eval(`JSON.stringify(window.__l35.${lab}.api.state())`)
   const anm = J(await m.eval(`JSON.stringify([...document.querySelectorAll('canvas[data-anim]')].map((cv) => { Anim.seek(cv, 1.1); const a = cv.toDataURL(); Anim.seek(cv, 4.7); const b = cv.toDataURL(); return { moves: a !== b, layout: cv.dataset.layout }; }))`));
   check(anm.every((q) => q.moves && q.layout === 'n'), 'телефон: схема в узкой раскладке и движется');
   await m.S('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+  await archChecks(m, 'телефон: ', 'n', { 'octo-arch': [7.9], 'openvla-arch': [10.0] });
   for (const [id, sel, n] of [['finetune', '#finetune .lab', 'l35-m-ft.png'], ['heads', '#heads .lab', 'l35-m-heads.png'], ['results', '#results .lab', 'l35-m-table.png'], ['lora', '#lora .anim-card', 'l35-m-lora.png']]) { await m.eval(`document.getElementById('${id}').scrollIntoView({ behavior: 'instant' }); true`); await sleep(300); await m.shotEl(out(n), sel, 4); }
   check(!m.logs.length, 'консоль телефона: ' + (m.logs.join(' | ') || 'чисто'));
   await B.close();

@@ -1,6 +1,8 @@
 // Проверка урока 1.1: проходит все миссии программно (мини-ALVINN, лаборатория, отладчик, калькулятор),
 // эмулирует свою поездку мышью и перетаскивание старта через CDP, сортировку, квиз,
-// потом телефон 390 px и тёмную тему. Скриншоты — shots/l11-*.png.
+// потом телефон 390 px и тёмную тему. Схема пути данных (shared/anim.js, l11/anim-l11.js) — подписи в канвасе
+// и не налезают на семи моментах трёх этапов (компьютер 1440 и 1280, телефон 390), кадры различаются, ошибка падает
+// при обучении и растёт в поездке, авария та же, что в отладчике. Скриншоты — shots/l11-*.png.
 const { launch, sleep } = require('./cdp');
 const path = require('path');
 const URL0 = 'file://' + path.resolve(__dirname, '../site/lessons/1-1-behavior-cloning.html');
@@ -17,6 +19,61 @@ async function next(p, root) { await p.eval(`document.querySelector(${JSON.strin
 async function waitDone(p, root, t) { await p.waitFor(`(() => { const o = document.querySelector(${JSON.stringify(root)} + ' .g-out'); const b = document.querySelector(${JSON.stringify(root)} + ' .g-go'); return o && !o.hidden && (!b || !b.disabled); })()`, t || 120000); }
 const setRange = (p, sel, v) => p.eval(`(() => { const e = document.querySelector(${JSON.stringify(sel)}); e.value = ${v}; e.dispatchEvent(new Event('input', { bubbles: true })); })()`);
 const center = (p, sel) => p.eval(`document.querySelector(${JSON.stringify(sel)}).scrollIntoView({ block: 'center', behavior: 'instant' })`);
+
+/* ---------- схема пути данных behavior cloning ---------- */
+// моменты: запись (начало, середина, итог), обучение (середина, итог), поездка (Ада вне полосы данных, авария)
+const SCHEME_T = [1.2, 2.6, 5.0, 6.4, 9.0, 12.6, 14.6];
+/** Подписи схемы на каждом кадре: внутри канваса и не налезают друг на друга; тексты кадров и число разных кадров.
+ *  Без shared/anim.js в сборке схемы нет: none = true. */
+async function schemeLabels(p, kind, frames) {
+  return JSON.parse(await p.eval(`(() => {
+    const cv = document.querySelector('canvas[data-anim=${kind}]');
+    if (!cv || typeof Anim === 'undefined') return JSON.stringify({ none: true, bad: [] });
+    const orig = CanvasRenderingContext2D.prototype.fillText, bad = [], texts = {};
+    let boxes = null, W = 0, H = 0;
+    CanvasRenderingContext2D.prototype.fillText = function (txt, x, y) {
+      if (boxes && this.canvas === cv) {
+        const m = this.measureText(txt), fs = parseFloat(/([\\d.]+)px/.exec(this.font)[1]), a = this.textAlign;
+        const x0 = a === 'center' ? x - m.width / 2 : a === 'right' ? x - m.width : x;
+        boxes.push({ t: String(txt), x0, x1: x0 + m.width, y0: y - fs / 2, y1: y + fs / 2 });
+      }
+      return orig.apply(this, arguments);
+    };
+    const prints = new Set();
+    for (const t of ${JSON.stringify(frames)}) {
+      boxes = []; Anim.seek(cv, t); const b = boxes; boxes = null;
+      { const d = cv.toDataURL(); let hh = 0; for (let i = 0; i < d.length; i += 3) hh = (hh * 31 + d.charCodeAt(i)) >>> 0; prints.add(hh); }
+      [W, H] = cv.style.aspectRatio.split('/').map(Number); texts[t] = b.map((q) => q.t);
+      b.forEach((q) => { if (q.x0 < 1 || q.x1 > W - 1 || q.y0 < 0 || q.y1 > H) bad.push('t = ' + t + ': за краем «' + q.t + '»'); });
+      for (let i = 0; i < b.length; i++) for (let j = i + 1; j < b.length; j++) {
+        const ox = Math.min(b[i].x1, b[j].x1) - Math.max(b[i].x0, b[j].x0), oy = Math.min(b[i].y1, b[j].y1) - Math.max(b[i].y0, b[j].y0);
+        if (ox > 1 && oy > 1) bad.push('t = ' + t + ': «' + b[i].t + '» на «' + b[j].t + '»');
+      }
+    }
+    CanvasRenderingContext2D.prototype.fillText = orig;
+    return JSON.stringify({ layout: cv.dataset.layout, W, H, bad, texts, distinct: prints.size });
+  })()`));
+}
+/** Проверки схемы: раскладка, подписи, разные кадры и что показывает каждый этап. shots — моменты для снимков. */
+async function schemeChecks(p, where, layout, shots, shotName) {
+  await p.waitFor('window.DriveLab && DriveLab.cache.c10 && DriveLab.cache.c10.done && window.__bcPath && !!window.__bcPath.ride()', 60000);
+  await center(p, 'canvas[data-anim=bc-path]'); await sleep(300);
+  const r = await schemeLabels(p, 'bc-path', SCHEME_T);
+  if (r.none) { ok(false, where + 'схемы пути данных нет: в build.py для l11 нужны shared/anim.js и l11/anim-l11.js перед l11/ui-l11.js'); return r; }
+  ok(r.layout === layout && r.bad.length === 0, `${where}схема пути данных ${r.W}×${r.H}: подписи в канвасе и не налезают` + (r.bad.length ? ': ' + r.bad.slice(0, 4).join('; ') : ''));
+  ok(r.distinct === SCHEME_T.length, `${where}схема: кадры ${SCHEME_T.length} моментов различаются (разных ${r.distinct})`);
+  const tx = (t) => r.texts[String(t)] || [], all = (t) => tx(t).join(' ');
+  const err = (t) => { const q = tx(t).find((x) => /рад\/с$/.test(x)); return q ? +q.replace(/\s*рад\/с$/, '').replace('−', '-').replace(',', '.') : NaN; };
+  ok(tx(5).some((q) => /^пар: 2\s039$/.test(q)) && /За поездку набралось 199 пар, а все 10 поездок оператора дали 2\s039/.test(all(5)), `${where}схема, запись: 199 пар за поездку и 2039 за 10 поездок`);
+  ok(err(9) < err(6.4) && err(9) <= 0.05, `${where}схема, обучение: ошибка руля падает ${err(6.4)} → ${err(9)} рад/с`);
+  ok(tx(12.6).includes('такого кадра') && tx(12.6).includes('в данных нет') && tx(14.6).includes('авария') && /через 5,8 с Ада врезается в угол проёма/.test(all(14.6)) && err(14.6) > 1,
+    `${where}схема, поездка: Ада уходит из полосы данных, ошибка ${err(12.6)} → ${err(14.6)} рад/с, авария через 5,8 с`);
+  for (const t of shots || []) {
+    await p.eval(`(() => { const cv = document.querySelector('canvas[data-anim=bc-path]'); Anim.seek(cv, ${t}); cv.classList.remove('paused'); return true; })()`);
+    await p.shotEl(out(`${shotName}-${t}.png`), 'figure:has(> canvas[data-anim=bc-path])', layout === 'n' ? 4 : 6);
+  }
+  return r;
+}
 
 /** Своя поездка: ведём курсор по маршруту учителя с упреждением, как человек. */
 async function driveTrip(p) {
@@ -47,6 +104,15 @@ async function dragScene(p, a, b) {
   const p = await B.page(URL0, { width: 1440, height: 1000, light: true });
   await p.waitFor('window.__lessonReady === true && window.__lab && window.__labCtl', 60000);
   console.log('Десктоп 1440, светлая тема');
+
+  /* ---------- схема пути данных ---------- */
+  console.log('Схема пути данных behavior cloning');
+  await schemeChecks(p, '', 'w', [2.6, 6.4, 14.6], 'l11-scheme');
+  await p.waitFor('window.__dbg.state().ready', 60000);
+  ok(await p.eval('window.__bcPath.ride().fr.length === window.__dbg.key.n && window.__bcPath.ride().outcome === "crash"'), 'схема: та же авария, что в отладчике (' + await p.eval('window.__bcPath.ride().fr.length') + ' кадров)');
+  await p.S('Emulation.setDeviceMetricsOverride', { width: 1280, height: 1000, deviceScaleFactor: 1, mobile: false }); await sleep(400);
+  await schemeChecks(p, '1280: ', 'w');
+  await p.S('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false }); await sleep(400);
 
   /* ---------- мини-ALVINN ---------- */
   console.log('Мини-ALVINN');
@@ -202,6 +268,7 @@ async function dragScene(p, a, b) {
   const m = await M.page(URL0, { width: 390, height: 844, dpr: 2, mobile: true, light: true });
   await m.waitFor('window.__lessonReady === true && window.__labCtl', 60000);
   ok((await m.eval('document.documentElement.scrollWidth')) === 390, 'ширина страницы 390: ' + await m.eval('document.documentElement.scrollWidth'));
+  await schemeChecks(m, 'телефон: ', 'n', [12.6], 'l11-m-scheme');
   await m.shotEl(out('l11-m-alvinn.png'), '#alvinn .lab', 4);
   await m.eval('window.__labCtl.goto(3)'); await sleep(100);
   await m.eval(`document.querySelectorAll('#guide .m-bet .opts button')[1].click()`);
@@ -224,6 +291,9 @@ async function dragScene(p, a, b) {
   const d = await Dk.page(URL0, { width: 1440, height: 1000, dark: true });
   await d.waitFor('window.__lessonReady === true && window.__labCtl', 60000);
   ok(await d.eval('document.documentElement.dataset.theme === "dark"'), 'тема тёмная');
+  await d.waitFor('window.DriveLab.cache.c10 && DriveLab.cache.c10.done', 60000); await center(d, 'canvas[data-anim=bc-path]'); await sleep(300);
+  await d.eval(`(() => { const cv = document.querySelector('canvas[data-anim=bc-path]'); Anim.seek(cv, 12.6); cv.classList.remove('paused'); return true; })()`);
+  await d.shotEl(out('l11-dark-scheme.png'), 'figure:has(> canvas[data-anim=bc-path])', 6);
   await d.eval('window.__labCtl.goto(3)'); await sleep(100);
   await d.eval(`document.querySelectorAll('#guide .m-bet .opts button')[0].click()`);
   await center(d, '#scene'); await d.eval(`document.querySelector('#guide .g-go').click()`);
