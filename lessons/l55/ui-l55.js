@@ -31,6 +31,13 @@ const pct = (v) => Math.round(v * 100);
 const fmt = (v, d) => (+v).toLocaleString('ru-RU', { minimumFractionDigits: d || 0, maximumFractionDigits: d || 0 }).replace('-', '−');
 const nWord = (n, a, b, c) => `${n} ${plural(n, a, b, c)}`;
 function setOut(el, html) { if (el.dataset.h !== html) { el.innerHTML = html; el.dataset.h = html; } }
+/** Подпись на канвасе шириной W; если она вылезает за край (шрифт в экранных пикселях, а график сжимается), сдвигаем её внутрь, как lab() в shared/anim.js. */
+function labIn(c, k, W, text, x, y, o) {
+  HeroKit.font(c, k, o.px || 12, o.weight, o.mono);
+  const w = c.measureText(String(text)).width, al = o.align || 'center', x0 = al === 'center' ? x - w / 2 : al === 'right' ? x - w : x, m = 3 * k;
+  if (w < W - 2 * m) x += x0 < m ? m - x0 : x0 + w > W - m ? W - m - x0 - w : 0;
+  HeroKit.label(c, k, text, x, y, o);
+}
 const redrawOn = (fn) => { App.on('theme', fn); App.on('resize', fn); };
 /** Живые миссии (без кнопки) помечаем классом: невыполненный критерий там «ещё нет», а не провал. */
 function mountMissions(sel, missions, api, opts) {
@@ -137,7 +144,7 @@ const Plan = (() => {
   function box(c, k, A, x, y, w, h, title, col, fill, sub, P) {
     A.rect(c, x, y, w, h, 8, fill ? A.alpha(col, 0.16) : P.surf, col, 1.8);
     A.lab(c, k, title, x + w / 2, y + (sub ? h / 2 - 7 : h / 2), { px: 11, weight: 700, color: col, halo: false });
-    if (sub) A.lab(c, k, sub, x + w / 2, y + h / 2 + 8, { px: 9.5, color: P.ink2, halo: false });
+    if (sub) A.lab(c, k, sub, x + w / 2, y + h / 2 + 8, { px: 10, color: P.ink2, halo: false });
   }
   /** Поток по стрелке: точка движется от (x1, y1) к (x2, y2). */
   function flow(c, A, x1, y1, x2, y2, col, u, on) { A.arrow(c, x1, y1, x2, y2, on ? col : A.alpha(col, 0.5), 2, 7); if (on) { const s = (u * 0.9) % 1; A.circle(c, x1 + (x2 - x1) * s, y1 + (y2 - y1) * s, 3.5, col, null); } }
@@ -148,9 +155,9 @@ const Plan = (() => {
     const head = ['Этап 1 · симулятор', 'Этап 2 · симулятор', 'Настоящая Ада'][i];
     A.lab(c, k, head, 115, 18, { px: 12, weight: 750, color: P.ink, halo: false });
     if (i === 0) {
-      box(c, k, A, 14, 40, 96, 40, 'датчики', P.out, false, 'маршрут, скорость', P);
-      box(c, k, A, 122, 40, 94, 40, 'μ пола', P.spr, true, 'знает симулятор', P);
-      flow(c, A, 62, 82, 95, 118, P.out, lu, on); flow(c, A, 169, 82, 138, 118, P.spr, lu + 0.3, on);
+      box(c, k, A, 6, 40, 106, 40, 'датчики', P.out, false, 'путь, скорость', P);
+      box(c, k, A, 118, 40, 106, 40, 'μ пола', P.spr, true, 'из симулятора', P);
+      flow(c, A, 59, 82, 95, 118, P.out, lu, on); flow(c, A, 171, 82, 138, 118, P.spr, lu + 0.3, on);
       box(c, k, A, 55, 120, 120, 44, 'учитель', P.spr, true, 'учится PPO', P);
       flow(c, A, 115, 166, 115, 196, P.spr, lu + 0.5, on);
       A.lab(c, k, 'скорость', 150, 182, { px: 10, color: P.ink2, halo: false, align: 'left' });
@@ -167,7 +174,7 @@ const Plan = (() => {
       box(c, k, A, 50, 180, 130, 38, 'разница²', P.ink2, false, 'ошибка ученика', P);
       A.line(c, [[50, 199], [26, 199], [26, 150]], on ? P.mot : A.alpha(P.mot, 0.5), 2, [5, 4], -t * 18); A.arrow(c, 26, 160, 26, 149, on ? P.mot : A.alpha(P.mot, 0.5), 2, 7);
       route(c, A, 30, 254, 170, P.mot, lu, on);
-      A.lab(c, k, 'едет ученик', 115, 272, { px: 9.5, color: P.ink2, halo: false });
+      A.lab(c, k, 'едет ученик', 115, 272, { px: 10, color: P.ink2, halo: false });
     } else {
       box(c, k, A, 40, 40, 150, 40, 'датчики', P.out, false, '+ история 2 с', P);
       flow(c, A, 115, 82, 115, 110, P.out, lu, on);
@@ -176,12 +183,12 @@ const Plan = (() => {
       A.lab(c, k, 'скорость', 150, 176, { px: 10, color: P.ink2, halo: false, align: 'left' });
       route(c, A, 30, 238, 170, P.mot, lu, on);
       c.globalAlpha = on ? 0.55 : 0.3;
-      A.lab(c, k, 'учитель и μ остались в симуляторе', 115, 270, { px: 9.5, color: P.spr, halo: false });
+      A.lab(c, k, 'учителя и μ на роботе нет', 115, 270, { px: 10, color: P.spr, halo: false });
     }
     c.restore();
   }
   Anim.add('stages', {
-    W: 720, H: 330, start: 1.2, narrowAt: 560,
+    W: 720, H: 330, start: 1.2, narrowAt: 600,
     draw(c, k, t, P, A) { const u = ((t % T) + T) % T, cur = Math.min(2, Math.floor(u / ST)); for (let i = 0; i < 3; i++) stage(c, k, t, P, A, i, 8 + i * 240, 26, i === cur); },
     narrow: { W: 360, H: 440, draw(c, k, t, P, A) {
       const u = ((t % T) + T) % T, cur = Math.min(2, Math.floor(u / ST));
@@ -199,6 +206,7 @@ const Plan = (() => {
    ===================================================================== */
 (() => {
   const SLOW = 25, TP = 0.01 * SLOW, TM = 0.1 * SLOW;   // шаг политики и шаг модуля в секундах схемы
+  const EW = 170, BW = 134, MW = 130;   // ширина блоков: параметры мира, базовая политика, адаптационный модуль
   function cells(c, A, x, y, n, w, h, col, filled) { for (let i = 0; i < n; i++) A.rect(c, x + i * (w + 2), y, w, h, 2, i < filled ? A.alpha(col, 0.7) : null, A.alpha(col, 0.6), 1); }
   function draw(c, k, t, P, A, g) {
     const { lab, rect, arrow, line } = A, u = Math.max(0, t);
@@ -208,16 +216,18 @@ const Plan = (() => {
     rect(c, S[0], S[1], S[2], S[3], 12, P.surf2, P.line, 1);
     lab(c, k, 'Этап 1 · симулятор', S[0] + 10, S[1] + 14, { px: 11.5, weight: 750, color: P.ink, align: 'left', halo: false });
     const [ex, ey] = g.e, [cx, cy] = g.enc, [zx, zy] = g.z, [bx, by] = g.base;
-    rect(c, ex, ey, 150, 52, 8, A.alpha(P.spr, 0.14), P.spr, 1.6);
-    lab(c, k, 'параметры мира: 17', ex + 75, ey + 16, { px: 11, weight: 700, color: P.spr, halo: false });
-    lab(c, k, 'груз, сила моторов, трение…', ex + 75, ey + 34, { px: 9.5, color: P.ink2, halo: false });
+    rect(c, ex, ey, EW, 52, 8, A.alpha(P.spr, 0.14), P.spr, 1.6);
+    lab(c, k, 'параметры мира: 17', ex + EW / 2, ey + 16, { px: 11, weight: 700, color: P.spr, halo: false });
+    lab(c, k, 'груз, моторы, трение…', ex + EW / 2, ey + 34, { px: 10, color: P.ink2, halo: false });
     arrow(c, ...g.a1, P.spr, 2, 7);
     rect(c, cx, cy, 96, 44, 8, A.alpha(P.mot, 0.16), P.mot, 1.8); lab(c, k, 'энкодер', cx + 48, cy + 22, { px: 11, weight: 700, color: P.mot, halo: false });
     arrow(c, ...g.a2, P.spr, 2, 7);
-    cells(c, A, zx, zy, 8, 8, 14, P.spr, 8); lab(c, k, 'z: 8 чисел', zx + 39, zy - 9, { px: 9.5, color: P.spr, halo: false });
+    // подписи векторов: на широкой схеме — над клетками, на узкой — справа от них, чтобы их не пересекала стрелка
+    const vl = (x, y) => (g.narrow ? [x + 86, y + 7, 'left'] : [x + 39, y - 9, 'center']);
+    cells(c, A, zx, zy, 8, 8, 14, P.spr, 8); { const [lx, ly, al] = vl(zx, zy); lab(c, k, 'z: 8 чисел', lx, ly, { px: 10, color: P.spr, halo: false, align: al }); }
     arrow(c, ...g.a3, P.spr, 2, 7);
-    rect(c, bx, by, 120, 44, 8, A.alpha(P.mot, 0.16), P.mot, 1.8); lab(c, k, 'базовая политика', bx + 60, by + 15, { px: 11, weight: 700, color: P.mot, halo: false }); lab(c, k, 'учится PPO', bx + 60, by + 31, { px: 9.5, color: P.ink2, halo: false });
-    arrow(c, ...g.a4, P.mot, 2, 7); lab(c, k, 'действие', g.a4[2] + (g.narrow ? 0 : 0), g.a4[3] + (g.narrow ? 12 : -10), { px: 9.5, color: P.mot, halo: false, align: g.narrow ? 'center' : 'right' });
+    rect(c, bx, by, BW, 44, 8, A.alpha(P.mot, 0.16), P.mot, 1.8); lab(c, k, 'базовая политика', bx + BW / 2, by + 15, { px: 11, weight: 700, color: P.mot, halo: false }); lab(c, k, 'учится PPO', bx + BW / 2, by + 31, { px: 10, color: P.ink2, halo: false });
+    arrow(c, ...g.a4, P.mot, 2, 7); lab(c, k, 'действие', g.a4[2], g.a4[3] + (g.narrow ? 12 : -10), { px: 10, color: P.mot, halo: false, align: g.narrow ? 'center' : 'right' });
     // робот
     const R = g.rob;
     rect(c, R[0], R[1], R[2], R[3], 12, P.surf2, P.line, 1);
@@ -225,32 +235,32 @@ const Plan = (() => {
     const [hx, hy] = g.hist, [mx, my] = g.mod, [qx, qy] = g.zhat, [px, py] = g.pol;
     const filled = Math.min(50, pol);
     for (let i = 0; i < 50; i++) { const col = i < filled ? A.alpha(P.out, i >= filled - 1 ? 1 : 0.55) : null; rect(c, hx + (i % 25) * 6.4, hy + Math.floor(i / 25) * 10, 5, 8, 1.5, col, A.alpha(P.out, 0.5), 0.8); }
-    lab(c, k, 'история: 50 шагов = 0,5 с', hx + 80, hy - 10, { px: 9.5, color: P.out, halo: false });
+    lab(c, k, 'история: 50 шагов = 0,5 с', hx + 80, hy - 10, { px: 10, color: P.out, halo: false });
     arrow(c, ...g.b1, P.out, 2, 7);
-    rect(c, mx, my, 116, 44, 8, A.alpha(P.mot, 0.12 + 0.3 * mFlash), P.mot, 1.8 + 1.5 * mFlash);
-    lab(c, k, 'адаптац. модуль', mx + 58, my + 15, { px: 10.5, weight: 700, color: P.mot, halo: false }); lab(c, k, '10 раз в секунду', mx + 58, my + 31, { px: 9.5, color: P.ink2, halo: false });
+    rect(c, mx, my, MW, 44, 8, A.alpha(P.mot, 0.12 + 0.3 * mFlash), P.mot, 1.8 + 1.5 * mFlash);
+    lab(c, k, 'адаптац. модуль', mx + MW / 2, my + 15, { px: 10.5, weight: 700, color: P.mot, halo: false }); lab(c, k, '10 раз в секунду', mx + MW / 2, my + 31, { px: 10, color: P.ink2, halo: false });
     arrow(c, ...g.b2, P.mot, 2, 7);
-    cells(c, A, qx, qy, 8, 8, 14, P.mot, 8); lab(c, k, 'ẑ: оценка z', qx + 39, qy - 9, { px: 9.5, color: P.mot, halo: false });
+    cells(c, A, qx, qy, 8, 8, 14, P.mot, 8); { const [lx, ly, al] = vl(qx, qy); lab(c, k, 'ẑ: оценка z', lx, ly, { px: 10, color: P.mot, halo: false, align: al }); }
     arrow(c, ...g.b3, P.mot, 2, 7);
-    rect(c, px, py, 120, 44, 8, A.alpha(P.mot, 0.12 + 0.3 * pFlash), P.mot, 1.8 + 1.2 * pFlash);
-    lab(c, k, 'базовая политика', px + 60, py + 15, { px: 10.5, weight: 700, color: P.mot, halo: false }); lab(c, k, '100 раз в секунду', px + 60, py + 31, { px: 9.5, color: P.ink2, halo: false });
+    rect(c, px, py, BW, 44, 8, A.alpha(P.mot, 0.12 + 0.3 * pFlash), P.mot, 1.8 + 1.2 * pFlash);
+    lab(c, k, 'базовая политика', px + BW / 2, py + 15, { px: 10.5, weight: 700, color: P.mot, halo: false }); lab(c, k, '100 раз в секунду', px + BW / 2, py + 31, { px: 10, color: P.ink2, halo: false });
     line(c, g.loop, A.alpha(P.out, 0.7), 1.6, [5, 4], -t * 12);
-    lab(c, k, 'состояние и действие → в историю', g.loopLab[0], g.loopLab[1], { px: 9.5, color: P.out, halo: false, align: g.loopLab[2] });
+    lab(c, k, 'состояние и действие → в историю', g.loopLab[0], g.loopLab[1], { px: 10, color: P.out, halo: false, align: g.loopLab[2] });
     // шкала времени: шаги политики и модуля
     const [tx, ty, tw] = g.tl, span = 0.3, t0 = u / SLOW - span;
     line(c, [[tx, ty], [tx + tw, ty]], P.ink3, 1.2);
     for (let j = Math.ceil(t0 / 0.01); j * 0.01 <= u / SLOW; j++) { const x = tx + tw * (j * 0.01 - t0) / span; if (x < tx) continue; const big = j % 10 === 0; line(c, [[x, ty - (big ? 12 : 5)], [x, ty + (big ? 4 : 0)]], big ? P.mot : P.ink3, big ? 2.4 : 1.2); }
-    if (g.narrow) { lab(c, k, 'мелкие засечки — шаги политики (0,01 с),', tx + tw / 2, ty + 14, { px: 9.5, color: P.ink2, halo: false }); lab(c, k, 'крупные — шаги модуля (0,1 с)', tx + tw / 2, ty + 27, { px: 9.5, color: P.ink2, halo: false }); }
-    else lab(c, k, 'время: мелкие засечки — шаги политики (0,01 с), крупные — шаги модуля (0,1 с)', tx + tw / 2, ty + 16, { px: 9.5, color: P.ink2, halo: false });
+    if (g.narrow) { lab(c, k, 'мелкие засечки — шаги политики (0,01 с),', tx + tw / 2, ty + 14, { px: 10, color: P.ink2, halo: false }); lab(c, k, 'крупные — шаги модуля (0,1 с)', tx + tw / 2, ty + 27, { px: 10, color: P.ink2, halo: false }); }
+    else lab(c, k, 'время: мелкие засечки — шаги политики (0,01 с), крупные — шаги модуля (0,1 с)', tx + tw / 2, ty + 16, { px: 10, color: P.ink2, halo: false });
   }
   Anim.add('rma', {
     W: 720, H: 330, start: 6, narrowAt: 600,
-    draw(c, k, t, P, A) { draw(c, k, t, P, A, { sim: [8, 6, 704, 104], e: [20, 38], enc: [214, 42], z: [356, 57], base: [480, 42], a1: [172, 64, 212, 64], a2: [312, 64, 352, 64], a3: [436, 64, 478, 64], a4: [602, 64, 690, 64],
-      rob: [8, 118, 704, 166], hist: [20, 170], mod: [222, 156], zhat: [370, 171], pol: [496, 156], b1: [182, 178, 220, 178], b2: [340, 178, 366, 178], b3: [452, 178, 494, 178],
+    draw(c, k, t, P, A) { draw(c, k, t, P, A, { sim: [8, 6, 704, 104], e: [20, 38], enc: [214, 42], z: [356, 57], base: [473, 42], a1: [192, 64, 212, 64], a2: [312, 64, 352, 64], a3: [436, 64, 471, 64], a4: [609, 64, 690, 64],
+      rob: [8, 118, 704, 166], hist: [20, 170], mod: [215, 156], zhat: [370, 171], pol: [489, 156], b1: [182, 178, 213, 178], b2: [347, 178, 366, 178], b3: [452, 178, 487, 178],
       loop: [[556, 202], [556, 246], [100, 246], [100, 192]], loopLab: [330, 258, 'center'], tl: [40, 304, 640] }); },
-    narrow: { W: 360, H: 610, draw(c, k, t, P, A) { draw(c, k, t, P, A, { narrow: true, sim: [6, 6, 348, 256], e: [105, 30], enc: [132, 106], z: [141, 180], base: [120, 208], a1: [180, 84, 180, 104], a2: [180, 152, 180, 168], a3: [180, 196, 180, 206], a4: [242, 230, 300, 230],
-      rob: [6, 270, 348, 290], hist: [100, 306], mod: [122, 344], zhat: [141, 416], pol: [120, 444], b1: [180, 328, 180, 342], b2: [180, 390, 180, 406], b3: [180, 432, 180, 442],
-      loop: [[120, 466], [26, 466], [26, 315], [96, 315]], loopLab: [30, 506, 'left'], tl: [20, 570, 320] }); } },
+    narrow: { W: 360, H: 610, draw(c, k, t, P, A) { draw(c, k, t, P, A, { narrow: true, sim: [6, 6, 348, 256], e: [95, 30], enc: [132, 106], z: [141, 180], base: [113, 208], a1: [180, 84, 180, 104], a2: [180, 152, 180, 168], a3: [180, 196, 180, 206], a4: [249, 230, 300, 230],
+      rob: [6, 270, 348, 290], hist: [100, 310], mod: [115, 344], zhat: [141, 416], pol: [113, 444], b1: [180, 330, 180, 342], b2: [180, 390, 180, 406], b3: [180, 432, 180, 442],
+      loop: [[113, 466], [26, 466], [26, 315], [96, 315]], loopLab: [30, 506, 'left'], tl: [20, 570, 320] }); } },
   });
 })();
 
@@ -434,24 +444,49 @@ const Fore = (() => {
   let ctl = null;
   const colOf = (m, P) => (m === 'bc' ? P.cl : P.e2e);
   const curve = (m) => { const r = st.res[st.kind]; return r && r[m] ? r[m].hist.map((h) => h.ok) : null; };
-  function geo(W, H, k) { const ky = Math.max(1, (k || 1) * 0.8), L = 40 * ky, R = 92, T = 30 * ky, B = 34 + 14 * ky; return { L, R, T, B, gw: W - L - R, gh: H - T - B, X: (i) => L + (W - L - R) * i / (NI - 1), Y: (v) => T + (H - T - B) * (1 - v), FX: (m) => W - R + (m === 'bc' ? 30 : 64) }; }
+  function geo(W, H, k) { const ky = Math.max(1, (k || 1) * 0.8), L = (W / (k || 1) < 500 ? 44 : 40) * ky, R = 92, T = 30 * ky, B = 34 + 14 * ky; return { L, R, T, B, gw: W - L - R, gh: H - T - B, X: (i) => L + (W - L - R) * i / (NI - 1), Y: (v) => T + (H - T - B) * (1 - v), FX: (m) => W - R + (m === 'bc' ? 30 : 64) }; }
+  /** Заголовок колонки прогноза и подписи меток. Подпись BC стоит над меткой, DAgger — под ней. Если подпись налезает на заголовок,
+   *  на метку, на соседнюю подпись или на подписи оси (ax) либо уходит за край, берётся следующая раскладка, а на широком графике
+   *  в крайнем случае подписи укорачиваются до процентов. По горизонтали подписи сдвигаются внутрь канваса, как в labIn. */
+  function fcLabels(c, k, W, H, g, ky, narrow, P, ax) {
+    const box = (text, x, y) => { K.font(c, k, 10, 700); const w = c.measureText(text).width, m = 3 * k, cx = Math.max(m + w / 2, Math.min(W - m - w / 2, x)); return { text, x: cx, y, x0: cx - w / 2, x1: cx + w / 2, y0: y - 5.5 * k, y1: y + 5.5 * k }; };
+    const hit = (a, b) => a.x0 < b.x1 + k && b.x0 < a.x1 + k && a.y0 < b.y1 && b.y0 < a.y1;
+    const head = box('прогноз', W - g.R / 2 + 4, g.T - 9 - 6.5 * k), d = 20 * ky, line = 12 * k;   // заголовок — над меткой на 100%
+    const ms = ['bc', 'dagger'], dot = ms.map((m) => { const x = g.FX(m), y = g.Y(st.fc[m]); return { x0: x - 9, x1: x + 9, y0: y - 9, y1: y + 9 }; });
+    // сдвиг подписи: −1 и 1 — над и под своей меткой, −2 и 2 — ещё на строку дальше, −3 и 3 — над и под соседней подписью
+    const ways = [[-1, 1], [1, -1], [1, 1], [-1, -1], [1, 2], [2, 1], [-2, -1], [-1, -2], [1, 3], [3, 1], [-1, -3], [-3, -1]];
+    const make = (w, short) => {
+      const y = ms.map((m, i) => g.Y(st.fc[m]) + (Math.abs(w[i]) === 2 ? Math.sign(w[i]) * (d + line) : w[i] * d));
+      if (Math.abs(w[1]) === 3) y[1] = y[0] + Math.sign(w[1]) * line; else if (Math.abs(w[0]) === 3) y[0] = y[1] + Math.sign(w[0]) * line;
+      return ms.map((m, i) => box(short ? `${pct(st.fc[m])}%` : `${m === 'bc' ? 'BC' : 'DAgger'} ${pct(st.fc[m])}%`, g.FX(m), y[i]));
+    };
+    const fits = (ls) => ls.every((q) => q.y0 >= k && q.y1 <= H - k && !hit(q, head) && !dot.some((o) => hit(q, o)) && !ax.some((o) => hit(q, o))) && !hit(ls[0], ls[1]);
+    let lb = null;
+    for (const short of narrow ? [true] : [false, true]) { for (const w of ways) { const ls = make(w, short); if (fits(ls)) { lb = ls; break; } } if (lb) break; }
+    lb = lb || make(ways[0], narrow);
+    K.label(c, k, head.text, head.x, head.y, { px: 10, weight: 700, color: P.ink2, halo: false });
+    lb.forEach((q, i) => K.label(c, k, q.text, q.x, q.y, { px: 10, weight: 700, color: colOf(ms[i], P), haloColor: P.surf }));
+  }
   function drawChart() {
     const cv = $('#fCv'), { c, k, W, H, narrow } = chartFit(cv, 640, 300, 380), P = pal(), g = geo(W, H, k), ky = Math.max(1, k * 0.8);
     c.fillStyle = P.surf; c.fillRect(0, 0, W, H);
     c.strokeStyle = P.line; c.lineWidth = 1;
-    for (const v of [0, 0.25, 0.5, 0.75, 1]) { c.beginPath(); c.moveTo(g.L, g.Y(v)); c.lineTo(g.L + g.gw, g.Y(v)); c.stroke(); K.label(c, k, pct(v) + '%', g.L - 6, g.Y(v), { px: 10.5, color: P.ink3, align: 'right', halo: false }); }
-    for (let i = 0; i < NI; i++) { K.label(c, k, String(i + 1), g.X(i), g.T + g.gh + 11 * ky, { px: 10.5, color: P.ink3, halo: false }); if (!narrow) K.label(c, k, `${(i + 1) * 8} поездок`, g.X(i), g.T + g.gh + 25, { px: 9, color: P.ink3, halo: false }); }
-    K.label(c, k, narrow ? 'итерация (по 8 поездок)' : 'итерация обучения и сколько поездок разметил учитель', g.L + g.gw / 2, H - 6 * ky, { px: 10.5, color: P.ink3, halo: false });
-    K.label(c, k, narrow ? 'доехали из 40' : 'доехали из 40 проверочных', 4, 10 * ky, { px: 10.5, color: P.ink3, align: 'left', halo: false });
+    for (const v of [0, 0.25, 0.5, 0.75, 1]) { c.beginPath(); c.moveTo(g.L, g.Y(v)); c.lineTo(g.L + g.gw, g.Y(v)); c.stroke(); labIn(c, k, W, pct(v) + '%', g.L - 6, g.Y(v), { px: 10.5, color: P.ink3, align: 'right', halo: false }); }
+    const ax = [], tb = (t, x, y, px) => { const w = c.measureText(t).width; return { x0: x - w / 2, x1: x + w / 2, y0: y - px * k / 2, y1: y + px * k / 2 }; };   // подписи оси у колонки прогноза
+    for (let i = 0; i < NI; i++) {
+      const n = String(i + 1), ny = g.T + g.gh + 11 * ky; K.label(c, k, n, g.X(i), ny, { px: 10.5, color: P.ink3, halo: false }); if (i === NI - 1) ax.push(tb(n, g.X(i), ny, 10.5));
+      if (!narrow) { const t = `${(i + 1) * 8} поездок`, ty = g.T + g.gh + 25; K.label(c, k, t, g.X(i), ty, { px: 10, color: P.ink3, halo: false }); if (i === NI - 1) ax.push(tb(t, g.X(i), ty, 10)); }
+    }
+    K.label(c, k, narrow ? 'итерация (по 8 поездок)' : 'итерация обучения и сколько поездок разметил учитель', g.L + g.gw / 2, H - 9 * ky, { px: 10.5, color: P.ink3, halo: false });
+    labIn(c, k, W, narrow ? 'доехали из 40' : 'доехали из 40 проверочных', 4, 10 * ky, { px: 10.5, color: P.ink3, align: 'left', halo: false });
     // колонка прогноза
     c.fillStyle = P.bg; c.fillRect(W - g.R + 12, g.T, g.R - 16, g.gh);
-    K.label(c, k, 'прогноз', W - g.R / 2 + 4, g.T - 10 * ky, { px: 10, weight: 700, color: P.ink2, halo: false });
     for (const m of ['bc', 'dagger']) {
       const x = g.FX(m), y = g.Y(st.fc[m]), col = colOf(m, P);
       c.beginPath(); c.arc(x, y, 9, 0, 7); c.fillStyle = st.moved[m] ? col : P.surf; c.fill(); c.lineWidth = 2.4; c.strokeStyle = col; c.stroke();
       if (!st.moved[m]) { c.strokeStyle = col; c.lineWidth = 1.6; c.beginPath(); c.moveTo(x, y - 15); c.lineTo(x - 4, y - 11); c.moveTo(x, y - 15); c.lineTo(x + 4, y - 11); c.moveTo(x, y + 15); c.lineTo(x - 4, y + 11); c.moveTo(x, y + 15); c.lineTo(x + 4, y + 11); c.stroke(); }
-      K.label(c, k, narrow ? `${pct(st.fc[m])}%` : `${m === 'bc' ? 'BC' : 'DAgger'} ${pct(st.fc[m])}%`, x, y + (m === 'bc' ? -20 : 20) * ky, { px: 9.5, weight: 700, color: col, haloColor: P.surf });
     }
+    fcLabels(c, k, W, H, g, ky, narrow, P, ax);
     if (!st.shown) { K.label(c, k, st.busy ? 'ученики учатся…' : (narrow ? 'тяни метки справа, потом кнопка' : 'перетащи метки прогноза справа, потом нажми кнопку миссии'), g.L + g.gw / 2, g.T + g.gh / 2, { px: 12.5, weight: 700, color: P.ink2, haloColor: P.surf }); }
     for (const m of ['bc', 'dagger']) {
       const cu = curve(m); if (!cu || !st.shown) continue; const col = colOf(m, P);
@@ -565,7 +600,6 @@ const Adapt = (() => {
     let ch = -1; for (let t = 1; t < n; t++) if (e.mus[t] !== e.mus[t - 1]) { ch = t; break; }
     let det = -1; if (ch >= 0) for (let t = ch; t < n; t++) if (Math.abs(e.est[t] - e.mus[t]) < 0.1) { det = t; break; }
     const after = ch >= 0 ? e.est.slice(ch, Math.min(n, ch + 10)) : [];
-    const ev = det >= 0 ? { slip: slip.slice(ch, det + 1).filter(Boolean).length, brake: brake.slice(ch, det + 1).filter(Boolean).length } : null;
     return { e, n, brake, slip, ch, det, lag: det >= 0 ? det - ch : null, before: ch > 0 ? e.est[ch - 1] : null, at: det >= 0 ? e.est[det] : null,
       max1s: after.length ? Math.max(...after) : null, mean1s: after.length ? after.reduce((a, b) => a + b, 0) / after.length : null,
       meanAll: n > 10 ? e.est.slice(10).reduce((a, b) => a + b, 0) / (n - 10) : null, muAfter: ch >= 0 ? e.mus[ch] : null, outcome: e.outcome, time: e.time, k: M.k, floor: floor.slice() };
@@ -641,7 +675,8 @@ const Adapt = (() => {
       action: { label: 'Поехать', run: (X) => X.wetKitchen() },
       criteria: [{ label: 'Оценка попала в ±0,1 от настоящего μ', test: (r) => r.det >= 0 }, { label: 'Меньше чем за 1 с после въезда на кухню', test: (r) => r.det >= 0 && r.lag < 10 }],
       explain: (r) => {
-        const ns = r.slip.slice(r.ch, r.det + 1).filter(Boolean).length, nb = r.brake.slice(r.ch, r.det + 1).filter(Boolean).length;
+        // шаги от въезда до шага, на котором оценка попала в полосу: что случилось на них, модуль уже видел в истории
+        const ns = r.slip.slice(r.ch, r.det).filter(Boolean).length, nb = r.brake.slice(r.ch, r.det).filter(Boolean).length;
         const why = [ns ? `колёса проскальзывали в повороте ${nWord(ns, 'шаг', 'шага', 'шагов')}` : '', nb ? `Ада тормозила ${nWord(nb, 'шаг', 'шага', 'шагов')}` : ''].filter(Boolean).join(', а ');
         return `Ада въехала на кухню на ${fmt(r.ch / 10, 1)} с. До этого модуль оценивал сцепление в ${fmt(r.before, 2)}, а через ${nWord(r.lag, 'шаг', 'шага', 'шагов')} (${fmt(r.lag / 10, 1)} с) — уже в ${fmt(r.at, 2)} при настоящем ${fmt(r.muAfter, 2)}.${why ? ` За эти шаги ${why}: скользкий пол выдал себя, как только колёсам пришлось его испытать.` : ''} Ждать, пока сменится вся история, не нужно — хватает нескольких последних шагов, где команда и ответ колёс разошлись. Авторы RMA пишут о том же: модуль замечает перемену за доли секунды.`;
       } },
