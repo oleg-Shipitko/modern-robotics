@@ -91,7 +91,7 @@ let Bglob = null;
   await p.eval(`document.getElementById('forecast').scrollIntoView({ behavior: 'instant' }); true`); await sleep(200); await p.shotEl(out('l51-forecast-miss.png'), '#forecast .lab', 6);
   await drawForecast(p, F9.G.map((v) => v + 0.15));
   r = await viaUI(p, '#fcMis');
-  check(r.ok && /10 · 0,9¹¹/.test(r.out) && r.out.includes(`— ${ru(F9.G[0], 2)},`), 'миссия 1: степенная кривая проходит, разбор называет 3,14 = 10 · 0,9¹¹');
+  check(r.ok && /10 · 0,9¹¹/.test(r.out) && r.out.includes(`отдача равна ${ru(F9.G[0], 2)},`), 'миссия 1: степенная кривая проходит, разбор называет 3,14 = 10 · 0,9¹¹');
   await p.shotEl(out('l51-forecast.png'), '#forecast .lab', 6);
   await nextMission(p, '#fcMis');
   await drawForecast(p, F9.G);
@@ -103,7 +103,7 @@ let Bglob = null;
   await nextMission(p, '#fcMis');
   await drawForecast(p, FS.G);
   r = await viaUI(p, '#fcMis');
-  check(r.ok && /у кровати −11/.test(r.out) && /последнего шага — 0/.test(r.out), 'миссия 3: награда как у π*0.6 — прямая от −11 до 0');
+  check(r.ok && /у кровати −11/.test(r.out) && /последнего шага 0/.test(r.out), 'миссия 3: награда как у π*0.6 — прямая от −11 до 0');
 
   // ---------- лаборатория 1: итерация ценности ----------
   console.log('лаборатория 1');
@@ -117,7 +117,7 @@ let Bglob = null;
   await nextMission(p, '#viMis');
   check(await visible(p, '#viPaneR'), 'миссия 2: две сцены рядом');
   r = await viaUI(p, '#viMis', 2);
-  check(r.ok && /ставка сыграла/i.test(r.out) && r.out.includes('Слева Ада едет через лужу, 12 шагов, справа — вокруг стола, 14 шагов'), 'миссия 2: γ = 0,5 — через лужу, 12 шагов; γ = 0,99 — в объезд, 14 шагов');
+  check(r.ok && /ставка сыграла/i.test(r.out) && r.out.includes('Ада 1 едет через лужу, 12 шагов, Ада 2 — вокруг стола, 14 шагов'), 'миссия 2: γ = 0,5 — через лужу, 12 шагов; γ = 0,99 — в объезд, 14 шагов');
   check(['1,00', '0,31', '8,72', '9,51', '0,0039', '8,78'].every((x) => r.out.includes(x)), 'миссия 2: числа у двери (1,00/0,31, 8,72/9,51) и у кровати (0,0039, 8,78)');
   await p.eval(`document.getElementById('iterate').scrollIntoView({ behavior: 'instant' }); true`); await sleep(250); await p.shotEl(out('l51-iterate.png'), '#iterate .lab', 6);
   await nextMission(p, '#viMis');
