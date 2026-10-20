@@ -48,3 +48,6 @@ __pycache__/
 dist-release/
 site/changelog.html
 site/privacy.html
+
+# блокировки tools/json_merge.py
+lessons/shared/*.lock

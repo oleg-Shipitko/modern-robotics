@@ -78,6 +78,8 @@
   .num-h span:nth-child(n+3) { display: none; }
   .num-row:not(.num-h) span:nth-child(3)::before { content: "Опыт: "; color: var(--ink-3); }
   .num-row:not(.num-h) span:nth-child(4)::before { content: "Итог: "; color: var(--ink-3); }
+  html[lang="en"] .num-row:not(.num-h) span:nth-child(3)::before { content: "Experience: "; }
+  html[lang="en"] .num-row:not(.num-h) span:nth-child(4)::before { content: "Result: "; }
 }
 @media (max-width: 560px) {
   .duo { gap: 6px; }

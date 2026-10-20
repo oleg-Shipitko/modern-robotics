@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>5.3 Off-policy and SAC — Modern Robotics and Physical AI</title>
+<meta name="description" content="Lesson 5.3 of the “Modern Robotics and Physical AI” course on reinforcement learning from old experience: the DQN replay buffer, continuous actions in DDPG and TD3, maximum entropy and SAC, and Minitaur walking and SERL on real robots. Step through the replay buffer of Ada's arm, compare PPO and SAC on the same budget of steps and tune the temperature α.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<script>
+  (function () { try { var t = localStorage.getItem('mr-theme'); if (t) document.documentElement.dataset.theme = t; else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme = 'dark'; } catch (e) {} })();
+</script>
+<style>
+/*@@CSS@@*/
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html#program" title="To the course program"><div>Modern Robotics and Physical AI<small>Lesson 5.3 · Off-policy and SAC</small></div></a>
+    <nav class="toc" aria-label="Lesson sections">
+      <a href="#onpolicy">Cost of steps</a>
+      <a href="#dqn">DQN</a>
+      <a href="#buffer">Buffer</a>
+      <a href="#ddpg">DDPG and TD3</a>
+      <a href="#sac">SAC</a>
+      <a href="#race">PPO and SAC</a>
+      <a href="#alpha">Temperature</a>
+      <a href="#real">Robots</a>
+      <a href="#today">Today</a>
+      <a href="#quiz">Quiz</a>
+      <a href="#finale">Takeaways</a>
+    </nav>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Toggle theme">◐</button>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main>
+
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="kicker"><span class="num">5.3</span> Part 5 · Reinforcement learning</div>
+    <h1>Off-policy and SAC: <span class="amp">how to learn from old experience</span></h1>
+    <p class="lead">In lesson 5.2, PPO trained a policy on its own experience and kept it from being ruined by too large a step. The price was data: after every update, PPO throws away the rollout it collected and collects a new one, and even simple tasks need millions of steps. In simulation, where thousands of robots work in parallel, that's tolerable. The SAC authors' four-legged Minitaur made 160,000 steps in two hours of work, and at that pace a million steps would take more than 12 hours. Methods that store every transition and learn from it again and again appeared before PPO: in 2013, this is how DQN learned to play Atari from pixels. DDPG and TD3 carried the idea over to continuous actions, and in 2018 SAC added a bonus for randomness to the reward and taught Minitaur to walk right in the real world. We'll look at why old records are still good for training, why you need two value estimates and what the temperature α does, and then compare PPO and SAC on Ada's arm.</p>
+    <div class="hero-meta"><span>≈ 50 minutes</span><span>two labs, an interactive and a quiz</span><span id="heroMis">missions with a goal</span></div>
+    <div class="hero-list">
+      <div><b>OLD EXPERIENCE</b>Step through the training of Ada's arm and see which old records get into training and what happens if she learns only from fresh ones</div>
+      <div><b>ONE BUDGET OF STEPS</b>Train two arms, one with the method from lesson 5.2 and one with a method that keeps its experience, and compare which starts reaching the goal sooner and which costs more compute</div>
+      <div><b>HOW MUCH RANDOMNESS</b>Put two identical cups on two shelves and find how much randomness Ada needs so that she neither gets stuck on one shelf nor wanders aimlessly</div>
+      <div><b>REAL ROBOTS</b>Find out how a four-legged robot learned to walk in two hours, and an arm learned to insert a connector into a circuit board in 20 minutes</div>
+    </div>
+    <p style="margin-top:28px"><a class="btn primary" href="#onpolicy">Start the lesson ↓</a></p>
+  </div>
+</section>
+
+<section class="recall-sec" id="recall" aria-label="Warm-up on the previous lesson">
+  <div class="wrap"><div class="card recall" data-recall></div></div>
+  <script type="application/json" id="recallData">{"n": "5.2", "title": "Policy gradient and PPO", "href": "5-2-ppo.html", "q": [{"q": "Why does a policy gradient weighted by the “return after the action” learn slowly, even when the return is computed correctly?", "o": ["The return is always negative", "The returns almost always have the same sign: almost every action gets pushed up, and the signal drowns in noise; subtracting the value V(s) turns the return into an advantage that can have either sign", "The policy gradient can't be computed for a continuous steering wheel"], "a": 1, "e": "In Ada's drive, the return was positive on 49 of the 68 steps, even though the drive ended in a collision, while the advantage turned negative long before the crash.", "sec": "baseline", "secTitle": "Baseline and advantage: comparing with the usual"}, {"q": "What does PPO's clipping do with an example whose advantage is positive and whose probability ratio r is already above 1 + ε?", "o": ["It keeps pulling the probability of this action up", "It zeroes out the gradient of this example: raising the probability further brings no gain", "It brings r back to 1"], "a": 1, "e": "The minimum picks the clipped term, which doesn't grow with r. With a negative advantage and r > 1 + ε, on the contrary, the mistake is corrected at full strength. On one rollout without clipping, 72% of the steering decisions went outside [0.8, 1.2], and with clipping, 20%.", "sec": "clip", "secTitle": "Clipping in action: where PPO stops pulling"}, {"q": "How much experience is behind the 20 minutes of ANYmal walking training in Rudin et al.?", "o": ["About 20 minutes: the simulator runs in real time", "About a day", "147 million steps, about 34 days of experience for one robot; PPO uses each rollout for 5 epochs and throws it away"], "a": 2, "e": "4,096 copies of the robot, 24 steps each per update, 1,500 updates, 50 decisions per second. Each copy lives through only 12 minutes: an on-policy method can get this much data only in a simulator.", "sec": "steps", "secTitle": "How many simulation steps walking takes"}]}</script>
+</section>
+
+<section class="section alt" id="onpolicy">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">1</span> Cost of steps</div>
+      <h2>Why PPO needs millions of steps</h2>
+      <p>In lesson 5.2, PPO collected a rollout batch with the current policy, updated the policy on it for several epochs and then collected the next one. It uses each rollout once. The reason lies in the policy gradient itself: it says how to change the probabilities of the actions that <em>this</em> policy chose, and it holds only as long as this policy is the one choosing them. The probability ratio \(r(\theta)\) compares the new policy with the one that collected the rollout, and the clipping \(1 \pm \varepsilon\) zeroes out the gradient as soon as the new policy has moved far away. After that, the rollout teaches nothing more. A method that learns only from the experience of its current policy is called <strong>on-policy</strong>. The SAC authors say it plainly: TRPO, PPO and A3C need newly collected data for every gradient step.</p>
+      <p>That's why so many steps are needed. In the PPO paper, each MuJoCo task was trained for a million steps, and humanoid running in Roboschool for up to 50 and 100 million. In 2021, Rudin et al. trained ANYmal to walk on 4,096 robots at once: 1,500 updates of 98,304 steps each added up to about 147 million simulation steps, and it took 20 minutes on a single GPU. In simulation, a step is almost free. On a real robot, every step costs time and wear: the four-legged Minitaur, which we'll get to at the end of the lesson, made 160,000 steps in two hours. At that pace, a million steps would take more than 12 hours of nonstop work, and 147 million, about two and a half months.</p>
+      <p>What's needed is a method that doesn't throw experience away. A step of experience is recorded as a <strong>transition</strong> \((s, a, r, s')\): the state, the action, the reward and the next state, as in lesson 5.1. Transitions are put into a <strong>replay buffer</strong>, a store from which a random batch is drawn at every training step. A method that can learn from transitions collected by another policy, including its own past versions, is called <strong>off-policy</strong>.</p>
+    </div>
+    <figure class="card flow-card">
+      <canvas data-anim="dataflow" width="720" height="330" role="img" aria-label="Diagram: at the top, PPO collects a rollout, makes several epochs of updates on it and throws it away; at the bottom, SAC puts every step into a buffer and after every step learns from a random batch drawn from the whole buffer"></canvas>
+      <figcaption class="cv-note">Where experience goes. A circle is one transition \((s, a, r, s')\). At the top is PPO: the purple policy collects a rollout of 10 transitions (blue), updates on it for several epochs (the circles turn purple) and throws the rollout into the bin; the diagram shows 3 epochs, and Lab 1 uses 20. At the bottom is SAC: every transition goes into the blue buffer and stays there, and after every step the orange transitions, a random batch from the whole buffer, go to the update. Both make the same number of interaction steps, which the counter at the bottom keeps track of. Click the diagram to pause it.</figcaption>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>But why is an old transition any good at all? Its action was chosen by an earlier policy, and the current one might have acted differently in its place.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="dqn">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">2</span> DQN</div>
+      <h2>The Q-function learns from any transitions: DQN and the replay buffer</h2>
+      <p>For the policy gradient, it matters who chose the action. For the action value \(Q(s, a)\) from lesson 5.1, it doesn't. It answers the question “how much will the agent collect if it takes \(a\) in state \(s\) and acts well from then on,” and the Bellman equation for it holds for any pair \((s, a)\):</p>
+      <div class="formula">\[ Q(s, a) = \mathbb{E}\Bigl[\, r + \gamma \max_{a'} Q(s', a') \Bigr]. \]</div>
+      <p>Here \(r\) is the reward for the step, \(s'\) is the next state, \(\gamma\) is the discount factor from lesson 5.1, and the maximum is taken over all actions \(a'\) in state \(s'\). The right-hand side contains no probability with which the action \(a\) was chosen. Any recorded transition gives a <strong>target value</strong> \(y = r + \gamma \max_{a'} Q(s', a')\), toward which the estimate \(Q(s, a)\) is pulled, no matter who collected the transition. This is <strong>Q-learning</strong> (Sec. 6.5 in Sutton and Barto's textbook): the agent evaluates the greedy policy “always take the action with the largest \(Q\)” but acts differently, for example, choosing a random action on some of the steps in order to explore. The first policy is called the target policy, and the second, the behavior policy; if they differ, learning is off-policy (same book, Sec. 5.5).</p>
+      <p><strong>DQN</strong> (Deep Q-Network; Mnih et al., DeepMind, 2013) is Q-learning with a convolutional network that outputs the value of every joystick action from the latest frames of the game. The network takes the 210 × 160 screen pixels at 60 Hz as input, with no features designed for the game. With one architecture and one set of hyperparameters, DQN beat all previous approaches in six of the seven Atari games, and in Breakout, Enduro and Pong it beat an experienced human player. It was trained on 10 million frames, and the buffer held the last million.</p>
+      <p>The authors give three reasons for the buffer. Each step of experience can take part in many updates, which saves data. Consecutive frames are strongly correlated, and a random batch breaks this correlation and reduces the variance of the updates. And when learning on-policy, the current weights decide which data come next: if the policy turns left, the data are full of left turns. The buffer averages the behavior over many past versions of the policy. Hence their conclusion: with a buffer, learning has to be off-policy, because the current weights differ from the ones that collected the data, and that is why they chose Q-learning.</p>
+      <p>One subtlety remains: the target value \(y\) is computed by the same network that is being trained, so after every step it shifts along with the estimate. DQN keeps the weights it uses to compute \(y\) fixed while it learns from them; later work keeps a separate <strong>target network</strong> for this, a copy that is updated less often or slowly catches up with the trained one. Let's see how this works on Ada's arm.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="buffer">
+  <div class="wrap">
+    <div class="lab-badge"><i>🧩</i> Interactive</div>
+    <h2>The buffer step by step: which transitions get into training</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p class="ada-note"><svg class="ada-ico" viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="10" width="48" height="42" rx="18" fill="#f4efe6" stroke="#3d3c38" stroke-width="3"/><rect x="15" y="19" width="34" height="22" rx="10" fill="#1f2430"/><ellipse cx="25" cy="30" rx="4" ry="5.5" fill="#eb6834"/><ellipse cx="39" cy="30" rx="4" ry="5.5" fill="#eb6834"/></svg><span>Ada is a home humanoid on a wheeled base; the course labs are built around her. More about her in <a href="0-1-dve-paradigmy.html#ada">lesson 0.1</a>.</span></p>
+      <p>Ada's arm is the same as in lesson 0.3: it has a shoulder, an elbow and links of 0.5 and 0.4 m. The goal of the task is a point in front of Ada to which she has to bring the gripper; every episode, it appears in a new place. An episode lasts 25 steps. At each step, Ada chooses one of 9 actions: move the gripper 5 cm up, down, toward herself, away from herself or diagonally, or leave it in place; the arm controller converts the shift into joint rotations, as in lesson 0.3. At each step, Ada gets a reward equal to minus the distance from the gripper to the goal in meters, multiplied by 4, plus 1 more while the gripper is closer than 4 cm. An attempt succeeds if, at the end of the episode, the gripper is closer than 4 cm to the goal.</p>
+      <p>The learner is DQN: a small network takes the joint angles and the vector from the gripper to the goal and outputs the values of all 9 actions. At first, Ada chooses actions at random, and by step 1,000 the share of random ones drops to 10%. For the first 100 steps, she only fills the buffer; after that, after every step, the network learns from a batch of 32 random transitions. The first scene shows one transition, and the second, the whole buffer.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="duo two-row stack" id="rDuo">
+          <figure class="pane"><figcaption class="pane-head"><b style="--c:var(--classic)">Transition</b><span>side view of Ada's arm</span></figcaption><canvas id="rCv" width="360" height="360" role="img" aria-label="Side view: Ada, her arm before the step and, pale, after the step; the orange arrow is the gripper's shift, and the green ring is the goal"></canvas></figure>
+          <figure class="pane"><figcaption class="pane-head"><b style="--c:var(--e2e)">Buffer</b><span>a column is an episode, a row is a step of it</span></figcaption><canvas id="rBuf" class="grid-cv" width="360" height="230" role="img" aria-label="Buffer map: a cell is one transition; the darker the blue, the more often the transition got into batches; orange dots are the batch of the current step"></canvas></figure>
+        </div>
+        <p class="cv-note">The “Transition” scene shows the arm from the side: Ada stands on the left, the blue arm is the pose before the step, the pale one is the pose after it, and the orange arrow shows where the gripper moved. The green ring is the goal of this episode, the dashed circle around it is the 4 cm zone, and the gray dashed rectangle marks where goals appear. The “Buffer” scene is a map of all transitions: each cell is one transition, the columns are the episodes in order, and the rows are the 25 steps of an episode. The darker the blue, the more often the transition got into batches. Gray cells are transitions that have already been pushed out of the buffer, orange dots are the batch of the last step, and the black frame marks the transition shown in the “Transition” scene. Click a cell to select a transition.</p>
+        <details class="lab-legend"><summary>Legend: marks on the scene</summary><div class="cv-legend" id="rLegend"></div></details>
+        <div class="ctl-row" id="wrapRStep"><button type="button" class="btn sm" id="rStep1" data-n="1">1 step</button><button type="button" class="btn sm" id="rStepEp" data-n="1">+1 episode</button><button type="button" class="btn sm" id="rStep250" data-n="1">+250 steps</button></div>
+        <div class="ctl-row" id="wrapRFree">
+          <div class="ctl"><span class="ctl-l">Buffer</span><div class="seg" id="rCap" role="group" aria-label="Buffer size"><button type="button" data-v="all" aria-pressed="true">all transitions</button><button type="button" data-v="500" aria-pressed="false">500</button><button type="button" data-v="250" aria-pressed="false">250</button><button type="button" data-v="100" aria-pressed="false">100</button></div></div>
+          <div class="ctl"><span class="ctl-l">Batch</span><div class="seg" id="rMode" role="group" aria-label="How to fill the batch"><button type="button" data-v="buf" aria-pressed="true">32 random from the buffer</button><button type="button" data-v="recent" aria-pressed="false">the last 32 in a row</button></div></div>
+          <button type="button" class="btn primary sm" id="rRun">Train again, 1,500 steps</button>
+        </div>
+        <div class="chart"><canvas id="rChart" width="640" height="260" role="img" aria-label="Chart: the share of successful attempts on 40 test goals versus the number of steps"></canvas></div>
+        <p class="cv-note">The chart: the horizontal axis shows interaction steps, and the vertical axis shows the share of the 40 test goals that Ada reaches without random actions. The test runs every 100 steps on goals that were not in training.</p>
+        <div class="prog-line" id="rProg" hidden><i></i></div>
+        <div class="readout" id="rOut"></div>
+      </div>
+      <div class="card guide-card"><div id="rMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: the DQN target value, the target network and the spread across seeds</summary><div class="body">
+      <p><b>Training.</b> A batch \(B\) of 32 transitions \((s_j, a_j, r_j, s'_j)\) is drawn from the buffer uniformly. For each transition, the target value is computed with the target network \(Q_{\bar\theta}\), and the estimate of the trained network \(Q_\theta\) is moved toward it by reducing the loss function \(\mathcal L\):</p>
+      <div class="formula">\[\begin{gathered} y_j = r_j + \gamma \max_{a'} Q_{\bar\theta}(s'_j, a'), \\ \mathcal L(\theta) = \frac{1}{|B|} \sum_{j \in B} \bigl(y_j - Q_\theta(s_j, a_j)\bigr)^2. \end{gathered}\]</div>
+      <p>Here \(\theta\) are the network's weights, \(\bar\theta\) is their copy, which is updated once every 100 steps, and \(\gamma = 0.9\). Before the step, the difference \(y_j - Q_\theta\) is clipped to ±1 so that rare large errors don't destabilize the network. The network has two layers of 24 neurons and is trained by Adam with a step size of 0.003. DQN on Atari also used batches of 32, but its buffer held the last million frames, and training lasted 10 million frames.</p>
+      <p><b>Why the target value changes.</b> The first transition of the first episode first got into a batch soon after step 100, when the network knew almost nothing: \(\max Q\) was near zero, and the target value was almost equal to the reward alone. By step 1,000, the target network knows that from a position where the arm is still far from the goal, many penalized steps lie ahead, and the target value of the same transition has gone down. The record in the buffer hasn't changed; what has changed is what the network can extract from it.</p>
+      <p><b>Spread.</b> The numbers in the missions are computed for one random seed (3). Across six seeds, with the buffer, 90% success on the test is reached by step 800–1,200, the average success over the last five tests is 84–96%, and the worst of these tests gives 63–93%. Without the buffer, on the last 32 transitions in a row, the average success is 29–74%, and on the worst test, 0 to 38%. By step 1,000, the transitions of the first episode had been in batches 70–74 times on average.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px" id="bufferAfter">
+      <p>The buffer does two things at once: a transition made once teaches dozens of times, and batches from different episodes don't drag the network after the latest situation. But DQN picks the best of 9 actions by trying each of them. The motors of a real arm receive a number, not one of nine commands. How do you take the maximum over an infinite number of actions?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="ddpg">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">3</span> DDPG and TD3</div>
+      <h2>Continuous actions: DDPG and TD3</h2>
+      <p>DQN chooses an action by enumeration: it computes \(Q\) for each of the 9 options and takes the largest. For an arm with motors, an action is a set of numbers, one per joint, and there are infinitely many options. You can cut each motor's range into “back, stop, forward,” but the DDPG authors give an example: for an arm with 7 degrees of freedom, like a human one, that's already \(3^7 = 2187\) actions, and precise control needs finer divisions. Searching for the maximum at every step and every update is too expensive.</p>
+      <p><strong>DDPG</strong> (Deep Deterministic Policy Gradient; Lillicrap et al., DeepMind, 2015) adds a second network for this. The <strong>actor</strong> \(\mu(s)\) outputs an action directly from the state. The <strong>critic</strong> \(Q(s, a)\) learns as in DQN, except that the target value uses the actor's action instead of the maximum: \(y = r + \gamma\, Q'(s', \mu'(s'))\). And the actor learns from the critic: the critic is differentiable with respect to the action, and the gradient \(\nabla_a Q(s, a)\) shows which way to shift the action to make the value grow. Such a pair is called an <strong>actor-critic</strong>. Both networks learn from batches drawn from a buffer of a million transitions, and the target value is computed by target copies of the actor and the critic, which slowly catch up with the trained ones: \(\theta' \leftarrow \tau\theta + (1 - \tau)\theta'\) with \(\tau = 0.001\). This way, the authors solved more than 20 tasks in a physics simulator, from swinging up a pole on a cart to walking. Almost all of the tasks were solved within 2.5 million steps, “a factor of 20 fewer steps than DQN requires for good Atari solutions.”</p>
+      <p>This scheme has a weak spot, which Fujimoto et al. described in detail in their TD3 paper (2018). The target value takes a maximum, explicit in DQN or hidden in the DDPG actor, over an estimate that contains noise. The maximum of noisy numbers is on average larger than the maximum of exact ones, so the estimate is systematically inflated: this is <strong>overestimation bias</strong> (Sec. 6.7 in Sutton and Barto). Worse, the actor itself looks for the actions with the largest \(Q\) and finds the critic's errors first, and an inflated target value passes into the next estimates through the Bellman equation.</p>
+      <p><strong>TD3</strong> (Twin Delayed DDPG) adds three tricks to DDPG. First, TD3 trains two independent Q-functions, and the smaller of the two goes into the target value: \(y = r + \gamma \min_{i = 1, 2} Q'_i(s', a')\). The smaller one may underestimate, but the authors consider this the lesser evil: the policy simply won't choose an underestimated action, and the error won't spread further. Second, the actor and the target copies are updated less often than the critics, once every two steps. Third, a small clipped noise is added to the action in the target value, so that similar actions get similar values and the actor doesn't latch onto a narrow peak of error. In the paper's table, after a million steps, TD3 scores 9,637 on HalfCheetah, DDPG 3,306 and PPO 1,795.</p>
+      <p>Both DDPG and TD3 learn a deterministic policy and explore by adding noise to its action. How much noise and of what kind is set by hand, and the SAC authors call such methods “brittle to hyperparameter settings.” Can randomness become part of what the policy learns?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="sac">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">4</span> SAC</div>
+      <h2>Maximum entropy: reward plus a bonus for randomness</h2>
+      <p><strong>SAC</strong> (Soft Actor-Critic; Haarnoja et al., UC Berkeley, 2018) learns not a single action per state but a distribution of actions, and it adds the distribution's <strong>entropy</strong>, a measure of randomness, to the reward: the more widely the policy spreads its actions, the larger the entropy. SAC looks for the policy with the largest sum of rewards and entropies:</p>
+      <div class="formula">\[ J(\pi) = \sum_{t} \mathbb{E}\Bigl[\, r(s_t, a_t) + \alpha\, \mathcal H\bigl(\pi(\cdot \mid s_t)\bigr) \Bigr], \qquad \mathcal H(\pi(\cdot\mid s)) = -\,\mathbb{E}_{a \sim \pi}\bigl[\log \pi(a \mid s)\bigr]. \]</div>
+      <p>Here \(\pi(a \mid s)\) is the probability (density) of action \(a\) in state \(s\), \(r(s_t, a_t)\) is the reward at step \(t\), \(\mathcal H\) is the entropy of the action distribution, and \(\alpha\) is the <strong>temperature</strong>: how much randomness weighs next to the reward. As \(\alpha \to 0\), what remains is the ordinary RL problem of collecting as much reward as possible. The authors put it this way: “to succeed at the task while acting as randomly as possible.” Such a policy explores more widely but gives up on clearly unpromising directions. This approach is called <strong>maximum entropy RL</strong>.</p>
+      <p>The SAC authors name one more property of this objective: if several actions are equally good, a maximum entropy policy splits the probability between them evenly. That's how a policy behaves when its distribution can take any shape. The SAC policy is simpler: in each state, it is a single Gaussian, a mean action with a spread around it. A Gaussian's density is highest at the mean and decreases in all directions from it, so it has only one peak. When there are several correct actions in the same situation, that's the action multimodality from lesson 1.3, and each correct action is a separate mode of the action distribution. A single Gaussian can stick to one mode or widen to cover both, but then part of the probability goes to the actions between and around them. Policies with several peaks, such as the Gaussian mixture from lesson 1.3, can split the probability evenly between the modes. Lab 2, with its two identical shelves, will show what this looks like for SAC.</p>
+      <p>Everything else SAC takes from its predecessors: the replay buffer and off-policy learning, two Q-functions with the smaller one in the target value, as in TD3, and slow target copies. The target value for the Q-functions includes the action that the <em>current</em> policy would choose in \(s'\) and the bonus for its randomness: \(y = r + \gamma\bigl(\min_i Q'_i(s', a') - \alpha \log \pi(a' \mid s')\bigr)\). The policy shifts its mean action and its spread toward where the smaller of the two \(Q\) values is higher and \(\alpha \log \pi\) is lower. The diagram below goes through one update step by step.</p>
+    </div>
+    <figure class="card flow-card">
+      <canvas data-anim="sacupd" width="720" height="350" role="img" aria-label="Diagram of one SAC update: the buffer, the batch, the policy, two Q-functions, the target copies and the temperature; the steps of the update light up one after another"></canvas>
+      <figcaption class="cv-note">One SAC update, step by step. Blue shows the data: the buffer and a batch of 32 transitions. Orange shows what is being trained: the policy \(\pi\) and two Q-functions. Purple shows the target copies Q′, which slowly catch up with the trained ones, and gray shows the temperature α. The current step is highlighted, and the caption at the bottom explains it. Click the diagram to pause it.</figcaption>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>In the first version, the temperature was set by hand, and the result depended on it heavily. In the authors' experiments, with too small a reward scale, that is, with too large an \(\alpha\), the policy becomes almost uniformly random and makes no use of the reward. With too small an \(\alpha\), it learns quickly at first but then becomes nearly deterministic and gets stuck in poor solutions: it has nothing left to explore with. In the 2018 SAC paper “Algorithms and Applications,” the temperature is tuned automatically: the average entropy of the policy is held near a set level, the <strong>target entropy</strong>, which by default is \(-\dim A\): minus the dimension of the action, that is, minus the number of components it has. The action of Ada's arm consists of two numbers, so the target entropy is \(-2\).</p>
+      <p>In lesson 5.2, PPO was chosen for its stability, and SAC promises to save steps. Let's check how large the savings are on the same task with the same networks.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="race">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 1</div>
+    <h2>PPO and SAC on the same arm: success by interaction steps</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>The task is the same as in the buffer interactive: bring the gripper to a goal that appears in a new place every episode, within 25 steps. Only now the action is continuous: it's a shift of the gripper of up to 5 cm horizontally and vertically, any value within these limits. The reward and the test are the same: 40 goals that were not in training, and an attempt succeeds if the gripper ends up closer than 4 cm.</p>
+      <p>Both arms learn from scratch, and both have the same networks: two layers of 24 neurons for the policy and for the value estimates. PPO works as in lesson 5.2: it collects a rollout of 5 episodes, updates on it for 20 epochs with clipping at 1 ± 0.2 and computes advantages with GAE. The rollout size and the number of epochs are chosen so that PPO learns this task as fast as possible. After 200 random steps, SAC makes one update per step, on a batch of 32 transitions, and tunes its temperature itself. The curves are plotted against interaction steps, the thing that costs time on a real robot, not against compute time.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="duo" id="cDuo">
+          <figure class="pane"><figcaption class="pane-head"><b style="--c:var(--e2e)">SAC</b><span>off-policy, a buffer with all the experience</span></figcaption><canvas id="cCvS" width="360" height="360" role="img" aria-label="Side view: an attempt by the arm trained with SAC to reach a test goal"></canvas><div class="pane-stat" id="cStatS"></div></figure>
+          <figure class="pane"><figcaption class="pane-head"><b style="--c:var(--hybrid)">PPO</b><span>on-policy, rollouts of 5 episodes</span></figcaption><canvas id="cCvP" width="360" height="360" role="img" aria-label="Side view: an attempt by the arm trained with PPO to reach the same goal"></canvas><div class="pane-stat" id="cStatP"></div></figure>
+        </div>
+        <p class="cv-note">A side view. The test goal is the same for both arms: it's the green ring, and the dashed circle around it is the 4 cm zone. The colored polyline is the gripper's path over 25 steps, and the dots on it are the gripper's positions after each step; the arm is shown at the end of the attempt. The gray dashed rectangle marks where goals appear. Below each scene is the policy's success on all 40 test goals.</p>
+        <details class="lab-legend"><summary>Legend: marks on the scene</summary><div class="cv-legend" id="cLegend"></div></details>
+        <div class="ctl-row" id="wrapCAt"><label class="hd-range"><span>Point in training, step</span><input id="cAt" type="range" min="0" max="750" step="125" value="750"><output>750</output></label></div>
+        <div class="ctl-row" id="wrapCSeed"><div class="ctl"><span class="ctl-l">Random seed</span><div class="seg" id="cSeed" role="group" aria-label="Random seed"><button type="button" data-v="1" aria-pressed="true">1</button><button type="button" data-v="2" aria-pressed="false">2</button><button type="button" data-v="3" aria-pressed="false">3</button><button type="button" data-v="4" aria-pressed="false">4</button></div></div><button type="button" class="btn primary sm" id="cSeedRun">Train both</button></div>
+        <div class="chart"><canvas id="cChart" width="640" height="260" role="img" aria-label="Chart: the share of successful attempts on 40 test goals versus the number of interaction steps for SAC and PPO"></canvas></div>
+        <p class="cv-note">The chart: the horizontal axis shows the steps of interaction with the world, and the vertical axis shows the share of the 40 test goals that the arm reaches with its mean action. The orange line is SAC, the purple one is PPO, and the vertical dashed line marks the moment shown in the scenes.</p>
+        <div class="prog-line" id="cProg" hidden><i></i></div>
+        <div class="readout" id="cOut"></div>
+      </div>
+      <div class="card guide-card"><div id="cMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: the SAC and PPO updates, the choice of settings and the spread across seeds</summary><div class="body">
+      <p><b>SAC.</b> The policy outputs a mean \(\mu_\phi(s)\) and a spread \(\sigma_\phi(s)\), and the action is obtained as \(a = \tanh(\mu + \sigma\varepsilon)\), \(\varepsilon \sim \mathcal N(0, 1)\): the \(\tanh\) keeps it within ±1. A batch \(B\) of 32 transitions is drawn from the buffer uniformly. The two Q-functions learn toward a shared target value, and the policy learns through the action it chose itself (this way, the gradient passes through \(\mu\) and \(\sigma\)):</p>
+      <div class="formula">\[\begin{aligned} y &= r + \gamma\Bigl(\min_{i=1,2} Q_{\bar\theta_i}(s', a') - \alpha \log \pi_\phi(a' \mid s')\Bigr), \quad a' \sim \pi_\phi(\cdot \mid s'), \\ \mathcal L_Q(\theta_i) &= \mathbb E_B\bigl[(Q_{\theta_i}(s, a) - y)^2\bigr], \\ \mathcal L_\pi(\phi) &= \mathbb E_{B,\,\varepsilon}\Bigl[\alpha \log \pi_\phi(\tilde a \mid s) - \min_{i} Q_{\theta_i}(s, \tilde a)\Bigr], \quad \tilde a = \tanh(\mu_\phi(s) + \sigma_\phi(s)\,\varepsilon). \end{aligned}\]</div>
+      <p>Here \(\theta_i\) are the weights of the Q-functions, \(\bar\theta_i\) are their target copies (\(\bar\theta \leftarrow 0.01\,\theta + 0.99\,\bar\theta\) after every update), \(\phi\) are the policy's weights, and \(\gamma = 0.9\). The Adam step size is 0.005, and the temperature tunes itself with a target entropy of −2; we give the formula in Lab 2.</p>
+      <p><b>PPO.</b> A PPO rollout consists of 125 steps (5 episodes); it is used for 20 epochs in batches of 50, with a step size of 0.003, clipping at 0.2 and GAE with \(\lambda = 0.95\). On eight seeds, we compared rollouts of 125, 250 and 500 steps and 10, 20 and 60 epochs, and kept the variant that reaches 90% fastest on average; with a rollout of 250 and 20 epochs, it takes 1,375–2,375 steps. With a rollout of 500 and 10 epochs, closer to the settings of the PPO paper, reaching 90% takes 2,625–4,125 steps. With 60 epochs on the same rollout, PPO doesn't get faster: on four of the eight seeds, it didn't reach 90% within 3,000 steps. The policy moves away from the one that collected the rollout, the clipping zeroes out the gradient, and the extra passes add nothing.</p>
+      <p><b>Spread.</b> The numbers in the missions are computed for seed 1. Across eight seeds, SAC reaches 90% by step 375–500 and by step 750 reaches all 40 goals; by step 750, PPO scores 0–45% and reaches 90% by step 1,125–1,875, 2.25–3.75 times later. Over 750 steps, each transition in the SAC buffer was in batches 23.5 times on average. To reach 90%, SAC does 0.65 to 1.34 times as many multiplications as PPO, and per interaction step, 2.4–3.0 times more.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px" id="raceAfter">
+      <p>In steps, SAC is faster: 2–4 times in our task, and the gap is even larger in the big tasks from the papers. In compute, there is no gain: SAC turns every step into an update of two Q-functions and the policy, and to reach 90% success, both methods do roughly the same number of multiplications. So the choice depends on what is more expensive. In simulation, where thousands of robots run in parallel, compute time is expensive, and PPO is usually chosen there. On a real robot, every step is expensive.</p>
+      <p>In the lab, SAC tuned its temperature itself: it started at 0.1 and by step 750 lowered it to about 0.04. What happens if you set it by hand?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="alpha">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 2</div>
+    <h2>The temperature α: one strategy, two or none</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>To see what the temperature does, you need a task with a choice. In front of Ada are two shelves, each with an identical cup. Shelf 1 is farther away, slightly below the shoulder, and shelf 2 is closer to the body, slightly above the shoulder. From the gripper's starting pose, both cups are about 38 cm away. The reward per step grows as the gripper approaches either cup and equals 1 at the cup itself, while far away it's almost 0. Which shelf to choose doesn't matter: the reward is the same.</p>
+      <p>SAC trains for 2,000 steps with a given temperature. Then Ada makes 40 attempts with her trained policy, with randomness, as during training. An attempt counts for a shelf if, at the end, the gripper is closer than 6 cm to its cup.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <canvas id="tCv" class="solo-cv" width="360" height="360" role="img" aria-label="Side view: Ada, two shelves with cups and the gripper's paths in 40 attempts"></canvas>
+        <p class="cv-note">A side view: Ada is on the left, the two shelves with cups are in front of her, and around each cup is a dashed 6 cm circle. The dots mark where the 40 attempts ended: blue at shelf 1, purple at shelf 2, gray away from both. The thin lines are the gripper's paths in the first 8 attempts. The orange arm shows the pose at the end of the first attempt.</p>
+        <details class="lab-legend"><summary>Legend: marks on the scene</summary><div class="cv-legend" id="tLegend"></div></details>
+        <div class="ctl-row" id="wrapTAlpha"><label class="hd-range"><span>Temperature α</span><input id="tAlpha" type="range" min="0" max="6" step="1" value="1" aria-label="Temperature α: 0.003, 0.01, 0.03, 0.1, 0.2, 0.3 or 1"><output>0.01</output></label></div>
+        <div class="ctl-row" id="wrapTMode"><div class="ctl"><span class="ctl-l">Temperature</span><div class="seg" id="tMode" role="group" aria-label="How the temperature is set"><button type="button" data-v="fix" aria-pressed="true">set by hand</button><button type="button" data-v="auto" aria-pressed="false">automatic</button></div></div></div>
+        <div class="bars" id="tBars"></div>
+        <div class="prog-line" id="tProg" hidden><i></i></div>
+        <div class="readout" id="tOut"></div>
+      </div>
+      <div class="card guide-card"><div id="tMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: the reward at the shelves, the automatic temperature and the spread across seeds</summary><div class="body">
+      <p><b>Reward.</b> Let \(p\) be the gripper's position and \(c_1, c_2\) the positions of the cups. The reward per step is \(r = \max\bigl(e^{-|p - c_1|^2 / 2\sigma^2},\ e^{-|p - c_2|^2 / 2\sigma^2}\bigr)\) with \(\sigma = 8\) cm: at a cup it equals 1, and 16 cm away from it, about 0.14. The observation includes the joint angles and the gripper's position, and everything else is as in Lab 1.</p>
+      <p><b>The temperature tunes itself.</b> In the second version of SAC (2018), α is tuned as a Lagrange multiplier: the average entropy of the policy must be no lower than the target entropy \(\bar{\mathcal H}\), and α is changed by a gradient step on</p>
+      <div class="formula">\[ J(\alpha) = \mathbb E_{a \sim \pi}\bigl[-\alpha \log \pi(a \mid s) - \alpha \bar{\mathcal H}\bigr], \qquad \bar{\mathcal H} = -\dim A = -2. \]</div>
+      <p>If the policy has become more random than the target entropy requires, \(-\log\pi > \bar{\mathcal H}\), the step decreases α; if it's more deterministic, the step increases α. We train \(\log\alpha\) with a step size of 0.003; in the “automatic” mode, α starts at 1.</p>
+      <p><b>Spread.</b> The numbers in the missions are computed for seed 3. Across six seeds, with α from 0.003 to 0.03, in 16 of the 18 runs at least 98% of the attempts went to one shelf, in one more it was 88%, and in one run with α = 0.01, three attempts out of four ended away from the shelves. With α = 1, no run had more than 3% of its attempts reaching the shelves. With α = 0.2, Ada went to both shelves in three runs out of six, and in the rest, to one shelf or almost nowhere. With the automatic temperature, at least 98% of the attempts went to one shelf in all six runs, and α drops to 0.011–0.026 by the end.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px" id="alphaAfter">
+      <p>The temperature works like a knob between two extremes. With a small α, the policy quickly finds one strategy and stops trying others; with a large one, it holds on to none. Between them lies a narrow window: at α = 0.2, Ada still goes to both shelves, but she doesn't split the attempts evenly: 10% go to shelf 1, 40% to shelf 2, and half end away from both. This is the same action multimodality as in lesson 1.3: two equally good strategies, two modes. A Gaussian has one peak, and at the start of the path the policy has a single mean action, so it can split the attempts between the shelves only through its spread. A narrow bell sticks to one shelf, while a wide one reaches both but wastes many attempts. Where this window lies depends on the reward scale, on the task and even on the random seed.</p>
+      <p>That's why α came to be tuned automatically: what is held at the target is not the temperature itself but the policy's entropy. This removes manual tuning, but it doesn't settle the choice between the shelves: with automatic tuning, Ada went to one shelf in all six runs. To keep both strategies, you need a policy with several peaks; the SAC authors note that their way of tuning the temperature also works for such policies.</p>
+      <p>All the experiments in this lesson ran in simulation, where a step costs nothing. What happens when SAC trains a real robot?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="real">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">5</span> Robots</div>
+      <h2>SAC on real robots: Minitaur, a claw and SERL</h2>
+      <p>On a real robot, the cost of a step also includes falls that damage the hardware and people who pick the robot up and return the scene to its starting state. In the “Algorithms and Applications” paper, the SAC authors tested the method on two such robots. The first was Minitaur, a small four-legged robot with eight direct-drive motors, two per leg. It's a different robot, not Ada: Ada has a wheeled base. The policy sets the swing angle and the extension of each leg, and a PD controller, as in lesson 0.3, drives the motors to these angles. Delays and impacts with the floor break the assumption that the next state depends only on the current one, so the state included the current and the five previous observations and actions. The reward was the forward speed, measured by a motion capture system, with penalties for large angular accelerations, large pitch angles and extending the front legs under the body: these were the most common reasons the robot fell. An onboard Jetson TX2 computer collected the data, and a workstation trained the policy; the data exchange ran in parallel with the walking.</p>
+      <p>Minitaur learned to walk in 160,000 steps: about 400 episodes of up to 500 steps and roughly two hours in the real world, without simulation or pretraining. It was trained only on flat ground and tested on a slope, on an obstacle made of wooden blocks and on steps going down. The robot handled them without any fine-tuning, and the authors attribute this to maximum entropy: a policy that acted as randomly as possible during training got used to different situations. People couldn't be removed entirely: the robot had to be put back in place if it fell or drifted too far.</p>
+      <p>The second robot was a three-fingered claw with 9 servos that turns a valve to the desired position from any starting one. Learning from camera images, SAC needed 300,000 steps, about 20 hours including resets and network training. When the networks were given the valve angle instead of an image, 3 hours were enough, while PPO took 7.4 hours on the same task in earlier work.</p>
+      <p><strong>SERL</strong> (Luo et al., 2024) is an open-source library for reinforcement learning on a real Franka arm. It runs the RLPD algorithm, a variant of SAC with three changes. It makes many updates per interaction step, saving steps at the cost of compute, as in Lab 1. It takes half of every batch from 20 operator demonstrations recorded with a 3D mouse: an off-policy method doesn't care who chose the action, and the demonstrations simply sit in a buffer of their own. And it normalizes the critic's layers so that many updates in a row don't destabilize it. In the circuit board task, the reward comes from the arm's pose itself, and in the others, from a classifier that decides from an image whether the task succeeded. In the object relocation task, the scene is reset by two policies: one moves the object, and the other moves it back. The policy runs at 10 Hz and tells a 1 kHz impedance controller where to pull the gripper; it's the controller from lesson 0.3 that behaved like a spring of a given stiffness and pressed on the table no harder than the error allowed.</p>
+      <div class="num-table" role="table" aria-label="SAC and its successors on real robots: the task, how much experience it took and the result">
+        <div class="num-row num-h" role="row"><span role="columnheader">Paper</span><span role="columnheader">Task</span><span role="columnheader">Experience</span><span role="columnheader">Result</span></div>
+        <div class="num-row" role="row"><span role="cell"><b>SAC, Minitaur</b> (2018)</span><span role="cell">walking on four legs</span><span role="cell">160k steps, about 2 h, from scratch</span><span role="cell">walks on a slope, through blocks and down steps without fine-tuning</span></div>
+        <div class="num-row" role="row"><span role="cell"><b>SAC, claw</b> (2018)</span><span role="cell">turn a valve</span><span role="cell">from images: 300k steps, 20 h; from the valve angle: 3 h</span><span role="cell">PPO from the valve angle: 7.4 h</span></div>
+        <div class="num-row" role="row"><span role="cell"><b>SERL</b> (2024)</span><span role="cell">insert a connector into a circuit board</span><span role="cell">20 demonstrations, 20 min</span><span role="cell">100 successes out of 100</span></div>
+        <div class="num-row" role="row"><span role="cell"><b>SERL</b> (2024)</span><span role="cell">route a cable through a clip</span><span role="cell">20 demonstrations, 31 min</span><span role="cell">100 successes out of 100</span></div>
+        <div class="num-row" role="row"><span role="cell"><b>SERL</b> (2024)</span><span role="cell">move an object and bring it back</span><span role="cell">20 demonstrations, 105 min for two policies</span><span role="cell">100 successes out of 100</span></div>
+      </div>
+      <p class="cv-note">The numbers come from the SAC paper “Algorithms and Applications” (Sec. 7.2–7.3) and the SERL paper (Table 2, Fig. 6). The SERL times include computation, resets and pauses.</p>
+      <p>For comparison, the SERL authors trained a policy by imitation learning on 100 demonstrations, five times more than RL got. RL beat it by a factor of 10 in success on the circuit board, 5 on the cable and 1.7 on the object relocation, and it did the tasks up to three times faster than the operators in the demonstrations. This is the answer to the question this part asks: a robot's own experience and an evaluation of the result give it what demonstrations lack. But in each of these works, people are nearby: they set up the motion capture cameras, label successes for the classifier, record demonstrations and pick up the robot when it falls. What of this lives on in today's systems?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="today">
+  <div class="prose">
+    <div class="kicker"><span class="num">6</span> Today</div>
+    <h2>Simulation for cheap steps, a buffer for expensive ones</h2>
+    <p>The methods of this lesson have split into two roles. Where a step is cheap, in simulation with thousands of robots in parallel, PPO does the work: as lesson 5.2 showed, this is how walking is trained in minutes, and PPO doesn't need to save steps; it needs to process huge rollouts quickly. Where a step is expensive, on a real robot, the work goes to off-policy methods, the successors of SAC: they keep all the experience, put demonstrations into the same buffer and squeeze dozens of updates out of every transition, as SERL does.</p>
+    <p>The idea of learning from the experience of past versions of the policy has reached large models too. π*0.6 from Physical Intelligence (2025), which came up in lessons 3.8 and 4.6, trains the model on the robots' own attempts from all iterations, with an estimate of which actions were better, and the data aren't thrown away after every update. And lesson 4.6 showed that here, too, the flywheel doesn't spin without people who label the failures.</p>
+    <p>One question remains that this lesson sidestepped: can you get the cheap steps of simulation without paying for the gap between the simulator and the real world? That's what the next lesson is about.</p>
+  </div>
+</section>
+
+<section class="section" id="quiz">
+  <div class="prose">
+    <div class="kicker"><span class="num">7</span> Check yourself</div>
+    <h2>Eight common misconceptions</h2>
+    <div class="quiz" id="quizBox"></div>
+    <p class="score" id="quizScore" style="margin-top:14px"></p>
+  </div>
+</section>
+
+<section class="section alt" id="finale">
+  <div class="prose">
+    <div class="kicker"><span class="num">8</span> Takeaways</div>
+    <h2>Lesson takeaways</h2>
+    <ol class="takeaways">
+      <li><span><strong>On-policy</strong> methods like PPO learn only from the experience of the current policy and throw the rollout away after an update: the policy gradient holds only for the policy that chose the actions. That's why they need millions of steps, which is tolerable in simulation but expensive on a robot.</span></li>
+      <li><span>The <strong>Q-function</strong> learns from any transition: the target value \(r + \gamma \max Q(s', a')\) doesn't depend on who chose the action. This lets you keep experience in a <strong>replay buffer</strong> and learn off-policy, like DQN on Atari. In the interactive, by step 1,000 each transition of the first episode had taught 73 times on average, and without the buffer the average success dropped from 96 to 52%.</span></li>
+      <li><span><strong>DDPG</strong> carries the idea over to continuous actions: the actor outputs an action, and the critic tells it which way to shift it. <strong>TD3</strong> fights overestimation with three tricks: two Q-functions with the smaller one in the target value, less frequent actor updates and noise in the target value.</span></li>
+      <li><span><strong>SAC</strong> adds a bonus for randomness with weight α to the reward and learns a stochastic policy. With a small α, Ada went to one shelf in 98% of the attempts, and with α = 1, only 3% of the attempts ended at the shelves; that's why α is tuned automatically, holding the policy's entropy at the target, \(-\dim A\). The SAC policy is a single Gaussian with one peak: it can widen its spread, but it doesn't split the attempts evenly between the two shelves, and with automatic α Ada also went to just one.</span></li>
+      <li><span>SAC saves <strong>steps, not compute</strong>: on Ada's arm, it reached 90% in 500 steps versus 1,250 for PPO, but it spent three times as many multiplications per step, and to reach 90%, both made roughly the same number of them.</span></li>
+      <li><span>On real robots, SAC taught Minitaur to walk in 160,000 steps, about two hours, and SERL teaches an arm to insert a connector in 20 minutes; it keeps 20 demonstrations in the buffer, can use a classifier instead of a hand-written reward and resets the scene automatically.</span></li>
+    </ol>
+    <h3 style="margin-top:40px">Open questions</h3>
+    <details class="card pad open-q"><summary>If updates per step save experience, why not make a hundred of them for every step?</summary><p>The more updates on the same transitions, the more the critic fits its own target values and the quirks of a particular batch, and the actor finds its errors, as in the section on overestimation. RLPD in SERL makes many updates per step and therefore normalizes the critic's layers, and in Lab 1, with a single update per step, SAC already spent three times more compute per step than PPO. Where the limit lies depends on the task, the size of the networks and how diverse the buffer is.</p></details>
+    <details class="card pad open-q"><summary>Can you learn from the buffer alone, without taking any new steps at all?</summary><p>If the buffer was collected in advance, from demonstrations, old policies or other robots, learning from it is called offline reinforcement learning. The difficulty is that there's nothing to check the Q-function against: for actions that aren't in the data, the critic makes mistakes, and the actor is drawn exactly to where the estimate is mistakenly high. When learning with new steps, experience corrects such errors; offline, only the caution of the method itself does. That's why SERL starts from demonstrations but then learns from its own attempts.</p></details>
+    <h3 style="margin-top:34px">Paper guide</h3>
+    <p><a href="https://arxiv.org/abs/1812.05905" target="_blank" rel="noopener">T. Haarnoja et al., “Soft Actor-Critic Algorithms and Applications”, 2018</a>.</p>
+    <ul class="links">
+      <li><strong>Read closely</strong><span>Section 4.2 and Algorithm 1: how soft policy iteration turns into the updates of two Q-functions and the policy. Section 5, Eq. 18: the automatic temperature. Sections 7.2–7.3: Minitaur and the valve-turning claw, and what had to be added to the reward and the state for the sake of a real robot.</span></li>
+      <li><strong>Safe to skip</strong><span>The proofs in Section 4.1 and the derivation of the dual problem for the temperature (Eqs. 7–17): the final Eq. 18 is enough to understand the algorithm.</span></li>
+      <li><strong>Question to keep in mind</strong><span>Why is the target entropy \(-\dim A\), a negative number? What happens to a policy with \(\tanh\) squashing if you set the target entropy much higher?</span></li>
+    </ul>
+    <p style="margin-top:18px">Other papers in this lesson: <a href="https://arxiv.org/abs/1312.5602" target="_blank" rel="noopener">DQN</a> (Mnih et al., 2013), <a href="https://arxiv.org/abs/1509.02971" target="_blank" rel="noopener">DDPG</a> (Lillicrap et al., 2015), <a href="https://arxiv.org/abs/1802.09477" target="_blank" rel="noopener">TD3</a> (Fujimoto et al., 2018), <a href="https://arxiv.org/abs/1801.01290" target="_blank" rel="noopener">SAC</a> (Haarnoja et al., 2018), <a href="https://arxiv.org/abs/2401.16013" target="_blank" rel="noopener">SERL</a> (Luo et al., 2024). The definitions of on- and off-policy learning, Q-learning and double learning are given in the textbook by R. Sutton and A. Barto, “Reinforcement Learning: An Introduction,” 2nd edition, 2018, Sec. 5.5, 6.5 and 6.7.</p>
+    <h3 style="margin-top:34px">Resources</h3>
+    <ul class="links">
+      <li><a href="https://sites.google.com/view/sac-and-applications/" target="_blank" rel="noopener">SAC: Algorithms and Applications</a><span>Project page: videos of Minitaur and the valve-turning claw learning</span></li>
+      <li><a href="https://github.com/rail-berkeley/softlearning/" target="_blank" rel="noopener">softlearning</a><span>The authors' SAC code</span></li>
+      <li><a href="https://github.com/sfujim/TD3" target="_blank" rel="noopener">TD3</a><span>The authors' TD3 code and learning curves</span></li>
+      <li><a href="https://serl-robot.github.io/" target="_blank" rel="noopener">SERL</a><span>The library, documentation and videos of the circuit board, cable and object relocation tasks</span></li>
+    </ul>
+    <div class="bridge-note"><p>SAC learns from old experience, and training on a real robot takes hours, while in a simulator a step costs almost nothing. But a simulator is a single model of the robot: one set of masses, one friction, motors without delay. A policy learned on it may sway and miss on a real arm.</p><p class="bridge-to"><!--if:5-4-perenos-iz-simulyatsii.html--><a href="5-4-perenos-iz-simulyatsii.html"><!--/if-->Lesson 5.4 · Sim-to-real transfer: how dynamics randomization prepares a policy for the real robot<!--if:5-4-perenos-iz-simulyatsii.html--></a><!--/if--></p></div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Lesson 5.3 of the “Modern Robotics and Physical AI” course. All training in the labs runs in your browser with a fixed random seed; the numbers from the papers are taken from the original sources.
+</footer>
+<div class="tooltip" id="tooltip" role="tooltip"></div>
+<script>
+/*@@JS@@*/
+</script>
+</body>
+</html>
