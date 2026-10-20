@@ -184,13 +184,15 @@ const LOOP_ANIM = { it: [1, 10, 20, 50], ok: [0, 3, 7, 8], steps: [266, 557, 729
     const { lab, rect, line, arrow, circle, seg, ease, alpha } = A, u = ((t % T) + T) % T, cyc = Math.floor(u / TT), v = u - cyc * TT;
     const ok = LOOP_ANIM.ok[cyc], it = LOOP_ANIM.it[cyc], st = g.st;
     const act = v < 1.6 ? 0 : v < 2.6 ? 1 : v < 3.6 ? 2 : v < 5.6 ? 3 : 4;
-    const head = [['Ада ездит', '8 поездок текущей политикой'], ['порция опыта', 'положения, руль, награды'], ['критик', 'V(s) и преимущества GAE'], ['актёр', '5 эпох, обрезка 1 ± 0,2']];
+    // заголовок станции, пояснение и его короткий вариант: на узком канвасе длинное пояснение не влезает в блок
+    const head = [['Ада ездит', '8 поездок текущей политикой', '8 поездок'], ['порция опыта', 'положения, руль, награды', 'шаги всех поездок'], ['критик', 'V(s) и преимущества GAE', 'V(s) и GAE'], ['актор', '5 эпох, обрезка 1 ± 0,2', '5 эпох, 1 ± 0,2']];
     const colOf = (i) => (i <= 1 ? P.out : P.mot);
     st.forEach(([x, y, w, h], i) => {
       const hot = act === i;
       rect(c, x, y, w, h, 10, alpha(colOf(i), hot ? 0.16 : 0.06), colOf(i), hot ? 2.2 : 1.3);
       lab(c, k, head[i][0], x + w / 2, y + 14, { px: 11.5, weight: 700, color: colOf(i), halo: false });
-      lab(c, k, head[i][1], x + w / 2, y + 30, { px: 9.5, color: P.ink2, halo: false });
+      HeroKit.font(c, k, 10, 600);
+      lab(c, k, c.measureText(head[i][1]).width <= w - 8 * k ? head[i][1] : head[i][2], x + w / 2, y + 30, { px: 10, color: P.ink2, halo: false });
     });
     for (let i = 0; i < 3; i++) { const [a1, b1] = g.links[i]; arrow(c, a1[0], a1[1], b1[0], b1[1], act === i + 1 ? colOf(i + 1) : P.ink3, 2, 7); }
     // 1: поездки — 8 линий от старта, доехавшие до кухни с галочкой
@@ -210,14 +212,14 @@ const LOOP_ANIM = { it: [1, 10, 20, 50], ok: [0, 3, 7, 8], steps: [266, 557, 729
     { const [x, y, w, h] = st[2], base = y + 44 + (h - 60) / 2, grow = act === 2 ? seg(v, 2.7, 3.4) : act > 2 || act === 4 ? 1 : 0.35;
       line(c, [[x + 14, base], [x + w - 14, base]], P.ink3, 1);
       for (let j = 0; j < 10; j++) { const a = AS[j] * (0.4 + ((j * 13) % 7) / 10), hh = a * 20 * grow; c.fillStyle = alpha(a > 0 ? P.good : P.bad, act === 2 ? 1 : 0.6); c.fillRect(x + 18 + j * (w - 36) / 10, Math.min(base, base - hh), (w - 36) / 10 - 3, Math.abs(hh)); } }
-    // 4: актёр — ось r, полоса 1 ± ε, точки расходятся по эпохам и гаснут за полосой в выгодную сторону
+    // 4: актор — ось r, полоса 1 ± ε, точки расходятся по эпохам и гаснут за полосой в выгодную сторону
     { const [x, y, w, h] = st[3], ax0 = x + 12, ax1 = x + w - 12, ay = y + h - 20, R = (r) => ax0 + (r - 0.6) / 0.8 * (ax1 - ax0);
       c.fillStyle = alpha(P.ink3, 0.16); c.fillRect(R(0.8), ay - 34, R(1.2) - R(0.8), 34);
       line(c, [[ax0, ay], [ax1, ay]], P.ink3, 1.2);
-      for (const [r, tx] of [[0.8, '0,8'], [1, '1'], [1.2, '1,2']]) lab(c, k, tx, R(r), ay + 10, { px: 9, color: P.ink3, halo: false });
+      for (const [r, tx] of [[0.8, '0,8'], [1, '1'], [1.2, '1,2']]) lab(c, k, tx, R(r), ay + 10, { px: 10, color: P.ink3, halo: false });
       const ep = act === 3 ? Math.min(5, Math.floor(seg(v, 3.7, 5.5) * 5.999)) : act === 4 ? 5 : 0, sp = ep / 5;
       RS.forEach((r, j) => { const rr = 1 + (r - 1) * sp, off = (AS[j] > 0 && rr > 1.2) || (AS[j] < 0 && rr < 0.8); circle(c, R(rr), ay - 7 - (j % 4) * 6, 3.2, off ? alpha(P.ink3, 0.5) : alpha(AS[j] > 0 ? P.good : P.bad, act >= 3 ? 1 : 0.5), null); });
-      lab(c, k, act >= 3 ? `эпоха ${Math.max(1, ep)} из 5` : 'r = 1 до обновления', x + w / 2, y + 48, { px: 9.5, color: P.ink2, halo: false }); }
+      lab(c, k, act >= 3 ? `эпоха ${Math.max(1, ep)} из 5` : 'r = 1 до обновления', x + w / 2, y + 48, { px: 10, color: P.ink2, halo: false }); }
     // пакет данных: по дорожке под станциями, потом в корзину
     let px, py, pa = 1; const L = g.lane;
     const mv = (i, j, a0, a1) => { const s2 = ease(seg(v, a0, a1)), a = L(i), b = L(j); return [a[0] + (b[0] - a[0]) * s2, a[1] + (b[1] - a[1]) * s2]; };
@@ -316,10 +318,13 @@ const Trace = (() => {
     const path = (arr, col, lw, dash) => { c.strokeStyle = col; c.lineWidth = lw; c.setLineDash(dash || []); c.beginPath(); arr.forEach((v, t) => (t ? c.lineTo(X(t), Y(v)) : c.moveTo(X(t), Y(v)))); c.stroke(); c.setLineDash([]); };
     path(q.V, P.ink3, 1.8, [5, 4]); path(q.G, P.cl, 2.4);
     c.strokeStyle = P.ink; c.lineWidth = 1.4; c.beginPath(); c.moveTo(X(st.t), Tp - 4); c.lineTo(X(st.t), Tp + gh); c.stroke();
-    const narrow = k > 1.5;
-    K.label(c, k, narrow ? 'отдача G' : 'отдача G после шага', L + 4, 11, { px: 10.5, color: P.cl, align: 'left', weight: 650, haloColor: P.surf });
-    K.label(c, k, narrow ? 'ценность V' : 'ценность V(s), которую ждал критик', L + (narrow ? 110 : 170), 11, { px: 10.5, color: P.ink3, align: 'left', weight: 650, haloColor: P.surf });
-    K.label(c, k, narrow ? `A, λ = ${fmt(st.lam, 2)}` : `преимущество A, λ = ${fmt(st.lam, 2)}`, W - R - 2, 11, { px: 10.5, color: P.good, align: 'right', weight: 650, haloColor: P.surf });
+    // подписи линий над графиком: длинные — в широкой раскладке, если все три встают в строку и не налезают друг на друга
+    const tops = (sh) => [[sh ? 'отдача G' : 'отдача G после шага', L + 4, 'left', P.cl], [sh ? 'ценность V' : 'ценность V(s), которую ждал критик', L + (sh ? 110 : 170), 'left', P.ink3],
+      [sh ? `A, λ = ${fmt(st.lam, 2)}` : `преимущество A, λ = ${fmt(st.lam, 2)}`, W - R - 2, 'right', P.good]];
+    K.font(c, k, 10.5, 650);
+    const fits = (row) => { const [a, b, d] = row.map(([t]) => c.measureText(t).width), gap = 8 * k; return row[0][1] + a + gap <= row[1][1] && row[1][1] + b + gap <= row[2][1] - d; };
+    const narrow = narrowC || !fits(tops(false));
+    tops(narrow).forEach(([t, x, al, col]) => K.label(c, k, t, x, 11, { px: 10.5, color: col, align: al, weight: 650, haloColor: P.surf }));
     K.label(c, k, narrow ? 'шаг поездки (0,1 с)' : 'шаг поездки, по 0,1 с', L + gw / 2, H - 10, { px: 10.5, color: P.ink3, halo: false });
   }
   function render() {
@@ -374,7 +379,7 @@ const Corr = (() => {
   const KEY = { ppo: reg(BASE), noclip: reg(Object.assign({}, BASE, { clip: 0 })), small: reg(Object.assign({}, BASE, { clip: 0, LR: 0.0003 })) };
   const st = { runs: {}, live: {}, order: [], left: KEY.noclip, right: KEY.ppo, it: N, view: 'ok', busy: false, prog: 0, opts: Object.assign({}, BASE) };
   let ctl = null;
-  const lrTxt = (v) => fmt(v, v < 0.001 ? 4 : 3);
+  const lrTxt = (v) => (+v).toLocaleString('ru-RU', { maximumFractionDigits: v < 0.001 ? 4 : 3 });
   /** Чем настройка отличается от PPO лаборатории: «ε = 0,1», «шаг 0,01», «1 эпоха», «λ = 0». */
   function diffOf(o) {
     const d = [];
@@ -450,7 +455,7 @@ const Corr = (() => {
     if (cv.style.aspectRatio !== `${W} / ${H}`) cv.style.aspectRatio = `${W} / ${H}`;
     const { c, k } = K.fit(cv, W, H), P = pal2();
     c.fillStyle = P.surf; c.fillRect(0, 0, W, H);
-    const L = narrow ? 46 : 54, R = narrow ? 64 : 150, T = 24, B = 38, gw = W - L - R, gh = H - T - B;
+    const L = narrow ? 60 : 54, R = narrow ? 64 : 150, T = 24, B = 38, gw = W - L - R, gh = H - T - B;
     const X = (i) => L + gw * (i - 1) / (N - 1), kl = st.view === 'kl';
     const Y = kl ? (v) => T + gh * (1 - (Math.log10(Math.max(1e-4, Math.min(10, v))) + 4) / 5) : (v) => T + gh * (1 - v);
     c.strokeStyle = P.grid; c.lineWidth = 1;
@@ -469,11 +474,26 @@ const Corr = (() => {
       const hist = histOf(key), main = key === st.left || key === st.right, col = colOf(key, P);
       c.strokeStyle = col; c.lineWidth = main ? 2.4 : 1.3; c.setLineDash(main ? [] : [4, 4]); c.globalAlpha = main ? 1 : 0.7;
       c.beginPath(); hist.forEach((h, i) => { const v = kl ? h.kl : h.ok / h.n, x = X(i + 1), y = Y(v); i ? c.lineTo(x, y) : c.moveTo(x, y); }); c.stroke(); c.setLineDash([]); c.globalAlpha = 1;
-      if (hist.length === N) { const s = st.runs[key] ? st.runs[key].sum : null, v = !s ? '' : kl ? KLD(s.klMed) : pct(s.last10) + '%'; tags.push({ y: Y(kl ? hist[N - 1].kl : hist[N - 1].ok / 8), col: main ? col : P.ink3, main, text: narrow ? v : `${shortOf(key)}${v ? ' · ' + v : ''}` }); }
+      if (hist.length === N) { const s = st.runs[key] ? st.runs[key].sum : null, v = !s ? '' : kl ? KLD(s.klMed) : pct(s.last10) + '%'; tags.push({ y: Y(kl ? hist[N - 1].kl : hist[N - 1].ok / 8), col: main ? col : P.ink3, main, name: narrow ? '' : shortOf(key), v }); }
     }
-    tags.sort((a, b) => a.y - b.y); for (let i = 1; i < tags.length; i++) tags[i].y = Math.max(tags[i].y, tags[i - 1].y + 14);
-    tags.forEach((t) => K.label(c, k, t.text, L + gw + 6, Math.min(T + gh, t.y), { px: t.main ? 10.5 : 9.5, weight: t.main ? 650 : 500, color: t.col, align: 'left', haloColor: P.surf }));
-    if (tags.length && !narrow) K.label(c, k, kl ? 'медиана KL' : '% — за последние 10', L + gw + 6, 10, { px: 9.5, color: P.ink3, align: 'left', halo: false });
+    // подписи концов линий у правого края: по высоте, не ближе 13 px друг к другу; если внизу места не хватает,
+    // вся группа поднимается, так что подписи не налезают друг на друга и остаются в пределах графика
+    const n = tags.length, gap = n > 1 ? Math.min(13 * k, gh / (n - 1)) : 0, xT = L + gw + 6, room = W - xT - 2 * k;
+    tags.sort((a, b) => a.y - b.y);
+    for (let i = 0; i < n; i++) tags[i].y = Math.max(tags[i].y, i ? tags[i - 1].y + gap : T);
+    const yMax = T + gh + Math.min(0, 13 - 11.5 * k);   // ниже — деление «50» под осью
+    for (let i = n - 1; i >= 0; i--) tags[i].y = Math.min(tags[i].y, i < n - 1 ? tags[i + 1].y - gap : yMax);
+    tags.forEach((t) => {
+      const o = { px: t.main ? 10.5 : 10, weight: t.main ? 650 : 500, color: t.col, align: 'left', haloColor: P.surf };
+      // длинное имя настройки укорачиваем по запятым, пока подпись не встанет в поле справа от графика
+      K.font(c, k, o.px, o.weight);
+      const join = (nm) => (nm ? nm + (t.v ? ' · ' + t.v : '') : t.v), parts = t.name ? t.name.split(', ') : [];
+      let s = join(t.name);
+      while (c.measureText(s).width > room && parts.length > 1) { parts.pop(); s = join(parts.join(', ') + '…'); }
+      if (c.measureText(s).width > room) s = t.v;
+      K.label(c, k, s, xT, t.y, o);
+    });
+    if (n && !narrow) K.label(c, k, kl ? 'медиана KL' : '% — за последние 10', xT, 10, { px: 10, color: P.ink3, align: 'left', halo: false });
     c.strokeStyle = P.ink; c.lineWidth = 1.3; c.beginPath(); c.moveTo(X(st.it), T - 2); c.lineTo(X(st.it), T + gh); c.stroke();
   }
   function render() {
@@ -508,12 +528,12 @@ const Corr = (() => {
       bet: { q: 'какая из Ад будет доезжать до кухни в последних 10 обновлениях?', options: ['Обе: шаг и данные одинаковые, а без обрезки политика ещё и свободнее', 'Только левая: обрезка мешает учиться', 'Только PPO справа'], answer: (r) => (r.ppo.last10 >= 0.75 && r.nc.last10 < 0.1 ? 2 : r.nc.last10 > r.ppo.last10 ? 1 : 0) },
       action: { label: 'Обучить обеих Ад', run: (X) => X.first() },
       criteria: [{ label: 'PPO доезжает хотя бы в 75% поездок последних 10 обновлений', test: (r) => r.ppo.last10 >= 0.75 }, { label: 'Без обрезки — меньше чем в 10%', test: (r) => r.nc.last10 < 0.1 }],
-      explain: (r) => `За 50 обновлений PPO доехала до кухни в ${r.ppo.okAll} поездках из 400, в последних десяти обновлениях — в ${pct(r.ppo.last10)}%, а в среднем по пяти обновлениям вышла на 75% к обновлению ${r.ppo.reach}. Без обрезки — ${r.nc.okAll} из 400: левая Ада так и не научилась доезжать. Медиана KL за обновление: ${KLD(r.nc.klMed)} без обрезки и ${KLD(r.ppo.klMed)} у PPO — почти та же граница 0,01, что у TRPO, хотя PPO её нигде не задаёт. Самый большой скачок без обрезки — KL = ${KLD(r.nc.klMax)}.` },
+      explain: (r) => `За 50 обновлений PPO доехала до кухни в ${r.ppo.okAll} поездках из 400, а в последних десяти обновлениях доезжала в ${pct(r.ppo.last10)}% поездок. В среднем по пяти обновлениям она вышла на 75% к обновлению ${r.ppo.reach}. У Ады без обрезки таких поездок ${r.nc.okAll} из 400: она так и не научилась доезжать. Медиана KL за обновление равна ${KLD(r.nc.klMed)} без обрезки и ${KLD(r.ppo.klMed)} у PPO. У PPO она почти совпадает с границей TRPO 0,01, хотя PPO эту границу нигде не задаёт. Без обрезки самый большой скачок политики за одно обновление составил KL = ${KLD(r.nc.klMax)}.` },
     { short: 'Малый шаг', title: 'А если шагать осторожнее?', text: 'Может, без обрезки хватит шага поменьше? Слева теперь Ада без обрезки с шагом Adam 0,0003 — в десять раз меньше. Справа — та же PPO.',
       bet: { q: 'что будет с левой Адой за 50 обновлений?', options: ['Научится так же, как PPO, только немного позже', 'Не развалится, но будет доезжать заметно реже PPO', 'Развалится, как с большим шагом'], answer: (r) => (r.small.last10 >= r.ppo.last10 - 0.1 ? 0 : r.small.last10 <= 0.05 ? 2 : 1) },
       action: { label: 'Обучить с малым шагом', run: (X) => X.small() },
       criteria: [{ label: 'С малым шагом Ада доезжает чаще, чем без обрезки с большим', test: (r) => r.small.last10 > r.nc.last10 }, { label: '…но хотя бы на 30 пунктов реже PPO', test: (r) => r.small.last10 <= r.ppo.last10 - 0.3 }],
-      explain: (r) => `С шагом 0,0003 без обрезки — ${pct(r.small.last10)}% поездок до кухни в последних десяти обновлениях и ${r.small.okAll} из 400 за всё обучение: развала нет, но и прогресс медленный. Медиана KL за обновление — ${KLD(r.small.klMed)}, примерно в ${nWord(Math.round(r.ppo.klMed / r.small.klMed), 'раз', 'раза', 'раз')} меньше, чем у PPO (${KLD(r.ppo.klMed)}). Авторы TRPO писали о том же: штраф, которого требует теория, делает шаги очень маленькими. PPO оставляет шаг большим, а гасит его только для тех примеров, где политика уже ушла достаточно далеко.` },
+      explain: (r) => `С шагом 0,0003 без обрезки Ада доезжает до кухни в ${pct(r.small.last10)}% поездок последних десяти обновлений, а за всё обучение доехала в ${r.small.okAll} поездках из 400. Политика не разваливается, но учится медленно. Медиана KL за обновление равна ${KLD(r.small.klMed)}: это примерно в ${nWord(Math.round(r.ppo.klMed / r.small.klMed), 'раз', 'раза', 'раз')} меньше, чем у PPO (${KLD(r.ppo.klMed)}). Авторы TRPO писали о том же: штраф, которого требует теория, делает шаги очень маленькими. PPO оставляет шаг большим и гасит его только для тех примеров, где политика уже ушла достаточно далеко.` },
     { short: 'Скачок', title: 'Обновление, которое изменило политику сильнее всего', text: 'Переключи график на «насколько изменилась политика» и найди обновление, после которого политика Ады без обрезки изменилась сильнее всего. Номер обновления выбирай ползунком или нажатием на график; на сценах — поездки перед выбранным обновлением.',
       controls: ['view'],
       onEnter: (X) => { X.st.left = X.KEY.noclip; X.st.right = X.KEY.ppo; X.render(); },
@@ -524,7 +544,7 @@ const Corr = (() => {
   ];
   function init() {
     const cv = $('#pChart');
-    const pick = (e) => { const r = cv.getBoundingClientRect(), narrow = r.width < 500, W = narrow ? 380 : 640, L = narrow ? 46 : 54, R = narrow ? 64 : 150, x = (e.clientX - r.left) / r.width * W; setIt(1 + (x - L) / (W - L - R) * (N - 1)); };
+    const pick = (e) => { const r = cv.getBoundingClientRect(), narrow = r.width < 500, W = narrow ? 380 : 640, L = narrow ? 60 : 54, R = narrow ? 64 : 150, x = (e.clientX - r.left) / r.width * W; setIt(1 + (x - L) / (W - L - R) * (N - 1)); };
     let down = false;
     cv.addEventListener('pointerdown', (e) => { down = true; pick(e); });
     cv.addEventListener('pointermove', (e) => { if (down) pick(e); });
@@ -643,7 +663,7 @@ const Clip = (() => {
       bet: { q: 'исправит ли обучение эту ошибку?', options: ['Нет: r за пределами [0,8; 1,2], обрезка гасит градиент', 'Да, в полную силу: градиент тянет r вниз', 'Да, но слабее, чем внутри отрезка'], answer: (r) => (r.slope < 0 ? 1 : 0) },
       action: { label: 'Поставить r = 1,6 при A < 0', run: (X) => X.wrong() },
       criteria: [{ label: 'Градиент тянет r вниз', test: (r) => r.slope < 0 }],
-      explain: (r) => `Необрезанный член r·A = ${fmtS(-1.6, 1)}, обрезанный — ${fmtS(r.clipped, 1)}, и минимум выбирает первый: он хуже. Значит, градиент тот же, что без обрезки, и вероятность ошибочного действия снижается в полную силу. Авторы PPO так и описывают свою цель: изменение r не учитывается, когда оно улучшает цель, и учитывается, когда ухудшает. Обрезка ограничивает только выгодные шаги.` },
+      explain: (r) => `Необрезанный член r·A = ${fmtS(-1.6, 1)}, обрезанный — ${fmtS(r.clipped, 1)}, и минимум выбирает первый: он хуже. Значит, градиент тот же, что без обрезки, и вероятность ошибочного действия снижается в полную силу. Так авторы PPO и описывают свою целевую функцию: изменение r не учитывается, когда оно её улучшает, и учитывается, когда ухудшает. Обрезка ограничивает только выгодные шаги.` },
     { short: 'Порция', title: 'Пять эпох по одной порции опыта', text: 'Теперь настоящие числа. Ада PPO из лаборатории 1 после 10 обновлений проехала 8 поездок — 772 решения руля. Её политику обновляют пять эпох мини-пакетами по этой порции дважды, с одной и той же копии: с обрезкой ε = 0,2 и без. Для каждого решения считают, во сколько раз изменилась его вероятность.',
       controls: ['r', 'sign'],
       onEnter: (X) => { if (X.st.eps !== 0.2) X.setEps(0.2); },
@@ -679,14 +699,15 @@ const Steps = (() => {
   const q = () => ({ robots: ROBOTS[st.ri], steps: STEPS[st.si], updates: UPD[st.ui], hz: PR.rudin.hz });
   const big = (n) => (Math.abs(n) < 10000 ? String(Math.round(n)) : fmt(n, 0));   // четырёхзначные — без пробела
   const f1 = (v) => (+v).toLocaleString('ru-RU', { maximumFractionDigits: 1 });
-  const days = (d) => (d < 1 ? `${f1(d * 24)} ч` : d < 365 ? `${d < 100 ? f1(d) : fmt(d, 0)} сут` : `${f1(d / 365)} года`);
+  const yearsWord = (y) => (y % 1 ? 'года' : plural(y, 'год', 'года', 'лет'));   // 1 год, 2 года, 5 лет, 1,5 года
+  const days = (d) => { if (d < 1) return `${f1(d * 24)} ч`; if (d < 365) return `${d < 100 ? f1(d) : fmt(d, 0)} сут`; const y = Math.round(d / 36.5) / 10; return `${f1(y)} ${yearsWord(y)}`; };
   const dur = (sec) => (sec < 120 ? `${fmt(sec, 0)} с` : sec < 7200 ? `${f1(sec / 60)} мин` : `${f1(sec / 3600)} ч`);
   function warnings(x, r) {
     const out = [];
     if (x.robots === 1) out.push(['', 'Один робот: так учился бы настоящий робот, и опыт набирался бы в реальном времени.']);
     if (x.steps < 24) out.push(['warn', `Каждый робот делает за обновление ${x.steps} шагов подряд — ${fmt(r.horizon, 2)} с. Авторы пишут, что алгоритм с трудом сходится, когда шагов меньше 25 (0,5 с): GAE нужны награды нескольких шагов подряд.`]);
-    else if (x.steps === 24) out.push(['', '24 шага подряд — 0,48 с, у самой границы в 25 шагов, которую называют авторы; так и было в их обучении.']);
-    if (x.robots > 1 && x.robots <= 512 && r.B >= 49152) out.push(['warn', `${x.robots} роботов на такую порцию — у каждого длинные отрезки похожих друг на друга шагов. У авторов при малом числе роботов политика немного хуже, а время обучения почти линейно растёт, когда роботов меньше 4000.`]);
+    else if (x.steps === 24) out.push(['', 'Каждый робот делает за обновление 24 шага подряд, это 0,48 с. Такой отрезок лежит у самой границы в 25 шагов, которую называют авторы, и именно его они брали в своём обучении.']);
+    if (x.robots > 1 && x.robots <= 512 && r.B >= 49152) out.push(['warn', `Когда такую порцию собирают ${x.robots} роботов, каждый из них проходит за обновление длинный отрезок, и соседние шаги в нём похожи друг на друга. У авторов с малым числом роботов политика получалась немного хуже, а время обучения почти линейно росло, когда роботов было меньше 4000.`]);
     if (r.B >= 500000) out.push(['', 'Порция от полумиллиона шагов: у авторов 20 000 роботов × 50 шагов = 1 млн дали лучшую политику, но ценой заметно более долгого обучения.']);
     if (x.robots >= 2048 && x.robots <= 4096 && r.B >= 90000 && r.B <= 220000) out.push(['good', 'Зона, которую авторы называют лучшим компромиссом для своей задачи: 2048–4096 роботов, порция около 100–200 тысяч шагов.']);
     return out;
@@ -715,19 +736,26 @@ const Steps = (() => {
       ['ANYmal, бег, TRPO, 2019', PR.anymal.simDays, '4 ч, 1 CPU + 1 GPU', P.cl, '4 ч'],
       ['ANYmal, подъём, TRPO, 2019', PR.anymal.recoverDays, '11 ч', P.cl, '11 ч'],
       ['ANYmal, PPO, Rudin et al., 2021', rud.days, '< 20 мин, 1 GPU', P.cl, '< 20 мин'],
-      ['Твоя настройка', r.days, 'время зависит от симулятора', P.e2e, ''],
+      ['Твоя настройка', r.days, '', P.e2e, ''],   // сколько шло бы обучение, калькулятор не знает: это сказано в подписи под графиком
     ];
     const L = narrow ? 12 : 220, R = narrow ? 12 : 150, T = 12, rowH = narrow ? (H - T - 26) / rows.length : (H - T - 28) / rows.length;
     const lo = Math.log10(0.01), hi = Math.log10(1000), gw = W - L - R, X = (d) => L + gw * (Math.log10(Math.max(0.01, Math.min(1000, d))) - lo) / (hi - lo);
     c.strokeStyle = P.grid; c.lineWidth = 1;
-    for (const [d, t] of [[0.01, '15 мин'], [0.1, '2,4 ч'], [1, '1 сут'], [10, '10 сут'], [100, '100 сут'], [1000, '1000 сут']]) { c.beginPath(); c.moveTo(X(d), T); c.lineTo(X(d), H - 24); c.stroke(); K.label(c, k, narrow && (d === 0.1 || d === 100) ? '' : t, X(d), H - 12, { px: 10, color: P.ink3, align: narrow && d === 0.01 ? 'left' : narrow && d === 1000 ? 'right' : 'center', halo: false }); }
+    const ticks = [[0.01, '15 мин'], [0.1, '2,4 ч'], [1, '1 сут'], [10, '10 сут'], [100, '100 сут'], [1000, '1000 сут']];
+    K.font(c, k, 10, 600);
+    const sparse = narrow || ticks.some(([d, t], i) => i && (c.measureText(t).width + c.measureText(ticks[i - 1][1]).width) / 2 + 6 * k > X(d) - X(ticks[i - 1][0]));
+    for (const [d, t] of ticks) { c.beginPath(); c.moveTo(X(d), T); c.lineTo(X(d), H - 24); c.stroke(); K.label(c, k, sparse && (d === 0.1 || d === 100) ? '' : t, X(d), H - 12, { px: 10, color: P.ink3, align: narrow && d === 0.01 ? 'left' : narrow && d === 1000 ? 'right' : 'center', halo: false }); }
     rows.forEach(([name, d, time, col, tShort], i) => {
       const y = T + rowH * i, bh = narrow ? rowH * 0.34 : rowH * 0.56, by = narrow ? y + rowH * 0.5 : y + (rowH - bh) / 2;
       c.fillStyle = col; c.globalAlpha = 0.85; c.fillRect(L, by, Math.max(2, X(d) - L), bh); c.globalAlpha = 1;
-      if (narrow) { K.label(c, k, `${name} · ${days(d)}${tShort ? ' за ' + tShort : ''}`, L, y + rowH * 0.28, { px: 10, weight: 650, color: col === P.e2e ? P.e2e : P.ink2, align: 'left', haloColor: P.surf }); }
+      if (narrow) {
+        K.font(c, k, 10, 650);
+        const full = `${name} · ${days(d)}${tShort ? ' за ' + tShort : ''}`;
+        K.label(c, k, c.measureText(full).width <= W - L - 2 * k ? full : `${name} · ${days(d)}`, L, y + rowH * 0.28, { px: 10, weight: 650, color: col === P.e2e ? P.e2e : P.ink2, align: 'left', haloColor: P.surf });
+      }
       else {
         K.label(c, k, name, L - 8, by + bh / 2, { px: 10.5, weight: 650, color: col === P.e2e ? P.e2e : P.ink2, align: 'right', halo: false });
-        K.label(c, k, `${days(d)} · ${time}`, Math.min(X(d), L + gw) + 6, by + bh / 2, { px: 10, color: P.ink2, align: 'left', haloColor: P.surf });
+        K.label(c, k, time ? `${days(d)} · ${time}` : days(d), Math.min(X(d), L + gw) + 6, by + bh / 2, { px: 10, color: P.ink2, align: 'left', haloColor: P.surf });
       }
     });
   }
@@ -796,7 +824,7 @@ function initQuiz() {
     { q: 'Базовая линия b(s) смещает оценку градиента — поэтому её берут маленькой?', o: ['Да, чем больше b, тем сильнее смещение', 'Нет: если b зависит только от состояния, среднее направление градиента не меняется, а разброс может заметно упасть; естественный выбор — ценность V(s)', 'Базовая линия нужна только для дискретных действий'], a: 1, e: 'Вычтенная часть, усреднённая по действиям политики, даёт ноль (Sutton и Barto, разд. 13.4). Смещение появляется в другом месте — когда оценка преимущества доверяет неточному критику, как GAE с λ = 0.' },
     { q: 'Чем больше эпох по одной порции опыта, тем больше пользы от собранных данных — и обрезка для этого не нужна?', o: ['Да, данные надо использовать по максимуму', 'Нет: без ограничения несколько эпох по одной порции уводят политику слишком далеко — в коридоре Ады без обрезки 0% поездок до кухни в конце обучения', 'Нет, больше одной эпохи нельзя никогда'], a: 1, e: 'PPO и придуман, чтобы проходить по порции несколько эпох без разрушительных обновлений. В статье PPO вариант без обрезки и штрафа получил −0,39 — хуже случайной политики.' },
     { q: 'Обрезка в PPO не даёт отношению вероятностей r выйти за пределы [1 − ε, 1 + ε]?', o: ['Да, r жёстко зажато в этом отрезке', 'Нет: обрезка гасит градиент отдельного примера, но общие веса двигаются ради других, и r этого примера может уйти дальше', 'Да, но только при положительном преимуществе'], a: 1, e: 'В лаборатории 2 после пяти эпох с ε = 0,2 за пределами [0,8; 1,2] оказались 20% решений руля, а без обрезки — 72%. Rudin et al. дополнительно подстраивали шаг обучения по KL.' },
-    { q: 'Действие хуже обычного, но его вероятность после нескольких мини-пакетов выросла в 1,6 раза. Обрезка помешает это исправить?', o: ['Да: r за пределами отрезка, градиент равен нулю', 'Нет: минимум выбирает необрезанный член, он хуже, и градиент тянет вероятность вниз в полную силу', 'Да, если ε меньше 0,6'], a: 1, e: 'Целевая функция PPO — пессимистичная оценка: изменение r не учитывается, когда улучшает цель, и учитывается, когда ухудшает. Ограничены только выгодные шаги.' },
+    { q: 'Действие хуже обычного, но его вероятность после нескольких мини-пакетов выросла в 1,6 раза. Обрезка помешает это исправить?', o: ['Да: r за пределами отрезка, градиент равен нулю', 'Нет: минимум выбирает необрезанный член, он хуже, и градиент тянет вероятность вниз в полную силу', 'Да, если ε меньше 0,6'], a: 1, e: 'Целевая функция PPO — пессимистичная оценка: изменение r не учитывается, когда оно её улучшает, и учитывается, когда ухудшает. Ограничены только выгодные шаги.' },
     { q: 'Если без обрезки политика разваливается, хватит просто уменьшить шаг обучения?', o: ['Да, и это ничем не хуже PPO', 'Политика перестанет разваливаться, но будет учиться медленно: в коридоре Ады с шагом в 10 раз меньше — 48% поездок до кухни против 99% у PPO', 'Нет, с маленьким шагом политика разваливается ещё быстрее'], a: 1, e: 'У малого шага медиана KL за обновление около 0,0025, у PPO — около 0,0095. Авторы TRPO писали, что штраф, которого требует теория, делает шаги очень маленькими, и заменили его ограничением.' },
     { q: 'При той же порции опыта больше параллельных роботов в симуляторе — всегда лучше?', o: ['Да, больше роботов — больше разнообразия', 'Нет: каждый робот получает меньше шагов подряд, а GAE нужны награды нескольких шагов; у Rudin et al. алгоритм с трудом сходился, когда шагов было меньше 25', 'Нет, число роботов ни на что не влияет'], a: 1, e: 'Лучшим компромиссом для своей задачи авторы называют 2048–4096 роботов и порции около 100–200 тысяч шагов. Их итоговая настройка — 4096 роботов по 24 шага.' },
   ], '#quizScore');
