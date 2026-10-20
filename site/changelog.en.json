@@ -9,6 +9,7 @@
         "Lessons 5.1 “RL basics: reward, value, advantage”, 5.2 “Policy gradient and PPO”, 5.3 “Off-policy and SAC”, 5.4 “Sim-to-real transfer: randomization”, 5.5 “Learning with privileged information”, 5.6 “Offline RL”, 5.7 “RL on real robots and VLA fine-tuning”, and the Part 5 check with a live scene task.",
         "Animated diagrams: the agent–environment loop and the Bellman update, a policy gradient step and the PPO cycle, the replay buffer and the SAC update, a command's path in the simulator and on the real arm, the automatic domain randomization loop, the two teacher–student stages and RMA, three ways to learn from experience, the HIL-SERL loop and RECAP.",
         "Training in the Part 5 labs gives the same numbers in Chrome, Safari and on the iPhone: the lesson engines don't depend on the browser's built-in math.",
+        "The Part 5 lessons and the Part 5 check are available in English from day one.",
         "36 new glossary terms."
       ]
     },
@@ -19,6 +20,7 @@
       "items": [
         "Lessons 4.1 “The scale of data in robotics”, 4.2 “Teleoperation and data collection devices”, 4.3 “Robot datasets”, 4.4 “Learning from human video”, 4.5 “Simulation and synthetic data”, 4.6 “The data pyramid and the flywheel”, and the Part 4 check with a live scene task.",
         "Animated diagrams: collection devices — the GELLO leader arm, a VR headset, DexCap gloves, exoskeletons and the UMI handheld gripper; how human videos become robot data; MimicGen demonstration generation; the GR00T N1 data pyramid and the data flywheel.",
+        "The Part 4 lessons and the Part 4 check are available in English from day one.",
         "28 new glossary terms."
       ]
     },
