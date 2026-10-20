@@ -106,6 +106,8 @@
   .src-h span:nth-child(n+3) { display: none; }
   .src-row:not(.src-h) span:nth-child(3)::before { content: "Есть: "; color: var(--ink-3); }
   .src-row:not(.src-h) span:nth-child(4)::before { content: "Нет: "; color: var(--ink-3); }
+  html[lang="en"] .src-row:not(.src-h) span:nth-child(3)::before { content: "Has: "; }
+  html[lang="en"] .src-row:not(.src-h) span:nth-child(4)::before { content: "Lacks: "; }
   .fleet.n32 { grid-template-columns: repeat(8, minmax(0, 1fr)); }
 }
 @media (max-width: 560px) {

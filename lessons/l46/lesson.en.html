@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>4.6 The data pyramid and the flywheel — Modern Robotics and Physical AI</title>
+<meta name="description" content="Lesson 4.6 of the “Modern Robotics and Physical AI” course: how robot demonstrations, simulation and human video are mixed, from the GR00T N1 data pyramid and mixture weights to the data flywheel at π*0.6 and Tesla. Split a budget between three sources, train a model in your browser and send a fleet of robots to work in other people's homes.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<script>
+  (function () { try { var t = localStorage.getItem('mr-theme'); if (t) document.documentElement.dataset.theme = t; else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme = 'dark'; } catch (e) {} })();
+</script>
+<style>
+/*@@CSS@@*/
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html#program" title="To the course program"><div>Modern Robotics and Physical AI<small>Lesson 4.6 · The data pyramid and the flywheel</small></div></a>
+    <nav class="toc" aria-label="Lesson sections">
+      <a href="#sources">Sources</a>
+      <a href="#pyramid">Pyramid</a>
+      <a href="#layers">Layers</a>
+      <a href="#weights">Weights</a>
+      <a href="#budget">Budget</a>
+      <a href="#flywheel">Flywheel</a>
+      <a href="#fleet">Fleet</a>
+      <a href="#limits">Limits</a>
+      <a href="#today">Today</a>
+      <a href="#quiz">Quiz</a>
+      <a href="#finale">Takeaways</a>
+    </nav>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Toggle theme">◐</button>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main>
+
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="kicker"><span class="num">4.6</span> Part 4 · Data for training robots</div>
+    <h1>The data pyramid and the flywheel: <span class="amp">how to mix sources and where to get new recordings</span></h1>
+    <p class="lead">Over the five lessons of this part, we've gathered five ways to get data, and each of them has its own flaw. Robot demonstrations are accurate, but every hour of them costs an hour of an operator's work. Human video is almost endless, but it has no robot actions. A simulator gives trajectories for compute time, but its world differs from the real one. In its GR00T N1 paper (2025), NVIDIA stacked the sources into a pyramid: web data and human video at the bottom, synthetic data in the middle and recordings of real robots at the top, with the humanoid's own recordings making up about 1% of the pre-training hours. How much to take from each layer is decided by the mixture weights. And once robots are at work, data starts coming from the robots themselves: Tesla has called such a loop the data engine since 2019, and Physical Intelligence, in π*0.6 (2025), trains its model on the attempts of robots that fold laundry and assemble boxes. We'll look at how the pyramid is built, how the shares of the sources are chosen and why such a loop doesn't spin by itself.</p>
+    <div class="hero-meta"><span>≈ 55 minutes</span><span>two labs, an interactive and a quiz</span><span id="heroMis">missions with a goal</span></div>
+    <div class="hero-list">
+      <div><b>ONE BUDGET, THREE SOURCES</b>Split the budget between robot demonstrations, simulation and human video, and test the model in homes where Ada has never been</div>
+      <div><b>WHOSE ACTIONS ARE THESE</b>Find out what happens if a person's movements from video are learned together with the robot's movements</div>
+      <div><b>A FLEET IN OTHER PEOPLE'S HOMES</b>Send 16 robots to work for people and watch the model learn from their successes and failures, shift after shift</div>
+      <div><b>WHAT SPEEDS UP LEARNING</b>Turn off failure labeling, double the fleet and find out what the growth really depends on</div>
+    </div>
+    <p style="margin-top:28px"><a class="btn primary" href="#sources">Start the lesson ↓</a></p>
+  </div>
+</section>
+
+<section class="recall-sec" id="recall" aria-label="Warm-up on the previous lesson">
+  <div class="wrap"><div class="card recall" data-recall></div></div>
+  <script type="application/json" id="recallData">{"n": "4.5", "title": "Simulation and synthetic data", "href": "4-5-simulyatsiya.html", "q": [{"q": "A model trained in a simulator without randomization picks up the cube almost every time. What happens on a real table?", "o": ["The same: the task hasn't changed", "Noticeably worse: the light, the colors, the background and the shadows are different; this is the gap between the simulator and reality", "The model won't work at all"], "a": 1, "e": "On Ada's table, it got 68% versus 100% in the simulator, and Dactyl's median was 13 turns versus 50. Randomizing the tablecloth and the light raised success on Ada's table to 94%.", "sec": "randomize", "secTitle": "Randomizing by eye: how much to vary the simulator"}, {"q": "Is it worth randomizing everything in the simulator as widely as possible?", "o": ["Yes, then the real world will surely be one of the variants", "No: you should vary what the model has to be indifferent to, and roughly within the limits of the real differences", "No, randomization always hurts"], "a": 1, "e": "Paint of any color dropped success on Ada's table from 94% to 37%: the red color is the task itself. Dactyl's ranges were centered on calibrated values, and the full randomization cost 100 years of simulated experience instead of 3.", "sec": "randomize", "secTitle": "Randomizing by eye: how much to vary the simulator"}, {"q": "How does MimicGen make 1,000 demonstrations out of 10?", "o": ["A generative model draws new trajectories", "It transfers segments of operator recordings together with the objects to new placements, adds straight-line moves and keeps only the attempts that succeeded in the simulator", "It repeats each recording 100 times with noise"], "a": 1, "e": "In the Square task, success rose from 11.3% to 90.7%. On Ada's table, 300 generated demonstrations raised success from 3% to 67%, and without the check in the simulator, only to 47%.", "sec": "generate", "secTitle": "Generating demonstrations: ten operator recordings and three hundred from the simulator"}]}</script>
+</section>
+
+<section class="section alt" id="sources">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">1</span> Sources</div>
+      <h2>Five data sources, and none of them gives everything</h2>
+      <p>Each lesson of this part added a data source and ended with its flaw. In lesson 4.2, demonstrations were recorded with a leader arm, a VR headset and gloves: the actions are accurate, but an hour of data costs an hour of an operator's work, and, as Ken Goldberg puts it, “every eight hours of work gives you just eight more hours of data.” The UMI hand-held gripper from the same lesson does without a robot, but it still records a person. In lesson 4.3, the large datasets of other labs, DROID and AgiBot World, were recorded on other robots. Human video from lesson 4.4 is measured in thousands of hours (Ego4D has 3,670 hours from head-mounted cameras), but it has no robot actions, and they have to be recovered. The simulator from lesson 4.5 gives trajectories for compute time, but its world differs from the real one.</p>
+      <p>The sources differ in two properties, and the two pull in opposite directions. The first property is how much data you can get. The second is how close the data is to the robot that will do the work: whether it has the same camera, the same body, the same actions and the same world around it. The closer the data is to the robot, the less of it there is.</p>
+      <div class="src-table" role="table" aria-label="Data sources: how much data each gives and how close it is to the robot">
+        <div class="src-row src-h" role="row"><span role="columnheader">Source</span><span role="columnheader">How much</span><span role="columnheader">What it has</span><span role="columnheader">What it lacks</span></div>
+        <div class="src-row" role="row"><span role="cell"><b>Demonstrations on your own robot</b> (4.2)</span><span role="cell">from 88 hours for GR00T N1 to 10,000 for π0</span><span role="cell">its camera, body and actions</span><span role="cell">scale: an hour of recording = an hour of operator time</span></div>
+        <div class="src-row" role="row"><span role="cell"><b>Recordings of other robots</b> (4.3, 3.4)</span><span role="cell">DROID: 350 hours; AgiBot World: about 3,000</span><span role="cell">robot actions, the real world</span><span role="cell">your own body: different cameras and arms</span></div>
+        <div class="src-row" role="row"><span role="cell"><b>Simulation</b> (4.5)</span><span role="cell">780,000 trajectories in 11 hours of compute</span><span role="cell">exact actions, any placements</span><span role="cell">the real world: light, contact, fabric</span></div>
+        <div class="src-row" role="row"><span role="cell"><b>Human video</b> (4.4)</span><span role="cell">Ego4D: 3,670 hours</span><span role="cell">real homes, objects, tasks</span><span role="cell">robot actions and the robot's body</span></div>
+        <div class="src-row" role="row"><span role="cell"><b>Web data</b> (3.2, 3.3)</span><span role="cell">billions of examples</span><span role="cell">names and properties of objects, language</span><span role="cell">any movement at all</span></div>
+      </div>
+      <p class="cv-note">The numbers come from lessons 3.6–4.5: π0 and GR00T N1, DROID and AgiBot World, the GR00T N1 simulation, Ego4D. How much data a source has depends on who collects it and how much they collect.</p>
+      <p>So the data has to be mixed. A <strong>data mixture</strong> is a training set for one model that brings together examples from several sources, with a fixed share for each source. Training one model on such a mixture is called <strong>co-training</strong>: in lesson 3.3, RT-2 learned actions this way together with web data, and in lesson 3.8, π0.5 learned from six kinds of data. Concatenating the files isn't enough for this: the sources have different cameras, different bodies and different actions, and human video has no robot actions at all. How do you bring them into one model?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="pyramid">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">2</span> Pyramid</div>
+      <h2>The GR00T N1 pyramid: the lower the layer, the farther it is from the robot</h2>
+      <p>The authors of GR00T N1 (NVIDIA, March 2025) start from the same problem. Robots, sensors, degrees of freedom and control modes differ from team to team, so, in their words, robot data forms “an archipelago of ‘data islands’ rather than a coherent, Internet-scale dataset.” They train the model from lesson 3.7 on a mixture arranged in layers; such a mixture is called a <strong>data pyramid</strong>. From the bottom up, there is less and less data, and the data itself gets closer and closer to a specific robot.</p>
+      <p>Web data and human video lie at the base. The model got its web data along with Eagle-2, the vision-language model it is built on. The human video comes from open datasets of head-mounted camera clips: Ego4D, EPIC-KITCHENS, HoloAssist and others, about 2,500 hours in total. These clips have no robot actions, and the authors recover them in the two ways from lesson 4.4. The first way is <strong>latent actions</strong>, a compressed description of what changed between two frames. The second is an inverse dynamics model, which guesses the action from a pair of frames. The middle is taken up by the synthetic data from lesson 4.5: 780,000 DexMimicGen simulation trajectories, obtained in 11 hours, and 827 hours of video that a video model generated from 88 hours of the team's own teleoperation. At the top lie recordings of real robots: those same 88 hours of teleoperation of the Fourier GR-1 humanoid, DROID, RT-1 and Bridge from Open X-Embodiment, and part of AgiBot World.</p>
+      <p>The layers teach different things. In the authors' words, the lower layers provide “broad visual and behavioral priors,” a general idea of what the world looks like and how one acts in it, while the upper ones ground the model in the movements of a real robot. To fit all of this into one model, every example is brought to a common form: images, the robot state, a text instruction and an action. And the authors treat human video as a separate <strong>embodiment</strong>, like one more robot with its own actions. The same model learns the latent actions in the same way, with flow matching, but through its own input and output, as with every robot in GR00T N1.</p>
+    </div>
+    <figure class="card flow-card">
+      <canvas data-anim="pyramid" width="720" height="360" role="img" aria-label="Data pyramid diagram: three layers, with human video at the bottom, simulation and generated video in the middle and robot recordings at the top; examples from each layer are brought to a common form, gathered into a training batch according to the weights and train one model with separate outputs for robot actions and latent actions"></canvas>
+      <figcaption class="muted-s">The diagram shows how the layers of the pyramid get into one model. The pyramid is drawn on the left: the higher the layer, the less data it holds and the closer that data is to the robot. Orange marks what comes from people: clips from head-mounted cameras and the latent actions recovered from them. Purple marks synthetic data: simulator trajectories and generated video. Blue marks recordings of real robots and their actions. On the right, a training batch is assembled: examples are drawn from the layers according to the mixture weights, and a separate output of the model learns the latent actions. Click the diagram to pause it.</figcaption>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>The name “pyramid” refers to data in general, including the web data inside the vision-language model. Table 7 of the paper, which lists the pre-training hours, shows a different picture: 3,289 hours of robot recordings, 2,517 hours of human video, 1,743 of simulation and 827 of generated video, 8,376 hours in total. The GR-1 humanoid's own recordings make up 88 of these hours, about 1%. Everything else comes to the robot from the lower layers and from other robots.</p>
+      <p>The authors checked whether the middle of the pyramid helps during post-training. When generated videos were added to the real trajectories in a 1 : 1 ratio, success in the RoboCasa simulator rose on average by 4.2, 8.8 and 6.8 percentage points with 30, 100 and 300 demonstrations per task, and on the real GR-1, by 5.8 points on average across 8 tasks. The authors name the limitation themselves: existing methods still struggle to generate diverse data “while adhering to the laws of physics.”</p>
+      <p>Before deciding how much to take from each layer, check that you can tell the layers apart.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="layers">
+  <div class="wrap">
+    <div class="lab-badge"><i>🧩</i> Interactive</div>
+    <h2>Eight sources and three layers of the pyramid</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>All eight sources below appear in the GR00T N1 paper or in the lessons of this part. Sort them into the layers of the pyramid: drag a card into a layer, or tap a card and then a layer. When you've placed them all, press “Check”: the correct cards turn green, and a debrief appears for the mistakes.</p>
+    </div>
+    <div class="card pad layer-sort" id="layerSort"></div>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>The layer is determined by what the data is missing compared to recordings of the robot itself, not by who recorded it. Video generated by a video model looks like a robot recording, but it has no actions, and they are recovered the same way as for human video. DROID was recorded on someone else's Franka arm, but it is a real robot with real actions. What remains is to decide in what proportion to mix the layers.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="weights">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">3</span> Weights</div>
+      <h2>Mixture weights: what share of the batch to give each layer</h2>
+      <p>The layers of the pyramid differ in size by orders of magnitude. If you fill training batches in proportion to the number of examples, the recordings of your own robot, the most accurate and the scarcest, will hardly ever get into them. So each source is given a <strong>sampling weight</strong>: the share of the batch examples drawn from it, regardless of how many hours it holds. In lesson 3.4, sliders set such weights for four robots, and it turned out that they change the success of all the robots at once.</p>
+      <p>π0.5 from lesson 3.8 has about 400 hours of mobile robot recordings in homes, and in the first training phase, 97.6% of its examples come from other sources: recordings of other robots, lab data, web data. The authors checked what each source contributes by removing it from the mixture. Without recordings of static robots in many homes, or without lab recordings of different robots, the model did noticeably worse in the mock homes, and without both, worse still. Without web data, the difference in the same homes was not statistically significant. But when the robot was asked to pick up an object of an unfamiliar category, it did noticeably worse without web data. A layer's benefit shows up only in a test that needs what this layer teaches.</p>
+      <p>In post-training, GR00T N1 mixes real trajectories with generated videos equally, 1 : 1, even though you can generate as many videos as you like. Neither paper has a formula for the weights: they are chosen by experiment, as in lesson 3.4. This is a constrained problem familiar to anyone who collects data: the budget and the deadline are fixed, the sources have different prices, and the only way to test a mixture is to train a model on it. Let's try it on Ada's table.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="budget">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 1</div>
+    <h2>A data budget for a task: demonstrations, simulation and human video</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p class="ada-note"><svg class="ada-ico" viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="10" width="48" height="42" rx="18" fill="#f4efe6" stroke="#3d3c38" stroke-width="3"/><rect x="15" y="19" width="34" height="22" rx="10" fill="#1f2430"/><ellipse cx="25" cy="30" rx="4" ry="5.5" fill="#eb6834"/><ellipse cx="39" cy="30" rx="4" ry="5.5" fill="#eb6834"/></svg><span>Ada is a home humanoid on a wheeled base; the course labs are built around her. More about her in <a href="0-1-dve-paradigmy.html#ada">lesson 0.1</a>.</span></p>
+      <p>Ada is being prepared to work in other people's homes, and she has one task: pick up a cube from the table. The camera on Ada's head looks down at the table. The homes differ in the tablecloth (nine options, three of them patterned), the light (daylight, a warm or a cool lamp, evening, dim light), the color of the cube and its three neighbors, bowls and cans of different colors. The cube holds only if the gripper closes within 1.8 cm of its center. Ada is tested in 48 homes where she has never been.</p>
+      <p>The budget is 100 arbitrary units, and there are three sources. <strong>Robot demonstrations</strong>: an operator guides Ada, the action is accurate, and the image comes from her camera. An episode costs 3 units; Ada and the operator were let into four homes, and in the time available they can record at most 32 episodes. <strong>Simulation</strong>: preparing the scenes costs 10 units, and after that every 100 episodes in any kitchens cost 5 units. But the simulator has no shadows or camera noise, the light is always daylight, the tablecloths are plain, and contact is computed roughly: a generated grasp holds the cube even if the gripper closed closer to the edge than a real grasp would allow. <strong>Human video</strong>: training an inverse dynamics model costs 10 units, and after that every 100 clips from real homes cost 2 units. But a person grabs the cube from the side with their fingers, so the recovered grasp point is shifted and scattered, and in every tenth clip a different object is picked up altogether.</p>
+      <p>The model is built like the “where to pick” map from lesson 4.3: for each of the 576 cells of the table, a small network looks at a window of about 6 cm around the cell and outputs a score, and the scores are turned into probabilities. The network has two outputs, as in GR00T N1: one learns from the robot and simulation actions, and the other from the actions recovered from video. Ada uses the first one. On the left of the scene is the model that spends the whole budget on robot demonstrations, and on the right is your mix.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="duo" id="bDuo">
+          <figure class="pane"><figcaption class="pane-head"><b id="bHeadL">Whole budget on the robot</b><span id="bSubL">32 demonstrations in 4 homes · 96 units</span></figcaption><canvas id="bCvL" width="360" height="360" role="img" aria-label="Top-down view of the table: the test home and the grasp probabilities of the model trained only on robot demonstrations"></canvas><div class="pane-stat" id="bStatL"></div></figure>
+          <figure class="pane"><figcaption class="pane-head"><b id="bHeadR" class="fm">Mix</b><span id="bSubR"></span></figcaption><canvas id="bCvR" width="360" height="360" role="img" aria-label="Top-down view of the table: the same test home and the grasp probabilities of the model trained on the mix"></canvas><div class="pane-stat" id="bStatR"></div></figure>
+        </div>
+        <p class="cv-note">A top-down view of the table through Ada's camera; the table is about 48 × 48 cm, and the test home is the same for both models. The orange fill shows the probability with which Ada closes the gripper in that cell. A green ring circles the cube, and a white circle at its center marks the zone where the gripper will hold it.</p>
+        <details class="lab-legend"><summary>Legend: marks on the scene</summary><div class="cv-legend" id="bLegend"></div></details>
+        <div class="ctl-row">
+          <label class="hd-range" id="wrapBHome"><span>Test home</span><input id="bHome" type="range" min="1" max="48" step="1" value="1"><output>1</output></label>
+        </div>
+        <div class="plan" id="bPlan">
+          <div class="plan-row" data-src="robot"><span class="pl-name"><i class="dot cl"></i>Robot demonstrations</span><input type="range" min="0" max="32" step="4" value="16" aria-label="Number of robot demonstrations"><output></output><span class="pl-cost"></span></div>
+          <div class="plan-row" data-src="sim"><span class="pl-name"><i class="dot hy"></i>Simulation</span><input type="range" min="0" max="800" step="100" value="400" aria-label="Number of simulation episodes"><output></output><span class="pl-cost"></span></div>
+          <div class="plan-row" data-src="video"><span class="pl-name"><i class="dot e2e"></i>Human video</span><input type="range" min="0" max="800" step="100" value="400" aria-label="Number of human video clips"><output></output><span class="pl-cost"></span></div>
+          <div class="budget-bar" id="bBudget"><div class="bb-track"><i></i></div><span class="bb-text"></span></div>
+        </div>
+        <div class="ctl-row" id="wrapBOpts">
+          <div class="ctl"><span class="ctl-l">Video actions go to</span><div class="seg" id="bHead" role="group" aria-label="Which network output learns the actions from video"><button type="button" data-v="own" aria-pressed="true">own output</button><button type="button" data-v="same" aria-pressed="false">robot output</button></div></div>
+          <div class="ctl"><span class="ctl-l">Batches</span><div class="seg" id="bMode" role="group" aria-label="How to fill batches from the sources"><button type="button" data-v="eq" aria-pressed="true">robot 40%, rest split evenly</button><button type="button" data-v="prop" aria-pressed="false">by episode count</button></div></div>
+        </div>
+        <div class="ctl-row" id="wrapBTrain"><button type="button" class="btn primary sm" id="bTrain">Train the mix and test</button></div>
+        <div class="bars" id="bBars"></div>
+        <div class="prog-line" id="bProg" hidden><i></i></div>
+        <div class="readout" id="bOut"></div>
+      </div>
+      <div class="card guide-card"><div id="bMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: the mixture, the network's two outputs, the prices and the spread across datasets</summary><div class="body">
+      <p><b>Training on the mixture.</b> A batch of 8 examples is assembled like this: for each example, a source \(k\) is first chosen with probability equal to its weight \(w_k\), and then a random episode is taken from it. The source also decides which output of the network learns from the example: \(h(k) = 1\) for human video and \(h(k) = 0\) for the rest. The model learns to reduce the cross-entropy on the cell where the gripper closed:</p>
+      <div class="formula">\[\begin{gathered} \mathcal L(\theta) = \sum_{k} w_k\ \mathbb E_{(o,\,a)\sim D_k}\bigl[-\log \pi_\theta^{\,h(k)}(a \mid o)\bigr], \\ \pi_\theta^{\,h}(a \mid o) = \operatorname{softmax}_a\bigl(v_h^{\top}\,\phi_\theta(o_a) + b_h\bigr). \end{gathered}\]</div>
+      <p>Here \(\phi_\theta(o_a)\) are the 16 features of cell \(a\) after a ReLU layer shared by both outputs, and \(v_h, b_h\) are the weights of output \(h\). The features of a cell are the mean colors of a 3 × 3 cell window, 27 numbers in total. Training takes 300 Adam steps with a step size of 0.02. With the “robot 40%, rest split evenly” weights, robot demonstrations get 0.4, and simulation and video share 0.6; with the “by episode count” weights, \(w_k\) is proportional to the size of the source. Success is the sum of the probabilities of the cells whose center lies within 1.8 cm of the cube's center, averaged over the 48 homes.</p>
+      <p><b>The sources.</b> Ada's camera adds noise to the image, casts shadows to the lower right of the objects and mutes the colors; the home's light multiplies each color channel. The simulator draws even colors without noise or shadows, in daylight and on plain tablecloths; a generated grasp closes within 0.75 cm of the cube's center along each axis. The human videos were shot in real homes; the grasp point in them is shifted 1 cm toward the person with a spread of 1 cm, and in 10% of the clips a different object is picked up. The robot demonstrations were recorded in four homes, in rotation.</p>
+      <p><b>Prices.</b> The prices are arbitrary, but their relative orders of magnitude come from the papers. ALOHA recorded 50 demonstrations in 30–60 minutes of operator work (lesson 4.2); GR00T N1 got 780,000 simulation trajectories in 11 hours of compute, while its 827 hours of generated video cost about 105,000 L40 GPU hours; Ego4D holds 3,670 hours of openly available clips (lesson 4.4).</p>
+      <p><b>Spread.</b> The numbers in the missions are computed for one set of episodes. On four different sets, the whole budget on the robot gave 47 to 60%, the 16 + 400 + 400 mix gave 60 to 71%, and the same mix with the video actions in the robot output gave 51 to 56%. The mix beat “whole budget on the robot” on all four sets, and a separate output for video also won on all four. The difference between the “robot 40%” and “by episode count” weights ranged from −4 to +8 points across the sets, so it isn't in the missions.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px" id="budgetAfter">
+      <p>With an equal budget, the most accurate data loses: there is little of it, and all of it comes from four homes. A model that has seen only these homes makes mistakes where the tablecloth, the light or the neighbors don't look like theirs. For the same money, simulation shows cubes of every color among any neighbors, and a few robot demonstrations tie the model to the real camera and to where the gripper actually holds. In our world, human video added almost nothing to the mix of robot and simulation, and in a shared output with the robot actions it took away 16 points: its actions belong to a different body.</p>
+      <p>But the mix also hits a ceiling: all of its data was collected before Ada got into real homes. Where do you get recordings from the places where the robot will work if each one costs an hour of an operator's time?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="flywheel">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">4</span> Flywheel</div>
+      <h2>The data flywheel: robots at work collect recordings for the next model</h2>
+      <p>Everything in the pyramid was collected before the robot started working: in the lab, in the simulator, on other robots and in other people's videos. Once robots are working for people, each of their attempts becomes a recording from the very place where the model has to cope. If you feed such recordings back into training, the next model works better, robots can be placed in new locations, and there are even more recordings. This loop is called the <strong>data flywheel</strong>: once it spins up, it feeds itself.</p>
+      <p>In his column on the “100,000-year data gap” from lesson 4.1, Ken Goldberg cites Waymo and Ambi Robotics as examples: in four years of sorting more than 100 million parcels, Ambi's robots accumulated about 22 years of operating data. He proposes combining “good old-fashioned engineering” with learned models so that real robots do the work and collect data along the way. Tesla has given the most detailed public description of such a loop. At Autonomy Day on April 22, 2019, Andrej Karpathy called it the data engine, “this iterative process by which we improve these predictions.” On request, the fleet of cars sends in examples that look like a hard case, such as bicycles on car racks. A driver intervention fires a trigger, and the recording with the inaccuracy is sent to the company. A new network is first released in <strong>shadow mode</strong>: it runs on the cars but doesn't control them. At AI Day 2022, Ashok Elluswamy described the same loop more briefly: ship the network to the cars, see where it fails, and mine the fleet for such cases.</p>
+    </div>
+    <figure class="card flow-card">
+      <canvas data-anim="flywheel" width="720" height="380" role="img" aria-label="Data flywheel diagram: robots work in homes, successful attempts go into the data by themselves, people label the failures, the model is trained again and goes back to the robots; with every turn, success and the amount of data grow"></canvas>
+      <figcaption class="muted-s">The diagram shows one turn of the flywheel. Blue marks the robots and what they record: attempts in homes, successes (green dots) and failures (red ones). Orange marks the people: they review the failures and mark where the robot should have grasped; a labeled failure becomes an orange dot and goes into the data, while an unlabeled one is lost. Purple shows training from scratch, after which the new model goes back to the robots. The center shows the shift number, the success rate and the number of accumulated episodes; the numbers come from Lab 2 of this lesson. Click the diagram to pause it.</figcaption>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>The scale for cars is unlike that of any dataset in this part. Tesla's report for the fourth quarter of 2024 cites more than three billion miles driven cumulatively on FSD (Supervised) as of January 2025, and in May 2026 the company reported ten billion. In its report for the fourth quarter of 2025, Tesla writes that its global fleet “can collect the equivalent of over 500 years of continuous driving data per day” and that its model is trained on data from both customer cars and Robotaxi.</p>
+      <p>For manipulation, Physical Intelligence was the first to describe the flywheel in detail, in its paper on π*0.6 (November 2025); this is the RECAP method from lesson 3.8. The robot performs the task on its own, each episode is marked as a success or a failure, an operator can step in and correct the robot, and the model learns from everything collected, telling its better actions from its worse ones. For T-shirt folding, each iteration collected 300 trajectories on four robots, all of them autonomous; over two iterations, the throughput, that is, the number of tasks the robot successfully completes per hour, rose by 50%. For box assembly, each iteration collected 600 autonomous trials and 360 trials with interventions, and after the second iteration, the throughput doubled. And to remove one persistent failure mode in folding, two iterations of 600 trajectories each were enough: success rose to 97%.</p>
+      <p>Let's spin up the flywheel on Ada's table and see what its speed depends on.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="fleet">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 2</div>
+    <h2>Ada's fleet in other people's homes: shift after shift</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>The first version of Ada was trained in the lab: 16 demonstrations were recorded on four tables with plain tablecloths in daylight, and all the cubes there were red. As in lesson 4.3, where the cube at home was always red, the model learns to reach for red, and in real homes it holds the cube in 35% of attempts. Even so, Ada is sent out to people's homes: the fleet has several robots, and every shift each robot works in a new home and makes 6 attempts.</p>
+      <p>Successes go into the data by themselves: the gripper closed on the cube, and a sensor in the gripper feels it. A failure on its own teaches nothing, since nobody knows where the robot should have grasped. So people review some of the failures and mark where the cube was; the rest are lost. After a shift, the model is trained again from scratch: lab recordings make up 30% of each batch, and everything the fleet has collected makes up 70%. Success is tested in the same 48 homes as in Lab 1, where the fleet never worked.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="fly-chart"><canvas id="fCv" width="640" height="300" role="img" aria-label="Chart: the share of successful attempts in 48 new homes after each fleet shift"></canvas></div>
+        <p class="cv-note">The horizontal axis of the chart shows the fleet shift (0 is the lab model, before the first shift), and the vertical axis shows the share of attempts in which Ada holds the cube in the 48 test homes. The solid orange line shows the latest run and the gray dashed lines the earlier ones, and the label at the end of a line says how many robots the fleet had and what share of failures was labeled.</p>
+        <div class="fleet" id="fFleet" aria-label="The robot fleet in the last shift: each robot's home and the outcome of its six attempts"></div>
+        <p class="cv-note">The tiles show the fleet in the last shift shown: each tile is one robot, with its home on top and its six attempts below. A green dot is a success, and it goes into the data. An orange dot is a failure that a person labeled; it goes into the data too. A red cross is a failure without a label, and it is lost.</p>
+        <div class="ctl-row" id="wrapFCtl">
+          <label class="hd-range" id="wrapFRobots"><span>Robots in the fleet</span><input id="fRobots" type="range" min="8" max="32" step="8" value="16"><output>16</output></label>
+          <label class="hd-range" id="wrapFShare"><span>Failures labeled</span><input id="fShare" type="range" min="0" max="100" step="25" value="50"><output>50%</output></label>
+        </div>
+        <div class="ctl-row" id="wrapFRun"><button type="button" class="btn primary sm" id="fRun">Run 4 shifts</button></div>
+        <div class="prog-line" id="fProg" hidden><i></i></div>
+        <div class="readout" id="fOut"></div>
+      </div>
+      <div class="card guide-card"><div id="fMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: a shift, training from scratch and the spread across seeds</summary><div class="body">
+      <p><b>A shift.</b> In shift \(t\), robot \(i\) works in its own new home and makes 6 attempts with new placements. In each attempt, Ada picks a cell according to the model's probabilities, as in Lab 1. An attempt succeeds if the gripper closed within 1.8 cm of the cube's center; then the image and the cell where the gripper closed go into the data. With a probability equal to the labeling share, a failure gets a human label, that is, the cell at the center of the cube; otherwise it is lost.</p>
+      <p><b>Training from scratch.</b> After a shift, the model is trained from scratch for 300 steps on two sources with weights 0.3 and 0.7:</p>
+      <div class="formula">\[ \mathcal L = 0.3\ \mathbb E_{D_\text{lab}}\bigl[-\log \pi(a \mid o)\bigr] + 0.7\ \mathbb E_{D_\text{fleet}}\bigl[-\log \pi(a \mid o)\bigr]. \]</div>
+      <p>\(D_\text{fleet}\) contains all the successes and labeled failures of all the shifts up to this one. The model learns from scratch every time, as in π*0.6, where each iteration fine-tunes the pre-trained model rather than the previous one, so that it doesn't drift.</p>
+      <p><b>Spread.</b> The numbers in the missions are computed for one random seed for the attempts and the labeling. Across three seeds, after four shifts, the results were 40–42% without labeling, 72–74% for 16 robots with half of the failures labeled, and 71–74% for 32 robots. After one shift, 32 robots were ahead of 16 by −1 to +11 points, and by the fourth shift the difference disappeared on all three seeds.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px" id="fleetAfter">
+      <p>Without labeling, the flywheel collects only what the model can already do. The first version holds the cube mostly where it is red, so those are the successes that go into the data, and the next model reaches for red even more confidently. Meanwhile, the failures in homes with blue and green cubes are lost, although that is exactly what the model needs to learn. Labeled failures bring in exactly these examples, and the growth starts right away.</p>
+      <p>A doubled fleet brings twice as many recordings per shift, but by the fourth shift it ends up in the same place: the model hits its ceiling, and the new recordings resemble those already collected, like the extra demonstrations in the same scenes in lesson 4.1. The speed of the flywheel is set not only by the robots but also by the people who label the failures and by how new the cases turn out to be. Where else does it stall?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="limits">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">5</span> Limits</div>
+      <h2>Where the flywheel doesn't spin</h2>
+      <p><b>Failures have to be labeled.</b> A success confirms what the model can already do; a failure teaches only if it is known what should have been done. In RECAP, people judge the outcome of every episode, and they also step in when the robot is about to make a mistake and reset the scene to its start. The authors state plainly that their system “is not fully autonomous.” And interventions aren't all-powerful: in their words, “even expert human operators cannot guarantee a consistent quality of interventions nor improve subtle aspects of the behavior, such as overall speed.” In 2021, Tesla described its own data labeling team of more than a thousand people and an auto-labeling system that labeled 10,000 clips in a week, a job that would have taken people several months.</p>
+      <p><b>Rare cases come rarely.</b> If a situation occurs in one attempt out of ten thousand, the fleet has to make tens of thousands of attempts to gather even a few examples, and almost all the other attempts repeat what the model has already seen. That's why the fleet doesn't send everything: Tesla requests clips from the cars that look like a hard case and sets triggers on interventions and inaccuracies. In 2019, Karpathy put it this way: “it's not a massive amount of data, it's just very well picked data.”</p>
+      <p><b>You can't make mistakes for the sake of data.</b> The flywheel learns from failures, but a robot in someone else's home can't drop dishes to gather examples. Hence shadow mode, where the new model computes but doesn't control, and operator interventions when the robot is about to make a mistake. Both measures slow down collection: in shadow mode, the model doesn't see the consequences of its actions, and an intervention requires a person nearby or on call.</p>
+      <p><b>New data looks like old data.</b> Robots work where they already cope, and they mostly record what the model has already seen. In Lab 2, the doubled fleet didn't overtake the regular one by the fourth shift. The flywheel grows when the robots get into new conditions and the model is large enough to absorb them.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="today">
+  <div class="prose">
+    <div class="kicker"><span class="num">6</span> Today</div>
+    <h2>The pyramid for pre-training, the flywheel for deployment</h2>
+    <p>In 2025–2026, both ideas became a regular part of the recipe. The bottom layer of the pyramid grew the most. In November 2025, Generalist AI wrote about more than 270,000 hours of manipulation recordings, which a network of thousands of data collection devices and robots grows by 10,000 hours a week, and in April 2026, about half a million hours. According to the company, the GEN-1 base model is trained without any robot data at all, on recordings of people with inexpensive wearable devices, and about an hour of robot data is added for a given task. In September 2026, Figure showed Helix 2.5, pre-trained on its own dataset of recordings of human behavior; lesson 3.8 covers it.</p>
+    <p>Meanwhile, the flywheel is moving from cars to robots. In its annual report for 2025, Tesla writes that it is “capitalizing on our strengths in real-world AI data to advance the development of Optimus,” and in its report for the second quarter of 2026, that “the initial Optimus builds will be used in our Optimus Academy for training data collection.” Back in May 2025, Milan Kovac, then head of Optimus, wrote that a large part of the training could be transferred to the robots directly from human videos, filmed from a first-person view for now. With π*0.6, Physical Intelligence showed a flywheel for manipulation: the robots' own attempts, labeled outcomes and human interventions.</p>
+    <p>The overall scheme is similar everywhere. A pyramid of web data, human video, synthetic data and other robots' recordings is needed for pre-training, so that the model works at least somewhere from day one. Recordings of your own robot are needed for post-training. And once the robots are working, the flywheel collects data where it can't be collected in advance, provided there is someone to label the failures.</p>
+  </div>
+</section>
+
+<section class="section" id="quiz">
+  <div class="prose">
+    <div class="kicker"><span class="num">7</span> Check yourself</div>
+    <h2>Eight common misconceptions</h2>
+    <div class="quiz" id="quizBox"></div>
+    <p class="score" id="quizScore" style="margin-top:14px"></p>
+  </div>
+</section>
+
+<section class="section alt" id="finale">
+  <div class="prose">
+    <div class="kicker"><span class="num">8</span> Takeaways</div>
+    <h2>Lesson takeaways</h2>
+    <ol class="takeaways">
+      <li><span>No single source gives everything: <strong>robot demonstrations</strong> are accurate but expensive, <strong>simulation</strong> is cheap but its world is different, and <strong>human video</strong> is vast but has no robot actions. The closer the data is to the robot, the less of it there is.</span></li>
+      <li><span>In the <strong>GR00T N1 data pyramid</strong>, web data and human video lie at the bottom, simulation and generated video in the middle, and robot recordings at the top. The humanoid's own recordings make up 88 of the 8,376 pre-training hours, about 1%. Video without actions gets latent actions or actions from an inverse dynamics model and is learned as a separate embodiment.</span></li>
+      <li><span><strong>Mixture weights</strong> set the share of the batch for each source and are chosen by experiment: for π0.5, 97.6% of the examples are not target data, and the benefit of web data shows up only on unfamiliar objects. On Ada's table, with the same budget, the mix gave 70% versus 48% for the model trained on robot demonstrations alone, and with the video actions in a shared output with the robot actions, 54%.</span></li>
+      <li><span>The <strong>data flywheel</strong> works like this: working robots collect recordings where the model has to cope, the next model works better, and there is more data. Tesla has called this the data engine since 2019; π*0.6 learns from the robots' own attempts: 300 trajectories on four robots per iteration gave 50% more throughput over two iterations.</span></li>
+      <li><span>The flywheel <strong>doesn't spin by itself</strong>: without failure labeling, Ada's fleet rose from 35 to 42%, and with half of the failures labeled, to 74%. A fleet twice as large ended up in the same place because it ran into the limits of the model and the sameness of the recordings. There are other limits too: rare cases, safety and the cost of labeling.</span></li>
+      <li><span>The modern recipe combines a pyramid for pre-training, recordings of your own robot for post-training and a flywheel after launch, and it also needs people who label what the model hasn't learned yet.</span></li>
+    </ol>
+    <h3 style="margin-top:40px">Open questions</h3>
+    <details class="card pad open-q"><summary>How do you choose mixture weights without training dozens of models?</summary><p>Both GR00T N1 and π0.5 chose their recipes by experiment: they removed a source and looked at how much worse the model became. In lesson 3.4, the weights were also set by hand, and the Open X-Embodiment paper named finding a criterion for positive transfer as the first task for future work. On Ada's table, the effect of the weights depended more on the dataset than on the weights themselves. There is no general answer yet on how to predict in advance how much a layer will help a given task and a given model.</p></details>
+    <details class="card pad open-q"><summary>Can a manipulator's flywheel spin without people?</summary><p>In Tesla's cars, the driver serves as the labeler: their intervention fires a trigger. In RECAP, people judge the outcome of each episode, and they also correct the robot and reset the scene. For a home robot, it's unclear who will mark the failures in thousands of homes. The π*0.6 authors name automating the evaluation, the corrections and the scene resets as the first direction for future work.</p></details>
+    <h3 style="margin-top:34px">Paper guide</h3>
+    <p><a href="https://arxiv.org/abs/2503.14734" target="_blank" rel="noopener">NVIDIA, “GR00T N1: An Open Foundation Model for Generalist Humanoid Robots”, 2025</a>.</p>
+    <ul class="links">
+      <li><strong>Read closely</strong><span>Section 1 and Fig. 1: the data pyramid and the “data islands.” Section 2.2: latent actions, generated videos and the DexMimicGen simulation. Section 2.3: what serves as the training target for each layer. Table 7: the hours of each source. Fig. 9: what generated videos give in post-training.</span></li>
+      <li><strong>Safe to skip</strong><span>The System 1 and System 2 architecture (it is covered in lesson 3.7) and the descriptions of the simulation tasks.</span></li>
+      <li><strong>Question to keep in mind</strong><span>The humanoid's own recordings make up about 1% of the hours in Table 7. Why do the authors still call real robot recordings the top of the pyramid rather than just one of the sources?</span></li>
+    </ul>
+    <p style="margin-top:18px">Other papers and talks in this lesson: <a href="https://arxiv.org/abs/2504.16054" target="_blank" rel="noopener">π0.5</a> (Physical Intelligence, 2025), <a href="https://arxiv.org/abs/2511.14759" target="_blank" rel="noopener">π*0.6: a VLA That Learns From Experience</a> (Physical Intelligence, 2025), <a href="https://www.youtube.com/watch?v=Ucp0TTmvqOE" target="_blank" rel="noopener">Tesla Autonomy Day</a> (April 22, 2019, Andrej Karpathy's talk on the data engine), <a href="https://www.youtube.com/watch?v=ODSJsviD_SU" target="_blank" rel="noopener">Tesla AI Day 2022</a> (September 30, 2022).</p>
+    <h3 style="margin-top:34px">Resources</h3>
+    <ul class="links">
+      <li><a href="https://github.com/NVIDIA/Isaac-GR00T" target="_blank" rel="noopener">Isaac GR00T</a><span>Code and weights for GR00T N1 and later versions, fine-tuning examples</span></li>
+      <li><a href="https://www.pi.website/blog/pistar06" target="_blank" rel="noopener">π*0.6</a><span>Physical Intelligence's post on RECAP with videos of espresso, laundry and boxes</span></li>
+      <li><a href="https://www.sec.gov/Archives/edgar/data/1318605/000162828026003837/exhibit991.htm" target="_blank" rel="noopener">Tesla's Q4 2025 report</a><span>The fleet, customer and Robotaxi data, 500 years of driving per day</span></li>
+      <li><a href="https://generalistai.com/blog/gen-1" target="_blank" rel="noopener">GEN-1</a><span>Generalist AI's post on half a million hours of human recordings</span></li>
+    </ul>
+    <!--if:proverka-chasti-4.html--><div class="callout insight" style="margin-top:34px"><span class="ico">✅</span><div><p><strong>Check yourself on all of Part 4.</strong> The check has tasks on lessons 4.1–4.6: data scale, collection devices, datasets, human video, simulation and mixtures. <a href="proverka-chasti-4.html">Part 4 check →</a></p></div></div><!--/if-->
+    <div class="bridge-note"><p>Part 4 answered where to get data: record it more cheaply, learn from human video, generate it in a simulator and collect it from working robots. But almost all of it is demonstrations, and a robot that copies an operator won't become faster or more careful than the operator and won't learn what to do where the operator never took it.</p><p class="bridge-to"><!--if:5-1-osnovy-rl.html--><a href="5-1-osnovy-rl.html"><!--/if-->Lesson 5.1 · RL basics: reward, value, advantage<!--if:5-1-osnovy-rl.html--></a><!--/if--></p></div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Lesson 4.6 of the “Modern Robotics and Physical AI” course. The lab models are trained in your browser; the source prices in Lab 1 are arbitrary, and the numbers for the papers and companies are taken from the original sources.
+</footer>
+<div class="tooltip" id="tooltip" role="tooltip"></div>
+<script>
+/*@@JS@@*/
+</script>
+</body>
+</html>
