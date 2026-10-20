@@ -116,7 +116,7 @@ const clickWait = async (p, sel, idle) => { await p.click(sel); await sleep(80);
     console.log('лаборатория 2');
     check(!(await visible(p, '#wrapTAlpha')) && !(await visible(p, '#wrapTMode')), 'миссии 1–2: ползунок температуры скрыт');
     r = await viaUI(p, '#tMis', 1);
-    const t1 = r.out.match(/^(?:Ставка сыграла\. )?(\d+)% попыток - к полке (\d), (\d+)% - к другой/);
+    const t1 = r.out.match(/^(?:Ставка сыграла\. )?(\d+)% попыток ведут к полке (\d), а (\d+)% - к другой/);
     check(r.ok && /ставка сыграла/i.test(r.out) && t1 && t1[1] === '98' && t1[2] === '2' && t1[3] === '0', `миссия 1: α = 0,01 — ${t1 && t1[1]}% к полке ${t1 && t1[2]}`);
     await p.eval(`document.getElementById('alpha').scrollIntoView({ behavior: 'instant' }); true`); await sleep(200);
     await p.shotEl(out('l53-alpha-small.png'), '#alpha .lab', 6);
@@ -129,7 +129,7 @@ const clickWait = async (p, sel, idle) => { await p.click(sel); await sleep(80);
     check(await visible(p, '#wrapTAlpha'), 'миссия 3: ползунок температуры виден');
     for (const i of [3, 5, 4]) { await p.eval(`(() => { const e = document.getElementById('tAlpha'); e.value = ${i}; e.dispatchEvent(new Event('input', { bubbles: true })); return true; })()`); await sleep(100); await p.waitFor(`!window.__l53.Temp.st.busy`, 60000); await sleep(150); }
     r = await liveDone(p, '#tMis', 20000);
-    const t3 = r.out.match(/При α = ([\d,]+): к полке 1 - (\d+)%, к полке 2 - (\d+)%, мимо - (\d+)%/);
+    const t3 = r.out.match(/При α = ([\d,]+) к полке 1 ведут (\d+)% попыток, к полке 2 - (\d+)%, а мимо проходят (\d+)%/);
     check(r.ok && t3 && t3[1] === '0,2' && t3[2] === '10' && t3[3] === '40' && t3[4] === '50', `миссия 3 засчитана сама: α = ${t3 && t3[1]} — ${t3 && t3[2]}% / ${t3 && t3[3]}% / мимо ${t3 && t3[4]}%`);
     await p.shotEl(out('l53-alpha-mid.png'), '#alpha .lab', 6);
     const aAfter = await text(p, '#alphaAfter'), sacTxt = await text(p, '#sac .prose');
