@@ -24,11 +24,13 @@
     },
     {
       "v": "3.3",
-      "date": "2026-10-19",
-      "title": "Lessons in full sentences, diagrams of CLIP, Transporter and CLIPort",
+      "date": "2026-10-20",
+      "title": "Lessons in full sentences and new animated diagrams",
       "items": [
         "The text of every lesson is rewritten in full sentences: instead of chains of “X — Y” fragments, each sentence says who does what. Most of the changes are in lab introductions, scene and diagram captions, “Under the hood” blocks and takeaways.",
-        "Lesson 2.1 has three new animated diagrams: how CLIP turns an image and a caption into vectors and compares them, how Transporter chooses where to pick and where to place, and how CLIPort combines two streams. In Lab 3 the “Where”, “What” and “Final” maps are larger and labeled, with object outlines on them. The lesson now explains what a crop and an MLP are; MLP is in the glossary."
+        "Lesson 2.1 has three new animated diagrams: how CLIP turns an image and a caption into vectors and compares them, how Transporter chooses where to pick and where to place, and how CLIPort combines two streams. In Lab 3 the “Where”, “What” and “Final” maps are larger and labeled, with object outlines on them. The lesson now explains what a crop and an MLP are; MLP is in the glossary.",
+        "Animated diagrams now appear in seven more lessons. Lesson 0.3 shows how a policy command passes through inverse kinematics and the PD controller to the motors, and how a receding horizon works. Lesson 0.4 shows the Kalman filter cycle, the steps of the particle filter and one SLAM step. Lesson 1.1 shows the data path in behavior cloning, 1.2 the DAgger and HG-DAgger loops, 1.5 how Diffusion Policy is built, 3.5 how Octo and OpenVLA are built, and 3.8 the two-step inference of π0.5.",
+        "In lesson 0.4 the Kalman filter is explained before Lab 1, as the particle filter and SLAM are: the prediction and correction steps and the Q and R noise that you tune in the lab."
       ]
     },
     {
