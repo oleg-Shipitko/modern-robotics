@@ -465,7 +465,7 @@
   "id": "mask",
   "t": "Attention mask",
   "d": "A table that forbids tokens from looking at certain other tokens: a blocked cell gets weight 0.",
-  "a": "attention masks?|causal masks?"
+  "a": "attention masks?"
  },
  {
   "id": "pos-enc",
@@ -1570,5 +1570,47 @@
   "t": "Target entropy",
   "a": "target entropy",
   "d": "The entropy level SAC maintains by tuning α; by default −dim A, for Ada's arm −2."
+ },
+ {
+  "id": "legged-locomotion-rl",
+  "t": "RL-based locomotion",
+  "d": "Walking control that isn't designed by hand but obtained by reinforcement learning in a simulator. The policy outputs target joint angles 50 times a second, PD controllers turn them into torques, thousands of copies of the robot collect experience, and the reward is a sum of many terms. This is how Hwangbo et al. (2019) and Rudin et al. (2021) trained ANYmal, and Radosavovic et al. (2024) the Digit humanoid.",
+  "a": "(?:RL|learning)-based locomotion|locomotion (?:based on|with) RL"
+ },
+ {
+  "id": "velocity-command",
+  "t": "Velocity command",
+  "d": "The desired body velocities (forward, sideways, turning) that a walking policy receives as input. In training, each copy gets its own random command: for the whole episode in Rudin et al., a new one every 10 s in Radosavovic et al. If training uses a single command, the policy doesn't learn to follow others.",
+  "a": "velocity commands?"
+ },
+ {
+  "id": "reward-terms",
+  "t": "Reward terms",
+  "d": "In training for walking, the reward per step is a weighted sum of terms. Some reward tracking the command (through a bounded kernel exp(−error²/0.25)) and long steps; others penalize bouncing, body rocking, joint torques and accelerations, changes of the joint targets and collisions. Rudin et al. use nine terms, Margolis and Agrawal eighteen, and none of them specifies the gait.",
+  "a": "reward terms?"
+ },
+ {
+  "id": "reward-hacking",
+  "t": "Reward hacking",
+  "d": "Behavior that collects reward without solving the task. A policy rewarded only for forward speed lies down and pushes itself along the floor with its legs, and one with only a fall penalty speeds up and falls. Such loopholes are closed with terms that describe how exactly to move and by ending the episode on a fall.",
+  "a": "reward hacking|loopholes?(?: in the reward)?"
+ },
+ {
+  "id": "massively-parallel-sim",
+  "t": "Massively parallel simulation",
+  "d": "Training in which thousands of copies of a robot step simultaneously on one GPU and the data never leaves its memory (Isaac Gym). In Rudin et al., 4,096 copies making 24 steps per update and 1,500 updates took under 20 minutes. There can also be too many copies: with the same rollout batch, each one gets fewer than 25 consecutive steps, and GAE stops working.",
+  "a": "massively parallel (?:simulation|training)|thousands of (?:parallel )?copies"
+ },
+ {
+  "id": "random-search",
+  "t": "Augmented random search (ARS)",
+  "d": "Training without a gradient: at each update, the policy parameters are randomly perturbed in N directions, each version is tried in episodes, and the parameters shift toward the directions with higher reward (Mania, Guy, Recht, 2018). The more copies per update, the more accurate the step, but with a shared episode budget, the fewer updates there are.",
+  "a": "(?:augmented )?random search|(?-i:ARS)"
+ },
+ {
+  "id": "in-context-adaptation",
+  "t": "In-context adaptation",
+  "d": "A policy with a history of observations and actions in its input adjusts its behavior to the floor, a load or a push without changing its weights. The history changes, not the network, just as a language model changes its answer based on a prompt. In Radosavovic et al., this is a causal transformer over 16 “observation, action” pairs.",
+  "a": "in-context adaptation|adaptation in context"
  }
 ]

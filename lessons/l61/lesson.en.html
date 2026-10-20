@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>6.1 RL-based locomotion — Modern Robotics and Physical AI</title>
+<meta name="description" content="Lesson 6.1 of the “Modern Robotics and Physical AI” course: how reinforcement learning in simulation taught robots to walk. Thousands of robot copies, a reward of many terms, random velocity commands and transfer to the robot without fine-tuning; the Digit humanoid with a transformer over history. Ada gets legs: build a reward for walking, test the velocity command and see how many copies training needs.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<script>
+  (function () { try { var t = localStorage.getItem('mr-theme'); if (t) document.documentElement.dataset.theme = t; else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme = 'dark'; } catch (e) {} })();
+</script>
+<style>
+/*@@CSS@@*/
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html#program" title="To the course program"><div>Modern Robotics and Physical AI<small>Lesson 6.1 · RL-based locomotion</small></div></a>
+    <nav class="toc" aria-label="Lesson sections">
+      <a href="#legs">Legs</a>
+      <a href="#why">Task</a>
+      <a href="#reward">Reward</a>
+      <a href="#terms">Terms</a>
+      <a href="#command">Command</a>
+      <a href="#scale">Copies</a>
+      <a href="#copies">How many</a>
+      <a href="#humanoid">Humanoid</a>
+      <a href="#today">Today</a>
+      <a href="#quiz">Quiz</a>
+      <a href="#finale">Takeaways</a>
+    </nav>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Toggle theme">◐</button>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main>
+
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="kicker"><span class="num">6.1</span> Part 6 · Humanoid robots</div>
+    <h1>RL-based locomotion: <span class="amp">how robots are taught to walk in a simulator</span></h1>
+    <p class="lead">In lesson 5.7, a person stood next to the robot and corrected it in every attempt. That won't work for walking: you can't undo a fall with a takeover, and training takes millions of steps. So walking is learned in a simulator, and the finished policy is transferred to the robot. This is how Hwangbo et al. (2019) trained the quadruped ANYmal in four hours of computation, and on the real robot, with no further tuning, the policy broke the robot's previous speed record by 25%. Rudin et al. (2021) cut training down to minutes: 4,096 copies of the robot walk on a single GPU, and after 1,500 PPO updates with a reward of nine terms, a policy for steps and slopes is ready in under 20 minutes. Radosavovic et al. (2024) applied the same scheme to the Digit humanoid: a transformer over a history of 16 “observation, action” pairs learned only in simulation and then walked the streets for a week without a single fall. In this lesson, Ada gets legs. You'll build a reward for walking and see what loopholes the policy finds in it, check whether a network trained on a single velocity command obeys other commands, and use live training to see why there can be both too few copies and too many.</p>
+    <div class="hero-meta"><span>≈ 60 minutes</span><span>3 labs and a quiz</span><span id="heroMis">missions with a goal</span></div>
+    <div class="hero-list">
+      <div><b>BUILD THE REWARD</b>Turn the reward terms on one at a time and watch what Ada does with each set: lies down and crawls, speeds up and falls, or walks</div>
+      <div><b>VELOCITY COMMAND</b>On a single command slider, compare a policy trained on random commands with a policy that has only ever seen one</div>
+      <div><b>HOW MANY COPIES</b>Train a stepping rhythm in your browser with 2, 8 and 32 copies of Ada on the same budget, and find where training loses out</div>
+      <div><b>FROM THE PAPERS</b>Look at the numbers from Rudin, Hwangbo, Lee, Miki, Smith, Margolis and Radosavovic: copies, minutes, reward terms, falls</div>
+    </div>
+    <p style="margin-top:28px"><a class="btn primary" href="#legs">Start the lesson ↓</a></p>
+  </div>
+</section>
+
+<section class="recall-sec" id="recall" aria-label="Warm-up on the previous lesson">
+  <div class="wrap"><div class="card recall" data-recall></div></div>
+  <script type="application/json" id="recallData">{"n": "5.7", "title": "RL on real robots and VLA fine-tuning", "href": "5-7-rl-na-realnykh-robotakh.html", "q": [
+ {"q": "After fine-tuning on demonstrations, a policy misses in the same places every time. What does HIL-SERL propose?", "o": ["Record ten times more demonstrations", "Do reinforcement learning right on the robot: a classifier scores the frames with a reward, a person takes over with a 3D mouse, their steps go into both buffers, and each training batch is drawn half from each", "Move training into a simulator"], "a": 1, "e": "On 11 tasks, the policy reached 100% success in 1–2.5 hours of training, and the timing belt took 6 hours. HG-DAgger with the same attempts and interventions averaged 49.7%, and 200 demonstrations without interventions gave 0% on the dashboard.", "sec": "loop", "secTitle": "Learning on the job: a reward classifier, two buffers and takeovers"},
+ {"q": "How does RECAP in π*0.6 use the advantage of an action?", "o": ["As a weight on the example in regression, like AWR", "As text in the model's input: “Advantage: positive” or “negative” depending on a threshold; the model learns from all the data, and at run time the input always says positive", "As a reward for PPO"], "a": 1, "e": "Weighted regression throws away data and gives slow policies, and the policy gradient doesn't get along with flow matching. In Lab 1, the “all labeled” policy got the cup into the slot in 13.3 steps versus 13.8 for “successes only”.", "sec": "recap", "secTitle": "RECAP: value from the robot's own attempts and the advantage in the model's input"},
+ {"q": "The robot can't back out of the adjacent slot, and the operator's demonstrations don't contain this move. What helped in the labs?", "o": ["280 more demonstrations from the home pose", "Ten corrected attempts by the watcher in the correction buffer: 19 successful starts out of 20 instead of 0", "Fine-tuning on all attempts without labels"], "a": 1, "e": "The policy trained on 320 demonstrations (280 more, from almost half an hour of recording) succeeded from the adjacent slot in 3 starts out of 8, while a quarter of an hour of experience with corrections succeeded in 7–8 of 8. Where a person can't correct the robot in every attempt, as in walking, reinforcement learning moves into a simulator: that's what lesson 6.1 is about.", "sec": "budget", "secTitle": "Minutes on the robot: more demonstrations or experience with corrections"}
+]}</script>
+</section>
+
+<section class="section alt" id="legs">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">1</span> Legs</div>
+      <h2>Ada gets legs</h2>
+      <p>Until this lesson, Ada drove: her torso, head and two arms sat on a wheeled base, and that was enough for the hallway and the kitchen. In many ways, wheels are simpler than legs. The base stands on its own even with the motors off, and a motor only has to turn a wheel. But a home is built for the human body: a threshold between rooms, a step at the front door, stairs to the second floor, a rug bunched up into a fold. Where a wheel gets stuck, a person steps over. That's why, from this lesson on, Ada has legs.</p>
+      <p class="ada-note"><svg class="ada-ico" viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="10" width="48" height="42" rx="18" fill="#f4efe6" stroke="#3d3c38" stroke-width="3"/><rect x="15" y="19" width="34" height="22" rx="10" fill="#1f2430"/><ellipse cx="25" cy="30" rx="4" ry="5.5" fill="#eb6834"/><ellipse cx="39" cy="30" rx="4" ry="5.5" fill="#eb6834"/></svg><span>Ada is the course's home humanoid; from this lesson on, she has legs. More about her and her home in <a href="0-1-dve-paradigmy.html#ada">lesson 0.1</a>.</span></p>
+    </div>
+    <div class="card ada-legs" style="max-width:820px">
+      <!-- The “Ada with legs” drawing (viewBox 0 0 200 320): the same torso, arms and head as #ada in lesson 0.1, with the wheeled base replaced by legs. A snippet for shared/: see INTEGRATION.md, section 5. -->
+      <svg class="ada-legs-fig" viewBox="0 0 200 320" role="img" aria-label="Ada with legs, front view: the same white torso, a head with a screen and two arms, and instead of the wheeled base, two legs with thighs, knees, shins and feet">
+        <ellipse cx="100" cy="311" rx="56" ry="7" fill="rgba(40,25,10,.16)"/>
+        <rect x="38" y="106" width="20" height="84" rx="10" fill="#f4efe6" stroke="#3d3c38" stroke-width="2.5" transform="rotate(8 48 106)"/>
+        <rect x="142" y="106" width="20" height="84" rx="10" fill="#f4efe6" stroke="#3d3c38" stroke-width="2.5" transform="rotate(-8 152 106)"/>
+        <circle cx="37" cy="194" r="11" fill="#3d3c38"/><circle cx="163" cy="194" r="11" fill="#3d3c38"/>
+        <rect x="70" y="196" width="22" height="54" rx="11" fill="#f4efe6" stroke="#3d3c38" stroke-width="2.5"/>
+        <rect x="108" y="196" width="22" height="54" rx="11" fill="#f4efe6" stroke="#3d3c38" stroke-width="2.5"/>
+        <path d="M58 102 Q100 90 142 102 L134 194 Q100 204 66 194 Z" fill="#f4efe6" stroke="#3d3c38" stroke-width="2.5" stroke-linejoin="round"/>
+        <rect x="86" y="126" width="28" height="9" rx="4.5" fill="#4a3aa7"/>
+        <circle cx="56" cy="108" r="10" fill="#3d3c38"/><circle cx="144" cy="108" r="10" fill="#3d3c38"/>
+        <circle cx="81" cy="199" r="8" fill="#3d3c38"/><circle cx="119" cy="199" r="8" fill="#3d3c38"/>
+        <circle cx="81" cy="250" r="8" fill="#3d3c38"/><circle cx="119" cy="250" r="8" fill="#3d3c38"/>
+        <rect x="72" y="250" width="18" height="46" rx="9" fill="#f4efe6" stroke="#3d3c38" stroke-width="2.5"/>
+        <rect x="110" y="250" width="18" height="46" rx="9" fill="#f4efe6" stroke="#3d3c38" stroke-width="2.5"/>
+        <rect x="64" y="291" width="34" height="14" rx="6" fill="#3d3c38"/><rect x="102" y="291" width="34" height="14" rx="6" fill="#3d3c38"/>
+        <rect x="91" y="82" width="18" height="14" rx="4" fill="#3d3c38"/>
+        <rect x="62" y="22" width="76" height="64" rx="28" fill="#f4efe6" stroke="#3d3c38" stroke-width="2.5"/>
+        <rect x="72" y="36" width="56" height="34" rx="16" fill="#1f2430"/>
+        <ellipse cx="88" cy="53" rx="6" ry="8" fill="#eb6834"/><ellipse cx="112" cy="53" rx="6" ry="8" fill="#eb6834"/>
+      </svg>
+      <div>
+        <p><b>The new Ada.</b> Her torso, head and arms are the same as before, and the wheeled base has been replaced by two legs: a thigh, a knee, a shin and a foot on an ankle. Real humanoids have about six motorized joints per leg: Digit, which we'll meet at the end of the lesson, has eight joints in each leg, and six of them are actuated. In this lesson's labs, Ada is flat, and we look at her from the side. She has three joints in each leg, her hip is 0.65 m above the floor when her legs are straight, she weighs 28 kg, and the physics is computed with a 2.5 ms time step.</p>
+        <p><b>The price of legs.</b> A wheeled base doesn't fall over, while a two-legged robot has to keep its balance all the time. The center of mass has to stay above the support, and the support is an 18 cm foot, or two feet during a step. If Ada leans back past her heel, the ankle can no longer hold her, and only a step can save her. That's why legs are controlled fast: on Digit, the joint controllers recompute torques 1,000 times a second, and the policy outputs new target joint angles 50 times a second.</p>
+      </div>
+    </div>
+    <div class="prose" style="margin:0;max-width:820px">
+      <p>How do you make a body like that walk? You can design the gait by hand: split a step into phases, set the foot trajectories and keep the center of mass above the support. That's how it was done for decades. Such controllers work in the lab but cope poorly with anything that wasn't built into them. What's wrong with them, and what can you use instead?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="why">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">2</span> Task</div>
+      <h2>Walking as a reinforcement learning problem</h2>
+      <p>Hwangbo et al. (ETH Zurich, 2019) describe how legged robots were controlled before learning. From the control perspective, a legged robot is a high-dimensional, non-smooth system with many physical constraints, and analytical models of robots are often inaccurate. The most popular approach splits the problem into modules: the robot is approximated as a point mass with massless legs, and each module is tuned by hand. In the authors' words, highly trained engineers spend months developing such a controller, and the work is repeated for every new robot or even every new maneuver. Trajectory optimization on the robot automates part of this work, but, as the same authors write, it still performs worse than modular controllers: accurately tracking fast motion with many unexpected contacts is nearly impossible. Lee et al. (2020) add that conventional systems rely on state machines with empirically tuned thresholds. They have become extremely laborious to develop and maintain, and they remain vulnerable to corner cases.</p>
+      <p>Reinforcement learning from Part 5 shifts the engineer's work from designing the motion to describing the task. In lesson 5.2, PPO taught Ada to drive to the kitchen, and the lesson's calculator showed how many steps lie behind the 20 minutes of training ANYmal in Rudin et al. Their setup is as follows. The <strong>policy</strong> is a neural network that receives observations 50 times a second: the tilt and velocities of the body, the angles and velocities of the joints, its own previous action and the <strong>velocity command</strong>, that is, how fast and in which direction the robot should walk. Its output isn't motor torques but <strong>target joint angles</strong>. A PD controller from lesson 0.3 turns them into torques: \(\tau = K_p (q^* - q) - K_d \dot q\), where \(q^*\) is the target angle and \(q\) is the current one. Hwangbo et al. explain why the output is designed this way: a policy that outputs target angles can stand from the very start of training, while a policy that outputs torques can't. The reward for a step is a weighted sum of many <strong>terms</strong>: some reward what we want, others penalize what we don't. Finally, thousands of copies of the robot walk in the simulator at once, each with its own floor friction, pushes and other random parameters. This setup is called RL-based locomotion: the motion isn't designed, it's learned. The diagram shows how it all works together.</p>
+    </div>
+    <figure class="card flow-card">
+      <canvas data-anim="loop" width="720" height="410" role="img" aria-label="Diagram of the walking training loop: thousands of Ada copies in the simulator send observations to the policy, the policy outputs target joint angles, PD controllers compute the torques for the copies, the reward of every step is a sum of terms, after 24 steps the rollout batch goes to PPO, and all copies get the new policy weights back"></canvas>
+      <figcaption class="muted-s">The walking training loop in a simulator, after Rudin et al. Ada's copies and their observations are shown in blue, the policy and the target joint angles in orange, and the reward and the PPO update in purple. All 4,096 copies step 50 times a second, each with its own floor friction and pushes, as in Rudin et al. The reward of each step is a weighted sum of terms. After 24 steps, the rollout batch of 98,304 steps goes to PPO for 5 epochs, and all copies receive the new weights. The number of copies, the batch size and the terms come from the paper; the animation's timing is not to scale. Click the diagram to pause it.</figcaption>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>Transfer to the robot in this scheme works as in lessons 5.4 and 5.5: dynamics randomization and pushes, an actuator model learned from data, and in Lee et al. also a teacher with privileged information and a student that relies on the history of proprioception. Hwangbo et al. consider the actuator model the most important part, and in lesson 5.4 we already saw why: with an ideal or analytical actuator model, their policy couldn't take a single step without falling, while the network trained on four minutes of recordings from the real robot is off in torque by 0.74 N·m on average, versus 3.55 N·m for the ideal model.</p>
+      <p>That leaves the hardest part of this setup: the reward. You'd think walking is simply moving forward: reward the speed, and the policy will figure out the rest. It will indeed figure something out, but not what we expect. Let's check it on Ada.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="reward">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 1</div>
+    <h2>Reward builder: from “forward only” to nine terms</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>Here are the reward terms for one policy step (0.02 s), as in the Rudin et al. table, with weights adapted to Ada's size. You turn terms on, and the scene shows the policy that PPO trained with exactly that set. These policies were computed in advance in Node with the same engine that runs on this page and embedded in the lesson: training one network in Node takes 9 to 33 minutes, which a browser can't repeat in seconds. The “forward only” and “forward and fall” sets were trained on 256 copies of Ada for 300 updates, because the policy finds the loophole quickly. The other sets were trained on 512 copies for 500 updates. The lesson's test script recomputes the runs from the embedded weights and can retrain any of the networks from scratch to compare the weights. The walking on the scene is live: the policy controls Ada in a simulation directly on the page, 50 times a second. Next to her, there's always an Ada with the full reward, and both get a command of 0.6 m/s.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="duo" id="rDuo">
+          <canvas id="rCvL" width="320" height="240" role="img" aria-label="Side view: Ada with legs walks on a floor with meter marks; her policy was trained with the set of terms you built"></canvas>
+          <canvas id="rCvR" width="320" height="240" role="img" aria-label="Side view: Ada with a policy trained on the full reward, for comparison"></canvas>
+        </div>
+        <p class="cv-note">Side view: Ada walks forward, the camera follows her, and the marks on the floor show meters. Each scene's label says which reward its policy was trained with: the set you built, or the full reward for comparison. The torso of the Ada with your reward is outlined in orange, and that of the full-reward Ada in blue. The lighter leg and arm are the ones farther from the viewer, and the line behind Ada traces her hip. The scene shows the velocity command and the current torso speed, and a red label appears when Ada falls or her torso lies on the floor.</p>
+        <div class="chips" id="rChips" role="group" aria-label="Reward terms"></div>
+        <p class="set-line" id="rSet"></p>
+        <div class="ctl-row">
+          <label class="hd-range" id="wrapRCmd" hidden><span>Command</span><input id="rCmd" type="range" min="0.2" max="1.0" step="0.1" value="0.6"><output>0.6 m/s</output></label>
+          <button class="btn sm" id="rRun" type="button" hidden>Run both Adas</button>
+          <button class="btn sm" id="rPush" type="button" hidden>Push both</button>
+        </div>
+        <div class="readout" id="rOut"></div>
+      </div>
+      <div class="card guide-card"><div id="rMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: Ada's model, the terms and the training</summary><div class="body">
+      <p><b>Body.</b> The model consists of seven links in a plane. The torso is 0.46 m long and weighs 18 kg; each leg has a thigh and a shin of 0.30 m each (2.6 and 1.8 kg) and a 0.18 m foot (0.6 kg). The ankle is shifted toward the heel, as in humans: the heel is 6 cm behind it and the toe 12 cm in front. The six joints have PD actuators: \(K_p = 200\), \(K_d = 4\) in the hip and knee, \(K_p = 400\), \(K_d = 4\) in the ankle, with a torque limit of 60 N·m. The physics is position-based (XPBD): a 2.5 ms time step, hinge joints and floor contact with friction \(\mu = 0.9\), eight physics steps per policy decision (50 Hz). A fall is when the torso or the head touches the floor; in the sets where a fall ends the episode, the episode also ends when the torso tilts by more than 1.5 rad.</p>
+      <p><b>Policy.</b> The network receives 26 numbers as input: the hip height, the tilt and velocities of the torso, the angles and velocities of the six joints, its own previous action, the command and the foot contacts. The 26 → 64 → 64 → 6 network with tanh outputs an action \(a\), and the target joint angles are \(q^* = q_0 + 0.5\,a\), where \(q_0\) is the default pose with slightly bent knees. During training, the spread of the actions is set by a Gaussian with a trainable \(\log\sigma\), initially \(\sigma = 0.37\); on the scene, the policy outputs the mean, without noise.</p>
+      <p><b>Reward per step.</b> The reward is \(r = \sum_i w_i\, f_i\). The terms and their weights: forward, \(v_x\) (weight 1); velocity tracking, \(\exp(-(v_x - v^*)^2/0.25)\) (1); fall, 1 when the torso touches the floor (−1); torso height, \((h - 0.6)^2\) (−2); torso pitch, \(\theta^2\) (−1); bouncing, \(v_y^2\) (−1); energy, \(\sum_j \tau_j^2\) (−0.00002); smoothness, \(\lVert a_t - a_{t-1}\rVert^2\) (−0.02); acceleration, \(\sum_j \ddot q_j^2\) (−0.0000001); air time, \(\sum_f (t_{\text{air},f} - 0.5)\) at the moment of touchdown (1 if the command is above 0.1 m/s). The weights are taken from the Rudin et al. table and adapted to Ada's scale. ANYmal's table has no terms for the height and pitch of the body, but the two-legged Ada can't do without them.</p>
+      <p><b>Training.</b> This is PPO from lesson 5.2 with a six-number action: \(\gamma = 0.99\), \(\lambda = 0.95\), clipping 0.2, 5 epochs of 4 minibatches. The Adam step size adapts toward a KL of 0.01 by multiplying or dividing by 1.5, as in Algorithm 1 of Rudin et al. An episode lasts up to 20 s, and on a timeout the critic's target value is bootstrapped with its own prediction. Starts come with a random tilt and joint angles, and each copy gets its own command from the range 0.2–1.0 m/s, held for the whole episode. Seed 1. Node, Chrome and Safari compute exactly the same numbers, bit for bit, because the engine has its own exponential, logarithm, sine, cosine and tanh, as in lessons 5.2–5.7.</p>
+      <p id="rewardSeeds"><b>What the scene computes.</b> A run lasts 6 seconds (300 steps) with start seed 31. The speed is the mean of \(v_x\) over the steps, “torso on floor” is the share of steps with the hip below 40 cm, and Σ τ² is the sum of the squared torques of the six joints, averaged over the steps. On 20 other starts, with seeds 44, 55, …, 253, the Ada with the “forward only” reward lies down and crawls faster than 1 m/s on 17 starts out of 20, the Ada with the “forward and fall” reward speeds up and falls within the first 2 seconds on 20, the Ada without energy and smoothness spends at least 2 times more torque on 19 (counting the starts where neither Ada falls), and the Ada with the full reward doesn't fall on 19 starts out of 20. Free mode has a fifth set, “everything but air time”: with it, at 0.6 m/s, Ada makes 5.4 steps a second, 11 cm each, and keeps a foot in the air for 0.09 s, while with the full reward it's 3.4 steps of 18 cm and 0.2 s. These are the longer steps for which Rudin et al. introduced the air-time term.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px" id="rewardAfter">
+      <p>With only the speed reward, Ada falls at 0.6 s and crawls on her torso for the rest of the run at 1.37 m/s, more than twice as fast as the full-reward Ada, who walks at 0.60 m/s. The fall penalty changes the loophole: Ada speeds up to 1.86 m/s, crouching and pitching her torso by 0.71 rad, and falls at 1.0 s. Without the energy and smoothness penalties, Ada follows the command at 0.59 m/s, but her sum of squared torques is 5,785 versus 1,993 for the full reward, 2.9 times more. Only the full reward produced walking without loopholes: the hip at 62 cm, a torso pitch of 0.04 rad, not a single fall.</p>
+      <p>This behavior is called <strong>reward hacking</strong>: the policy collects reward without solving the task. The reward says what to achieve, not how, and the policy achieves exactly what's written. Which terms are needed for what's written to match walking, and why is the command in the input random?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="terms">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">3</span> Terms</div>
+      <h2>A reward of many terms, and random commands</h2>
+      <p>In the lab, each new term closed one loophole. Rudin et al. write that their total reward is a weighted sum of nine terms. Two of them reward tracking the linear and angular velocity commands. Six are penalties that make the motion smoother and more natural: for the vertical velocity of the body, for its rocking, for joint motion and torques, for changes of the joint targets and for collisions of the knees and shins. The ninth term, the feet air time, rewards longer steps. The command terms share one form: \(\varphi(x) = \exp(-\lVert x\rVert^2/0.25)\). Such a reward never exceeds one and falls off smoothly with the error. Hwangbo et al. explain why a penalty that grows with the error without bound won't do: with a large error, it pays more to fall and end the episode than to try to catch up with the command.</p>
+      <div class="num-table" role="table" aria-label="Reward terms of Rudin et al. 2021: definition, weight and purpose">
+        <div class="num-row num-h" role="row"><span role="columnheader">Term</span><span role="columnheader">Formula</span><span role="columnheader">Weight</span><span role="columnheader">Purpose</span></div>
+        <div class="num-row" role="row"><span role="cell"><b>Linear velocity tracking</b></span><span class="m" role="cell">φ(v* − v) in x, y</span><span class="m" role="cell">1·dt</span><span role="cell">follow the command</span></div>
+        <div class="num-row" role="row"><span role="cell"><b>Angular velocity tracking</b></span><span class="m" role="cell">φ(ω* − ω) about z</span><span class="m" role="cell">0.5·dt</span><span role="cell">turn on command</span></div>
+        <div class="num-row" role="row"><span role="cell"><b>Vertical velocity</b></span><span class="m" role="cell">−v_z²</span><span class="m" role="cell">4·dt</span><span role="cell">no bouncing</span></div>
+        <div class="num-row" role="row"><span role="cell"><b>Body angular velocity</b></span><span class="m" role="cell">−‖ω_xy‖²</span><span class="m" role="cell">0.05·dt</span><span role="cell">no rocking</span></div>
+        <div class="num-row" role="row"><span role="cell"><b>Joint motion</b></span><span class="m" role="cell">−‖q̈‖² − ‖q̇‖²</span><span class="m" role="cell">0.001·dt</span><span role="cell">smoothness</span></div>
+        <div class="num-row" role="row"><span role="cell"><b>Joint torques</b></span><span class="m" role="cell">−‖τ‖²</span><span class="m" role="cell">0.00002·dt</span><span role="cell">save energy and actuators</span></div>
+        <div class="num-row" role="row"><span role="cell"><b>Joint target changes</b></span><span class="m" role="cell">−‖q̇*‖²</span><span class="m" role="cell">0.25·dt</span><span role="cell">smooth commands to the actuators</span></div>
+        <div class="num-row" role="row"><span role="cell"><b>Collisions</b></span><span class="m" role="cell">−n</span><span class="m" role="cell">0.001·dt</span><span role="cell">knees and shins don't hit anything</span></div>
+        <div class="num-row" role="row"><span role="cell"><b>Feet air time</b></span><span class="m" role="cell">Σ_f (t_air,f − 0.5)</span><span class="m" role="cell">2·dt</span><span role="cell">long steps</span></div>
+      </div>
+      <p class="cv-note">Table 2 of Rudin et al. 2021; dt is the environment time step. A contact of the body with the ground counts as a crash, and the episode is reset. ANYmal has no separate terms for body pitch and height.</p>
+      <p>The gait isn't mentioned anywhere in this list. The authors stress that neither the reward function nor the action space has any gait-dependent elements, and yet the policy always converges to a trot. If artifacts appear in the behavior, such as a dragging leg or an unreasonably high or low body, they are removed by tuning the weights. The two-legged Cassie needed one more term, a reward for standing on a single foot. Margolis and Agrawal (2022) turned this dependence of behavior on the rewards into a technique. Their reward has 18 terms, and six of them depend on eight behavior parameters in the policy's input. These are the stepping frequency, the body height and pitch, the stance width, the foot swing height and three leg phase offsets that set the type of gait. From these eight numbers, a single policy can trot, pace and pronk, jumping off all four legs at once. The authors note that gaits learned with a velocity reward alone “have not been shown to successfully transfer to the real world,” and they call auxiliary rewards “biases for generalization.”</p>
+      <p>The command terms only work if the commands are random. In Rudin et al., the linear velocity and heading command stays constant for the whole episode, but each copy gets its own. Hwangbo et al. draw commands at random from intervals: forward from −1.0 to 1.0 m/s, sideways up to ±0.4 m/s, turning up to ±1.2 rad/s. Radosavovic et al. pick a new random command for the humanoid every 10 seconds. If the command is always the same in training, it is constant in the policy's input, and the policy has no way to link it to speed: what it will do with a different number is never checked during training. We covered the other sources of randomness in lesson 5.4: in Rudin et al., the terrain is chosen by a curriculum that works like ADR, and friction, pushes and observation noise are varied by dynamics randomization. In Lee et al., the curriculum is adaptive: a particle filter picks terrains that are neither too easy nor too difficult.</p>
+      <p>One more detail concerns the end of an episode. In Rudin et al., an episode lasts at most 20 seconds, but time isn't part of the observation, so the policy doesn't know how much is left. That's why, on a timeout, the critic's target value is bootstrapped with its own prediction, as if the episode continued; we did the same in lesson 5.2. The authors estimate that this gives 10–20% more reward. Now let's see what random commands give in practice.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="command">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 2</div>
+    <h2>Velocity command: random commands versus a single one</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>Both policies were trained with the full reward from Lab 1, with the same network, the same seed, 512 copies and 500 updates. There's one difference: the first learned on random commands from 0.2 to 1.0 m/s, one per copy for the whole episode, while the second always got a command of 0.6 m/s. Both have the command in their observation. The slider sets the command for the run, and the chart shows the torso speed of both Adas and the command itself.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="duo" id="cmDuo">
+          <canvas id="cmCvL" width="320" height="240" role="img" aria-label="Side view: Ada with the policy trained on random commands"></canvas>
+          <canvas id="cmCvR" width="320" height="240" role="img" aria-label="Side view: Ada with the policy trained on a single command of 0.6 m/s"></canvas>
+        </div>
+        <p class="cv-note">Side view, as in Lab 1. Each scene's label says which commands its policy learned on: random ones from 0.2 to 1.0 m/s (torso outlined in orange) or a single one, 0.6 m/s (in blue). The chart's horizontal axis shows the seconds of the run, and the vertical axis the torso's forward speed in m/s. The dashed line is the command, the orange line the random-command Ada, the blue line the single-command Ada, and a cross marks a fall.</p>
+        <div class="chart"><canvas id="cmChart" width="640" height="200" role="img" aria-label="Chart: the torso speed of both Adas over the seconds of the run, and the command"></canvas></div>
+        <div class="ctl-row">
+          <label class="hd-range" id="wrapCmCmd"><span>Command</span><input id="cmCmd" type="range" min="0.2" max="1.0" step="0.1" value="0.3"><output>0.3 m/s</output></label>
+          <button class="btn sm" id="cmRun" type="button" hidden>Run with this command</button>
+          <span id="cmLive" hidden></span>
+          <button class="btn sm" id="cmPush" type="button" hidden>Push both</button>
+        </div>
+        <div class="readout" id="cmOut"></div>
+      </div>
+      <div class="card guide-card"><div id="cmMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: the two policies and what the check computes</summary><div class="body">
+      <p><b>Policies.</b> Both were trained with PPO and the full reward from Lab 1 on 512 copies for 500 updates, seed 1. For the random-command policy, each copy's command is drawn at random from 0.2–1.0 m/s at the start of every episode; for the second one, it is always 0.6. The command enters the observation as a number.</p>
+      <p><b>Run.</b> A run lasts 6 seconds with start seed 88. A policy holds the command if its mean torso speed over the run differs from the command by less than 0.1 m/s and there is no fall. The time to reach a new command is counted from the command jump to the first moment after which the speed stays within 0.12 m/s of the command for half a second in a row.</p>
+      <p id="commandSeeds"><b>What the check shows.</b> On 20 other starts, with seeds 44, 55, …, 253, the random-command Ada holds 0.9 m/s on 14 starts out of 20 and 0.3 m/s on 17, and after a jump she reaches the new command in under a second on 18. Where she fails, she either falls in the first seconds of speeding up or misses the command by more than 0.1 m/s: the policy was trained without pushes and for only 500 updates. The single-command Ada walks slower than 0.8 m/s or falls at a command of 0.9 on 20 starts out of 20, walks slower than 0.45 m/s at a command of 0.3 on 20, and after the jump to 0.8 m/s doesn't get to 0.75 m/s on 20.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px" id="commandAfter">
+      <p>At a command of 0.9 m/s, the random-command Ada walks at 0.88 m/s, and the single-command Ada at only 0.71 m/s. At 0.3 m/s, both walk at 0.30 m/s: for the second one, the constant number in the input acted as a bias, and a smaller number slowed her down. After the command jumped from 0.4 to 0.8 m/s, the random-command Ada reached the new speed in 0.4 s, while the single-command Ada kept walking at about 0.68 m/s. The link between command and speed is reliable only within the range the policy saw in training.</p>
+      <p>Both of these policies trained for 500 updates on 512 copies, which took about half an hour each in Node. Rudin et al. have 4,096 copies, and Margolis and Agrawal also have 4,096, with 2.58 billion steps. Why thousands of copies, and not a hundred or a million?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="scale">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">4</span> Copies</div>
+      <h2>Thousands of copies: why thousands</h2>
+      <p>In lesson 5.2, the calculator already broke Rudin et al.'s 20 minutes down into numbers: 4,096 robots making 24 steps each over 1,500 updates give 147 million steps, more than a month of one robot's experience. There we also saw why you can't just keep adding robots. The rollout batch of an update equals the number of robots times the number of steps each of them makes, so with the same batch, more robots means fewer consecutive steps for each, and GAE needs the rewards of several consecutive steps. What's new here is what the authors' experiment showed. They varied the number of robots from 128, the level of CPU implementations, up to 16,384, close to the limit of a single GPU, for three batch sizes. When there are too many robots, performance drops sharply: each robot gets fewer than 25 consecutive steps, that is, less than 0.5 s. With few robots, performance decreases slowly, because neighboring steps of one robot are similar to each other. Meanwhile, training time falls almost linearly up to 4,000 robots, and the authors name 2,048 to 4,096 robots with a batch of about 100,000 steps as the best compromise. A reference setup with 20,000 robots making 50 steps each learns better, but at the cost of a relatively long training time.</p>
+      <p>Copies are cheap because the simulation and the training never leave GPU memory: by the authors' estimate, a transfer over the PCIe bus can be up to 50 times slower than the computation itself. The other papers in this lesson show the same scale. Hwangbo et al. generated a quarter of a billion transitions on one computer in four hours, Lee et al. trained the teacher for about 12 hours and the student for about 4, and Miki et al. ran 1,000 environments in parallel with 250 steps each. At the other extreme is training on the robot itself. Smith, Kostrikov and Levine (2022) taught the quadruped A1 to walk in fewer than 20,000 steps, about 20 minutes of wall-clock time, right on a lawn and a trail. They trained off-policy, like SAC from lesson 5.3, with 20 critic updates per robot step. But their reward has two terms, an episode ends only if the tilt exceeds 30°, and the authors themselves write that massively parallel data collection is not often feasible in the real world. You can get a feel for when copies are too few and when they're too many on a smaller training problem.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="copies">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 3</div>
+    <h2>How many copies: one budget, different numbers of copies</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>Here, training really runs in your browser, but the policy is simpler than a network. It's a <strong>stepping rhythm</strong> of ten numbers: the stepping frequency, the hip swing, the knee bend, the hip's response to the torso pitch, foot placement by speed and others. They are tuned by <strong>augmented random search</strong>, ARS (Mania, Guy, Recht, 2018). At each update, each of the N copies of Ada gets its own random change of the parameters and tries it in both directions, three episodes per direction, and the rhythm shifts toward where the reward is higher. No gradient is computed here, and each copy gives one estimate of the direction: the more copies, the more accurate the step. The reward comes from Lab 1, “forward and fall,” and an episode lasts 4 seconds. The training budget is always the same, 960 episodes, and the number of copies decides how many updates it pays for: 80 with two copies, 20 with eight and 5 with thirty-two.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="solo"><canvas id="cCv" width="320" height="240" role="img" aria-label="Side view: Ada walks with the rhythm that random search found"></canvas></div>
+        <p class="cv-note">Side view: after training, Ada walks with the rhythm for 4 seconds, and the scene's label says how many copies it was trained with. The chart's horizontal axis shows the simulation episodes spent, and the vertical axis the rhythm's reward per episode. The purple line shows training with two copies, the orange one with eight, the blue one with thirty-two, and a dashed line is training with a different budget. The thin line shows the reward during training: at each update it is computed from three episodes, so it's noisy. The large dot at the end of a line marks the check after training, on eight new episodes, and the label at the dot gives the number of copies and the reward.</p>
+        <div class="chart"><canvas id="cChart" width="640" height="220" role="img" aria-label="Chart: the rhythm's reward versus the episodes spent, for different numbers of copies"></canvas></div>
+        <div class="ctl-row">
+          <div class="ctl" id="wrapCN" hidden><span class="ctl-l">Copies</span><div class="seg small" id="cN" role="group" aria-label="Number of copies"><button type="button" data-v="2" aria-pressed="false">2</button><button type="button" data-v="8" aria-pressed="true">8</button><button type="button" data-v="32" aria-pressed="false">32</button></div></div>
+          <label class="hd-range" id="wrapCBudget" hidden><span>Budget</span><input id="cBudget" type="range" min="240" max="3840" step="240" value="960"><output>960 ep.</output></label>
+          <button class="btn sm" id="cRun" type="button" hidden>Train rhythm</button>
+        </div>
+        <div class="prog-line" id="cProg" hidden><i></i></div>
+        <div class="readout" id="cOut"></div>
+      </div>
+      <div class="card guide-card"><div id="cMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: the stepping rhythm, ARS and the budget</summary><div class="body">
+      <p><b>Rhythm.</b> The phase grows as \(\varphi = 2\pi f t\), the legs move in antiphase, and the half of the cycle where \(\sin\varphi &gt; 0\) is the swing. The hip target is set relative to the vertical, as in SIMBICON (Yin et al., 2007): \(h_0 - A_h\cos\varphi\), plus \(-K_\theta\,\theta\) in stance, which levels the torso pitch, and \(K_r v_x + K_v (v_x - v^*)\) in swing, which places the foot according to speed (Raibert's heuristic). The hip joint angle equals this angle minus the torso pitch. The knee bends as \(k_0 + A_k \max(0, \sin(\varphi + \delta))\), and the ankle keeps the foot horizontal, with an offset. Ten parameters in all: \(f, A_h, h_0, A_k, k_0, K_\theta, K_v, \delta, \delta_a, K_r\). The starting values were found in advance by randomly sampling 600 sets: it's a rhythm that barely stays on its feet.</p>
+      <p><b>Search.</b> This is ARS (Mania, Guy, Recht, 2018). An update draws \(N\) random directions \(\delta_k\), and for each of them, two versions of the rhythm, \(z \pm 0.4\,\delta_k\), run three episodes each with different starts and commands. Of the \(N\) directions, the best \(N/2\) are kept, and the parameters shift like this: \(z \leftarrow z + \frac{0.25}{b\,\sigma_R}\sum_k (r_k^+ - r_k^-)\,\delta_k\), where \(b\) is the number of directions kept and \(\sigma_R\) is the spread of their rewards. An update costs \(6N\) episodes, so a budget of 960 pays for 80 updates with two copies, 20 with eight and 5 with thirty-two. With the “forward and fall” reward, an episode's reward is almost exactly 50 times the distance covered in meters. After training, the rhythm is checked on 8 episodes of 4 s each with other starts and commands (seed 9001), and the curve on the chart ends with this check.</p>
+      <p id="copiesSeeds"><b>Other seeds.</b> The lab trains the rhythm on seed 2. On seeds 1–10 with a budget of 960 episodes, 8 copies beat both 2 and 32 copies on 9 seeds out of 10: they beat two copies on 10 and 32 copies on 9. 2 copies with a budget of 3,840 lose to 8 copies with a budget of 960 on 10 seeds out of 10, and with an equal five updates, 32 copies beat 8 copies with a budget of 240 on 9 seeds. The rewards depend strongly on the seed: the medians over the ten seeds are 25, 81 and 47 for 2, 8 and 32 copies, and for 8 copies they range from 45 to 167. The search is noisy, and the reward doesn't grow monotonically with the budget: on seed 2, eight copies get 89 with a budget of 960, 63 with 1,200 and 123 with 1,440.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px" id="copiesAfter">
+      <p>With the same budget of 960 episodes, 8 copies scored 89 on the check, two copies 15 and thirty-two 37. Two copies didn't catch up with eight even with a four times larger budget: in 320 updates, they scored 6. And with an equal five updates, 32 copies gave 37 versus 15 for eight copies with a budget of 240. So copies make each update more accurate, but with a shared budget, too many copies leave too few updates. In Rudin et al., the rollout batch plays the role of the budget, and the consecutive steps of each robot play the role of the number of updates, and the best choice also turned out to be in the middle.</p>
+      <p>A ten-number rhythm and 960 episodes look like a toy next to a network and 147 million steps, but the rule is the same. Copies are needed so that the estimate behind each update isn't just noise, and there have to be enough updates to reach a good policy. For quadrupeds, this recipe produced walking in the mountains and on snow. What changes when there are two legs and the robot is as tall as a person?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="humanoid">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">5</span> Humanoid</div>
+      <h2>Digit: a transformer over history and transfer without fine-tuning</h2>
+      <p>A quadruped can stand on its own; a humanoid can't. Radosavovic, Xiao, Zhang, Darrell, Malik and Sreenath (2024) carried the same scheme over to Digit, a humanoid 1.6 m tall, weighing 45 kg, with 30 degrees of freedom. Over a week of full-day testing, their policy walked across plazas, walkways and lawns, dry on a sunny afternoon and wet in the early morning, and the authors didn't observe a single fall, even though there was no safety gantry. It was trained with PPO in Isaac Gym on four A100 GPUs and thousands of randomized environments, and it transferred to the robot zero-shot, without fine-tuning. The manufacturer's high-fidelity simulator served only to filter out unsafe policies. The authors based the reward on biomechanics studies of human walking, without a library of reference gaits, and included energy minimization terms. An arm swing in antiphase with the legs emerged on its own, even though the reward says nothing about the arms.</p>
+      <p>This work differs from Rudin et al. in two ways. The first is the teacher and the student from lesson 5.5. Reinforcement learning first trains a policy on the full state of the simulator. Then a student, which sees only the robot's observations, learns in two ways at once: with reinforcement learning and by imitating the teacher. The loss includes the KL divergence from lesson 5.2 between the student's and the teacher's actions, and the weight of this divergence drops to zero by the middle of training. The authors explain this scheme by the fact that training a policy with reinforcement learning directly on observations is slow. The second difference is memory. The student policy is a <strong>causal transformer</strong> over history. Its input is the last 16 “observation, action” pairs, one token per pair, with sinusoidal position encoding, and the causal mask from lesson 1.6 lets each token look only at the previous ones. The model has four blocks of width 192 and 1.4 million parameters. The history lets the policy see how the desired and actual states diverge: from how the body responded to previous actions, it can tell what floor is underfoot and what load is in the hands. The authors call this <strong>in-context adaptation</strong>, by analogy with language models: the network's weights don't change, the history does. In ablations, the transformer beat MLP, TCN and LSTM by a considerable margin, and a long context beat a short one.</p>
+    </div>
+    <figure class="card flow-card">
+      <canvas data-anim="tokens" width="720" height="330" role="img" aria-label="Diagram: a history of 16 observation-action pairs as transformer tokens; each token looks only at the previous ones; the output is the next action for the Digit robot; a push changes the history, not the weights"></canvas>
+      <figcaption class="muted-s">Digit's policy as a transformer over history (Radosavovic et al., 2024). Observations are shown in blue and actions in orange, and each “observation, action” pair forms one token. The last sixteen pairs cover 0.32 s at 50 steps a second. The arcs show the attention of the last token to the previous ones: it points only backward. At the output, the network gives the next action, that is, the target angles of 16 joints and the PD gains for 8 leg joints, and the PD controllers run at 1 kHz. When the robot is pushed, unusual pairs enter the history, and the actions change without any change in the weights. The animation's timing is not to scale. Click the diagram to pause it.</figcaption>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>In their next work, the same authors removed the reward from policy training. “Humanoid Locomotion as Next Token Prediction” (2024) casts walking as predicting the next token in a sequence of sensorimotor trajectories, which the authors view as the sentences of the physical world. A transformer of the same size learns to predict both observations and actions. Trajectories without actions go into training too: recordings of the manufacturer's controller, recordings of human movements from the KIT dataset made with motion capture, and YouTube videos. In place of the actions, they have a learnable mask token, and no loss is computed at those positions. The model, trained on only 27 hours of walking data, transferred to Digit without fine-tuning and walked around San Francisco for a week. It tracked the command more accurately than the very RL policy on whose trajectories it was trained, and it walked backward at up to 0.5 m/s, even though there was no backward walking in the data with actions. Human motion recordings as a source of what you can't write down as reward terms will be the topic of lessons 6.2 and 6.3.</p>
+      <p>The authors name the limitations themselves: the policy is not perfectly symmetrical and not perfect at tracking the velocity command, and a very strong pull of a cable attached to the robot knocks it over. Isaac Gym can't model the closed kinematic chains in Digit's legs accurately, so they were replaced with a high-stiffness virtual spring. The robot walks blind, like ANYmal in Lee et al. from lesson 5.5: it can bump into a step and get trapped, although it then gets out by lifting its leg higher.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="today">
+  <div class="prose">
+    <div class="kicker"><span class="num">6</span> Today</div>
+    <h2>What became standard, and where the limits are</h2>
+    <p>The Rudin et al. recipe lives on in their open code, legged_gym, and in its descendants for humanoids: thousands of copies on a GPU, PPO, a reward of many terms, randomization and a terrain curriculum. In lesson 5.2, Figure 02's walking training was described along the same lines. Margolis and Agrawal released their Walk These Ways controller as open source, and their idea of behavior parameters in the policy's input leads to lesson 6.3, where a single policy receives command masks. Miki et al. added perception to this scheme, and in lesson 5.5 we saw ANYmal climb Mount Etzel without a single fall. Training on the robot itself hasn't disappeared either: Smith et al.'s 20 minutes show that a quadruped with a simple reward doesn't strictly need a simulator.</p>
+    <p>The limits are the same as in lesson 5.4. A simulator reproduces mud, snow and crumbling ground poorly: Lee et al. write plainly that they trained the policy only on rigid terrain, and in the field it worked thanks to the history of proprioception. People still tune the reward: Hwangbo et al. spent about two days on it for walking and about a week for getting up after a fall. And for a humanoid, something else matters most: walking learned from a reward comes out correct but not human-like, and nobody knows how to write down as reward terms what “human-like” means.</p>
+  </div>
+</section>
+
+<section class="section" id="quiz">
+  <div class="prose">
+    <div class="kicker"><span class="num">7</span> Check yourself</div>
+    <h2>Eight common misconceptions</h2>
+    <div class="quiz" id="quizBox"></div>
+    <p class="score" id="quizScore" style="margin-top:14px"></p>
+  </div>
+</section>
+
+<section class="section alt" id="finale">
+  <div class="prose">
+    <div class="kicker"><span class="num">8</span> Takeaways</div>
+    <h2>Lesson takeaways</h2>
+    <ol class="takeaways">
+      <li><span>Walking means keeping balance all the time and managing contacts with the floor, and hand-designed controllers, according to Hwangbo et al., took months for every new maneuver. <strong>Reinforcement learning</strong> shifts the engineer's work to describing the task: the policy outputs target joint angles 50 times a second, PD controllers turn them into torques, and thousands of copies in the simulator collect experience.</span></li>
+      <li><span>The reward says what to achieve, not how, and the policy achieves exactly what's written. With only a speed reward, Ada lay down and crawled at 1.37 m/s; with a fall penalty, she sped up to 1.86 m/s and fell; and without the energy and smoothness penalties, she followed the command, but with 2.9 times more torque. Only the full reward of nine terms produced walking without loopholes.</span></li>
+      <li><span>Rudin et al. use nine terms: command tracking with a bounded kernel exp(−error²/0.25), penalties for bouncing, rocking, joint motion and torques, joint target changes and collisions, and a reward for the feet's air time. The gait isn't mentioned in any of them; it emerges on its own.</span></li>
+      <li><span>A policy learns to read the velocity command only if the commands are random in training. In Lab 2, the random-command Ada held both 0.3 and 0.9 m/s, while the single-command Ada walked at 0.71 m/s at a command of 0.9 m/s: for her, the constant number in the input worked as a neuron bias, and she never learned to speed up when it changed.</span></li>
+      <li><span>There can be too few copies and too many. With a rollout batch of 98,304 steps, 2,048–4,096 robots worked best for Rudin et al., and if each robot gets fewer than 25 consecutive steps, GAE stops working. In Lab 3, on the same budget, 8 copies scored 89 on the check, and 2 and 32 copies scored 15 and 37.</span></li>
+      <li><span>The Digit humanoid learns with the same scheme, plus a teacher and a student and a transformer over a history of 16 “observation, action” pairs. Its policy adapts to the floor and to pushes in context, without changing its weights; it walked the streets for a week without falls and transferred to the robot without fine-tuning. The same authors' next work casts walking as next-token prediction on 27 hours of data, including recordings of people.</span></li>
+    </ol>
+    <h3 style="margin-top:40px">Open questions</h3>
+    <details class="card pad open-q"><summary>Can you avoid tuning the reward by hand?</summary><p>Hwangbo et al. spent about two days on the reward for walking and about a week for getting up after a fall: in their words, some safety concerns, such as high impacts and collisions with fragile components, are not very intuitive to embed in a cost function. Rudin et al. remove gait artifacts by tuning the weights, and Miki et al. tuned the weights by looking at the policy's behavior in simulation. Margolis and Agrawal suggest not choosing a single behavior but learning a family of them and picking the right one live, and Radosavovic et al. replace the reward with data, that is, with motion recordings. Which of these scales to dozens of whole-body tasks, lessons 6.2 and 6.3 will show.</p></details>
+    <details class="card pad open-q"><summary>What do you do about what the simulator can't do?</summary><p>Lee et al. write that present-day simulators are severely limited in their ability to simulate compliant contact, slippage and crumbling terrain, and yet a policy trained only on rigid terrain worked on snow and in mud thanks to the history of proprioception. Miki et al. found the opposite case: the policy exploited the non-vertical edges of the steps in the simulator's height map and transferred poorly to the robot until the stairs in the simulator were replaced with boxes. Where the line runs between “the variety of the world isn't needed” and “the simulator fooled us” has to be found anew for every new task.</p></details>
+    <h3 style="margin-top:34px">Paper guide</h3>
+    <p><a href="https://arxiv.org/abs/2109.11978" target="_blank" rel="noopener">N. Rudin, D. Hoeller, P. Reist, M. Hutter, “Learning to Walk in Minutes Using Massively Parallel Deep Reinforcement Learning”, CoRL 2021</a>.</p>
+    <ul class="links">
+      <li><strong>Read closely</strong><span>Sections 2.2.1–2.2.2: why each robot gets few steps when there are thousands of robots, and what to do about episode timeouts. Sections 3.1–3.2 and Appendix A.3: the terrain curriculum and the table of reward terms with their weights. Section 4.1 and Fig. 4: how performance and training time depend on the number of robots for three batch sizes.</span></li>
+      <li><strong>Safe to skip</strong><span>Appendix A.1 on GPU memory and the breakdown of simulation time, unless you plan to run Isaac Gym yourself.</span></li>
+      <li><strong>Question to keep in mind</strong><span>The authors write that the policy always converges to a trot, while Cassie needed a reward for standing on a single foot. Which term in Lab 1 comes closest to such a hint, and why wouldn't it be enough for a humanoid?</span></li>
+    </ul>
+    <p style="margin-top:18px">Other papers in this lesson: <a href="https://arxiv.org/abs/1901.08652" target="_blank" rel="noopener">Hwangbo et al., 2019</a>, with the actuator network, TRPO training in four hours and the transfer to ANYmal; <a href="https://arxiv.org/abs/2010.11251" target="_blank" rel="noopener">Lee et al., 2020</a>, with a teacher and a student, an adaptive terrain curriculum, mountains and snow; <a href="https://arxiv.org/abs/2201.08117" target="_blank" rel="noopener">Miki et al., 2022</a>, with perception, an encoder that blends the height map with proprioception, and the hike up Etzel; <a href="https://arxiv.org/abs/2208.07860" target="_blank" rel="noopener">Smith, Kostrikov, Levine, 2022</a>, where A1 learns to walk in 20 minutes on the robot itself; <a href="https://arxiv.org/abs/2212.03238" target="_blank" rel="noopener">Margolis and Agrawal, 2022</a>, with behavior parameters in the input of a single policy; <a href="https://arxiv.org/abs/2303.03381" target="_blank" rel="noopener">Radosavovic et al., 2024</a>, on the Digit humanoid and the transformer over history; <a href="https://arxiv.org/abs/2402.19469" target="_blank" rel="noopener">Humanoid Locomotion as Next Token Prediction, 2024</a>.</p>
+    <h3 style="margin-top:34px">Resources</h3>
+    <ul class="links">
+      <li><a href="https://leggedrobotics.github.io/legged_gym/" target="_blank" rel="noopener">legged_gym</a><span>The Rudin et al. code: environments, rewards and PPO in Isaac Gym</span></li>
+      <li><a href="https://arxiv.org/abs/1803.07055" target="_blank" rel="noopener">ARS (Mania, Guy, Recht, 2018)</a><span>The random search that trains the stepping rhythm in Lab 3</span></li>
+    </ul>
+    <div class="bridge-note"><p>The full-reward Ada holds any velocity command from 0.2 to 1.0 m/s. But her steps are short and frequent: at 0.6 m/s, she makes 3.4 steps a second, 18 cm each, with a leg 65 cm long, and her knees stay bent all the time. There's no “walk like a human” term in the reward: Radosavovic et al. built Digit's reward on the biomechanics of human walking, and in their next work they added recordings of human motion to training.</p><p class="bridge-to"><!--if:6-2-imitatsiya-dvizheniy.html--><a href="6-2-imitatsiya-dvizheniy.html"><!--/if-->Lesson 6.2 · Imitating human motion: how to teach a robot to move from recordings of human motion rather than from reward terms<!--if:6-2-imitatsiya-dvizheniy.html--></a><!--/if--></p></div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Lesson 6.1 of the “Modern Robotics and Physical AI” course. The policies in Labs 1 and 2 were trained with PPO in Node with the same engine that runs on this page and are embedded in the lesson; the stepping rhythm in Lab 3 is trained in your browser; the numbers from the papers are taken from the original sources.
+</footer>
+<div class="tooltip" id="tooltip" role="tooltip"></div>
+<script>
+/*@@JS@@*/
+</script>
+</body>
+</html>

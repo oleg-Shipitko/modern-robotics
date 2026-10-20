@@ -371,7 +371,7 @@ const Reward = (() => {
   function renderChips() {
     const box = $('#rChips'); box.innerHTML = '';
     for (const t of E.TERMS) {
-      const b = h('button', { type: 'button', class: 'chip' + (st.on[t.id] ? ' on' : '') + (st.unlocked[t.id] ? '' : ' locked'), 'data-id': t.id, 'aria-pressed': String(!!st.on[t.id]) }, h('b', null, (t.w > 0 ? '+' : '−') + ' ' + t.t), h('span', null, fmt(Math.abs(t.w), t.w === 1 || Math.abs(t.w) === 2 ? 0 : 7).replace(/0+$/, '').replace(/,$/, '')));
+      const b = h('button', { type: 'button', class: 'chip' + (st.on[t.id] ? ' on' : '') + (st.unlocked[t.id] ? '' : ' locked'), 'data-id': t.id, 'aria-pressed': String(!!st.on[t.id]) }, h('b', null, (t.w > 0 ? '+' : '−') + ' ' + t.t), h('span', null, fmt(Math.abs(t.w), t.w === 1 || Math.abs(t.w) === 2 ? 0 : 7).replace(/0+$/, '').replace(/[,.]$/, '')));
       if (!st.unlocked[t.id]) b.disabled = true;
       b.addEventListener('click', () => { if (st.busy) return; st.on[t.id] = !st.on[t.id]; render(); if (ctl) ctl.update(); });
       box.append(b);

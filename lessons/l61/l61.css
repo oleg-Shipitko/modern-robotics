@@ -60,6 +60,8 @@
   .num-h span:nth-child(n+3) { display: none; }
   .num-row:not(.num-h) span:nth-child(3)::before { content: "Вес: "; color: var(--ink-3); }
   .num-row:not(.num-h) span:nth-child(4)::before { content: "Зачем: "; color: var(--ink-3); }
+  html[lang="en"] .num-row:not(.num-h) span:nth-child(3)::before { content: "Weight: "; }
+  html[lang="en"] .num-row:not(.num-h) span:nth-child(4)::before { content: "Purpose: "; }
 }
 @media (max-width: 560px) {
   .ada-legs { grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 14px; }
