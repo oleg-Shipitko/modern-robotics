@@ -247,7 +247,7 @@
  "Да, это стандартный способ": "Yes, it's the standard way",
  "Плохо: действий станет 3⁷ = 2187, а для точного управления нужно больше делений, и максимум по ним искать трудно": "Poorly: there would be 3⁷ = 2187 actions, precise control needs finer steps, and searching for the maximum over them is hard",
  "Нет, DQN работает только с картинками": "No, DQN works only with images",
- "Этот пример приводят авторы DDPG. Вместо перебора действий DDPG учит отдельную сеть-актёра, которая выдаёт действие, а критик Q(s, a) подсказывает, куда его сдвинуть.": "This example comes from the DDPG authors. Instead of enumerating actions, DDPG trains a separate actor network that outputs the action, and the critic Q(s, a) tells it which way to shift it.",
+ "Этот пример приводят авторы DDPG. Вместо перебора действий DDPG учит отдельную сеть-актора, которая выдаёт действие, а критик Q(s, a) подсказывает, куда его сдвинуть.": "This example comes from the DDPG authors. Instead of enumerating actions, DDPG trains a separate actor network that outputs the action, and the critic Q(s, a) tells it which way to shift it.",
  "Зачем TD3 и SAC две Q-функции?": "Why do TD3 and SAC need two Q-functions?",
  "Чтобы усреднить их и получить точнее": "To average them and get a more accurate estimate",
  "Чтобы брать меньшую из двух оценок в целевом значении: максимум по шумной оценке систематически её завышает": "To take the smaller of the two estimates in the target value: a maximum over a noisy estimate systematically inflates it",
