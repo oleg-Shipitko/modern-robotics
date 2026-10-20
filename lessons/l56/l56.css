@@ -67,6 +67,8 @@
   .num-h span:nth-child(n+3) { display: none; }
   .num-row:not(.num-h) span:nth-child(3)::before { content: "Данные: "; color: var(--ink-3); }
   .num-row:not(.num-h) span:nth-child(4)::before { content: "Итог: "; color: var(--ink-3); }
+  html[lang="en"] .num-row:not(.num-h) span:nth-child(3)::before { content: "Data: "; }
+  html[lang="en"] .num-row:not(.num-h) span:nth-child(4)::before { content: "Result: "; }
   .pr-grid { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 560px) {

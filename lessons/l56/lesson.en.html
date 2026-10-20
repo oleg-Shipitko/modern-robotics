@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>5.6 Offline RL — Modern Robotics and Physical AI</title>
+<meta name="description" content="Lesson 5.6 of the “Modern Robotics and Physical AI” course: reinforcement learning from logged data only, why naive Q-learning on logs overestimates actions that aren't in the data, and how BCQ, CQL and IQL deal with it; QT-Opt and AWAC on real robots. Train four of Ada's policies on the logs of three operators, probe the Q-function at individual points along the route and find out which logs offline RL needs.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<script>
+  (function () { try { var t = localStorage.getItem('mr-theme'); if (t) document.documentElement.dataset.theme = t; else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme = 'dark'; } catch (e) {} })();
+</script>
+<style>
+/*@@CSS@@*/
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html#program" title="To the course program"><div>Modern Robotics and Physical AI<small>Lesson 5.6 · Offline RL</small></div></a>
+    <nav class="toc" aria-label="Lesson sections">
+      <a href="#why">Logs</a>
+      <a href="#naive">Optimism</a>
+      <a href="#ideas">BCQ, CQL, IQL</a>
+      <a href="#duel">Four policies</a>
+      <a href="#probe">Probe</a>
+      <a href="#sets">Which logs</a>
+      <a href="#robots">Robots</a>
+      <a href="#today">Today</a>
+      <a href="#quiz">Quiz</a>
+      <a href="#finale">Takeaways</a>
+    </nav>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Toggle theme">◐</button>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main>
+
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="kicker"><span class="num">5.6</span> Part 5 · Reinforcement learning</div>
+    <h1>Offline RL: <span class="amp">how to learn from recordings without making new attempts</span></h1>
+    <p class="lead">In lesson 5.3, SAC learned from old experience in its buffer, but it kept adding new drives to it all the time. On a real robot, every attempt costs time, and a failed one may also break something; on the other hand, there are usually plenty of recordings from operators and past policies, of varying quality. Reinforcement learning from such recordings alone, without a single new drive, is called offline RL. Imitation learning here copies whatever occurs most often in the logs, while the Q-learning from lesson 5.3 falls apart on the same logs: the Q-function overestimates the value of actions that aren't in the data, and the policy picks exactly those. In 2018, the authors of BCQ demonstrated this on tasks in the MuJoCo simulator; two years later, CQL penalized high estimates outside the data, and in 2021, IQL learned to never ask the Q-function about such actions at all. QT-Opt took the same path: 580,000 recorded grasp attempts on 7 robots gave 87% success on new objects, and 28,000 fine-tuning attempts raised it to 96%.</p>
+    <div class="hero-meta"><span>≈ 55 minutes</span><span>3 labs and a quiz</span><span id="heroMis">missions with a goal</span></div>
+    <div class="hero-list">
+      <div><b>THE LOGS OF THREE OPERATORS</b>Look at the drives of a careful, a hasty and a random operator and find out which of them collects more reward on average</div>
+      <div><b>FOUR POLICIES, ONE SET OF RECORDINGS</b>Train four of Ada's policies in your browser on the same logs and compare what each one promised with what actually happened</div>
+      <div><b>A PROBE FOR THE Q-FUNCTION</b>Put Ada at any point on the route and see which action the Q-function considers best and how many such actions were in the logs</div>
+      <div><b>WHICH LOGS ARE NEEDED</b>Train on the recordings of a single operator and find out when reinforcement learning beats imitation learning and when it doesn't</div>
+    </div>
+    <p style="margin-top:28px"><a class="btn primary" href="#why">Start the lesson ↓</a></p>
+  </div>
+</section>
+
+<section class="recall-sec" id="recall" aria-label="Warm-up on the previous lesson">
+  <div class="wrap"><div class="card recall" data-recall></div></div>
+  <script type="application/json" id="recallData">{"n": "5.5", "title": "Learning with privileged information", "href": "5-5-privilegirovannyy-uchitel.html", "q": [{"q": "Why train a teacher with privileged information in the simulator if the robot won't have that information?", "o": ["To transfer it to the robot together with the friction sensor", "With full information, the teacher learns quickly with reinforcement learning, and then the student, which has only the robot's sensors, learns to imitate it with ordinary supervised learning", "To test the simulator"], "a": 1, "e": "Lee et al. couldn't directly train a policy that relies on the sensors alone to walk over rough terrain, while a teacher that received the terrain and friction as input learned quickly. Only the student runs on the robot.", "sec": "teacher", "secTitle": "A teacher that knows the floor: training in two stages"}, {"q": "A student without history diligently imitates a teacher that knows the floor's traction. What happens on a wet floor?", "o": ["The same as with the teacher: the data was the same", "It crashes: unable to tell the floors apart, it learned the teacher's average behavior, which is too bold for a wet floor", "It drives slower but makes it"], "a": 1, "e": "In the lab, the student without history never made it on the wet floor, while the student with the history of the last 2 seconds made it in all 20 drives.", "sec": "trio", "secTitle": "The teacher and two students on the same floor"}, {"q": "Whose drives should the student learn on?", "o": ["The teacher's: they are better", "Its own: the student drives, and the teacher labels the states it ends up in (DAgger)", "It doesn't matter: only the number of examples counts"], "a": 1, "e": "With the same budget, the DAgger student made it in 100% of the test drives after 6 iterations, and the BC student in 48%. In Learning by Cheating, the student's own drives raised success from 16 to 64%.", "sec": "forecast", "secTitle": "Forecast: the student on the teacher's drives or on its own"}]}</script>
+</section>
+
+<section class="section alt" id="why">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">1</span> Logs</div>
+      <h2>Learning from recordings when new attempts are expensive</h2>
+      <p>Reinforcement learning in lessons 5.1–5.3 tries actions by itself: in lesson 5.2, PPO needed 400 drives to learn a single steering policy, and SAC in lesson 5.3 is more economical but still collects new experience at every step. On a real robot, every such attempt is paid for with the operator's time, wear and the risk of a collision. The authors of the offline RL survey (Levine et al., 2020) say as much: collecting data in the real world can be “expensive,” as in robotics, and “dangerous,” as in autonomous driving.</p>
+      <p class="ada-note"><svg class="ada-ico" viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="10" width="48" height="42" rx="18" fill="#f4efe6" stroke="#3d3c38" stroke-width="3"/><rect x="15" y="19" width="34" height="22" rx="10" fill="#1f2430"/><ellipse cx="25" cy="30" rx="4" ry="5.5" fill="#eb6834"/><ellipse cx="39" cy="30" rx="4" ry="5.5" fill="#eb6834"/></svg><span>Ada is a home humanoid on a wheeled base; the course labs are built around her. More about her in <a href="0-1-dve-paradigmy.html#ada">lesson 0.1</a>.</span></p>
+      <p>Recordings, on the other hand, are usually plentiful. Operators drove the robot, past versions of the policy worked for weeks, and all of it sits in the logs. <strong>Offline RL</strong> (offline reinforcement learning; older papers call it batch RL) trains a policy only on such a pre-collected set of “state, action, reward, next state” transitions. There are no new drives: the policy is run only once training is over. The people and past policies that collected the logs are together called the <strong>behavior policy</strong> \(\pi_\beta\): the logs record how they acted.</p>
+      <p>In this lesson's labs, Ada again drives from the hallway to the kitchen, as in lessons 1.1 and 5.2, and we watch the apartment from above. Now she chooses not only the steering but also the speed: slow, 40 cm/s, or fast, 80 cm/s. You can't turn sharply at speed: the steering is limited so that at 40 cm/s Ada turns at up to 1.4 rad/s, and at 80 cm/s only half as fast. In total she has 18 actions: 9 steering positions at each of the two speeds. Every 0.2 s she picks one of them, and the motors execute the steering with a small error.</p>
+      <p>Three operators recorded the logs. The careful one drives slowly and always down the middle of the passage. The hasty one follows the same line, but always fast. The random one presses whatever comes to hand in half of the decisions and the rest of the time steers Ada toward the kitchen, at a speed that keeps changing. Ada gets a reward for every decision: +1 for each meter of progress toward the kitchen, −0.5 for each second on the way, +2 for reaching the kitchen and −5 for a collision. So the best thing is to get there fast without hitting anything.</p>
+    </div>
+    <figure class="card flow-card">
+      <canvas data-anim="loops" width="720" height="380" role="img" aria-label="Diagram of three ways to learn: PPO collects a rollout of drives and throws it away after the update, SAC adds every step to its buffer and keeps driving, offline RL learns from ready-made logs without new drives"></canvas>
+      <figcaption class="muted-s">Where the experience comes from in the three approaches. Blue marks recorded drives, orange marks what is being trained. The top row shows on-policy PPO from lesson 5.2: Ada drives with the current policy, an update is made on each rollout, and after it the rollout is thrown away. The middle row shows off-policy SAC from lesson 5.3: every step goes into the buffer, training draws batches from the whole buffer, and Ada keeps driving and filling it. The bottom row shows offline RL: the operators' logs are collected in advance, there are no new drives, training draws batches from the same recordings over and over, and Ada sets off only after training. Click the diagram to pause it.</figcaption>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>How is this different from lesson 1.1, where Ada also learned from operator recordings? There, the policy copied actions and didn't care whether a drive ended well. Here, every step has a reward, and we want a policy better than the one that collected the logs. The survey by Levine et al. names this as the main goal of offline RL: “to obtain a policy that is better than the best behavior in the dataset.” We could simply run the lab from lesson 5.3 on these logs, only without new drives. What would happen then?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="naive">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">2</span> Optimism</div>
+      <h2>Naive Q-learning on logs: optimism outside the data</h2>
+      <p>The simplest thing is to take Q-learning from lesson 5.3 and fill its buffer with the logs in advance. That is exactly how the survey by Levine et al. describes the simplest offline RL method: Q-learning without new drives, with its buffer pre-populated with the recordings. The Q-function \(Q(s, a)\) from lesson 5.1 estimates the value of an action: the discounted return Ada will collect if she takes action \(a\) in state \(s\) and then acts in the best way. It learns on every recorded transition toward the target</p>
+    </div>
+    <div class="formula">\[ y = r + \gamma \max_{a'} Q(s', a'). \]</div>
+    <div class="prose" style="margin:0;max-width:820px">
+      <p>Here \(r\) is the reward for the recorded step, \(s'\) is the state after it, \(\gamma\) is the discount factor, and the maximum is taken over all 18 of Ada's actions in \(s'\). And there's the problem. The Q-function itself learns only on the actions that are in the logs: each recorded transition adjusts the estimate of the action the operator took. The network extrapolates the estimates of all the other actions however it happens to. If the logs contain almost no full-lock turns at high speed, nothing checks the estimate of such an action: it may turn out lower than the true value or higher. The maximum picks the largest of the estimates, which means, most often, the one that is mistakenly inflated.</p>
+      <p>The authors of BCQ (Fujimoto, Meger and Precup, 2018) called this <strong>extrapolation error</strong>, “a phenomenon in which unseen state-action pairs are erroneously estimated to have unrealistic values.” Combined with the maximum, it produces the persistent <strong>overestimation</strong> from lesson 5.3, and the inflated target immediately trains the Q-function for the previous step. Online, such an error would correct itself: the policy would try the overestimated action and see what happens. Offline, that doesn't happen. In the words of the survey by Levine et al., “if the policy can produce out-of-distribution actions for which the learned Q-function erroneously produces excessively large values, it will learn to do so,” and “these errors accumulate over each iteration of training.”</p>
+      <p>This is the same <strong>distribution shift</strong> as in lesson 1.1, only now it's the actions that shift. There, the policy drifted into states the operator had never visited. Here, the Q-function learns on the operators' actions but evaluates the actions it picks itself.</p>
+      <p>In the BCQ experiments, a DDPG agent learned from a million transitions collected by a well-trained DDPG expert. The data was expert data, and still, as the authors write, “the agent quickly learns to take non-expert actions, under the guise of optimistic extrapolation,” and “the value estimates rapidly diverge.” Even when two agents learned from the same buffer, but one of them collected the data itself and the other only learned from it, the second one fell behind in every single trial. So good logs aren't enough. We need to stop trusting the Q-function where there is no data. How?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="ideas">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">3</span> Three ideas</div>
+      <h2>Three ways not to trust the Q-function outside the data: BCQ, CQL and IQL</h2>
+      <p>The first idea is not to let the policy choose rare actions. <strong>BCQ</strong> (batch-constrained Q-learning, Fujimoto et al., 2018) first trains a model that, given a state, proposes actions similar to the recorded ones; in essence, this is imitation learning. Then, out of 10 such proposals, each slightly perturbed, it picks the one with the highest Q. The maximum in the training target is also taken only over them. The authors note that this gives a dial between two extremes: with a single proposal and no perturbations, the policy “resembles behavioral cloning,” and with infinitely many proposals and arbitrary perturbations, the method approaches ordinary Q-learning. In the labs, Ada has only 18 actions, so we use a discrete version of the same idea: the allowed actions are those that the imitation learning model considers at least 30% as likely as the most frequent one.</p>
+      <p>The second idea is to fix the Q-function itself. <strong>CQL</strong> (conservative Q-learning, Kumar et al., 2020) adds a penalty to the Bellman error: on every recorded transition, push down all high estimates in that state and push up the estimate of the action recorded there:</p>
+    </div>
+    <div class="formula">\[ L_{\text{CQL}} = \tfrac12\bigl(Q(s,a) - y\bigr)^2 + \alpha\Bigl(\log \sum_{a'} e^{Q(s,a')} - Q(s,a)\Bigr). \]</div>
+    <div class="prose" style="margin:0;max-width:820px">
+      <p>The first term is the usual error with respect to the target \(y\) on the recorded pair \((s, a)\). The second term contains \(\log \sum_{a'} e^{Q(s,a')}\), a smoothed maximum of the estimates over all actions: it is almost equal to the largest of them, and its gradient pulls exactly that one down the hardest. The penalty weight is set by \(\alpha\). The Bellman error holds the logged actions in place, while the penalty pushes down the estimates of actions that aren't in the logs. The authors proved that with a large enough \(\alpha\), the expected estimate of a policy is no higher than its true value, and they write that it takes “only 20 lines of code” on top of a standard SAC implementation. In their experiments, CQL often learned policies that “attain 2-5 times higher final return” than prior methods, “especially when learning from complex and multi-modal data distributions.”</p>
+      <p>The third idea is to never ask the Q-function about actions outside the logs at all. <strong>IQL</strong> (implicit Q-learning, Kostrikov, Nair and Levine, 2021) separately learns the state value \(V(s)\), and only from the actions in the logs. Instead of the maximum, it takes an <strong>expectile</strong>: a statistic that equals the mean at \(\tau = 0.5\) and approaches the maximum as \(\tau\) gets closer to 1, but only over the values that occurred in the data. An asymmetric squared error is enough for this:</p>
+    </div>
+    <div class="formula">\[\begin{gathered} L_V = \bigl|\tau - \mathbf 1(u < 0)\bigr|\, u^2, \quad u = Q(s,a) - V(s), \\ L_Q = \bigl(r + \gamma V(s') - Q(s,a)\bigr)^2. \end{gathered}\]</div>
+    <div class="prose" style="margin:0;max-width:820px">
+      <p>Here \(\mathbf 1(u < 0)\) is one if the Q of the recorded action is below the current estimate \(V(s)\), and zero otherwise. At \(\tau = 0.7\), underestimating costs 0.7 of the squared error and overestimating costs 0.3, so \(V(s)\) is pulled toward the best of the recorded actions. The target for the Q-function is \(r + \gamma V(s')\), and it contains no maximum over actions that never occurred. The authors write that at \(\tau = 0.5\) the method turns into SARSA, which evaluates the operators' behavior as it is, and at \(\tau\) close to 1 into Q-learning over the actions in the data.</p>
+      <p>IQL gets its policy through weighted imitation learning: each recorded action is copied with the weight \(e^{\beta (Q(s,a) - V(s))}\). The difference \(Q - V\) is the <strong>advantage</strong> from lesson 5.1: how much better the action is than usual in this state. The larger it is, the more strongly the policy copies the action; \(\beta\) sets how sharply. Actions worse than usual are hardly copied at all. In a similar way, π*0.6 in lesson 3.8 labeled its attempts as good or bad by their advantage and learned from them with ordinary supervised learning.</p>
+    </div>
+    <figure class="card flow-card">
+      <canvas data-anim="maxpeak" width="720" height="380" role="img" aria-label="Diagram: the Q estimates over the actions in one state, with dots for the actions in the logs; the maximum finds an inflated estimate where there is no data, and it grows from iteration to iteration; then BCQ forbids rare actions, CQL pushes down the estimates outside the data, and IQL takes an expectile over the logged actions only"></canvas>
+      <figcaption class="muted-s">One of Ada's states. The horizontal axis is the steering, from full left to full right, and the vertical axis is the Q estimate of each action. The blue dots at the bottom are the actions from the logs in this state: there are many in the middle and almost none at the edges. The orange line is the Q-function: in the middle the data holds it in place, and at the edges it is filled in however it happens to be. First, the maximum (the ring) finds an inflated estimate at an edge, the target \(r + \gamma \max Q\) carries it over to neighboring states, and the peak grows from iteration to iteration. Then the diagram shows three fixes: BCQ grays out the rare actions and looks for the maximum only among the frequent ones, CQL pushes down the estimates where there is no data, and IQL draws the line \(V(s)\), an expectile over the estimates of the recorded actions only. The numbers on the diagram are illustrative. Click the diagram to pause it.</figcaption>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>All three methods stick to the logs in different ways: BCQ restricts the choice, CQL changes the estimates, and IQL never leaves the data at all. Let's test them on the same recordings of the three operators.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="duel">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 1</div>
+    <h2>Four policies on the same logs</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>The logs hold 100 drives: 20 by the careful operator, 40 by the hasty one and 40 by the random one, 4,647 decisions in total. Four policies train on these recordings in your browser: imitation learning (BC, behavior cloning from lesson 1.1), naive Q-learning, CQL and IQL. The conditions are the same for all of them: networks of the same size and 4,000 training steps on batches of 64 recorded transitions with the same Adam step size. The test is the same too: each policy makes 20 drives from the same starts and with the same steering noise. The BC and IQL policies choose the most probable of the 18 actions, and the methods with a Q-function choose the action with the highest estimate.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="duo" id="dDuo">
+          <figure class="pane"><figcaption class="pane-head"><b id="dHeadL" class="c-ops">Logs</b><span id="dSubL">careful operator</span></figcaption><canvas id="dCvL" width="600" height="400" role="img" aria-label="Top view of the apartment: the drives on the left come from the logs or are the test drives of the selected policy"></canvas><div class="pane-stat" id="dStatL"></div></figure>
+          <figure class="pane"><figcaption class="pane-head"><b id="dHeadR" class="c-ops">Logs</b><span id="dSubR">hasty operator</span></figcaption><canvas id="dCvR" width="600" height="400" role="img" aria-label="Top view of the apartment: the drives on the right come from the logs or are the test drives of the selected policy"></canvas><div class="pane-stat" id="dStatR"></div></figure>
+        </div>
+        <p class="cv-note">A top view of the apartment, 6 × 4 m: the hallway on the left, the living room in the middle, the kitchen on the right, furniture hatched. The dashed circle in the kitchen marks the end of the route, and Ada stands at the start in the hallway. The lines show the drives: where a line is thin, Ada drives slowly, and where it is thick, fast. A green check mark at the end of a drive means Ada made it, a red cross means she crashed, and a gray circle means the 20 seconds ran out.</p>
+        <div class="ctl-row" id="wrapDSides">
+          <div class="ctl"><span class="ctl-l">Left</span><div class="seg small" id="dLeft" role="group" aria-label="What to show on the left"><button type="button" data-v="careful" aria-pressed="true">careful</button><button type="button" data-v="hurried" aria-pressed="false">hasty</button><button type="button" data-v="random" aria-pressed="false">random</button><button type="button" data-v="bc" aria-pressed="false">BC</button><button type="button" data-v="naive" aria-pressed="false">naive</button><button type="button" data-v="cql" aria-pressed="false">CQL</button><button type="button" data-v="iql" aria-pressed="false">IQL</button><button type="button" data-v="bcq" aria-pressed="false">BCQ</button></div></div>
+          <div class="ctl"><span class="ctl-l">Right</span><div class="seg small" id="dRight" role="group" aria-label="What to show on the right"><button type="button" data-v="careful" aria-pressed="false">careful</button><button type="button" data-v="hurried" aria-pressed="true">hasty</button><button type="button" data-v="random" aria-pressed="false">random</button><button type="button" data-v="bc" aria-pressed="false">BC</button><button type="button" data-v="naive" aria-pressed="false">naive</button><button type="button" data-v="cql" aria-pressed="false">CQL</button><button type="button" data-v="iql" aria-pressed="false">IQL</button><button type="button" data-v="bcq" aria-pressed="false">BCQ</button></div></div>
+        </div>
+        <div class="ctl-row" id="wrapDView">
+          <div class="ctl"><span class="ctl-l">On the chart</span><div class="seg" id="dView" role="group" aria-label="What to show on the chart"><button type="button" data-v="ret" aria-pressed="true">average return</button><button type="button" data-v="promise" aria-pressed="false">Q promise vs. outcome</button></div></div>
+        </div>
+        <div class="d-board"><canvas id="dBoard" width="640" height="300" role="img" aria-label="Summary: the average return of the operators and the trained policies, or the Q-function's promise next to the outcome"></canvas></div>
+        <p class="cv-note" id="dBoardNote">The average return per drive is the sum of rewards without a discount. Gray bars show the operators on their own recordings, colored bars show the policies on 20 test drives. The label next to a bar gives how many drives reached the kitchen and the average time of those that did.</p>
+        <div class="prog-line" id="dProg" hidden><i></i></div>
+        <div class="readout" id="dOut"></div>
+      </div>
+      <div class="card guide-card"><div id="dMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: the world, the operators, the methods and a check on ten seeds</summary><div class="body">
+      <p><b>The world.</b> The apartment and the observation come from lessons 1.1 and 5.2: Ada sees 9 rangefinder beams in a ±120° sector, up to 2.5 m long, plus the direction and distance to the kitchen, 13 numbers in total. A decision is held for 0.2 s (four simulation steps of 0.05 s), and a drive lasts up to 20 s, that is, up to 100 decisions. The steering has 9 positions from full left to full right, and the speed is either 40 or 80 cm/s. The steering limit is set by a lateral acceleration of 56 cm/s²: at 40 cm/s that's 1.4 rad/s, and at 80 cm/s, 0.7 rad/s. Gaussian noise of 0.3 rad/s is added to the steering. Ada starts in the hallway with a spread of 8 cm and 0.12 rad.</p>
+      <p><b>Reward per decision.</b> \(r = \Delta d - 0.5\,\Delta t + 2\cdot[\text{kitchen}] - 5\cdot[\text{collision}]\), where \(\Delta d\) is the progress along the center line of the passage in meters and \(\Delta t = 0.2\) s. The discount is \(\gamma = 0.97\) per decision.</p>
+      <p><b>The operators.</b> The careful and the hasty operators steer Ada toward a route point 42 cm ahead, like the teacher from lesson 1.1, each drive with its own small offset from the middle; the careful one always drives at 40 cm/s, the hasty one at 80 cm/s. The random operator presses any of the 18 actions with probability 0.5 and otherwise steers Ada toward the kitchen, changing the speed with probability 0.15 at every decision.</p>
+      <p><b>The methods.</b> All networks have sizes 13 → 24 → 24 → 18 and leaky ReLU activations, and the IQL value network has a single output. The networks train for 4,000 steps on batches of 64 transitions, Adam uses a step size of 0.003, and the target networks track the trained ones with \(\tau = 0.02\). BC trains with cross-entropy on the recorded actions. Naive Q-learning uses the target \(r + \gamma \max_{a'} Q_{\text{targ}}(s', a')\). CQL takes the same target and adds the penalty with \(\alpha = 1\). IQL takes the expectile \(\tau = 0.7\) and the weights \(e^{\beta A}\) with \(\beta = 10\), capped at 100, as in the paper. BCQ trains a BC model and a Q-function and picks both the action and the maximum in the target only among actions whose BC probability is at least 0.3 of the most probable one. In the paper, IQL takes the smaller of two Q-functions and trains the policy after the Q-function; we have one Q-function, and all networks train at the same time.</p>
+      <p><b>The same in every browser.</b> The exponential, logarithm, sine and arctangent in the engine are built from additions, multiplications and divisions, as in lessons 5.2 and 5.3: the built-in functions of different browsers differ in the last digit, and training blows such a difference up. That's why everyone gets the same numbers.</p>
+      <p id="duelSeeds"><b>Ten seeds.</b> The lab uses a single seed: it sets both the logs and the initial weights. Across seeds 1–10, naive Q-learning never makes it on any of them, and its promise at the start ranges from 39 to 1,051. IQL makes it in 16–20 drives out of 20, BC in 14–19, CQL in 8–20, BCQ in 12–17. In average return, IQL beats the best operator on 10 seeds out of 10 and BC on 10. CQL with \(\alpha = 1\) beats BC in return on only 3 seeds out of 10: it sticks to the logs but plays it too safe.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px" id="duelAfter">
+      <p>The careful and the hasty operators collect almost the same on average: +0.51 and +0.45 per drive. The first always makes it but takes 15 seconds; the second gets there in 9 seconds but crashes in 18 drives out of 40, mostly in the kitchen, where the turn can't be made at that speed. BC copies the most frequent logged action at every point. In the hallway and the living room, the logged drives were more often slow, and in the kitchen, fast: all 40 of the hasty operator's drives got that far. So BC drives slowly where it could go fast, and fast where the hasty operator crashed: 14 of its 20 drives succeed, all six crashes happen in the kitchen, and its return is −0.08. Naive Q-learning never made it: at the start, its Q-function promised 93.0, and the outcome was −3.92. CQL promises 11.2 at the same start against −0.45 in reality. That is also more than what came out, but without a collapse: CQL makes it in 17 drives out of 20, though slowly. IQL makes it in 18 of 20 in 10.9 seconds and collects +1.98, more than any operator. In the hallway and the living room, it chooses the fast speed in about 60% of decisions, and in the kitchen in 9%: it goes fast where the hasty operator got through and slows down where the crashes happened.</p>
+      <p>The numbers at the start are averaged over the drives. To understand where the promise of 93 comes from, we need to look inside the Q-function at a single point on the route: which actions it considers best and how many such actions were in the logs.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="probe">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 2</div>
+    <h2>A probe for the Q-function: what it promises at a single point</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>The apartment plan shows the careful operator's route. Ada stands at one point on it; you can drag her along the route with the mouse or a finger. Next to the plan are all 18 actions at this point: nine steering positions at low speed and nine at high speed. The bars show how much better the Q-function considers each action than the one the operators most often took nearby. The diamonds show what would actually happen if Ada took this action and then drove like the careful operator. Below the axis, you can see how many times each action occurs in the logs near Ada. The Q-functions come from lab 1, and for other CQL penalty weights, training is run again.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="pr-grid">
+          <canvas id="rMap" width="600" height="400" role="img" aria-label="Top view of the apartment: the careful operator's route, Ada at the probe point and the recorded decisions near her"></canvas>
+          <canvas id="rPlot" width="600" height="440" role="img" aria-label="Chart over the 18 actions: how much better the Q-function considers each action than the most frequent one in the logs, what would actually happen and how many times the action occurs in the logs nearby"></canvas>
+        </div>
+        <p class="cv-note">The plan shows the apartment from above. The gray dashed line is the careful operator's route, and Ada stands on it. The 25 cm circle around her marks where we look for recorded decisions with a similar heading, and the blue dots are those decisions. On the chart, the horizontal axis is the steering from full left to full right: the left half is for the low speed, the right half for the high speed. The bars show the Q-function's estimate minus the estimate of the most frequent logged action nearby (it is labeled “most often”). The blue diamonds show the same difference in reality. The blue bars below the axis show how many times the action was recorded nearby. The ring marks the action Ada will choose. Gray hatching covers the actions that BCQ forbids.</p>
+        <div class="ctl-row" id="wrapRMethod">
+          <div class="ctl"><span class="ctl-l">Q-function</span><div class="seg" id="rMethod" role="group" aria-label="Whose Q-function"><button type="button" data-v="naive" aria-pressed="true">naive</button><button type="button" data-v="cql" aria-pressed="false">CQL</button><button type="button" data-v="bcq" aria-pressed="false">BCQ</button></div></div>
+        </div>
+        <div class="ctl-row">
+          <label class="hd-range" id="wrapRAlpha"><span>CQL penalty α</span><input id="rAlpha" type="range" min="0" max="5" step="1" value="3"><output>1</output></label>
+        </div>
+        <div class="prog-line" id="rProg" hidden><i></i></div>
+        <div class="readout" id="rOut"></div>
+      </div>
+      <div class="card guide-card"><div id="rMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: what the probe computes and how the results change with the penalty weight</summary><div class="body">
+      <p><b>Decisions nearby.</b> All recorded decisions where Ada was within 25 cm of the probe point and her heading differed by at most 0.35 rad count as nearby. The most frequent of them is the reference: the bar of action \(a\) equals \(Q(s,a) - Q(s,a_{\text{freq}})\).</p>
+      <p><b>In reality.</b> From the probe point, Ada takes action \(a\) and then drives like the careful operator, four times with different steering noise; the diamond shows the average discounted return minus the same for \(a_{\text{freq}}\). This is a lower bound: after the first step, Ada drives slowly rather than in the best way. On the other hand, it doesn't depend on any Q-function.</p>
+      <p><b>The penalty weight.</b> For each \(\alpha\), CQL is trained from scratch on the same logs, with the same networks and the same number of steps as in lab 1, and is tested on the same 20 drives. The results are saved, so no value needs training twice.</p>
+      <p id="probeSeeds"><b>Ten seeds.</b> In front of the doorway, the naive Q-function picks an action that occurs in fewer than 5% of the nearby decisions on 10 seeds out of 10. With CQL at α = 0.03, Ada never makes it on any seed; at α = 0.1 she makes it in 0 to 14 drives out of 20, at α = 0.3 in 8 to 18, and at α = 1 in 8 to 20. At α = 10, CQL picks the most frequent logged action at the probe point on 6 seeds out of 10.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px" id="probeAfter">
+      <p>In front of the doorway to the living room, the naive Q-function considers a full-left turn at low speed the best and rates it 12.5 above what the operators most often did here. Only 5 such decisions out of 375 are recorded nearby, and the random operator made them. In reality, this action is no better at all: the difference is less than a hundredth. The naive Ada picks it again and again and crashes while still in the hallway. The CQL penalty pushes such estimates down: at α = 0.03 the peak remains and Ada never makes it, at α = 0.1 she makes it in 5 drives out of 20, at α = 0.3 already in 15, and at α = 1 and above, CQL picks the most frequent logged action at this point, like BC. BCQ arrives at the same result by another route: it simply doesn't consider rare actions.</p>
+      <p>So offline RL relies on what is in the logs. So how far it can surpass the operators depends on the logs too. What should the set of recordings be like?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="sets">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 3</div>
+    <h2>Which logs offline RL needs</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>Here BC and IQL train not on the mixture but on the recordings of a single operator: 60 drives of the careful one, 60 of the hasty one or 100 of the random one. The networks, the number of training steps and the test stay the same as in lab 1. The mixture from lab 1 is also on the chart for comparison. Pick a set, and its drives appear on the plan; then place your bet and train both policies.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="ctl-row" id="wrapSSet">
+          <div class="ctl"><span class="ctl-l">Logs</span><div class="seg" id="sSet" role="group" aria-label="Which set of logs"><button type="button" data-v="careful" aria-pressed="true">careful</button><button type="button" data-v="hurried" aria-pressed="false">hasty</button><button type="button" data-v="random" aria-pressed="false">random</button><button type="button" data-v="mix" aria-pressed="false">mixture</button></div></div>
+        </div>
+        <canvas id="sMap" width="600" height="400" role="img" aria-label="Top view of the apartment: the drives of the selected set of logs or the IQL test drives"></canvas>
+        <p class="cv-note" id="sMapNote">A top view of the apartment. The lines show the drives from the selected set of logs: where a line is thin, Ada drives slowly, and where it is thick, fast. A check mark means Ada made it, a cross means she crashed, and a circle means time ran out.</p>
+        <div class="s-chart"><canvas id="sChart" width="640" height="300" role="img" aria-label="Bars: the average return of the operator on their own recordings, of the BC policy and of the IQL policy on each set of logs"></canvas></div>
+        <p class="cv-note">The bars show the average return per drive on each set: gray is the operator on their own recordings (for the mixture, the best of the three), blue is BC, orange is IQL; both policies make 20 test drives. The label under the bars gives how many drives made it and their average time.</p>
+        <div class="prog-line" id="sProg" hidden><i></i></div>
+        <div class="readout" id="sOut"></div>
+      </div>
+      <div class="card guide-card"><div id="sMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: the sets of logs and what the papers say</summary><div class="body">
+      <p><b>The sets.</b> The drives are collected by the same operators and with the same randomness as in lab 1, only in different numbers. The random operator crashes often, so the drives are short. That's why this set has more of them, 100, so that the number of recorded decisions is comparable to the other sets.</p>
+      <p><b>In the papers.</b> In Table 1 of the CQL paper, imitation learning and CQL are almost equal on expert data: 109.0 and 109.9 on hopper-expert, on a scale where 0 is a random policy and 100 is the expert. On a mix of random and expert data, hopper-random-expert, BC gets 10.1 and CQL 110.5. The BCQ authors saw the same: on clean expert data, “behavioral cloning unsurprisingly performs the best,” while on noisy demonstrations BCQ clearly beat both the demonstrator and BC. The survey by Levine et al. explains why: “Broader data distributions (i.e., ones where πβ(a|s) has higher entropy) are generally easier to learn from, since there are fewer out-of-distribution actions.”</p>
+      <p id="setsSeeds"><b>Ten seeds.</b> On the careful operator's logs, IQL drives like the operator on 10 seeds out of 10: the time difference is under 0.5 s, and IQL makes no fast decisions. On the hasty operator's logs, it always drives fast, on 10 seeds out of 10. On the random operator's logs, IQL makes it 5 to 20 times out of 20 and BC 8 to 20 times; IQL collects more than BC on 8 seeds out of 10. A good policy often comes out of a single random operator's logs, but not always.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px" id="setsAfter">
+      <p>On the recordings of the careful operator alone, IQL drives just like that operator and like BC: it makes it in 20 drives out of 20 in 15.1 seconds. There are no fast actions in the logs, and the survey by Levine et al. warns plainly: “we cannot expect offline RL to discover actions that are better than any action illustrated in the data.” On the hasty operator's recordings, both policies always drive fast and crash, almost always in the kitchen: there are no slow actions in the logs, so there's nothing to learn braking from. But from the logs of the random operator, who reached the kitchen in 17 drives out of 100, IQL got the best policy of the lesson: it makes it in 20 drives out of 20 in 8.2 seconds and collects +4.02. BC on the same logs also always makes it, because the random operator's most frequent action is to head for the kitchen, but it takes 12.3 seconds.</p>
+      <p>Offline RL is useful when the logs contain different actions and show what they lead to: both successes and mistakes. The logs of a single careful operator give a good policy to BC as well, but they don't let you surpass that operator.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="robots">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">4</span> Robots</div>
+      <h2>Offline RL on real robots: QT-Opt and AWAC</h2>
+      <p>The survey by Levine et al. explains why robots need recordings in terms of scale: the ImageNet challenge “stipulates a training set of 1.5 million images for open-world object recognition,” and a robot that acts in a similar open world will hardly get by with less experience. Collecting that experience anew for every new policy is expensive. The first large-scale example was QT-Opt (Kalashnikov et al., Google, 2018): a robot grasped unfamiliar objects from a bin using a camera image.</p>
+      <p>QT-Opt has no separate policy network. A Q-function with 1.2 million parameters takes an image and an action, and the action is chosen by search: the cross-entropy method takes 64 random candidates, keeps the 6 best by Q and does this for two iterations, both in training, for the target, and on the robot. This is the same maximum over actions as in section 2, only approximate. The reward is simple: 1 for a lifted object, 0 for a failure and −0.05 for every step. The data was collected over four months on 7 robots: it added up to 580,000 grasp attempts, about 800 hours of robot time. Each new experiment reused the data of the previous ones.</p>
+      <div class="num-table" role="table" aria-label="Offline RL and fine-tuning on real robots and in simulation: method, data, result">
+        <div class="num-row num-h" role="row"><span role="columnheader">Method</span><span role="columnheader">Task</span><span role="columnheader">Data</span><span role="columnheader">Result</span></div>
+        <div class="num-row" role="row"><span role="cell"><b>QT-Opt</b>, logs only (2018)</span><span role="cell">grasping unfamiliar objects, 7 robots</span><span role="cell">580,000 recorded attempts</span><span role="cell">87% success</span></div>
+        <div class="num-row" role="row"><span role="cell"><b>QT-Opt</b>, logs and fine-tuning (2018)</span><span role="cell">the same</span><span role="cell">580,000 recorded and 28,000 new attempts</span><span role="cell">96% success</span></div>
+        <div class="num-row" role="row"><span role="cell"><b>Prior method</b> (Levine et al.)</span><span role="cell">the same</span><span role="cell">900,000 attempts</span><span role="cell">78% success</span></div>
+        <div class="num-row" role="row"><span role="cell"><b>AWAC</b> (2020)</span><span role="cell">a five-fingered hand rotates a pen in its fingers, simulation</span><span role="cell">25 human demonstrations and 500 BC trajectories</span><span role="cell">solved in 120,000 steps, about 20 min of interaction</span></div>
+        <div class="num-row" role="row"><span role="cell"><b>IQL</b> and <b>CQL</b> (2021)</span><span role="cell">an ant in a maze, antmaze-medium-play</span><span role="cell">logs, then 1M fine-tuning steps</span><span role="cell">IQL: 72 → 95; CQL: 23 → 0</span></div>
+      </div>
+      <p class="cv-note">The numbers come from Table 1 of the QT-Opt paper, Section 5 of the AWAC paper and Table 2 of the IQL paper (there, scores are on the D4RL scale, where 0 is a random policy and 100 is the expert).</p>
+      <p>On recorded attempts alone, QT-Opt grasped unfamiliar objects 87% of the time. Another 28,000 attempts, made by the robot itself, raised success to 96%, while the prior method got 78% even with 900,000 attempts. The authors explain the gain this way: the new data lets the policy “quickly correct erroneous and over-optimistic extrapolations,” which is exactly what nothing can correct in the offline setting. The trained policy regrasped an object on its own if the grasp was turning out unstable, and when an object was pushed out of the gripper, it corrected itself and grasped another one.</p>
+      <p>Fine-tuning after the logs turned out to be a problem of its own. The authors of <strong>AWAC</strong> (advantage-weighted actor-critic, Nair et al., 2020) showed that SAC, even pre-trained with imitation learning, first loses performance at the start of fine-tuning, while offline methods with hard constraints “struggle to improve with fine-tuning”: they are “often too conservative.” AWAC trains its policy the same way IQL does in this lesson, by imitation learning weighted by the advantage, but it takes the advantage from a Q-function that keeps learning on new steps. In simulation, a five-fingered hand learned to rotate a pen in its fingers to the target orientation in 120,000 steps, which the authors call “the equivalent of just 20 minutes of online interaction.” On real robots, AWAC opened a drawer with an arm with 7 degrees of freedom, picked up an object with a multi-fingered hand and rotated a valve with a three-fingered claw; in the authors' words, “AWAC trained offline achieves reasonable performance … and then steadily improves from online interaction.” IQL was also fine-tuned after the logs in its paper: in the maze where the ant has to stitch together pieces of unsuccessful trajectories, its score rose from 72 to 95, while CQL's fell from 23 to 0 after fine-tuning.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="today">
+  <div class="prose">
+    <div class="kicker"><span class="num">5</span> Today</div>
+    <h2>Logs as a start, not a replacement for experience</h2>
+    <p>The papers in this lesson converge on one recipe: first squeeze everything out of the accumulated recordings, then fine-tune on a small number of new attempts. The logs give the policy a good start without a single risky step, and the new attempts fix what can't be checked from the logs. That's exactly what QT-Opt did: on the recordings it got 87% success, and after 28,000 fine-tuning attempts, 96%.</p>
+    <p>Robots are accumulating more and more recordings. In lesson 4.6, the data flywheel fed the attempts of deployed robots, failures included, back into training, and π*0.6 from lesson 3.8 learned from the robots' own attempts across all iterations, labeling actions by their advantage. This is exactly the material for offline RL: many attempts of varying quality with known outcomes. Lab 3 suggests that what's most valuable in such logs is diversity and mistakes, not exemplary runs alone.</p>
+  </div>
+</section>
+
+<section class="section alt" id="quiz">
+  <div class="prose">
+    <div class="kicker"><span class="num">6</span> Check yourself</div>
+    <h2>Eight common misconceptions</h2>
+    <div class="quiz" id="quizBox"></div>
+    <p class="score" id="quizScore" style="margin-top:14px"></p>
+  </div>
+</section>
+
+<section class="section" id="finale">
+  <div class="prose">
+    <div class="kicker"><span class="num">7</span> Takeaways</div>
+    <h2>Lesson takeaways</h2>
+    <ol class="takeaways">
+      <li><span><strong>Offline RL</strong> trains a policy only on recorded transitions with rewards, without new attempts. It aims for a policy better than the one that collected the logs. In lab 1, IQL on the logs of three operators collected +1.98 per drive, and the best operator +0.51.</span></li>
+      <li><span>Imitation learning copies the most frequent actions in the logs, good and bad alike. Ada's BC policy drove fast where the hasty operator drove more often, and all six of its crashes happened in the kitchen.</span></li>
+      <li><span>Q-learning from lesson 5.3 falls apart without new drives: the maximum in the target picks actions that are almost absent from the logs, and their inflated estimates grow. The naive Q-function promised 93.0 at the start against −3.92 in reality, and in front of the doorway it considered best a turn recorded nearby only 5 times out of 375.</span></li>
+      <li><span>There are three ways to stick to the data: <strong>BCQ</strong> chooses only among frequent actions, <strong>CQL</strong> pushes down the estimates of actions outside the logs, and <strong>IQL</strong> takes an expectile over the recorded actions only and copies them with advantage weights.</span></li>
+      <li><span>Offline RL won't invent actions that aren't in the data. On the logs of the careful operator alone, IQL drove like that operator; on the logs of the hasty operator alone, it crashed like that operator. But the recordings of the random operator, who made it in 17 drives out of 100, produced the best policy of the lesson: 20 of 20 in 8.2 seconds.</span></li>
+      <li><span>On real robots, the logs provide a start, and a few new attempts fix what the logs can't check: QT-Opt got 87% success on 580,000 recorded attempts and 96% after 28,000 new ones.</span></li>
+    </ol>
+    <h3 style="margin-top:40px">Open questions</h3>
+    <details class="card pad open-q"><summary>How do you choose the penalty weight and when to stop training without running the robot?</summary><p>In lab 2, we tested every \(\alpha\) with drives, and that's exactly what offline RL can't do. The CQL authors chose the budget for the penalty from the predicted Q-values, without runs in the environment, and write that too small a budget inflated \(\alpha\) and strongly underestimated Q, while too large a budget didn't stop the estimates from diverging. They also call the number of training steps an open problem: offline Q-learning lacks “a proper validation error metric.” And the survey by Levine et al. calls evaluating a policy without drives “an active area of research.”</p></details>
+    <details class="card pad open-q"><summary>When should you switch from logs to new attempts?</summary><p>QT-Opt was fine-tuned on 28,000 attempts and raised success from 87 to 96%, while AWAC showed that after the logs many methods first lose performance or barely learn. After fine-tuning in the maze, IQL improved and CQL didn't. How many new attempts are needed, and how to keep what the logs gave at the start of fine-tuning, depends on the task and the method. The next lesson takes up this question.</p></details>
+    <h3 style="margin-top:34px">Paper guide</h3>
+    <p><a href="https://arxiv.org/abs/2110.06169" target="_blank" rel="noopener">I. Kostrikov, A. Nair, S. Levine, “Offline Reinforcement Learning with Implicit Q-Learning”, 2021</a>.</p>
+    <ul class="links">
+      <li><strong>Read closely</strong><span>Section 4.1 and Fig. 1: the expectile and the asymmetric squared error. Section 4.2, equations 5–6: the value and the Q-function from the actions in the data only. Section 4.3 and Algorithm 1: the policy as weighted imitation learning. Table 1: the antmaze rows, where imitation learning scores zero.</span></li>
+      <li><strong>Safe to skip</strong><span>Section 4.4 with the proofs, if you don't need the rigorous derivation, and the hyperparameter details in the appendix.</span></li>
+      <li><strong>Question to keep in mind</strong><span>Why does IQL turn into SARSA at \(\tau = 0.5\), and why is that bad on antmaze, where pieces of trajectories have to be stitched together? What would change in lab 1 if Ada learned with \(\tau = 0.5\)?</span></li>
+    </ul>
+    <p style="margin-top:18px">Other papers in this lesson: <a href="https://arxiv.org/abs/2005.01643" target="_blank" rel="noopener">the offline RL survey</a> (Levine, Kumar, Tucker, Fu, 2020), <a href="https://arxiv.org/abs/1812.02900" target="_blank" rel="noopener">BCQ</a> (Fujimoto, Meger, Precup, 2018) on extrapolation error, <a href="https://arxiv.org/abs/2006.04779" target="_blank" rel="noopener">CQL</a> (Kumar et al., 2020) on the conservative Q-function, <a href="https://arxiv.org/abs/1806.10293" target="_blank" rel="noopener">QT-Opt</a> (Kalashnikov et al., 2018) on image-based grasping from 580,000 attempts, <a href="https://arxiv.org/abs/2006.09359" target="_blank" rel="noopener">AWAC</a> (Nair et al., 2020) on fine-tuning after the logs.</p>
+    <h3 style="margin-top:34px">Resources</h3>
+    <ul class="links">
+      <li><a href="https://arxiv.org/abs/2005.01643" target="_blank" rel="noopener">Levine et al., the offline RL survey</a><span>The problem setting, distribution shift, classes of methods and open problems; Section 2.4 covers the connection to imitation learning and DAgger</span></li>
+      <li><a href="https://github.com/ikostrikov/implicit_q_learning" target="_blank" rel="noopener">implicit_q_learning</a><span>IQL code from the paper's authors</span></li>
+    </ul>
+    <div class="bridge-note"><p>Offline RL squeezes more out of recordings than their average level: from 580,000 recorded grasps, QT-Opt learned to pick up an object in 87% of attempts. But what isn't in the recordings can only be checked with new attempts: another 28,000 grasps of its own raised it to 96%.</p><p class="bridge-to"><!--if:5-7-rl-na-realnykh-robotakh.html--><a href="5-7-rl-na-realnykh-robotakh.html"><!--/if-->Lesson 5.7 · RL on real robots: how to learn right on the robot while a person stands by and corrects it<!--if:5-7-rl-na-realnykh-robotakh.html--></a><!--/if--></p></div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Lesson 5.6 of the “Modern Robotics and Physical AI” course. The lab policies are trained in your browser with a fixed seed on the same logs; the numbers from the papers are taken from the original publications.
+</footer>
+<div class="tooltip" id="tooltip" role="tooltip"></div>
+<script>
+/*@@JS@@*/
+</script>
+</body>
+</html>
