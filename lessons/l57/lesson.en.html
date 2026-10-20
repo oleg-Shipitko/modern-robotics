@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>5.7 RL on real robots and VLA fine-tuning — Modern Robotics and Physical AI</title>
+<meta name="description" content="Lesson 5.7 of the “Modern Robotics and Physical AI” course: how to do reinforcement learning directly on a real robot. HIL-SERL with human interventions, a reward classifier and two buffers, RECAP in π*0.6 with the advantage in the model's input, and ConRFT for fine-tuning VLAs. Fine-tune Ada's policy in three ways on the same attempts, take over the cup yourself and compare minutes of demonstrations with minutes of experience.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<script>
+  (function () { try { var t = localStorage.getItem('mr-theme'); if (t) document.documentElement.dataset.theme = t; else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme = 'dark'; } catch (e) {} })();
+</script>
+<style>
+/*@@CSS@@*/
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html#program" title="To the course program"><div>Modern Robotics and Physical AI<small>Lesson 5.7 · RL on real robots</small></div></a>
+    <nav class="toc" aria-label="Lesson sections">
+      <a href="#ceiling">Ceiling</a>
+      <a href="#loop">HIL-SERL</a>
+      <a href="#trio">Trio</a>
+      <a href="#recap">RECAP</a>
+      <a href="#hands">Step in</a>
+      <a href="#budget">Minutes</a>
+      <a href="#vla">VLA</a>
+      <a href="#today">Today</a>
+      <a href="#quiz">Quiz</a>
+      <a href="#finale">Takeaways</a>
+    </nav>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Toggle theme">◐</button>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main>
+
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="kicker"><span class="num">5.7</span> Part 5 · Reinforcement learning</div>
+    <h1>RL on real robots: <span class="amp">experience, corrections and VLA fine-tuning</span></h1>
+    <p class="lead">After fine-tuning on demonstrations, a model from Part 3 usually gets stuck: four attempts out of five succeed, the fifth fails in the same place every time, and new operator recordings don't cure it. In HIL-SERL (Luo et al., 2024), reinforcement learning runs right on the robot: a classifier scores the camera frames with a reward, a person with a 3D mouse takes over when the arm heads the wrong way, and training takes half of every batch from that person's corrections. In 1–2.5 hours of such work, the policy learned to insert a RAM stick, assemble a car dashboard and install a timing belt with 100% success, where imitation on the same recordings averaged 49.7%. In π*0.6 (Physical Intelligence, 2025), the same trick was carried over to a large model: the value is estimated from the robot's own attempts, and the advantage of each step is written into the model's input in words. In this lesson, you'll fine-tune Ada's policy in three ways on the same attempts, take over the cup yourself and compare what minutes of demonstrations and minutes of experience with corrections give you.</p>
+    <div class="hero-meta"><span>≈ 60 minutes</span><span>3 labs and a quiz</span><span id="heroMis">missions with a goal</span></div>
+    <div class="hero-list">
+      <div><b>THREE WAYS, SAME ATTEMPTS</b>Fine-tune Ada's policy on 100 of her own attempts in three ways and compare which way copies the misses and which one cuts them off</div>
+      <div><b>STEP IN YOURSELF</b>Take over the cup when the robot steers it into a shelf, and see how many of your corrections it takes to fix the miss</div>
+      <div><b>MINUTES ON THE ROBOT</b>Compare, on one time scale, what you get from 300 more operator demonstrations and from a quarter of an hour of robot work with corrections</div>
+      <div><b>FROM THE PAPERS</b>Look at the numbers from HIL-SERL, ConRFT and π*0.6: hours, percentages, attempts per hour</div>
+    </div>
+    <p style="margin-top:28px"><a class="btn primary" href="#ceiling">Start the lesson ↓</a></p>
+  </div>
+</section>
+
+<section class="recall-sec" id="recall" aria-label="Warm-up on the previous lesson">
+  <div class="wrap"><div class="card recall" data-recall></div></div>
+  <script type="application/json" id="recallData">{"n": "5.6", "title": "Offline RL", "href": "5-6-offline-rl.html", "q": [
+ {"q": "Why does Q-learning from lesson 5.3 fall apart when it runs on recorded logs alone?", "o": ["There are too few logs", "The max in the training target picks actions that hardly appear in the logs: nothing checks their estimates, the inflated ones keep growing, and there are no new attempts to correct them", "Q-learning can't handle a reward that depends on time"], "a": 1, "e": "In the lab, the naive Q-function promised 93.0 at the start, and the result was −3.92: in front of the doorway, it rated a full left turn as the best action, though the logs had it only 5 times out of 375 nearby.", "sec": "naive", "secTitle": "Naive Q-learning on logs: optimism outside the data"},
+ {"q": "How does IQL manage without estimates for actions that aren't in the logs?", "o": ["It forbids rare actions, like BCQ", "It learns the value V(s) as an expectile of the estimates of recorded actions only, uses r + γV(s′) as the target for Q, and gets the policy by copying recorded actions weighted by their advantage", "It penalizes high Q for all actions"], "a": 1, "e": "That's why its promise at the start almost matched the result: 0.60 versus 0.66. On the same logs, IQL reached the kitchen in 18 drives out of 20 and scored +1.98, more than the best operator (+0.51).", "sec": "ideas", "secTitle": "Three ways not to trust the Q-function outside the data: BCQ, CQL and IQL"},
+ {"q": "The logs were collected only by the careful operator, who always drives slowly. What will offline RL give?", "o": ["A policy faster than the operator: RL will find where it can speed up", "About the same as the operator and imitation learning: offline RL won't invent actions that aren't in the logs", "A policy worse than imitation learning"], "a": 1, "e": "On the careful operator's 60 drives, IQL took 15.1 s, just like the operator. But the logs of the random operator, who reached the kitchen in 17 drives out of 100, produced the best policy of the lesson, 20 of 20 in 8.2 s: their recordings have varied actions, and you can see where they lead.", "sec": "sets", "secTitle": "Which logs offline RL needs"}
+]}</script>
+</section>
+
+<section class="section alt" id="ceiling">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">1</span> Ceiling</div>
+      <h2>The ceiling of fine-tuning on demonstrations</h2>
+      <p>In lesson 5.6, the logs gave the policy a good start, and QT-Opt rose from 87 to 96% only with new attempts. The large models from Part 3 show the same picture, and it starts earlier. Fine-tuning a VLA on demonstrations of a task (in lesson 3.5 it was done with LoRA, in 3.8 with π0.5 post-training) usually hits a ceiling: for flipping an object in a pan, the HIL-SERL authors trained imitation on 20 demonstrations and on 200 and got 47% and 46% success. The ConRFT authors (Chen et al., 2025) gave Diffusion Policy and a fine-tuned VLA 150 demonstrations each instead of 20 and got 41.7% and 58.3% on average over three tasks, versus 93.3% for the policy that learned from its own experience. The reason is familiar from lesson 1.1: demonstrations show how to act where the operator has been, while a robot at work ends up in states where the operator never was, and it doesn't know how to get out of them. Adding more recordings of the same ordinary conditions means adding examples you already have plenty of.</p>
+      <p class="ada-note"><svg class="ada-ico" viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="10" width="48" height="42" rx="18" fill="#f4efe6" stroke="#3d3c38" stroke-width="3"/><rect x="15" y="19" width="34" height="22" rx="10" fill="#1f2430"/><ellipse cx="25" cy="30" rx="4" ry="5.5" fill="#eb6834"/><ellipse cx="39" cy="30" rx="4" ry="5.5" fill="#eb6834"/></svg><span>Ada is a home humanoid on a wheeled base; the course labs are built around her. More about her in <a href="0-1-dve-paradigmy.html#ada">lesson 0.1</a>.</span></p>
+      <p>In this lesson's labs, we look from the side at Ada's arm from lesson 0.3 and at a cabinet with shelves in front of her. The task is to move the cup held in the gripper 8 cm into the target slot without touching the edge. The slot opening is 10 cm high and the cup is 5 cm, so there's 2.5 cm of clearance above and below. The target slot is at a different height from attempt to attempt. A teacher program playing the operator recorded 40 demonstrations from the home pose with the rule “height first, then forward”, and the demonstration policy (mean-squared-error regression, as in lesson 1.1) learns from them. At work, starts come in three kinds: from the home pose; right at the cabinet, at the wrong height for the slot; and in the adjacent slot, where the arm was left after a previous job. On 60 test starts, this policy succeeds in 44: 40 of 40 from the home pose, 4 of 12 at the cabinet and 0 of 8 in the adjacent slot. This is the tail of errors, and it sits in the same places.</p>
+      <p>What do you do about it? The operator will record new demonstrations from the home pose, while the misses happen at the cabinet and in the slot. To see them, you have to let the robot work and watch what happens. How do you turn that into training?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="loop">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">2</span> HIL-SERL</div>
+      <h2>Learning on the job: a reward classifier, two buffers and takeovers</h2>
+      <p>When the robot tries things itself, it's reinforcement learning on a real robot, and in lesson 5.3, SERL already taught an arm to insert a connector in 20 minutes with 20 demonstrations in the buffer. But SERL solved short tasks, while in assembly or RAM-stick insertion, the mistake can be a single corner jammed against the slot, and the policy lacks both exploration and examples of getting out of such positions. <strong>HIL-SERL</strong> (human-in-the-loop SERL; Luo, Xu, Wu, Levine, 2024) adds one thing to SERL: a person watches the robot during training and takes over with a 3D mouse when they see the arm heading into an unrecoverable position. While they hold the mouse, their actions go to the robot; once they let go, the policy acts again. It's the same takeover as in HG-DAgger from lesson 1.2, but the data is used differently: not to copy the person but for reinforcement learning on the task reward.</p>
+      <p>Nobody designs the task reward by hand. In about 5 minutes of teleoperation, roughly 10 recordings of 10 seconds each, they collect about 200 success frames and 1,000 failure frames and train a <strong>reward classifier</strong>: a network that looks at a camera frame and answers “done” or “not done”; its accuracy on held-out data is above 95%. The reward comes out sparse: 1 at the end of a successful attempt and 0 at every other step, as for the skill value functions in SayCan from lesson 2.3. Takeovers and an expensive reward call for a method that makes good use of old data, and HIL-SERL is built on <strong>RLPD</strong> (Ball, Smith, Kostrikov, Levine, 2023), a variant of SAC from lesson 5.3 with three changes. The first is <strong>symmetric sampling</strong>: every training batch is drawn half from the buffer of pre-collected data and half from the robot's experience buffer, and this works equally well with a handful of demonstrations and with lots of mediocre recordings. The second is layer normalization in the critic: it bounds the Q estimates for actions outside the data by the norm of the weights, so the overestimation from lesson 5.6 doesn't run away. The third: many updates are made per robot step, and an ensemble of critics takes the place of the usual two. The RLPD authors write that these simple changes gave up to a 2.5× improvement over earlier methods on tasks where steps are expensive, and RLPD was the first to solve all the AntMaze mazes.</p>
+    </div>
+    <figure class="card flow-card">
+      <canvas data-anim="hil" width="720" height="350" role="img" aria-label="Diagram of the HIL-SERL loop: the robot acts with the policy 10 times per second, a classifier gives each frame a reward of 0 or 1, and the steps go into the experience buffer; a person with a 3D mouse takes over, and their steps land in both buffers; training draws a batch half from each buffer and sends new weights to the robot"></canvas>
+      <figcaption class="muted-s">The HIL-SERL loop. The robot and its steps are shown in blue, the person and their corrections in orange, and the reward classifier and training in purple. The robot acts with the policy 10 times per second, the classifier gives each frame a 0 or a 1, and every step goes into the experience buffer. When the person takes over with the 3D mouse, their actions go to the robot, and these steps land in both buffers, the demonstration buffer and the experience buffer, while the policy's steps before and after go only into the experience buffer. Training (RLPD) draws a batch half from each buffer and sends the robot new weights. Click the diagram to pause it.</figcaption>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>The person's steps go into both buffers, and the policy's steps only into the experience buffer. Thanks to symmetric sampling, the corrections, of which there are few, end up in half of every batch, and the policy learns from them right away. The rest is engineering, without which nothing works on a real robot. Camera frames are cropped to 128 × 128 and passed through a ResNet-10 pre-trained on ImageNet. The gripper pose is expressed in the frame of its initial pose so that the policy doesn't get tied to one location. The impedance controller runs at 1,000 Hz and, as in SERL, limits the commanded displacement so that random actions during exploration don't break parts. The gripper has a separate discrete critic. The authors warn against long, sparse interventions in which the person carries the task to success themselves: such recordings inflate the value estimate early in training.</p>
+      <p>In the end, on 11 tasks with one and two arms, the policy reached 100% success in 1–2.5 hours of training, counting scene resets and computation on a single GPU, and the timing belt took 6 hours. The tasks included inserting a RAM stick and an SSD, clipping a cable, three stages of assembling an IKEA shelf, a car dashboard, handing an object from one arm to the other, a timing belt, whipping a block out of a Jenga tower and flipping an object in a pan. For comparison, HG-DAgger was trained on the same data, with the same number of attempts and interventions. It averaged 49.7% success and 9.6 seconds per attempt versus 5.4 for RL. For RL, the share of steps with an intervention fell to zero over time; for HG-DAgger, it didn't. Without interventions, with just 200 demonstrations instead of 20, RL got 48% on the RAM stick and 0% on the dashboard; without demonstrations and without interventions, 0% everywhere. It's the interventions that make learning possible here. Let's start with what we already have: a hundred of Ada's monitored attempts. How do we use them?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="trio">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 1</div>
+    <h2>Three ways to learn from the same attempts: successes only, all labeled, all unlabeled</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>The demonstration policy makes 100 attempts with starts like those at work: 65% from the home pose, 25% at the cabinet and 10% in the adjacent slot. It executes its actions with a little noise, as when collecting experience in reinforcement learning. A watcher works alongside, the teacher program in the operator's role: when the cup near the cabinet is heading past the opening, it takes over and guides the cup into the slot, but on each risky step it reacts in time only with probability 0.5. Apart from these 100 attempts, we have nothing. On them, we'll run three fine-tunings from the same weights, with the same network, 3,000 steps each, and the same test on 60 new starts. The first takes only the successful attempts, whole. The second takes all 100, scores every step with a value function and writes a label into the input, “better than usual” or “worse”, as in RECAP from lesson 3.8 (we'll take its design apart in the next section). The third takes all 100 as is. First, let's look at the map of attempts.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="trio" id="tTrio">
+          <figure class="pane"><figcaption class="pane-head"><b id="tHead0" class="c-map">Start from the home pose</b><span id="tSub0">robot attempts</span></figcaption><canvas id="tCv0" width="360" height="360" role="img" aria-label="Side view: Ada, her arm with the cup and the cabinet with slots; the map of attempts or a test attempt of the “successes only” policy"></canvas><div class="pane-stat" id="tStat0"></div></figure>
+          <figure class="pane"><figcaption class="pane-head"><b id="tHead1" class="c-map">Start at the cabinet</b><span id="tSub1">robot attempts</span></figcaption><canvas id="tCv1" width="360" height="360" role="img" aria-label="Side view: the map of attempts or a test attempt of the “all labeled” policy"></canvas><div class="pane-stat" id="tStat1"></div></figure>
+          <figure class="pane"><figcaption class="pane-head"><b id="tHead2" class="c-map">Start in the adjacent slot</b><span id="tSub2">robot attempts</span></figcaption><canvas id="tCv2" width="360" height="360" role="img" aria-label="Side view: the map of attempts or a test attempt of the “all unlabeled” policy"></canvas><div class="pane-stat" id="tStat2"></div></figure>
+        </div>
+        <p class="cv-note">Side view: Ada is on the left with the cup in her arm (the pale arm shows the pose at the start of the attempt), and the cabinet with slots is on the right. The target slot is highlighted in green, and the dashed line in it marks the depth at which the cup counts as placed. On the map of attempts, the dots show where the cup was at the start: green if the attempt succeeded, red if it didn't; red crosses mark where the cup hit a shelf. In a test attempt, the line shows the cup's path, and orange segments are the watcher's steps. A check mark at the end means the cup is in the slot, and a cross means it hit a shelf.</p>
+        <div class="ctl-row">
+          <label class="hd-range" id="wrapTStart" hidden><span>Test start</span><input id="tStart" type="range" min="0" max="59" step="1" value="0"><output>1</output></label>
+          <div class="ctl" id="wrapTView" hidden><span class="ctl-l">View</span><div class="seg" id="tView" role="group" aria-label="What the summary shows"><button type="button" data-v="ok" aria-pressed="true">success by start</button><button type="button" data-v="speed" aria-pressed="false">speed</button></div></div>
+        </div>
+        <div class="t-board"><canvas id="tBoard" width="640" height="280" role="img" aria-label="Summary: successful test attempts by start type, or speed (steps to the slot and successful attempts per hour), for the demonstration policy and the three fine-tuned ones"></canvas></div>
+        <p class="cv-note">The summary covers four policies: the gray bar is the demonstration policy, blue is “successes only”, orange is “all labeled” and purple is “all unlabeled”. From left to right, the groups show successful starts out of all 60, out of the 40 from the home pose, the 12 at the cabinet and the 8 in the adjacent slot. In “speed” mode, the summary shows the average number of steps to the slot and the successful attempts per hour, counting 0.2 s per step and 3 s per scene reset.</p>
+        <div class="prog-line" id="tProg" hidden><i></i></div>
+        <div class="readout" id="tOut"></div>
+      </div>
+      <div class="card guide-card"><div id="tMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: the world, the attempts, the value function and the label</summary><div class="body">
+      <p><b>The world.</b> The arm is taken from lesson 0.3: its links are 0.5 and 0.4 m long, and the shoulder sits at the origin. Per step, the policy moves the cup by up to 4 cm along each axis, and the arm controller turns this displacement into joint rotations through the Jacobian, as in lessons 0.3 and 5.3. The cabinet wall stands 0.6 m from the shoulder, and the slots, 12 cm deep and 10 cm high, are spaced 14 cm apart vertically. The target slot is at a height of −12 to 42 cm relative to the shoulder, with neighbors above and below. If the cup, 2.5 cm in radius, hits a shelf, the attempt is over. Success means the cup is 8 cm inside the target slot. An attempt lasts up to 28 steps. The observation consists of 7 numbers: the joint angles, the cup position and the vector to the back of the slot, both coarse (÷ 30 cm) and fine in height (tanh of Δy ÷ 5 cm).</p>
+      <p><b>Starts.</b> In the home pose, the cup is 20–32 cm from the shoulder at a height of 4–26 cm. At the cabinet, it's 46–54 cm from the shoulder, at a height that differs from the slot's by at least 12 cm. For a start in the adjacent slot, the cup sits 0–5 cm inside a slot that is 14 cm above or below the target one. The demonstrations contain only the home pose, while at work and in the test, the three kinds of starts come in shares of 65%, 25% and 10%. The test consists of 60 starts with a fixed seed: 40, 12 and 8.</p>
+      <p><b>The policy.</b> It's an 8 → 32 → 32 → 2 network with leaky ReLU and a tanh output. Its input is the observation and the label; for policies without a label, the label input is zero. The network learns by mean-squared-error regression, with Adam at a step size of 0.003 on batches of 64. The base policy trains for 2,500 steps on 40 demonstrations, and the fine-tunings run for 3,000 steps from its weights. When collecting experience, normal noise of 0.25 is added to each action. The watcher takes over by the rule “the cup is closer than 9 cm to the wall and not in the opening” and lets go when it is in the opening; its probability of reacting is 0.5 per step.</p>
+      <p><b>The value function and the label.</b> The reward is −1/28 per step and −1 for a collision, with no discount, as in RECAP; the return is the sum of rewards from a step to the end of the attempt. \(V(s)\) is computed by a 7 → 32 → 32 → 1 network that trains for 3,000 steps by regression on the return. The advantage of a step over \(N = 4\) steps ahead is computed as follows:</p>
+      <div class="formula">\[ A_t = \sum_{k=0}^{N-1} r_{t+k} + V(s_{t+N}) - V(s_t), \qquad I_t = \mathbf 1[A_t > \epsilon], \]</div>
+      <p>and if the attempt ended sooner, the rewards are summed to the end without \(V\). The threshold \(\epsilon\) is chosen so that 40% of the steps get a positive label, as in π*0.6 fine-tuning; the watcher's steps are always labeled positive. The “all labeled” policy learns on all steps with the input \(I_t = \pm 1\) and is tested with \(I = +1\).</p>
+      <p><b>The same in any browser.</b> The exponential, logarithm, tanh, sine, cosine and arctangent in the engine are built from additions, multiplications and divisions, as in lessons 5.2–5.6: the built-in functions of different browsers differ in the last digit, and training blows the difference up.</p>
+      <p id="trioSeeds"><b>Ten seeds.</b> The seed sets the demonstrations, the initial weights and the attempts. On seeds 1–10, the monitored robot places the cup successfully in 81–94 attempts out of 100. “All unlabeled” beats neither “successes only” nor “all labeled” on 10 seeds out of 10 and falls behind “successes only” on 8. “All labeled” gets there in fewer steps than “successes only” on 10 seeds out of 10, and it leads in successful attempts per hour on 8 seeds out of 10, but by no more than 4%. Both policies add at least 8 starts out of 60 to the demonstration policy's result on 9 seeds out of 10; in the number of successful starts they are close: 59–60 for “successes only”, 56–60 for “all labeled” and 51–60 for “all unlabeled”.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px" id="trioAfter">
+      <p>Of the 100 attempts, 81 succeed. With the noise, the robot missed 8 times out of 71 from the home pose, 2 out of 16 at the cabinet and 9 out of 13 in the adjacent slot: there, the very first step forward or in height hits a shelf, and without the watcher and the noise, this policy never succeeds from the adjacent slot. The watcher intervened in 27 attempts and got the cup into the slot in 23 of them; its steps make up 173 of the 1,401 in the recordings. After fine-tuning, the “successes only” policy succeeds in 59 starts out of 60, “all labeled” in 56 and “all unlabeled” in 51. The last one gained at the cabinet, but in the adjacent slot only 1 attempt out of 8 worked: the failed recordings teach it the same moves into the shelf. The demonstration policy reached the slot in 13.6 steps and gave 510 successful attempts per hour; “successes only” took 13.8 steps and gave 618 per hour, “all labeled” 13.3 steps and 612 per hour, and “all unlabeled” 14.6 and 551.</p>
+      <p>Here, the outcome filter (“successes only”) and the label are almost even: the filter is more reliable by three starts from the adjacent slot, “all labeled” gets the cup in half a step faster, and in successful attempts per hour they differ by 1%. Their labeling is different, though: the filter judges an attempt as a whole, and the label judges each step. Of the 149 steps in failed attempts, 56 are labeled positive (the beginning of the attempt and the watcher's corrections), and in the successful ones, 649 of 1,252 steps are labeled worse than usual. But the task is short, about 14 steps, and the outcome is decided in one place, at the slot opening. A successful attempt has no superfluous stages: the noise adds a random error to each step, and in training such errors cancel each other out on average. That's why throwing out failed attempts whole costs almost nothing here.</p>
+      <p>The label wins on long tasks, where almost every attempt has both good and bad stretches. In π*0.6, these are laundry, espresso and boxes, tasks with many stages. An outcome filter would throw out the good stages of a failed attempt and copy the slow stages of a successful one. And if almost all attempts succeed but are slow, the filter has nothing to discard, and only scoring the steps can speed the policy up: that's how π*0.6 sped up T-shirt folding. Where does this score come from in a real system, and why is it written into the input rather than used as a weight?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="recap">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">3</span> RECAP</div>
+      <h2>RECAP: value from the robot's own attempts and the advantage in the model's input</h2>
+      <p>HIL-SERL trains a policy from scratch for a single task, while a VLA from Part 3 can already do a lot, and losing that isn't an option. The <strong>RECAP</strong> method (RL with Experience and Corrections via Advantage-conditioned Policies) already came up in lesson 3.8: a value function is trained on the robot's own attempts, the advantage of each step is computed from it, and the label “Advantage: positive” is written into the model's input. Here we'll look in more detail at where the value comes from, how the threshold is chosen and why the label goes into the input rather than serving as a weight. Step one: the robot performs the task, each attempt is labeled with its outcome, and a <strong>value function</strong> learns from these attempts. It's a model with the same architecture as the VLA but built on a smaller vision-language model (670M parameters), and from the frames and the task text, it predicts how many steps remain until success. The reward is −1 for each step and 0 on success, and a failure gets a large penalty, so the value equals minus the number of steps to the end, normalized by the task length into the interval from −1 to 0; it's predicted as a distribution over 201 bins, trained with cross-entropy on the returns of the attempts. This is a Monte Carlo estimate, as in lesson 5.1: it has neither a Bellman target nor a max over actions. The authors write that it's simpler and more reliable than a Q-function, though less optimal.</p>
+      <p>Step two: from the value, the <strong>advantage</strong> of each action is computed over 50 steps ahead, that is, how much better things went after it than expected from that frame, and it is compared with the task threshold \(\epsilon_\ell\). The threshold is chosen so that about 30% of the data gets a positive label in pre-training and about 40% of the attempts in fine-tuning; for the simple laundry task (T-shirts and shorts), where the demonstrations are reliable but slow, only 10% get it. Step three sets RECAP apart from everything in lessons 5.2–5.6: the label is written into the model's input as text, “Advantage: positive” or “Advantage: negative”, between the predicted subtask and the actions, and the model learns by ordinary supervised learning on all the data. At run time, “positive” is always written into the input. The “Under the hood” part of lesson 3.8 derives why such a model is an improved policy: at \(\beta = 1\), it equals the conditional distribution \(\pi(a \mid I{=}1, o, \ell)\).</p>
+    </div>
+    <figure class="card flow-card">
+      <canvas data-anim="recap" width="720" height="350" role="img" aria-label="RECAP diagram: over the steps of one attempt, the value function predicts minus the number of steps to success; the robot's mistake drops the value and the operator's correction raises it; a step's advantage is the difference in value a few steps later; steps above the threshold get the label positive and those below get negative, while corrections are always positive; the label is written into the policy's input and is always positive at run time"></canvas>
+      <figcaption class="muted-s">One robot attempt in RECAP. The strip under the plot shows the steps: the blue ones were made by the policy, the orange ones by the operator who took over. The purple curve shows the value \(V\) over the frames of the attempt, that is, minus the number of steps to success, from −1 to 0: the robot's mistake drops it, and the correction raises it. The arrow shows a step's advantage: the difference between the value a few steps later and the value now. Steps with an advantage above the threshold get the label positive, the rest get negative, and corrections always get positive. The policy block shows the label going into the policy's input as text; at run time, positive is always written there. The numbers are illustrative. Click the diagram to pause it.</figcaption>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>Why the input and not a weight? The authors tried the alternatives. A policy gradient, as in PPO from lesson 5.2, needs the likelihood of actions, which a flow matching model doesn't have in explicit form; their PPO variant, with the likelihood taken over a single diffusion step, had to be kept in a very narrow trust region, and it barely improved the policy. Weighted regression (AWR, a relative of the \(e^{\beta A}\) weights in IQL and AWAC from lesson 5.6) discards or heavily downweights most of the data and turns into filtered imitation, a relative of “successes only” from Lab 1. On T-shirt folding, where almost all attempts succeed anyway, it gave a decent success rate but a noticeably slower policy. A model with the label in its input, on the other hand, sees all the data, tells good steps from bad ones and still remains a model trained by supervised learning, the same way as on demonstrations. Operator corrections are always labeled positive, which assumes that an expert's corrections are right. The authors themselves caution that an intervention is a disruptive event: an operator can't guarantee consistent quality and won't fine-tune subtleties like speed. So corrections fix the large misses, and autonomous experience labeled by value refines the speed.</p>
+      <p>The cycle repeats. First, attempts are collected with the current policy, some of them monitored by an operator. Then the value function is fine-tuned on everything collected, the labels are recomputed and the policy is fine-tuned, each time from the pre-trained model rather than from the last iteration, so as not to drift. On T-shirt folding, where success after fine-tuning on demonstrations is already close to the maximum, two iterations of 300 autonomous attempts on four robots raised throughput by 50%. On box assembly, with 600 autonomous attempts and 360 attempts with interventions per iteration, throughput doubled after the second iteration. For espresso, one iteration of 414 autonomous and 429 corrected attempts was enough. On the hardest tasks (diverse laundry and espresso), throughput more than doubled, and the failure rate fell by roughly half. And on a stubborn failure, the T-shirt collar facing down, two iterations of 600 attempts without a single intervention brought success to 97% under a strict criterion. In Lab 1, the corrections were made by the teacher program. What changes when you take over yourself?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="hands">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 2</div>
+    <h2>Step in yourself: one cup, your steps in the buffer, and fine-tuning</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>Here, the buffer holds 100 unmonitored attempts of the demonstration policy: 76 of them succeeded, and from the adjacent slot, 0 of 13. The robot moves the cup one step every 0.4 seconds, and at any moment you can grab the cup with the mouse or your finger: while you hold it, the actions are yours. Attempts with your steps go into the buffer, like interventions in HIL-SERL. Fine-tuning works like “all labeled” in Lab 1: your steps always get a positive label, and half of every batch is drawn from the correction buffer. We test the policy on 20 new starts in the adjacent slot.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="h-grid">
+          <canvas id="hCv" width="360" height="360" role="img" aria-label="Side view: Ada, the arm with the cup in the adjacent slot of the cabinet, and the target slot; a live robot attempt in which you can grab and guide the cup"></canvas>
+          <canvas id="hTape" width="640" height="64" role="img" aria-label="Attempt strip: the robot's steps in blue, the human's steps in orange; after fine-tuning, plus and minus labels"></canvas>
+        </div>
+        <p class="cv-note">Side view: Ada is on the left and the cabinet on the right; the target slot is highlighted in green, and the dashed line marks the success depth. The cup is held in the gripper. The pale arm shows the pose at the start of the attempt, the line shows the cup's path, and the orange segments are the steps where you were guiding. A check mark means the cup is in the slot, and a cross means it hit a shelf. The dashed line from the cup to the cursor shows where you're pulling it. The strip under the scene shows the steps of the attempt: the blue ones were made by the robot, the orange ones by you. After fine-tuning, labels appear above them: a plus means the step is better than usual, and a minus means it's worse.</p>
+        <div class="h-row">
+          <button class="btn" id="hRun" type="button">Run the robot</button>
+          <div class="ctl" id="wrapHKind" hidden><span class="ctl-l">Start</span><div class="seg small" id="hKind" role="group" aria-label="Start type"><button type="button" data-v="shelf" aria-pressed="true">adjacent slot</button><button type="button" data-v="near" aria-pressed="false">at cabinet</button><button type="button" data-v="home" aria-pressed="false">home pose</button></div></div>
+          <div class="ctl" id="wrapHPrio" hidden><span class="ctl-l">Correction buffer</span><div class="seg small" id="hPrio" role="group" aria-label="How to use the corrections"><button type="button" data-v="half" aria-pressed="true">half the batch</button><button type="button" data-v="plain" aria-pressed="false">just add</button></div></div>
+        </div>
+        <div class="prog-line" id="hProg" hidden><i></i></div>
+        <div class="readout" id="hOut"></div>
+      </div>
+      <div class="card guide-card"><div id="hMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: your step, the correction buffer and what the test counts</summary><div class="body">
+      <p><b>Your step.</b> While you hold the cup, every 0.4 s the robot takes a step toward the cursor: the displacement along each axis equals the distance to the cursor but is no more than 4 cm, as for the policy. If the cup hits a shelf on the way, the attempt ends in a collision, just as it does for the robot. When you let go of the cup, the policy continues with its own action.</p>
+      <p><b>The buffer.</b> All attempts with your steps are added to the 100 unmonitored attempts; in fine-tuning, half of each batch of 64 transitions is drawn from the human's steps and the other half from all the recordings, as in RLPD and HIL-SERL. In “just add” mode, the batch is drawn uniformly from all the recordings. Your steps are always labeled positive; the other steps are labeled by their advantage, as in Lab 1. Both variants are computed for comparison, and the switch only chooses which one to show.</p>
+      <p><b>The test.</b> It has 20 starts in the adjacent slot with a fixed seed, none of which are in the buffer: the slot heights differ, the adjacent slot can be above or below, and the depth is 0–5 cm. In mission 4, the watcher is played by the teacher program with the rule from Lab 1, but with a reaction probability of 1: its attempts from the adjacent slot depend only on how many of them there are.</p>
+      <p id="handsSeeds"><b>Other seeds.</b> We also checked the watcher's corrections on other seeds: on seeds 1–3, one correction gives 3 to 10 successful starts out of 20, three give 6 to 16, and ten give 19 to 20; without the correction buffer, ten give 15 to 17.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px" id="handsAfter">
+      <p>From the adjacent slot, the demonstration policy hits a shelf with its very first step: the operator's recordings have no backward move. In our run, one corrected attempt by the watcher (9 of its steps among the robot's 1,400-plus) gives 3 successful starts out of 20, and only with the correction buffer: without it, just 1. Ten corrected attempts, about a minute of work, give 19 of 20 and 58 of 60 on all starts; the same recordings without the second buffer give 15 of 20. The miss is closed not by one correction but by ten or so, from different slots, and that's exactly what the HIL-SERL curves show: many interventions at the start, then fewer and fewer.</p>
+      <p>Ten attempts took about a minute. How many minutes does the operator need to close the same miss with demonstrations, and will they close it at all?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="budget">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 3</div>
+    <h2>Minutes on the robot: more demonstrations or experience with corrections</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>Here, two paths share one time scale. On the first, the operator records more demonstrations from the home pose (80, 160 or 320, each about 6 seconds including the scene reset), and the policy is trained on them again from scratch. On the second, the robot works under the watcher's eye in iterations of 25 attempts. After each iteration, the policy is fine-tuned with the label and the correction buffer, as in Labs 1 and 2: from the base policy's weights, on everything accumulated so far and with the 40 demonstrations in the buffer. We test both paths on the same 60 starts. Both curves are computed in your browser, and the points appear on the chart as they're ready.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="b-chart"><canvas id="bChart" width="640" height="320" role="img" aria-label="Chart: successful test attempts out of 60 versus minutes of work; the blue line is for policies trained on 40, 80, 160 and 320 demonstrations, the orange one for iterations of experience with corrections, 25 attempts each; the dashed line is the selected minute budget"></canvas></div>
+        <p class="cv-note">The horizontal axis shows minutes of robot or operator work, and the vertical axis shows successful test attempts out of 60. The blue line connects the policies trained on 40, 80, 160 and 320 demonstrations, and each point is labeled with the number of demonstrations and successful starts. The orange line connects the iterations of experience with corrections, and each point is labeled with the number of robot attempts. The gray point at zero is the policy trained on 40 demonstrations, where both paths start. The dashed line marks the minute budget chosen with the slider.</p>
+        <div class="ctl-row">
+          <label class="hd-range" id="wrapBMin" hidden><span>Budget</span><input id="bMin" type="range" min="0" max="32" step="1" value="8"><output>8 min</output></label>
+        </div>
+        <div class="prog-line" id="bProg" hidden><i></i></div>
+        <div class="readout" id="bOut"></div>
+      </div>
+      <div class="card guide-card"><div id="bMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: how time is counted and what both paths share</summary><div class="body">
+      <p><b>Time.</b> A step lasts 0.2 s and a scene reset 3 s, both for an operator demonstration and for a robot attempt. So 40 demonstrations take 3.9 min, 320 take 31.5 min, and an iteration of 25 attempts takes about 2.5 min. Fine-tuning time isn't counted: it runs on the GPU while the robot works.</p>
+      <p><b>Demonstrations.</b> A policy on \(N\) demonstrations trains from scratch for \(2500 + 12N\) steps, so that a larger dataset gets more training; with 40 demonstrations, this gives the same base policy as in Labs 1 and 2.</p>
+      <p><b>Experience.</b> At iteration \(k\), the previous iteration's policy (with the label +1 in its input; the base policy has no label) makes 25 monitored attempts with a reaction probability of 0.5. All attempts and the 40 demonstrations go into the buffer. The value function and the policy are fine-tuned from the base policy on everything accumulated, and half of each batch is drawn from the watcher's steps. This is a simplified RECAP: the authors also fine-tune each iteration from the pre-trained model.</p>
+      <p id="budgetSeeds"><b>Other seeds.</b> On seed 2, the policy trained on 320 demonstrations gives 52 of 60 and 3 of 8 from the adjacent slot, and the sixth iteration of experience gives 60 of 60; on seed 1, 55 and 59.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px" id="budgetAfter">
+      <p>In 8 minutes, 80 demonstrations give 44 successful starts out of 60, the same as 40. Three iterations of experience in the same time, 75 robot attempts, give 60 of 60. Half an hour of recording, 320 demonstrations, raises the result to 55: at the cabinet, the policy succeeds in all 12 starts because it learns “height first” better. But from the adjacent slot, it succeeds in only 3 of 8: the operator's recordings have no backing out. Experience with corrections closes this start too, in a quarter of an hour: over the iterations, the policy succeeds in 57, 59, 60, 60, 59 and 59 starts out of 60, and in 7–8 of 8 from the adjacent slot.</p>
+      <p>The gap in the papers works the same way: in HIL-SERL, 200 demonstrations instead of 20 without interventions gave 0% on the dashboard, and 2 hours with interventions gave 100%. That leaves the question the lesson started with: how is this done with a large model without losing what it already knows?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="vla">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">4</span> VLA</div>
+      <h2>Fine-tuning a VLA with reinforcement learning: ConRFT and π*0.6 in numbers</h2>
+      <p>HIL-SERL trains a small network from scratch for a single task. <strong>ConRFT</strong> (consistency-based reinforced fine-tuning; Chen et al., 2025) carries the same loop over to a pre-trained VLA, Octo-small from lesson 3.5. Its action head is built on a consistency policy, a variant of the diffusion policy from lesson 1.5 that generates an action in a single step. First comes an offline stage on 20–30 demonstrations: the critic learns as in Cal-QL (a conservative Q-function from the CQL family of lesson 5.6), and the action head minimizes the sum of the imitation error and minus Q. Cal-QL alone gave 0% on all tasks with such data, and the imitation term holds it in check. Then comes an online stage with human interventions, symmetric sampling and a reward classifier, as in HIL-SERL; only the action head is trained, and the encoders and the transformer are frozen.</p>
+      <div class="num-table" role="table" aria-label="Reinforcement fine-tuning on real robots: paper, tasks, data, result">
+        <div class="num-row num-h" role="row"><span role="columnheader">Paper</span><span role="columnheader">Tasks</span><span role="columnheader">Data</span><span role="columnheader">Result</span></div>
+        <div class="num-row" role="row"><span role="cell"><b>HIL-SERL</b> (2024), RL from scratch</span><span role="cell">11 tasks: RAM stick, SSD, cable, IKEA shelf, dashboard, handover, timing belt, Jenga, pan</span><span role="cell">20–30 demonstrations, 1–2.5 h with interventions (timing belt: 6 h)</span><span role="cell">100% on almost all; HG-DAgger on the same data: 49.7%</span></div>
+        <div class="num-row" role="row"><span role="cell"><b>HIL-SERL</b>, no interventions</span><span role="cell">RAM stick / dashboard</span><span role="cell">200 demonstrations</span><span role="cell">48% / 0%</span></div>
+        <div class="num-row" role="row"><span role="cell"><b>ConRFT</b> (2025), fine-tuning Octo-small</span><span role="cell">8 tasks: banana, spoon, drawer, toaster, bread, chair wheel, Chinese knot</span><span role="cell">20–30 demonstrations, 45–90 min online with interventions</span><span role="cell">39.4% → 96.3%; HG-DAgger: 65%; HIL-SERL from scratch in the same time: 31.9%</span></div>
+        <div class="num-row" role="row"><span role="cell"><b>ConRFT</b>, imitation on 150 demonstrations</span><span role="cell">spoon, bread, wheel</span><span role="cell">150 operator demonstrations</span><span role="cell">Diffusion Policy 41.7%, VLA fine-tuning 58.3%; ConRFT with 20 demonstrations and 80–120 attempts: 93.3%</span></div>
+        <div class="num-row" role="row"><span role="cell"><b>π*0.6</b> (2025), RECAP</span><span role="cell">laundry, diverse laundry, espresso, boxes</span><span role="cell">iterations of 300–600 autonomous attempts and 287–429 with corrections</span><span role="cell">throughput ×2 or more on hard tasks, half as many failures; 13 hours of espresso in a row</span></div>
+      </div>
+      <p class="cv-note">The numbers come from Tables 1a–1b of the HIL-SERL paper, Tables I–III of the ConRFT paper and Sections VI and F of the π*0.6 paper. The ConRFT percentages are averaged over tasks, with 20 test attempts per task.</p>
+      <p>On eight tasks with a Franka arm, ConRFT raised the average success rate from 39.4% after the offline stage to 96.3% in 45–90 minutes online and cut the episode length by a factor of 1.9. HG-DAgger with the same interventions got 65%, and on the tasks with delicate contact (the chair wheel, the knot) it barely improved the policy; the authors attribute this to the inconsistency of human corrections, which RL smooths out through the reward. HIL-SERL from scratch, with the same time and the same interventions, reached 31.9%; according to the authors, it does get to good policies, but in over two hours, with more interventions and with destructive exploration at the start. A pre-trained model starts with sensible movements, and that's what fine-tuning gains over training from scratch. The caveats are the same as for HIL-SERL: the reward classifier can be fooled by finding a position where it mistakenly gives a 1, and the resulting policy is narrow, tailored to the conditions of the task.</p>
+      <p>π*0.6 goes further: what learns there is not a separate head for one task but the whole model. It's pre-trained with reinforcement learning on tens of thousands of hours of demonstrations, with a value function and the label in the input from the very start, and then fine-tuned on the attempts of a specific task. The tasks last 5 to 15 minutes and consist of many steps: a double espresso on a professional machine, boxes on a real packaging line, laundry in someone else's home. The robot made espresso for 13 hours straight and folded unfamiliar laundry in a new home for more than two hours without a break. This is the data flywheel from lesson 4.6, only with scoring: attempts from work return to training not as they are but labeled with which steps were better than usual.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="today">
+  <div class="prose">
+    <div class="kicker"><span class="num">5</span> Today</div>
+    <h2>Robot experience as a data source, and what it costs</h2>
+    <p>Experience from work has become an ordinary source of training data. In lesson 3.8, π0.7 learned both from autonomous attempts collected with RECAP and from the data of specialists (π*0.6 models fine-tuned for a single task), and its hints about episode quality and speed grew out of the same advantage label. The HIL-SERL authors see their loop as a way to quickly get reliable policies for individual skills and then use their data to build generalist models; RLDG, which ConRFT cites, did exactly that, and fine-tuning on the recordings of an RL policy gave 83.3% versus 58.3% on the operator's recordings.</p>
+    <p>The price of such training is human involvement. In HIL-SERL, a person watches the robot throughout training, and the same goes for ConRFT; in RECAP, people label the outcomes of attempts, step in and reset the scene, and the authors call this the main limitation. Their exploration, in their own words, is greedy: it relies on the randomness of the policy and on corrections. Besides, in all three papers, the reward comes from a classifier or from human judgment, and the policy can learn to game that reward. The next part of the course goes to the other side of the same dilemma. In walking, a person can't correct the robot in every attempt, so reinforcement learning moves into a simulator.</p>
+  </div>
+</section>
+
+<section class="section alt" id="quiz">
+  <div class="prose">
+    <div class="kicker"><span class="num">6</span> Check yourself</div>
+    <h2>Eight common misconceptions</h2>
+    <div class="quiz" id="quizBox"></div>
+    <p class="score" id="quizScore" style="margin-top:14px"></p>
+  </div>
+</section>
+
+<section class="section" id="finale">
+  <div class="prose">
+    <div class="kicker"><span class="num">7</span> Takeaways</div>
+    <h2>Lesson takeaways</h2>
+    <ol class="takeaways">
+      <li><span>Fine-tuning on demonstrations hits a ceiling where the robot ends up in states the operator never showed: in HIL-SERL, 20 and 200 demonstrations gave 47% and 46%, and in Lab 3, neither 80 nor 320 demonstrations taught Ada to back out of the adjacent slot.</span></li>
+      <li><span><strong>HIL-SERL</strong> does reinforcement learning right on the robot: a classifier scores the frames with a reward, RLPD draws batches symmetrically from two buffers, and the human's 3D-mouse interventions go into both buffers. In 1–2.5 hours, it reached 100% on 11 tasks; HG-DAgger with the same attempts and interventions got 49.7%, and without interventions, the dashboard came out at 0%.</span></li>
+      <li><span>The same 100 attempts by Ada give different policies: “all unlabeled” copies the misses too (51 of 60), while “successes only” and “all labeled” close the tail almost equally well: they succeed in 59 and 56 starts out of 60 and give 618 and 612 successful attempts per hour. The label gets the cup in faster, 13.3 steps versus 13.8, but on a short task, where the outcome is decided at the opening, the outcome filter is no worse. The label wins on long tasks, where almost every attempt has both good and slow stretches.</span></li>
+      <li><span>In π*0.6, <strong>RECAP</strong> works like this: a value function trained on the robot's own attempts predicts minus the number of steps to success, the advantage over 50 steps is compared with a threshold, and the label “Advantage: positive / negative” is written into the model's input; at run time, it always says positive. Weighted regression throws away data and gives slow policies, and the policy gradient doesn't get along with flow matching.</span></li>
+      <li><span>A single correction doesn't close a miss: one watcher correction gives 3 successful starts out of 20 from the adjacent slot, ten give 19, and the correction buffer with half the batch matters: without it, 15. A quarter of an hour of experience with corrections gave 59–60 of 60 where half an hour of demonstrations gave 55.</span></li>
+      <li><span>All of Part 5 answers the question of how a robot can become better than its teachers: reward and value (5.1) give a score to actions that weren't in the demonstrations; the policy gradient with a trust region (5.2) and the buffer with Q-functions (5.3) learn from that score in a simulator and on a robot; randomization and a teacher with privileged information (5.4, 5.5) carry what was learned out of the simulator; offline RL (5.6) squeezes the best out of logs; and HIL-SERL and RECAP (5.7) close the loop on a working robot, where experience, corrections and advantage make the policy more reliable and faster than the operator.</span></li>
+    </ol>
+    <h3 style="margin-top:40px">Open questions</h3>
+    <details class="card pad open-q"><summary>How do you take the human out of the loop?</summary><p>In HIL-SERL and ConRFT, a person watches the robot throughout training; in RECAP, people label outcomes, step in and reset the scene. The π*0.6 authors call this the main limitation and point to work on autonomous RL and to high-level policies that could prepare the scene for the next attempt by themselves. People also train the reward classifier, and it can be fooled. We'll cover failure detectors and checking results without an operator in Part 8.</p></details>
+    <details class="card pad open-q"><summary>How many tasks can one loop handle?</summary><p>HIL-SERL trains each task from scratch and suggests pre-training the value function on many tasks and robots. RECAP does this for VLAs, but its iterations run offline (collect data, fine-tune, repeat), and the authors call continuous real-time learning the next step. How to keep the skills that the new attempts don't cover is a question for co-training from lesson 3.8.</p></details>
+    <h3 style="margin-top:34px">Paper guide</h3>
+    <p><a href="https://arxiv.org/abs/2410.21845" target="_blank" rel="noopener">J. Luo, C. Xu, J. Wu, S. Levine, “Precise and Dexterous Robotic Manipulation via Human-in-the-Loop Reinforcement Learning”, 2024</a>.</p>
+    <ul class="links">
+      <li><strong>Read closely</strong><span>Section 3.4 and Figs. 2–3: where the human's and the policy's steps go and how the intervention rate changes. Section 3.5: how many demonstrations and classifier frames you need and why long, sparse interventions hurt. Table 1 and Fig. 5: the comparison with HG-DAgger on the same data and the ablations without demonstrations and without interventions. Section 5.1 and Fig. 7: the “funnel” of states and critical states by Q variance.</span></li>
+      <li><strong>Safe to skip</strong><span>The per-task hardware descriptions in Appendix A and the derivation of the relative coordinates in Appendix D, unless you plan to replicate the setup.</span></li>
+      <li><strong>Question to keep in mind</strong><span>The authors write that DAgger explores only around the current policy, while RL explores more widely and with dynamic programming. What in Lab 2 corresponds to this exploration if the robot crashes on its very first step from the adjacent slot?</span></li>
+    </ul>
+    <p style="margin-top:18px">Other papers in this lesson: <a href="https://arxiv.org/abs/2511.14759" target="_blank" rel="noopener">π*0.6 and RECAP</a> (Physical Intelligence, 2025) on value from attempts and the advantage in the input; <a href="https://arxiv.org/abs/2302.02948" target="_blank" rel="noopener">RLPD</a> (Ball, Smith, Kostrikov, Levine, 2023) on symmetric sampling and layer normalization in the critic; <a href="https://arxiv.org/abs/2502.05450" target="_blank" rel="noopener">ConRFT</a> (Chen et al., 2025) on fine-tuning a VLA through a consistency policy; <a href="https://arxiv.org/abs/2401.16013" target="_blank" rel="noopener">SERL</a> (Luo et al., 2024), from lesson 5.3.</p>
+    <h3 style="margin-top:34px">Resources</h3>
+    <ul class="links">
+      <li><a href="https://hil-serl.github.io/" target="_blank" rel="noopener">HIL-SERL</a><span>Task videos, code and setup instructions with the 3D mouse</span></li>
+      <li><a href="https://www.pi.website/blog/pistar06" target="_blank" rel="noopener">π*0.6 blog</a><span>Espresso, laundry and boxes before and after RECAP</span></li>
+      <li><a href="https://github.com/ikostrikov/rlpd" target="_blank" rel="noopener">RLPD</a><span>The authors' code for the algorithm</span></li>
+    </ul>
+    <div class="callout insight bridge" style="margin-top:34px"><span class="ico">🧭</span><div><p><strong>Next: Part 6, humanoid robots.</strong> In this lesson, a person stood next to the robot and corrected it in every attempt. That won't work for walking: you can't fix a fall with a takeover, and it takes millions of steps. In Part 6, reinforcement learning moves into a simulator with thousands of robots in parallel, like PPO from lesson 5.2 and the transfer from lesson 5.4, and comes back to the humanoid as a walking policy. Lesson 6.1 will show how RL in simulation taught robots to walk and what's special about it for a humanoid: Ada will get legs.</p><!--if:proverka-chasti-5.html--><p>Before that, take the <a href="proverka-chasti-5.html">Part 5 check</a>: it has problems from all seven lessons, from the Bellman equation to the correction buffer.</p><!--/if--></div></div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Lesson 5.7 of the “Modern Robotics and Physical AI” course. The lab policies are trained in your browser with a fixed seed on the same attempts; the numbers from the papers are taken from the original sources.
+</footer>
+<div class="tooltip" id="tooltip" role="tooltip"></div>
+<script>
+/*@@JS@@*/
+</script>
+</body>
+</html>
