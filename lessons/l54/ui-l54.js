@@ -102,7 +102,7 @@ const Pol = (() => {
   function lane(c, k, P, A, G, y, real, u) {
     const { lab, rect, circle, line, arrow } = A, B = G.box, h = G.bh, ink = P.ink2;
     lab(c, k, real ? (G.narrow ? 'Настоящая рука' : 'Настоящая рука Ады') : (G.narrow ? 'Симулятор' : 'Симулятор: номинальный мир'), G.titleX, y - h / 2 - 14, { px: 12, weight: 750, color: real ? P.bad : P.ink, align: 'left', haloColor: P.surf });
-    const box = (b, t1, t2, col) => { rect(c, b[0], y - h / 2, b[1] - b[0], h, 8, A.alpha(col, 0.1), col, 1.5); lab(c, k, t1, (b[0] + b[1]) / 2, y - (t2 ? 7 : 0), { px: G.px, weight: 700, color: col, halo: false }); if (t2) lab(c, k, t2, (b[0] + b[1]) / 2, y + 9, { px: G.px - 1.5, color: P.ink3, halo: false }); };
+    const box = (b, t1, t2, col) => { rect(c, b[0], y - h / 2, b[1] - b[0], h, 8, A.alpha(col, 0.1), col, 1.5); lab(c, k, t1, (b[0] + b[1]) / 2, y - (t2 ? 7 : 0), { px: G.px, weight: 700, color: col, halo: false }); if (t2) lab(c, k, t2, (b[0] + b[1]) / 2, y + 9, { px: Math.max(10, G.px - 1.5), color: P.ink3, halo: false }); };
     box(B.pol, 'политика', G.narrow ? '20 Гц' : '20 раз в с', P.mot);
     if (real) box(B.q, 'очередь', '40 мс', P.bad);
     box(B.act, 'привод', real ? 'момент 85%' : 'момент 100%', real ? P.bad : P.ink2);
@@ -113,7 +113,7 @@ const Pol = (() => {
     arrow(c, B.act[1] + 2, y, B.arm[0] - 2, y, P.ink3, 1.4, 6);
     const yb = y + h / 2 + G.ret, xa = (B.arm[0] + B.arm[1]) / 2, xp = (B.pol[0] + B.pol[1]) / 2;
     line(c, [[xa, y + h / 2], [xa, yb], [xp, yb]], A.alpha(P.out, 0.6), 1.4, [4, 3]); arrow(c, xp, yb, xp, y + h / 2 + 2, A.alpha(P.out, 0.8), 1.4, 6);
-    lab(c, k, G.narrow ? 'датчики' : 'датчики: углы и скорости суставов', (xa + xp) / 2, yb + 10, { px: G.px - 1.5, color: P.out, haloColor: P.surf });
+    lab(c, k, G.narrow ? 'датчики' : 'датчики: углы и скорости суставов', (xa + xp) / 2, yb + 10, { px: Math.max(10, G.px - 1.5), color: P.out, haloColor: P.surf });
     // команды: оранжевые кружки; в очереди ждут 40 мс (0,16 с схемы)
     const tr = Math.min(u, TPLAY);
     for (let n = Math.max(0, Math.floor(tr / PER) - 3); n <= Math.floor(tr / PER); n++) {
@@ -122,7 +122,7 @@ const Pol = (() => {
       else if (age < 0.06) x = B.pol[1] + (B.q[0] + 8 - B.pol[1]) * age / 0.06;
       else if (age < 0.22) x = B.q[0] + 8 + (B.q[1] - B.q[0] - 16) * (age - 0.06) / 0.16;
       else if (age < 0.28) x = B.q[1] - 8 + (B.act[0] - B.q[1] + 8) * (age - 0.22) / 0.06;
-      if (x != null) circle(c, x, y + (real && age >= 0.06 && age < 0.22 ? h / 2 - 7 : 0), 4.2, P.mot, P.surf, 1);
+      if (x != null) circle(c, x, y - (real && age >= 0.06 && age < 0.22 ? h / 2 : 0), 4.2, P.mot, P.surf, 1);   // в очереди — по верхнему краю блока, не на подписи «40 мс»
       const sAge = age - 0.05; if (sAge > 0 && sAge < 0.15) { const f = sAge / 0.15, L1 = yb - (y + h / 2), L2 = xa - xp, s = f * (L1 + L2 + (yb - y - h / 2)); let px, py; if (s < L1) { px = xa; py = y + h / 2 + s; } else if (s < L1 + L2) { px = xa - (s - L1); py = yb; } else { px = xp; py = yb - (s - L1 - L2); } circle(c, px, py, 3.6, P.out, P.surf, 1); }
     }
   }
@@ -134,7 +134,7 @@ const Pol = (() => {
     lab(c, k, 'время, с', x0 + w / 2, y0 + hh + 26, { px: 10.5, color: P.ink3, halo: false });
     lab(c, k, 'до цели, см', x0, y0 - 12, { px: 10.5, color: P.ink3, align: 'left', halo: false });
     line(c, [[x0, Y(0.03)], [x0 + w, Y(0.03)]], A.alpha(P.good, 0.8), 1.2, [3, 3]);
-    lab(c, k, 'зона 3 см', x0 + w - 2, Y(0.03) - 8, { px: 9.5, color: P.good, align: 'right', haloColor: P.surf });
+    lab(c, k, 'зона 3 см', x0 + w - 2, Y(0.03) - 8, { px: 10, color: P.good, align: 'right', haloColor: P.surf });
     const tr = Math.min(u, TPLAY) / SLOW, n = Math.min(40, Math.floor(tr / 0.05));
     for (const [arr, col] of [[T.sim, P.ink2], [T.real, P.bad]]) { const pts = []; for (let i = 0; i <= n; i++) pts.push([X(i * 0.05), Y(arr[i])]); if (pts.length > 1) line(c, pts, col, 2.2); }
     [['симулятор', P.ink2], ['настоящая рука', P.bad]].forEach(([txt, col], i) => { const ly = Y(0.55) + i * 16, lx = X(G.narrow ? 1.05 : 1.15); line(c, [[lx, ly], [lx + 18, ly]], col, 2.4); lab(c, k, txt, lx + 24, ly, { px: 10.5, weight: 700, color: col, align: 'left', haloColor: P.surf }); });
@@ -170,7 +170,7 @@ const Pol = (() => {
   function draw(c, k, t, P, A, G) {
     const u = ((t % TT) + TT) % TT, { lab, rect, circle, arrow } = A, ch = phase(u), b = bars(u);
     // ---- цикл обучения ----
-    const box = (key, t1, t2, on) => { const [x, y, w, h] = G.box[key]; rect(c, x - w / 2, y - h / 2, w, h, 9, A.alpha(on ? P.mot : P.ink3, on ? 0.16 : 0.06), on ? P.mot : P.line, on ? 2 : 1.3); lab(c, k, t1, x, y - (t2 ? 7 : 0), { px: G.px, weight: 700, color: on ? P.ink : P.ink2, halo: false }); if (t2) lab(c, k, t2, x, y + 9, { px: G.px - 1.5, color: P.ink3, halo: false }); };
+    const box = (key, t1, t2, on) => { const [x, y, w, h] = G.box[key]; rect(c, x - w / 2, y - h / 2, w, h, 9, A.alpha(on ? P.mot : P.ink3, on ? 0.16 : 0.06), on ? P.mot : P.line, on ? 2 : 1.3); lab(c, k, t1, x, y - (t2 ? 7 : 0), { px: G.px, weight: 700, color: on ? P.ink : P.ink2, halo: false }); if (t2) lab(c, k, t2, x, y + 9, { px: Math.max(10, G.px - 1.5), color: P.ink3, halo: false }); };
     const run = !ch, v = run ? (u % LOOP) / LOOP : 0, seg = Math.floor(v * 3);
     box('w', 'мир из диапазонов', 'масса, трение, задержка, моторы', run && seg === 0);
     box('e', 'попытка 2 с', run ? 'политика собирает опыт' : 'один параметр на краю', (run && seg === 1) || !run);
@@ -178,7 +178,9 @@ const Pol = (() => {
     const ctr = (key) => [G.box[key][0], G.box[key][1]], pts = [ctr('w'), ctr('e'), ctr('p')];
     for (let i = 0; i < 3; i++) { const a = pts[i], z = pts[(i + 1) % 3], dx = z[0] - a[0], dy = z[1] - a[1], L = Math.hypot(dx, dy), sh = G.sh; arrow(c, a[0] + dx * sh / L, a[1] + dy * sh / L, z[0] - dx * sh / L, z[1] - dy * sh / L, P.ink3, 1.4, 7); }
     if (run) { const f = v * 3 - seg, a = pts[seg], z = pts[(seg + 1) % 3]; circle(c, a[0] + (z[0] - a[0]) * f, a[1] + (z[1] - a[1]) * f, 5, P.mot, P.surf, 1.2); }
-    lab(c, k, run ? 'обычное обучение' : 'проверка границы: эти попытки тоже идут в обучение', G.cap[0], G.cap[1], { px: 11, weight: 650, color: run ? P.ink2 : P.mot, haloColor: P.surf });
+    // на телефоне подпись проверки — в две строки, иначе шире канваса
+    (run ? ['обычное обучение'] : G.two ? ['проверка границы:', 'эти попытки тоже идут в обучение'] : ['проверка границы: эти попытки тоже идут в обучение'])
+      .forEach((tx, i, arr) => lab(c, k, tx, G.cap[0], G.cap[1] + (i - (arr.length - 1) / 2) * 15, { px: 11, weight: 650, color: run ? P.ink2 : P.mot, haloColor: P.surf }));
     // ---- диапазоны и пограничная проверка ----
     lab(c, k, 'диапазоны параметров', G.bx0, G.by0 - 26, { px: 12, weight: 750, color: P.ink, align: 'left', haloColor: P.surf });
     BARS.forEach((r, i) => {
@@ -196,7 +198,7 @@ const Pol = (() => {
     }
   }
   const WIDE = { px: 11.5, sh: 30, box: { w: [175, 56, 170, 44], e: [285, 186, 150, 44], p: [70, 186, 120, 44] }, cap: [175, 262], bx0: 400, by0: 70, bdy: 40, lw: 92, bw: 210 };
-  const NARROW = { px: 10.5, sh: 28, box: { w: [180, 40, 170, 42], e: [272, 150, 150, 42], p: [78, 150, 130, 42] }, cap: [180, 200], bx0: 16, by0: 252, bdy: 30, lw: 92, bw: 240 };
+  const NARROW = { two: true, px: 10.5, sh: 28, box: { w: [180, 40, 170, 42], e: [272, 150, 150, 42], p: [78, 150, 130, 42] }, cap: [180, 200], bx0: 16, by0: 252, bdy: 30, lw: 92, bw: 240 };
   Anim.add('adrloop', {
     W: 720, H: 320, start: 4.6, narrowAt: 600,
     draw(c, k, t, P, A) { draw(c, k, t, P, A, WIDE); },
@@ -486,7 +488,7 @@ const Compare = (() => {
   };
   const missions = [
     { short: 'Ставка', title: 'Кто удержит чашку на настоящих руках',
-      text: 'Обе руки учатся одинаково — 12 000 шагов PPO, одна награда, одни сети. Первая — только в номинальном мире. Вторая в каждой попытке получает новый мир: чашка 0,1–0,6 кг, трение 0–0,5 Н·м, задержка 0–50 мс, моторы 75–110%. Потом каждая делает по 20 попыток на каждой из шести настоящих рук.',
+      text: 'Обе руки учатся одинаково: 12 000 шагов PPO, одна награда, одни сети. Первая учится только в номинальном мире. Вторая в каждой попытке получает новый мир: чашка 0,1–0,6 кг, трение 0–0,5 Н·м, задержка 0–50 мс, моторы 75–110%. Потом каждая делает по 20 попыток на каждой из шести настоящих рук.',
       bet: { q: 'кто чаще удержит чашку на шести настоящих руках?', options: ['Без рандомизации: её мир точный, и она выучила его лучше', 'Поровну: задача и бюджет одинаковые', 'С рандомизацией'], answer: (r) => (r.rnd > r.nom + 0.1 ? 2 : r.nom > r.rnd + 0.1 ? 0 : 1) },
       action: { label: 'Обучить обе руки', run: (X) => X.first() },
       criteria: [{ label: 'С рандомизацией — не меньше 95% удачных попыток', test: (r) => r.rnd >= 0.95 }, { label: 'Разница — хотя бы 10 пунктов', test: (r) => r.rnd >= r.nom + 0.1 }],
@@ -566,13 +568,13 @@ const Width = (() => {
   };
   const missions = [
     { short: 'Узко', title: 'Узкие диапазоны: ×½',
-      text: 'При ширине ×½ задержка при обучении — до 25 мс, чашка — до 0,43 кг. А у настоящих рук задержки до 45 мс, у Ады 2 кружка 0,5 кг. Обучим политику ×½ и для сравнения — без рандомизации.',
+      text: 'При ширине ×½ задержка при обучении не больше 25 мс, а чашка не тяжелее 0,43 кг. А у настоящих рук задержки до 45 мс, и у Ады 2 кружка весит 0,5 кг. Обучим политику ×½ и для сравнения — без рандомизации.',
       bet: { q: 'как политика ×½ справится на настоящих руках?', options: ['Как без рандомизации: настоящие задержки почти вдвое больше тех, что она видела', 'Почти везде справится', 'Хуже, чем без рандомизации: она не выучила точно ни один мир'], answer: (r) => (r.rate >= 0.9 ? 1 : r.rate < r.rate0 - 0.05 ? 2 : 0) },
       action: { label: 'Обучить при ×½', run: (X) => X.half() },
       criteria: [{ label: 'Удачных попыток на настоящих руках — не меньше 90%', test: (r) => r.rate >= 0.9 }],
       explain: (r) => `При ×½ — ${pct(r.rate)}% удачных попыток, без рандомизации — ${pct(r.rate0)}%. На карте зелёная область выходит за оранжевую рамку: политика, которая видела хоть какую-то задержку, перестала рассчитывать на мгновенный ответ мотора и подходит к цели плавнее, а это помогает и за пределами диапазона обучения. Но не бесконечно: посмотри на правые столбцы карты.` },
     { short: 'Широко', title: 'Широкие диапазоны: ×3',
-      text: 'При ×3 задержка при обучении — до 150 мс, чашка — до 1,3 кг, моторы — от 30% силы. Все настоящие руки наверняка внутри. Обучим политику ×3 и для сравнения ×1.',
+      text: 'При ×3 задержка при обучении доходит до 150 мс, чашка — до 1,3 кг, а моторы слабеют до 30% силы. Все настоящие руки наверняка оказываются внутри этих диапазонов. Обучим политику ×3 и для сравнения ×1.',
       bet: { q: 'что будет на настоящих руках по сравнению с ×1?', options: ['Лучше: чем шире диапазоны, тем надёжнее', 'Удачных попыток не больше, а Ада станет медленнее', 'То же самое, только обучение дольше'], answer: (r) => (r.t3 >= r.t1 * 1.1 && r.rate3 <= r.rate1 + 0.005 ? 1 : r.rate3 > r.rate1 + 0.02 ? 0 : 2) },
       action: { label: 'Обучить при ×3', run: (X) => X.wide() },
       criteria: [{ label: 'Удачных попыток не больше, чем при ×1', test: (r) => r.rate3 <= r.rate1 }, { label: 'Дорога до цели хотя бы на 10% дольше, чем при ×1', test: (r) => r.t3 >= r.t1 * 1.1 }],
@@ -647,7 +649,7 @@ const Adr = (() => {
     const pg = $('#aProg'); pg.hidden = !st.busy; pg.firstElementChild.style.width = (st.prog * 100).toFixed(1) + '%';
     const run = st.runs[thKey()];
     if (st.busy) setOut($('#aOut'), `${st.label}: <b>${pct(st.prog)}%</b>`);
-    else if (run) { const s = snapAt(run, st.at); setOut($('#aOut'), `Порог ${pct(st.th)}%. Шаг ${fmtInt(s.step)}: на шести настоящих руках удачных попыток <b>${pct(s.real.rate)}%</b>. К концу обучения ADR дошёл до 90% к ${run.to90 ? fmtInt(run.to90) + '-му шагу' : 'концу не дошёл'}, дорога до цели — ${sec(run.arrive)} с.`); }
+    else if (run) { const s = snapAt(run, st.at); setOut($('#aOut'), `Порог ${pct(st.th)}%. Шаг ${fmtInt(s.step)}: на шести настоящих руках удачных попыток <b>${pct(s.real.rate)}%</b>. ADR ${run.to90 ? 'дошёл до 90% к ' + fmtInt(run.to90) + '-му шагу' : 'до 90% не дошёл'}, а дорога до цели к концу обучения занимает ${sec(run.arrive)} с.`); }
     else setOut($('#aOut'), 'ADR ещё не запускали. Все диапазоны в номинале: полосы — одна точка.');
   }
   /** После обучения показать, как росли диапазоны: ползунок момента идёт от 0 до конца. */
@@ -678,7 +680,7 @@ const Adr = (() => {
       bet: { q: 'кто раньше дойдёт до 90% удачных попыток на настоящих руках?', options: ['Широкий с первого шага: он с самого начала видит все миры', 'Одновременно: бюджет и метод одинаковые', 'ADR'], answer: (r) => (r.fix90 == null || r.adr90 * 1.5 <= r.fix90 ? 2 : r.fix90 * 1.5 <= r.adr90 ? 0 : 1) },
       action: { label: 'Обучить с диапазоном ×3', run: (X) => X.versus() },
       criteria: [{ label: 'ADR дошёл до 90% хотя бы в полтора раза быстрее', test: (r) => r.adr90 != null && (r.fix90 == null || r.adr90 * 1.5 <= r.fix90) }],
-      explain: (r) => `ADR дошёл до 90% к ${fmtInt(r.adr90)}-му шагу, диапазон ×3 — к ${r.fix90 ? fmtInt(r.fix90) + '-му' : 'концу не дошёл'}. ADR сначала учится в простом мире и добавляет трудные, когда политика к ним готова, а широкий диапазон с первого шага заставляет учиться всему сразу. К концу у ADR ${pct(r.adrRate)}% удачных попыток и ${sec(r.adrT)} с до цели, у ×3 — ${pct(r.fixRate)}% и ${sec(r.fixT)} с. У OpenAI то же: чем шире фиксированная рандомизация, тем дольше учится политика, а ADR продвигается быстрее за счёт учебного плана.` },
+      explain: (r) => `ADR дошёл до 90% к ${fmtInt(r.adr90)}-му шагу, диапазон ×3 ${r.fix90 ? '— к ' + fmtInt(r.fix90) + '-му' : 'до 90% не дошёл'}. ADR сначала учится в простом мире и добавляет трудные, когда политика к ним готова, а широкий диапазон с первого шага заставляет учиться всему сразу. К концу у ADR ${pct(r.adrRate)}% удачных попыток и ${sec(r.adrT)} с до цели, у ×3 — ${pct(r.fixRate)}% и ${sec(r.fixT)} с. У OpenAI то же: чем шире фиксированная рандомизация, тем дольше учится политика, а ADR продвигается быстрее за счёт учебного плана.` },
     { short: 'Свободно', title: 'Свободный режим: порог расширения', final: true, controls: ['at', 'th'],
       text: 'Меняй порог расширения и запускай ADR заново — около трёх секунд на запуск. Найди порог, при котором диапазон задержки к концу шире всего, и проверь, не стала ли Ада от этого медленнее.' },
   ];
