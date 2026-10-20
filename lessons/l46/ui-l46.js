@@ -71,8 +71,9 @@ function bitmap(img, w, hgt) {
       c.beginPath(); c.moveTo(xAt(y0, -1), y0); c.lineTo(xAt(y0, 1), y0); c.lineTo(xAt(y1, 1), y1); c.lineTo(xAt(y1, -1), y1); c.closePath();
       c.fillStyle = alpha(col(P, key), 0.16); c.fill(); c.strokeStyle = col(P, key); c.lineWidth = 1.6; c.stroke();
       const nm = G.narrow ? NAME_N[key] : NAME[key], ym = (y0 + y1) / 2 + (key === 'r' ? 14 : 0);
-      lab(c, k, nm[0], px, ym - (nm[1] ? 8 : 0), { px: key === 'r' ? 10.5 : 11, weight: 700, color: col(P, key), haloColor: P.surf });
-      if (nm[1]) lab(c, k, nm[1], px, ym + 8, { px: 10, color: P.ink3, haloColor: P.surf });
+      const aw = Math.max(40, pw * ((ym - py) / ph) - 14), fitPx = (txt, p0, wt) => { let p = p0; A.K.font(c, k, p, wt); while (p > 8.5 && c.measureText(txt).width > aw) { p -= 0.5; A.K.font(c, k, p, wt); } return p; };
+      lab(c, k, nm[0], px, ym - (nm[1] ? 8 : 0), { px: fitPx(nm[0], key === 'r' ? 10.5 : 11, 700), weight: 700, color: col(P, key), haloColor: P.surf });
+      if (nm[1]) lab(c, k, nm[1], px, ym + 8, { px: fitPx(nm[1], 10, 600), color: P.ink3, haloColor: P.surf });
     }
     if (!G.narrow) {                                                    // ось справа: вверх — ближе к роботу, вниз — больше данных
       const ax = px + pw / 2 + 26;
@@ -87,7 +88,8 @@ function bitmap(img, w, hgt) {
     const from = pyr(c, k, P, A, G), { idm, bx, by, bw, bh, mx, my, mw, mh } = G;
     // блок восстановления действий для видео
     rect(c, idm[0] - idm[2] / 2, idm[1] - 15, idm[2], 30, 7, alpha(P.mot, 0.12), P.mot, 1.4);
-    lab(c, k, G.narrow ? 'действия по кадрам' : 'латентные действия, обратная динамика', idm[0], idm[1], { px: 10, weight: 600, color: P.mot, halo: false });
+    A.K.font(c, k, 10, 600); const idmLong = 'латентные действия, обратная динамика';
+    lab(c, k, G.narrow || c.measureText(idmLong).width > idm[2] - 10 ? 'действия по кадрам' : idmLong, idm[0], idm[1], { px: 10, weight: 600, color: P.mot, halo: false });
     // пачка обучения
     rect(c, bx, by, bw, bh, 8, P.surf, P.ink3, 1.4);
     lab(c, k, 'пакет обучения', bx + bw / 2, by - 12, { px: 11, weight: 700, color: P.ink2, haloColor: P.surf });
@@ -224,7 +226,7 @@ const World = (() => {
     const t = ep.target;
     c.beginPath(); c.arc(t.x * sc, t.y * sc, L21.RT * sc * 1.25, 0, 7); c.lineWidth = 3; c.strokeStyle = P.good; c.stroke();
     c.beginPath(); c.arc(t.x * sc, t.y * sc, E.CFG.HOLD * sc, 0, 7); c.lineWidth = 1.6; c.strokeStyle = '#ffffff'; c.stroke();
-    if (!m) HeroKit.label(c, k, busyText || 'модель ещё не обучена', CW / 2, CW / 2, { px: 13, weight: 700, color: P.ink, haloColor: P.surf });
+    if (!m) { const tx = busyText || 'модель ещё не обучена'; let p = 13; HeroKit.font(c, k, p, 700); while (p > 10 && c.measureText(tx).width > CW - 20) { p -= 0.5; HeroKit.font(c, k, p, 700); } HeroKit.label(c, k, tx, CW / 2, CW / 2, { px: p, weight: 700, color: P.ink, haloColor: P.surf }); }
   }
   return { testSet, source, homeText, plainDay, drawHome, COLOR };
 })();
@@ -424,7 +426,10 @@ const Fleet = (() => {
     for (let i = 0; i <= NS; i++) HeroKit.label(c, k, String(i), X(i), T + gh + 14, { px: 11, color: P.ink3, halo: false });
     HeroKit.label(c, k, narrow ? 'смена' : 'смена парка (0 — модель из лаборатории)', L + gw / 2, H - 10, { px: 11, color: P.ink3, halo: false });
     HeroKit.label(c, k, narrow ? 'успех' : 'успех в 48 новых домах', L + 4, 10, { px: 11, color: P.ink3, align: 'left', halo: false });
-    if (!st.order.length) { HeroKit.label(c, k, st.busy ? 'парк работает, модель обучается заново…' : 'нажми «Запустить», чтобы парк вышел на смены', L + gw / 2, T + gh / 2, { px: 13, weight: 700, color: P.ink2, haloColor: P.surf }); return; }
+    if (!st.order.length) {
+      const full = st.busy ? 'парк работает, модель обучается заново…' : 'нажми «Запустить», чтобы парк вышел на смены', brief = st.busy ? 'парк работает…' : 'нажми «Запустить»';
+      HeroKit.font(c, k, 13, 700); HeroKit.label(c, k, c.measureText(full).width > gw - 16 ? brief : full, L + gw / 2, T + gh / 2, { px: 13, weight: 700, color: P.ink2, haloColor: P.surf }); return;
+    }
     const tags = [];
     for (const key of st.order) {
       const q = st.runs[key], cur = key === st.cur, rs = rates(q), pts = rs.map((v, i) => [X(i), Y(v)]);
@@ -515,7 +520,7 @@ function initLayers() {
       { id: 'neural', label: '827 часов видео, сгенерированных из 88 часов телеоперации', target: 'mid', why: 'Синтетика, хоть и выглядит как запись робота: видеомодель дорисовала новые ролики, действия в них восстанавливают так же, как для видео людей.' },
       { id: 'robocasa', label: 'Кухни и задачи RoboCasa, собранные в симуляторе', target: 'mid', why: 'Сцены и задачи генерирует программа (урок 4.5), демонстрации — MimicGen.' },
       { id: 'gr1', label: '88 часов телеоперации гуманоида GR-1', target: 'top', why: 'Собственные записи робота, на котором проверяют модель: его камера, тело и действия. Около 1% часов предобучения.' },
-      { id: 'droid', label: 'DROID: 76 тысяч траекторий руки Franka', target: 'top', why: 'Чужой робот, но настоящий, с настоящими действиями: в таблице 7 GR00T N1 это «Real robot», 428 часов.' },
+      { id: 'droid', label: 'DROID: 76 тысяч траекторий руки Franka', target: 'top', why: 'Чужой робот, но настоящий, с настоящими действиями: в таблице 7 GR00T N1 это «Real robot», 428 часов; сами авторы DROID пишут о 350 часах.' },
     ],
     after: 'Чем ниже слой, тем больше данных и тем больше работы, чтобы они стали понятны роботу: восстановить действия, перенести их на другое тело, закрыть разрыв с реальностью.',
   });

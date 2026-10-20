@@ -173,7 +173,7 @@
  "88 часов телеоперации гуманоида GR-1": "88 hours of GR-1 humanoid teleoperation",
  "Собственные записи робота, на котором проверяют модель: его камера, тело и действия. Около 1% часов предобучения.": "Recordings of the very robot the model is tested on: its camera, body and actions. About 1% of the pre-training hours.",
  "DROID: 76 тысяч траекторий руки Franka": "DROID: 76,000 trajectories of a Franka arm",
- "Чужой робот, но настоящий, с настоящими действиями: в таблице 7 GR00T N1 это «Real robot», 428 часов.": "Someone else's robot, but a real one, with real actions: Table 7 of GR00T N1 lists its 428 hours under “Real robot.”",
+ "Чужой робот, но настоящий, с настоящими действиями: в таблице 7 GR00T N1 это «Real robot», 428 часов; сами авторы DROID пишут о 350 часах.": "Someone else's robot, but a real one, with real actions: Table 7 of GR00T N1 lists its 428 hours under “Real robot,” while the DROID authors themselves report 350 hours.",
  "Чем ниже слой, тем больше данных и тем больше работы, чтобы они стали понятны роботу: восстановить действия, перенести их на другое тело, закрыть разрыв с реальностью.": "The lower the layer, the more data there is and the more work it takes to make the data usable for the robot: recover the actions, transfer them to a different body, close the gap with reality.",
  "<strong>${ok ? 'Верно.' : 'Не совсем.'}</strong> ${q.e}": "<strong>${ok ? 'Correct.' : 'Not quite.'}</strong> ${q.e}",
  "Итог: ${correct} из ${Q.length}. ${correct >= Q.length - 2 ? 'Отлично, можно идти дальше.' : 'Загляни ещё раз в разделы, где были ошибки.'}": "Score: ${correct} of ${Q.length}. ${correct >= Q.length - 2 ? 'Great, you can move on.' : 'Take another look at the sections where you made mistakes.'}",
@@ -219,5 +219,7 @@
  "Нет, флот ничего не присылает, данные собирают отдельные машины": "No, the fleet sends nothing; the data is collected by dedicated cars",
  "Data engine Tesla с 2019 года: запросить у флота клипы, похожие на трудный случай, найти, где сеть ошибается, разметить. Новую сеть сначала запускают в теневом режиме — она считает, но не управляет.": "Since 2019, Tesla's data engine has worked like this: the company requests clips from the fleet that look like a hard case, finds where the network fails and labels the data. A new network is first run in shadow mode, where it computes but doesn't control.",
  "[урок] ошибка в": "[lesson] error in",
- "${n} ${plural(n, 'миссия', 'миссии', 'миссий')} с целью": "${n} ${n === 1 ? 'mission' : 'missions'} with a goal"
+ "${n} ${plural(n, 'миссия', 'миссии', 'миссий')} с целью": "${n} ${n === 1 ? 'mission' : 'missions'} with a goal",
+ "парк работает…": "the fleet is working…",
+ "нажми «Запустить»": "press “Run”"
 }
