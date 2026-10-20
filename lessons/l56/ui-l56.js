@@ -121,7 +121,7 @@ const Plan = (() => {
   function box(c, k, A, P, b, title, sub, col, hot) {
     A.rect(c, b[0], b[1], b[2], b[3], 9, A.alpha(col, hot ? 0.16 : 0.06), col, hot ? 2.2 : 1.3);
     A.lab(c, k, title, b[0] + b[2] / 2, b[1] + 13, { px: 10.5, weight: 700, color: col, halo: false });
-    if (sub) A.lab(c, k, sub, b[0] + b[2] / 2, b[1] + b[3] - 10, { px: 9, color: P.ink2, halo: false });
+    if (sub) A.lab(c, k, sub, b[0] + b[2] / 2, b[1] + b[3] - 10, { px: 10, color: P.ink2, halo: false });
   }
   /** Стопка записей: n полосок в прямоугольнике. */
   function stack(c, A, P, x, y, w, h, n, col) { const dy = Math.min(5, h / 8); for (let i = 0; i < n; i++) A.rect(c, x, y + h - (i + 1) * dy, w, dy * 0.66, 1.5, A.alpha(col, 0.75), null); }
@@ -130,7 +130,7 @@ const Plan = (() => {
     g.rows.forEach((row, ri) => {
       const [lx, ly] = row.label;
       A.lab(c, k, row.title, lx, ly, { px: g.narrow ? 11 : 11.5, weight: 700, color: P.ink, align: g.narrow ? 'left' : 'left', halo: false });
-      A.lab(c, k, row.sub, lx, ly + 15, { px: 9.5, color: P.ink3, align: 'left', halo: false });
+      A.lab(c, k, row.sub, lx, ly + 15, { px: 10, color: P.ink3, align: 'left', halo: false });
       const B = row.boxes;
       if (ri === 0) {   // PPO: ездит → порция → обновление → корзина
         const act = u < 2.4 ? 0 : u < 4.4 ? 1 : u < 6.8 ? 2 : 3;
@@ -170,16 +170,16 @@ const Plan = (() => {
   const wide = (() => {
     const bx = (x, y, w) => [x, y, w, 72];
     return { narrow: false, rows: [
-      { title: 'PPO, урок 5.2', sub: 'on-policy', label: [14, 44], boxes: [bx(170, 22, 120), bx(318, 22, 110), bx(456, 22, 110), bx(594, 22, 112)] },
-      { title: 'SAC, урок 5.3', sub: 'off-policy', label: [14, 164], boxes: [bx(170, 142, 120), bx(318, 142, 130), bx(476, 142, 130)] },
-      { title: 'offline RL', sub: 'этот урок', label: [14, 284], boxes: [bx(170, 262, 150), bx(358, 262, 140), bx(536, 262, 130)] },
+      { title: 'PPO, урок 5.2', sub: 'on-policy', label: [14, 44], boxes: [bx(140, 22, 132), bx(300, 22, 104), bx(432, 22, 104), bx(564, 22, 132)] },
+      { title: 'SAC, урок 5.3', sub: 'off-policy', label: [14, 164], boxes: [bx(140, 142, 130), bx(298, 142, 144), bx(470, 142, 120)] },
+      { title: 'offline RL', sub: 'этот урок', label: [14, 284], boxes: [bx(140, 262, 150), bx(328, 262, 140), bx(506, 262, 130)] },
     ] };
   })();
   const narrowL = (() => {
     const bx = (x, y, w) => [x, y, w, 70];
     return { narrow: true, rows: [
       { title: 'PPO, урок 5.2', sub: 'on-policy', label: [10, 14], boxes: [bx(6, 40, 82), bx(94, 40, 80), bx(180, 40, 84), bx(270, 40, 84)] },
-      { title: 'SAC, урок 5.3', sub: 'off-policy', label: [10, 140], boxes: [bx(6, 166, 104), bx(124, 166, 104), bx(242, 166, 112)] },
+      { title: 'SAC, урок 5.3', sub: 'off-policy', label: [10, 140], boxes: [bx(6, 166, 116), bx(136, 166, 108), bx(258, 166, 96)] },
       { title: 'offline RL', sub: 'этот урок', label: [10, 266], boxes: [bx(6, 292, 112), bx(130, 292, 106), bx(248, 292, 106)] },
     ] };
   })();
@@ -201,16 +201,17 @@ const Plan = (() => {
   const bump = (x, a) => { const z = (x + 0.86) / 0.13; return a * Math.exp(-z * z); };
   function draw(c, k, t, P, A, g) {
     const u = ((t % T) + T) % T, { seg, ease, alpha, lab, line, circle } = A;
-    const { x0, x1, y0, y1 } = g, X = (x) => x0 + (x + 1) / 2 * (x1 - x0), Y = (v) => y1 - (v + 0.6) / 4.6 * (y1 - y0);
+    // шкала с запасом сверху: выросший пик (3,9) не доходит до подписи оси, и «максимум» над кольцом её не задевает
+    const { x0, x1, y0, y1 } = g, X = (x) => x0 + (x + 1) / 2 * (x1 - x0), Y = (v) => y1 - (v + 0.6) / 5.2 * (y1 - y0);
     const it = u < 1.6 ? 0 : Math.min(4, Math.floor(seg(u, 1.6, 6.4) * 4.999));
     const amp = [1.0, 1.5, 2.0, 2.6, 3.2][it];
     const bcq = seg(u, 6.6, 7.2) * (1 - seg(u, 8.8, 9.2)), cql = ease(seg(u, 9.2, 10.4)) * (1 - seg(u, 11.6, 12)), iql = seg(u, 12, 12.6) * (1 - seg(u, T - 0.4, T));
     const q = (x) => base(x) + bump(x, amp) * (1 - cql * 0.9) - cql * 1.2 * Math.max(0, Math.abs(x - 0.1) - 0.55);
     // оси
     line(c, [[x0, y1], [x1, y1]], P.ink3, 1.2); line(c, [[x0, y0], [x0, y1]], P.ink3, 1.2);
-    lab(c, k, g.narrow ? 'влево' : 'руль до упора влево', x0, y1 + 30, { px: 9.5, color: P.ink3, align: 'left', halo: false });
-    lab(c, k, g.narrow ? 'вправо' : 'до упора вправо', x1, y1 + 30, { px: 9.5, color: P.ink3, align: 'right', halo: false });
-    lab(c, k, 'оценка Q', x0 + 4, y0 - 8, { px: 9.5, color: P.ink3, align: 'left', halo: false });
+    lab(c, k, g.narrow ? 'влево' : 'руль до упора влево', x0, y1 + 30, { px: 10, color: P.ink3, align: 'left', halo: false });
+    lab(c, k, g.narrow ? 'вправо' : 'до упора вправо', x1, y1 + 30, { px: 10, color: P.ink3, align: 'right', halo: false });
+    lab(c, k, 'оценка Q', x0 + 4, y0 - 8, { px: 10, color: P.ink3, align: 'left', halo: false });
     // BCQ: серым — редкие действия
     if (bcq > 0) { c.globalAlpha = bcq * 0.35; c.fillStyle = P.ink3; c.fillRect(x0, y0, X(-0.5) - x0, y1 - y0); c.fillRect(X(0.7), y0, x1 - X(0.7), y1 - y0); c.globalAlpha = 1; }
     // данные — синие точки у оси
@@ -230,14 +231,14 @@ const Plan = (() => {
     }
     // подпись этапа
     const cap = u < 1.6 ? ['посередине Q держат данные,', 'по краям она достроена как получится']
-      : u < 6.6 ? [`итерация ${it + 1}: цель r + γ·max Q`, 'переносит пик, и он растёт']
+      : u < 6.6 ? [`итерация ${it + 1}: целевое значение`, 'r + γ·max Q переносит пик']
         : u < 9.2 ? ['BCQ: редкие действия закрыты,', 'максимум — только среди частых']
           : u < 12 ? ['CQL: штраф опускает оценки', 'там, где данных нет']
             : ['IQL: максимума по кривой нет —', 'только экспектиль по данным'];
     const [tx, ty] = g.cap;
     lab(c, k, cap[0], tx, ty, { px: g.narrow ? 11 : 12, weight: 700, color: P.ink, align: g.capAlign || 'left', halo: false });
     lab(c, k, cap[1], tx, ty + 18, { px: g.narrow ? 11 : 12, weight: 600, color: P.ink2, align: g.capAlign || 'left', halo: false });
-    if (u >= 1.6 && u < 6.6) lab(c, k, `пик: ${fmt(base(-0.86) + bump(-0.86, amp), 1)}`, tx, ty + 40, { px: 10.5, color: P.mot, align: g.capAlign || 'left', halo: false });
+    if (u >= 1.6 && u < 6.6) lab(c, k, `пик растёт: ${fmt(base(-0.86) + bump(-0.86, amp), 1)}`, tx, ty + 40, { px: 10.5, color: P.mot, align: g.capAlign || 'left', halo: false });
   }
   Anim.add('maxpeak', {
     W: 720, H: 380, start: 4.2, narrowAt: 600,
@@ -337,14 +338,22 @@ const Duel = (() => {
       for (const m of METHODS.concat(['bcq'])) { const r = res(m); if (r) rows.push({ key: m, v: r.ev.ret, text: tripsLine(r.ev, 20) }); }
     }
     if (!rows.length) { K.label(c, k, promise ? (narrow ? 'обучи политики в миссии 2' : 'обещания появятся, когда политики обучатся во второй миссии') : (narrow ? 'нажми кнопку миссии' : 'сводка появится после первой миссии: сделай ставку и нажми кнопку'), W / 2, H / 2, { px: 12.5, weight: 700, color: P.ink2, haloColor: P.surf }); return; }
-    const L = narrow ? 12 : 170, R = narrow ? 12 : 150, T = narrow ? 30 : 26, B = 30, gw = W - L - R;
+    if (promise) rows.forEach((r) => { r.text = `обещала ${fmtS(r.q, 1)} · вышло ${fmtS(r.g)}`; });
+    // поля под подписи слева и справа — по самой длинной подписи: чем уже канвас, тем шире подписи в пикселях канваса
+    let L = 12, R = 12;
+    if (!narrow) {
+      K.font(c, k, 10.5, 650); L = Math.max(170, Math.ceil(Math.max(...rows.map((r) => c.measureText(NAMES[r.key]).width)) + 16));
+      K.font(c, k, 10, 600); R = Math.max(150, Math.ceil(Math.max(...rows.map((r) => c.measureText(r.text).width)) + 14));
+    }
+    const T = narrow ? 30 : 26, B = 30, gw = W - L - R;
     const lo = promise ? -6 : Math.min(-2, Math.floor(Math.min(...rows.map((r) => r.v)))), hi = promise ? 14 : Math.max(3, Math.ceil(Math.max(...rows.map((r) => r.v))));
     const X = (v) => L + gw * (Math.max(lo, Math.min(hi, v)) - lo) / (hi - lo), rowH = (H - T - B) / rows.length;
     c.strokeStyle = P.grid; c.lineWidth = 1;
     const step = hi - lo > 12 ? 2 : 1;
     for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) { c.beginPath(); c.moveTo(X(v), T - 4); c.lineTo(X(v), H - B); c.stroke(); if (!narrow || v % (2 * step) === 0) K.label(c, k, fmt(v, 0), X(v), H - B + 12, { px: 10, color: P.ink3, halo: false }); }
     c.strokeStyle = P.ink3; c.beginPath(); c.moveTo(X(0), T - 4); c.lineTo(X(0), H - B); c.stroke();
-    K.label(c, k, promise ? (narrow ? 'обещание Q и что вышло, с дисконтом' : 'на старте: обещание Q-функции и что вышло, отдача с дисконтом') : (narrow ? 'средняя отдача за поездку' : 'средняя отдача за поездку, без дисконта'), 8, 10, { px: 10.5, color: P.ink3, align: 'left', halo: false });
+    const ttl = promise ? (narrow ? 'обещание Q и что вышло, с дисконтом' : 'на старте: обещание Q-функции и что вышло, отдача с дисконтом') : (narrow ? 'средняя отдача за поездку' : 'средняя отдача за поездку, без дисконта');
+    K.label(c, k, ttl, 8, 10, { px: 10.5, color: P.ink3, align: 'left', halo: false });
     rows.forEach((r, i) => {
       const y = T + rowH * i, col = colorOf(r.key, P);
       if (promise) {
@@ -352,7 +361,7 @@ const Duel = (() => {
         c.globalAlpha = 0.25; c.fillStyle = col; c.fillRect(Math.min(X(0), X(r.q)), yq, Math.abs(X(r.q) - X(0)), bh); c.globalAlpha = 1; c.strokeStyle = col; c.lineWidth = 1.6; c.strokeRect(Math.min(X(0), X(r.q)), yq, Math.abs(X(r.q) - X(0)), bh);
         c.fillStyle = P.cl; c.fillRect(Math.min(X(0), X(r.g)), yg, Math.max(1.5, Math.abs(X(r.g) - X(0))), bh);
         if (r.q > hi) K.label(c, k, `${fmt(r.q, 1)} →`, X(hi) - 2, yq + bh / 2, { px: 10, weight: 700, color: P.ink, align: 'right', haloColor: P.surf });
-        const txt = `обещала ${fmtS(r.q, 1)} · вышло ${fmtS(r.g)}`;
+        const txt = r.text;
         if (narrow) K.label(c, k, `${NAMES[r.key]}: ${txt}`, L, y + rowH * 0.2, { px: 10, weight: 650, color: P.ink2, align: 'left', haloColor: P.surf });
         else { K.label(c, k, NAMES[r.key], L - 8, yq + bh, { px: 10.5, weight: 650, color: P.ink2, align: 'right', halo: false }); K.label(c, k, txt, W - R + 6, yq + bh, { px: 10, color: P.ink2, align: 'left', halo: false }); }
       } else {
@@ -362,15 +371,19 @@ const Duel = (() => {
         else { K.label(c, k, NAMES[r.key], L - 8, by + bh / 2, { px: 10.5, weight: 650, color: isOp(r.key) ? P.ink3 : P.ink2, align: 'right', halo: false }); K.label(c, k, r.text, W - R + 6, by + bh / 2, { px: 10, color: P.ink2, align: 'left', halo: false }); }
       }
     });
-    if (promise && !narrow) { K.label(c, k, 'контур — обещание, синяя — вышло', W - 8, 10, { px: 9.5, color: P.ink3, align: 'right', halo: false }); }
+    if (promise && !narrow) {   // легенда справа от заголовка, а если рядом не помещается — строкой ниже
+      const lg = 'контур — обещание, синяя — вышло';
+      K.font(c, k, 10.5, 600); const wt = c.measureText(ttl).width; K.font(c, k, 10, 600); const wl = c.measureText(lg).width;
+      K.label(c, k, lg, W - 8, 8 + wt + 16 + wl <= W - 8 ? 10 : 10 + 13 * k, { px: 10, color: P.ink3, align: 'right', haloColor: P.surf });
+    }
   }
   function render() {
     drawPane('L'); drawPane('R'); drawBoard();
     segSet('#dLeft', st.left); segSet('#dRight', st.right); segSet('#dView', st.view);
     const pg = $('#dProg'); pg.hidden = !st.busy; pg.firstElementChild.style.width = (st.prog * 100).toFixed(1) + '%';
     $('#dBoardNote').textContent = st.view === 'promise'
-      ? 'Для каждой политики с Q-функцией: контур — сколько отдачи с дисконтом Q-функция обещала на старте (оценка выбранного действия, среднее по 20 стартам), синяя полоса — сколько вышло на деле в тех же поездках. Стрелка — обещание не помещается на шкале.'
-      : 'Средняя отдача за поездку — сумма наград без дисконта. Серые полосы — операторы по своим записям, цветные — политики на 20 проверочных поездках. В подписи к полосе — сколько поездок доехало до кухни и среднее время тех, что доехали.';
+      ? 'У каждой политики с Q-функцией контур показывает, сколько отдачи с дисконтом Q-функция обещала на старте: это оценка выбранного действия, усреднённая по 20 стартам. Синяя полоса показывает, сколько вышло на деле в тех же поездках. Стрелка означает, что обещание не помещается на шкале.'
+      : 'Средняя отдача за поездку равна сумме наград без дисконта. Серые полосы показывают отдачу операторов, посчитанную по их собственным записям, а цветные полосы показывают отдачу политик на 20 проверочных поездках. Подпись у полосы называет, сколько поездок доехало до кухни и сколько в среднем длились те, что доехали.';
     if (st.busy) setOut($('#dOut'), `Политики учатся в браузере: ${Math.round(st.prog * 100)}%.`);
     else {
       const t = METHODS.filter((m) => res(m));
@@ -398,7 +411,7 @@ const Duel = (() => {
     async promises() { st.left = 'naive'; st.right = 'cql'; st.view = 'promise'; await ensure(METHODS); const e = (m) => res(m).ev; return { naive: e('naive'), cql: e('cql'), iql: e('iql') }; },
   };
   const missions = [
-    { short: 'Логи', title: 'Кто из операторов лучше', text: 'Слева — 20 поездок аккуратного оператора, справа — 40 поездок торопливого: тонкая линия — медленно, толстая — быстро. Аккуратный доезжает всегда, но медленно; торопливый едет вдвое быстрее, но часто врезается на кухне. Награда: +1 за метр к кухне, −0,5 за секунду в пути, +2 за кухню, −5 за столкновение.',
+    { short: 'Логи', title: 'Кто из операторов лучше', text: 'На панелях показаны 20 поездок аккуратного оператора и 40 поездок торопливого. Где линия тонкая, Ада едет медленно, а где толстая, едет быстро. Аккуратный доезжает всегда, но медленно; торопливый едет вдвое быстрее, но часто врезается на кухне. Награда: +1 за метр к кухне, −0,5 за секунду в пути, +2 за кухню, −5 за столкновение.',
       bet: { q: 'кто из них в среднем набирает больше награды за поездку?', options: ['Аккуратный: он доезжает всегда', 'Торопливый: он вдвое быстрее', 'Почти поровну: один тратит время, другой врезается'], answer: (r) => (Math.abs(r.c.ret - r.h.ret) < 0.15 ? 2 : r.c.ret > r.h.ret ? 0 : 1) },
       action: { label: 'Посчитать отдачу по логам', run: (X) => X.logs() },
       criteria: [{ label: 'Средняя отдача операторов посчитана', test: (r) => !!r && r.c.n === 20 }],
@@ -463,40 +476,57 @@ const Probe = (() => {
     K.label(c, k, k > 1.5 ? 'тяни Аду' : 'тяни Аду вдоль маршрута', Math.min(D.W - 70, Math.max(70, L.s.x)), L.s.y + (L.s.y > 300 ? -44 : 44), { px: 11, weight: 650, color: P.ink2, haloColor: P.bg });
   }
   function drawPlot() {
-    const cv = $('#rPlot'), W = 600, H = 440, { c, k } = K.fit(cv, W, H), P = pal(), v = view(), NS = E.CFG.NS;
+    const cv = $('#rPlot'), W = 600, v = view(), NS = E.CFG.NS;
+    // Подписи держат размер в CSS-пикселях, а поле графика — в пикселях канваса. Чем уже канвас на экране (больше u),
+    // тем больше места отводится подписям сверху и снизу и тем выше канвас: на телефоне строки подписей не налезают.
+    const u = W / (cv.getBoundingClientRect().width || W);
+    const top = Math.round(48 * u), base = top + 260, cntTop = base + Math.round(20 * u), cntH = 48;
+    const yArrow = cntTop + cntH + 10 * u, ySpeed = yArrow + 14 * u, H = Math.round(ySpeed + 9.5 * u);
+    if (cv.style.aspectRatio !== `${W} / ${H}`) cv.style.aspectRatio = `${W} / ${H}`;
+    const { c, k } = K.fit(cv, W, H), P = pal();
     c.fillStyle = P.surf; c.fillRect(0, 0, W, H);
-    const L0 = 48, R0 = 14, top = 70, base = 330, cntH = 48, gap = 26, slot = (W - L0 - R0 - gap) / 18;
+    // шкала оценок и её деления; левое поле — по самой длинной подписи деления
+    let lo = 0, hi = 1, tick = 1;
+    const ticks = [], tickTxt = (y) => fmtS(y, tick < 0.1 ? 2 : tick < 1 ? 1 : 0);
+    if (v.ready) {
+      const vals = v.rel.concat(v.real); lo = Math.min(0, ...vals); hi = Math.max(0, ...vals); const pad = (hi - lo) * 0.12 + 0.05; lo -= pad; hi += pad;
+      const raw = (hi - lo) / 6, mag = Math.pow(10, Math.floor(Math.log10(raw))); tick = [1, 2, 5, 10].map((m) => m * mag).find((x) => x >= raw);
+      for (let y = Math.ceil(lo / tick) * tick; y <= hi; y += tick) if (Math.abs(y) > tick / 2) ticks.push(y);
+    }
+    K.font(c, k, 10, 600);
+    const L0 = Math.max(48, Math.ceil(Math.max(0, ...ticks.map((y) => c.measureText(tickTxt(y)).width)) + 10)), R0 = 14, gap = 26, slot = (W - L0 - R0 - gap) / 18;
     const X = (a) => L0 + slot * (a + 0.5) + (a >= NS ? gap : 0);
-    K.label(c, k, 'медленно, 40 см/с', (X(0) + X(NS - 1)) / 2, H - 12, { px: 10.5, weight: 650, color: P.ink2, halo: false });
-    K.label(c, k, 'быстро, 80 см/с', (X(NS) + X(2 * NS - 1)) / 2, H - 12, { px: 10.5, weight: 650, color: P.ink2, halo: false });
-    for (const g of [0, NS]) { K.label(c, k, '←', X(g), H - 30, { px: 10, color: P.ink3, halo: false }); K.label(c, k, '→', X(g + NS - 1), H - 30, { px: 10, color: P.ink3, halo: false }); K.label(c, k, 'руль', (X(g) + X(g + NS - 1)) / 2, H - 30, { px: 9.5, color: P.ink3, halo: false }); }
-    // сколько раз записано рядом
+    K.label(c, k, 'медленно, 40 см/с', (X(0) + X(NS - 1)) / 2, ySpeed, { px: 10.5, weight: 650, color: P.ink2, halo: false });
+    K.label(c, k, 'быстро, 80 см/с', (X(NS) + X(2 * NS - 1)) / 2, ySpeed, { px: 10.5, weight: 650, color: P.ink2, halo: false });
+    for (const g of [0, NS]) { K.label(c, k, '←', X(g), yArrow, { px: 10, color: P.ink3, halo: false }); K.label(c, k, '→', X(g + NS - 1), yArrow, { px: 10, color: P.ink3, halo: false }); K.label(c, k, 'руль', (X(g) + X(g + NS - 1)) / 2, yArrow, { px: 10, color: P.ink3, halo: false }); }
+    // сколько раз записано рядом: подпись — своей строкой над столбиками, чтобы не ложиться на высокий столбик
     const L = v.L, mc = Math.max(...L.cnt);
-    L.cnt.forEach((n, a) => { if (!n) return; const h = Math.max(1.5, cntH * n / mc); c.fillStyle = P.cl; c.globalAlpha = 0.75; c.fillRect(X(a) - slot * 0.32, base + 8 + cntH - h, slot * 0.64, h); c.globalAlpha = 1; });
-    K.label(c, k, `в логах рядом: ${L.tot}`, L0, base + 8 + 6, { px: 9.5, color: P.cl, align: 'left', haloColor: P.surf });
+    L.cnt.forEach((n, a) => { if (!n) return; const h = Math.max(1.5, cntH * n / mc); c.fillStyle = P.cl; c.globalAlpha = 0.75; c.fillRect(X(a) - slot * 0.32, cntTop + cntH - h, slot * 0.64, h); c.globalAlpha = 1; });
+    K.label(c, k, `в логах рядом: ${L.tot}`, L0, base + 10 * u, { px: 10, color: P.cl, align: 'left', haloColor: P.surf });
     if (!v.ready) {
       c.strokeStyle = P.ink3; c.beginPath(); c.moveTo(L0, (top + base) / 2); c.lineTo(W - R0, (top + base) / 2); c.stroke();
       K.label(c, k, st.busy ? 'Q-функция учится…' : (k > 1.3 ? 'нажми кнопку миссии' : 'нажми кнопку миссии, чтобы увидеть Q-функцию'), W / 2, (top + base) / 2 - 24, { px: 12.5, weight: 700, color: P.ink2, haloColor: P.surf });
       return;
     }
-    const vals = v.rel.concat(v.real); let lo = Math.min(0, ...vals), hi = Math.max(0, ...vals); const pad = (hi - lo) * 0.12 + 0.05; lo -= pad; hi += pad;
     const Y = (x) => top + (base - top) * (hi - x) / (hi - lo);
     if (v.mask) v.mask.forEach((ok, a) => { if (ok) return; c.save(); c.beginPath(); c.rect(X(a) - slot / 2, top, slot, base - top); K.hatch(c, X(a) - slot / 2, top, X(a) + slot / 2, base, P.ink3, 6, 1); c.restore(); });
     // нулевая линия — самое частое действие
     c.strokeStyle = P.ink3; c.lineWidth = 1.2; c.beginPath(); c.moveTo(L0, Y(0)); c.lineTo(W - R0, Y(0)); c.stroke();
-    const raw = (hi - lo) / 6, mag = Math.pow(10, Math.floor(Math.log10(raw))), tick = [1, 2, 5, 10].map((m) => m * mag).find((x) => x >= raw);
-    for (let y = Math.ceil(lo / tick) * tick; y <= hi; y += tick) if (Math.abs(y) > tick / 2) { c.strokeStyle = P.grid; c.beginPath(); c.moveTo(L0, Y(y)); c.lineTo(W - R0, Y(y)); c.stroke(); K.label(c, k, fmtS(y, tick < 0.1 ? 2 : tick < 1 ? 1 : 0), L0 - 6, Y(y), { px: 9.5, color: P.ink3, align: 'right', halo: false }); }
-    K.label(c, k, '0', L0 - 6, Y(0), { px: 9.5, color: P.ink3, align: 'right', halo: false });
+    for (const y of ticks) { c.strokeStyle = P.grid; c.beginPath(); c.moveTo(L0, Y(y)); c.lineTo(W - R0, Y(y)); c.stroke(); K.label(c, k, tickTxt(y), L0 - 6, Y(y), { px: 10, color: P.ink3, align: 'right', halo: false }); }
+    K.label(c, k, '0', L0 - 6, Y(0), { px: 10, color: P.ink3, align: 'right', halo: false });
     const col = colorOf(st.method, P);
     v.rel.forEach((r, a) => { c.fillStyle = col; c.globalAlpha = a === v.a ? 1 : 0.7; c.fillRect(X(a) - slot * 0.3, Math.min(Y(0), Y(r)), slot * 0.6, Math.max(1.2, Math.abs(Y(r) - Y(0)))); c.globalAlpha = 1; });
     v.real.forEach((r, a) => { const x = X(a), y = Y(r); c.beginPath(); c.moveTo(x, y - 5); c.lineTo(x + 5, y); c.lineTo(x, y + 5); c.lineTo(x - 5, y); c.closePath(); c.fillStyle = P.cl; c.fill(); c.strokeStyle = P.surf; c.lineWidth = 1; c.stroke(); });
-    // выбор Ады и самое частое
-    const ya = Math.min(Y(v.rel[v.a]), Y(v.real[v.a])) - 14;
-    c.beginPath(); c.arc(X(v.a), Math.min(Y(v.rel[v.a]), Y(0)) - 9, 6.5, 0, 7); c.strokeStyle = P.ink; c.lineWidth = 2.2; c.stroke();
-    K.label(c, k, 'выбор Ады', Math.max(L0 + 40, Math.min(W - R0 - 40, X(v.a))), Math.max(top - 10, ya - 12), { px: 10.5, weight: 700, color: P.ink, haloColor: P.surf });
-    K.label(c, k, 'чаще всего', X(L.ref), Y(0) + (v.rel[L.ref] >= 0 ? 12 : -12) + 6, { px: 9.5, weight: 650, color: P.ink2, haloColor: P.surf });
-    K.label(c, k, `▮ ${NAMES[st.method]}${st.method === 'cql' ? ', α = ' + fmtA(alpha()) : ''}: Q минус Q самого частого`, 8, 14, { px: 10.5, weight: 650, color: col, align: 'left', haloColor: P.surf });
-    K.label(c, k, '◆ на деле: сделать действие и ехать, как аккуратный', 8, 34, { px: 10.5, weight: 650, color: P.cl, align: 'left', haloColor: P.surf });
+    // выбор Ады — над кольцом и ромбом, самое частое — под нулевой линией; обе подписи не выходят за поле графика
+    const ringY = Math.min(Y(v.rel[v.a]), Y(0)) - 9, tA = 'выбор Ады', tF = 'чаще всего';
+    c.beginPath(); c.arc(X(v.a), ringY, 6.5, 0, 7); c.strokeStyle = P.ink; c.lineWidth = 2.2; c.stroke();
+    const inside = (x, w) => Math.max(L0 + 2 + w / 2, Math.min(W - 2 - w / 2, x));
+    K.font(c, k, 10.5, 700); const wA = c.measureText(tA).width;
+    K.label(c, k, tA, inside(X(v.a), wA), Math.max(40 * u, Math.min(ringY - 6.5, Y(v.real[v.a]) - 5) - 3 - 5.25 * u), { px: 10.5, weight: 700, color: P.ink, haloColor: P.surf });
+    K.font(c, k, 10, 650); const wF = c.measureText(tF).width;
+    K.label(c, k, tF, inside(X(L.ref), wF), Y(0) + 4 + 5 * u, { px: 10, weight: 650, color: P.ink2, haloColor: P.surf });
+    K.label(c, k, `▮ ${NAMES[st.method]}${st.method === 'cql' ? ', α = ' + fmtA(alpha()) : ''}: Q минус Q самого частого`, 8, 10 * u, { px: 10.5, weight: 650, color: col, align: 'left', haloColor: P.surf });
+    K.label(c, k, '◆ на деле: сделать действие и ехать, как аккуратный', 8, 25 * u, { px: 10.5, weight: 650, color: P.cl, align: 'left', haloColor: P.surf });
   }
   function render() {
     drawMap(); drawPlot();
@@ -530,7 +560,7 @@ const Probe = (() => {
       bet: { q: 'какое действие наивная Q-функция назовёт лучшим?', options: ['То, что операторы делали здесь чаще всего', 'Руль до упора влево на малой скорости — рядом таких решений единицы', 'Быстро прямо, как торопливый оператор'], answer: (r) => (r.a === r.ref ? 0 : r.share < 0.05 ? 1 : 2) },
       action: { label: 'Показать Q-функцию', run: (X) => X.naive() },
       criteria: [{ label: 'Лучшее по наивной Q-функции действие встречается рядом реже чем в 5% решений', test: (r) => r.share < 0.05 }],
-      explain: (r) => `Лучшим она считает ${actWords(r.a)}: оценка на ${fmt(r.rel, 1)} выше самого частого действия. Рядом записано ${r.n} таких решений из ${r.tot} — их сделал случайный оператор, — и на деле это действие отличается от самого частого на ${fmtS(r.real)}. Оценку никто не проверял, а максимум в цели обучения раз за разом выбирал именно её. Наивная Ада делает это действие снова и снова: ${r.ev.ok} поездок из 20 до кухни. Перетащи Аду по маршруту: пик вне данных есть почти везде.` },
+      explain: (r) => `Лучшим она считает ${actWords(r.a)}: оценка на ${fmt(r.rel, 1)} выше самого частого действия. Рядом записано ${r.n} таких решений из ${r.tot} — их сделал случайный оператор, — и на деле это действие отличается от самого частого на ${fmtS(r.real)}. Оценку никто не проверял, а максимум в целевом значении раз за разом выбирал именно её. Наивная Ада делает это действие снова и снова: ${r.ev.ok} поездок из 20 до кухни. Перетащи Аду по маршруту: пик вне данных есть почти везде.` },
     { short: 'Штраф', title: 'Сколько штрафа нужно CQL', text: 'Теперь на графике CQL. Двигай ползунок α — вес штрафа: для каждого значения CQL учится заново на тех же логах, несколько секунд. Найди значение, при котором Ада доезжает хотя бы в 15 поездках из 20, а в точке щупа выбирает действие, которое рядом встречается хотя бы в 5% записанных решений.',
       controls: ['alpha'],
       onEnter: (X) => { X.setAlpha(0); X.setMethod('cql'); },
@@ -541,7 +571,7 @@ const Probe = (() => {
       bet: { q: 'как поедет Ада с BCQ?', options: ['Доедет, но медленно, как BC', 'Доедет и быстро: выбирает лучшее среди частых действий', 'Врежется, как наивная Q-функция'], answer: (r) => (r.ev.ok >= NEED && r.ev.tGoal < 12 ? 1 : r.ev.ok >= NEED ? 0 : 2) },
       action: { label: 'Обучить BCQ', run: (X) => X.bcq() },
       criteria: [{ label: `BCQ доезжает хотя бы в ${NEED} поездках из 20`, test: (r) => r.ev.ok >= NEED }],
-      explain: (r) => `BCQ: ${r.ev.ok} поездок из 20 за ${fmt(r.ev.tGoal, 1)} с, отдача ${fmtS(r.ev.ret)}. В точке щупа ${r.allowed === 1 ? 'разрешено одно действие из 18 — самое частое' : `разрешено ${r.allowed} ${plural(r.allowed, 'действие', 'действия', 'действий')} из 18, и среди них он берёт лучшее по своей Q-функции`}. Оценки запрещённых действий могут быть какими угодно — ни Ада, ни цель обучения их не спрашивают.${r.cql ? ` CQL при α = 1 для сравнения: ${r.cql.ok} из 20 за ${fmt(r.cql.tGoal, 1)} с.` : ''}` },
+      explain: (r) => `BCQ: ${r.ev.ok} поездок из 20 за ${fmt(r.ev.tGoal, 1)} с, отдача ${fmtS(r.ev.ret)}. В точке щупа ${r.allowed === 1 ? 'разрешено одно действие из 18 — самое частое' : `разрешено ${r.allowed} ${plural(r.allowed, 'действие', 'действия', 'действий')} из 18, и среди них он берёт лучшее по своей Q-функции`}. Оценки запрещённых действий могут быть какими угодно: их не спрашивают ни при выборе действия, ни в целевом значении.${r.cql ? ` CQL при α = 1 для сравнения: ${r.cql.ok} из 20 за ${fmt(r.cql.tGoal, 1)} с.` : ''}` },
     { short: 'Свободно', title: 'Свободный режим', text: 'Перетаскивай Аду вдоль маршрута, переключай Q-функции и вес штрафа. Найди точку, где CQL при α = 1 выбирает быструю скорость, и посмотри, что там говорит ромб «на деле».', final: true, controls: ['method', 'alpha'] },
   ];
   function init() {
@@ -580,10 +610,12 @@ const Sets = (() => {
     if (cv.style.aspectRatio !== `${W} / ${H}`) cv.style.aspectRatio = `${W} / ${H}`;
     const { c, k } = K.fit(cv, W, H), P = pal();
     c.fillStyle = P.surf; c.fillRect(0, 0, W, H);
-    const L = narrow ? 30 : 44, R = 10, T = 30, B = narrow ? 92 : 70, gw = W - L - R, gh = H - T - B, lo = -4, hi = 5;
+    // подписи под столбиками: на узком графике время идёт отдельной строкой, поэтому строк до четырёх и нижнее поле растёт с k
+    const step = narrow ? Math.max(15, 13 * k) : 15, first = narrow ? 19 + 10 * k : 32;
+    const L = narrow ? 30 : 44, R = 10, T = 30, B = narrow ? Math.round(28 + 15 * k + 3 * step) : 70, gw = W - L - R, gh = H - T - B, lo = -4, hi = 5;
     const Y = (v) => T + gh * (hi - Math.max(lo, Math.min(hi, v))) / (hi - lo);
     c.strokeStyle = P.grid; c.lineWidth = 1;
-    for (let v = lo; v <= hi; v++) { c.beginPath(); c.moveTo(L, Y(v)); c.lineTo(W - R, Y(v)); c.stroke(); if (v % 2 === 0 || !narrow) K.label(c, k, fmt(v, 0), L - 6, Y(v), { px: 9.5, color: P.ink3, align: 'right', halo: false }); }
+    for (let v = lo; v <= hi; v++) { c.beginPath(); c.moveTo(L, Y(v)); c.lineTo(W - R, Y(v)); c.stroke(); if (v % 2 === 0 || !narrow) K.label(c, k, fmt(v, 0), L - 6, Y(v), { px: 10, color: P.ink3, align: 'right', halo: false }); }
     c.strokeStyle = P.ink3; c.beginPath(); c.moveTo(L, Y(0)); c.lineTo(W - R, Y(0)); c.stroke();
     K.label(c, k, narrow ? 'средняя отдача за поездку' : 'средняя отдача за поездку: серый — оператор, синий — BC, оранжевый — IQL', L, 12, { px: 10.5, color: P.ink3, align: 'left', halo: false });
     const gwid = gw / ORDER.length;
@@ -594,7 +626,7 @@ const Sets = (() => {
         const x = cx + (j - 1) * (bw + 4) - bw / 2;
         if (v == null) { c.strokeStyle = P.line; c.setLineDash([3, 3]); c.strokeRect(x, Y(0.6), bw, Y(0) - Y(0.6)); c.setLineDash([]); K.label(c, k, '?', x + bw / 2, Y(0.3), { px: 10, color: P.ink3, halo: false }); return; }
         c.fillStyle = col; c.globalAlpha = key === 'op' ? 0.55 : 0.9; c.fillRect(x, Math.min(Y(0), Y(v)), bw, Math.max(1.5, Math.abs(Y(v) - Y(0)))); c.globalAlpha = 1;
-        if (!narrow) K.label(c, k, fmtS(v, 1), x + bw / 2, v >= 0 ? Y(v) - 8 : Y(v) + 9, { px: 9, color: P.ink2, haloColor: P.surf });
+        if (!narrow) K.label(c, k, fmtS(v, 1), x + bw / 2, v >= 0 ? Y(v) - 8 : Y(v) + 9, { px: 10, color: P.ink2, haloColor: P.surf });
       });
       const sel = set === st.set;
       K.label(c, k, TITLE[set], cx, H - B + 16, { px: narrow ? 10 : 11, weight: sel ? 800 : 600, color: sel ? P.ink : P.ink2, halo: false });
@@ -602,8 +634,9 @@ const Sets = (() => {
       const bc = r(set, 'bc'), iq = r(set, 'iql');
       if (bc) lines.push([`BC ${bc.ev.ok}/20${bc.ev.tGoal ? ' · ' + fmt(bc.ev.tGoal, 1) + ' с' : ''}`, P.cl]);
       if (iq) lines.push([`IQL ${iq.ev.ok}/20${iq.ev.tGoal ? ' · ' + fmt(iq.ev.tGoal, 1) + ' с' : ''}`, P.e2e]);
-      lines.forEach(([t, col], n) => K.label(c, k, narrow ? t.split(' · ')[0] : t, cx, H - B + 32 + n * 15, { px: narrow ? 9 : 9.5, color: col, halo: false }));
-      if (sel) { c.strokeStyle = P.ink3; c.lineWidth = 1; c.strokeRect(gx + 3, T - 6, gwid - 6, H - T - 6 + 0 - 4); }
+      // «BC 20/20 · 12,3 с»: на узком графике в одну строку не помещается — число доехавших и время идут двумя строками
+      lines.flatMap(([t, col]) => (narrow ? t.split(' · ') : [t]).map((x) => [x, col])).forEach(([t, col], n) => K.label(c, k, t, cx, H - B + first + n * step, { px: 10, color: col, halo: false }));
+      if (sel) { c.strokeStyle = P.ink3; c.lineWidth = 1; c.strokeRect(gx + 3, T - 6, gwid - 6, H - T + 1); }
     });
     if (!r('careful', 'bc') && !r('mix', 'bc')) K.label(c, k, narrow ? 'нажми кнопку миссии' : 'столбики BC и IQL появятся, когда политики обучатся: нажми кнопку миссии', W / 2, Y(3.2), { px: 12, weight: 700, color: P.ink2, haloColor: P.surf });
   }
@@ -681,12 +714,12 @@ function renderQuiz(boxSel, Q, scoreSel) {
 function initQuiz() {
   renderQuiz('#quizBox', [
     { q: 'Offline RL — это то же самое, что off-policy обучение из урока 5.3?', o: ['Да: и там и там учатся на старом опыте из буфера', 'Нет: off-policy метод продолжает собирать новые шаги и дополняет буфер, а offline RL учится только на заранее записанных логах и выезжает лишь после обучения', 'Нет: offline RL не использует награду'], a: 1, e: 'SAC из урока 5.3 учится на старых переходах, но каждый шаг добавляет новый. Если новых шагов нет совсем, ошибки Q-функции на действиях вне данных некому исправить — отсюда вся трудность offline RL.' },
-    { q: 'Если обучить Q-обучение на логах хорошего оператора, политика выйдет хотя бы на его уровень?', o: ['Да: в данных только хорошие действия', 'Нет: максимум в цели обучения выбирает действия, которых в логах почти нет, и их завышенные оценки растут', 'Да, если учить достаточно долго'], a: 1, e: 'В опыте BCQ агент DDPG на миллионе переходов эксперта быстро научился неэкспертным действиям под видом оптимистичной экстраполяции. В лаборатории 1 наивное Q-обучение не доехало ни разу из 20.' },
+    { q: 'Если запустить Q-обучение на логах хорошего оператора, политика выйдет хотя бы на его уровень?', o: ['Да: в данных только хорошие действия', 'Нет: максимум в целевом значении выбирает действия, которых в логах почти нет, и их завышенные оценки растут', 'Да, если учить достаточно долго'], a: 1, e: 'В опыте BCQ агент DDPG на миллионе переходов эксперта быстро научился неэкспертным действиям под видом оптимистичной экстраполяции. В лаборатории 1 наивное Q-обучение не доехало ни разу из 20.' },
     { q: 'Q-функция обещает на старте высокую отдачу. Значит, политика хорошая?', o: ['Да: Q-функция и есть оценка политики', 'Не обязательно: вне данных оценки ничем не проверены — наивная Q-функция обещала 93,0, а вышло −3,92', 'Да, если оценка больше нуля'], a: 1, e: 'Проверить обещание можно только поездками, а в offline RL их нет. Авторы CQL называют выбор числа шагов обучения без поездок открытой задачей, а обзор Levine и соавторов пишет, что оценка политики без поездок — область, где исследования ещё идут.' },
     { q: 'Обучение по демонстрациям на смеси логов выйдет на уровень лучшего оператора?', o: ['Да: оно копирует всех, значит, и лучшего', 'Не обязательно: оно копирует самые частые действия в каждой точке, а они могут прийти от разных операторов', 'Нет, оно всегда хуже худшего оператора'], a: 1, e: 'BC Ады ехал медленно в прихожей и быстро на кухне — как чаще всего ездили в логах именно там — и все шесть его аварий случились на кухне. Отдача −0,08 против +0,51 у лучшего оператора.' },
     { q: 'Может ли offline RL научиться действию, которого в логах нет вовсе?', o: ['Да, на то он и обучение с подкреплением', 'Нет: он может выбирать и комбинировать записанные действия, но не придумать новые', 'Да, если поднять вес штрафа CQL'], a: 1, e: 'На логах одного аккуратного оператора IQL ехал так же медленно, как он, а на логах торопливого так и не научился тормозить. Обзор Levine и соавторов прямо пишет, что offline RL не найдёт действий лучше тех, что есть в данных.' },
     { q: 'Чем больше вес штрафа CQL, тем лучше политика?', o: ['Да: чем осторожнее, тем безопаснее', 'Нет: слабый штраф оставляет пики вне данных, а слишком сильный прижимает Q-функцию к частоте действий в логах, и CQL начинает копировать самое частое, как BC', 'Вес штрафа ни на что не влияет'], a: 1, e: 'В лаборатории 2 при α = 0,03 Ада не доехала ни разу, при α = 0,3 — в 15 поездках из 20, а при α от 1 в точке щупа CQL выбирал самое частое действие логов. Обзор Levine и соавторов называет избыточный пессимизм одной из главных трудностей.' },
-    { q: 'IQL оценивает Q-функцию на действиях, которых нет в логах?', o: ['Да, как и любое Q-обучение: в цели стоит максимум', 'Нет: цель для Q — r + γV(s′), а V(s) — экспектиль оценок только записанных действий; политика копирует записанные действия с весом от преимущества', 'Только в начале обучения'], a: 1, e: 'Поэтому обещание IQL на старте — 0,60 — почти совпало с тем, что вышло на деле, 0,66. При τ = 0,5 экспектиль становится средним, и метод превращается в SARSA.' },
+    { q: 'IQL оценивает Q-функцию на действиях, которых нет в логах?', o: ['Да, как и любое Q-обучение: в целевом значении стоит максимум', 'Нет: целевое значение для Q равно r + γV(s′), где V(s) — экспектиль оценок только записанных действий, а политика копирует записанные действия с весом от преимущества', 'Только в начале обучения'], a: 1, e: 'Поэтому обещание IQL на старте — 0,60 — почти совпало с тем, что вышло на деле, 0,66. При τ = 0,5 экспектиль становится средним, и метод превращается в SARSA.' },
     { q: 'Для offline RL лучше всего логи, где каждая поездка образцовая?', o: ['Да: хорошие данные — хорошая политика', 'Не обязательно: важно, чтобы в логах были разные действия и было видно, к чему они привели', 'Нет: лучше всего полностью случайные действия'], a: 1, e: 'На логах одного аккуратного оператора IQL не стал лучше него, а на логах случайного оператора, доехавшего в 17 поездках из 100, получил лучшую политику урока — 20 из 20 за 8,2 с. Чисто случайные нажатия без поездок к кухне не помогли бы: нужны и разнообразие, и удачные исходы.' },
   ], '#quizScore');
 }
