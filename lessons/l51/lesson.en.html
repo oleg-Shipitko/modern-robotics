@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>5.1 RL basics: reward, value, advantage — Modern Robotics and Physical AI</title>
+<meta name="description" content="Lesson 5.1 of the “Modern Robotics and Physical AI” course: reinforcement learning from the very beginning, with the agent and the environment, reward, return and discounting, state and action values, the Bellman equation, value iteration and advantage. Draw a forecast of the return, watch value spread from the stove across Ada's apartment and improve her habitual route with advantage arrows.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<script>
+  (function () { try { var t = localStorage.getItem('mr-theme'); if (t) document.documentElement.dataset.theme = t; else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme = 'dark'; } catch (e) {} })();
+</script>
+<style>
+/*@@CSS@@*/
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html#program" title="To the course program"><div>Modern Robotics and Physical AI<small>Lesson 5.1 · RL basics</small></div></a>
+    <nav class="toc" aria-label="Lesson sections">
+      <a href="#why">Problem</a>
+      <a href="#mdp">Agent</a>
+      <a href="#return">Return</a>
+      <a href="#forecast">Forecast</a>
+      <a href="#value">Value</a>
+      <a href="#iterate">Iterations</a>
+      <a href="#advantage">Advantage</a>
+      <a href="#explore">Exploration</a>
+      <a href="#today">Today</a>
+      <a href="#quiz">Quiz</a>
+      <a href="#finale">Takeaways</a>
+    </nav>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Toggle theme">◐</button>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main>
+
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="kicker"><span class="num">5.1</span> Part 5 · Reinforcement learning</div>
+    <h1>RL basics: <span class="amp">reward, value, advantage</span></h1>
+    <p class="lead">All of Part 4 was about where to get demonstrations, but demonstrations have a ceiling: a robot that copies an operator won't become faster or more careful than the operator and won't learn what to do where the operator never took it. Reinforcement learning (RL) works differently. The robot tries acting on its own, gets a number after every step that says how well it went, and learns to choose the actions after which the sum of these numbers is larger. This idea underlies the DeepMind program that learned to play Atari games from screen pixels in 2013, the walking policies of the four-legged robot ANYmal trained in simulation, and π*0.6 from lesson 3.8, which learns from its own attempts. In this lesson, we'll go through the foundation they all share: how to express a goal as a number, how to estimate how much good is still ahead, and how to tell that one action is better than another. Everything is computed in Ada's apartment from lesson 0.4, where the estimates can be obtained exactly and examined cell by cell.</p>
+    <div class="hero-meta"><span>≈ 60 minutes</span><span>two labs, an interactive and a quiz</span><span id="heroMis">missions with a goal</span></div>
+    <div class="hero-list">
+      <div><b>HOW MUCH IS STILL AHEAD</b>Draw how much reward Ada will collect from each step of the way to the stove, and check it against the calculation</div>
+      <div><b>ESTIMATES SPREAD FROM THE STOVE</b>Run the calculation and watch the estimate of every cell in the apartment build up from the estimates of its neighbors</div>
+      <div><b>IMPATIENT AND FAR-SIGHTED</b>Compare two Adas who value the future differently when water has been spilled on the short path</div>
+      <div><b>BETTER THAN USUAL</b>Find where Ada's habitual route can be shortened, and bring it to the best one</div>
+    </div>
+    <p style="margin-top:28px"><a class="btn primary" href="#why">Start the lesson ↓</a></p>
+  </div>
+</section>
+
+<section class="recall-sec" id="recall" aria-label="Warm-up on the previous lesson">
+  <div class="wrap"><div class="card recall" data-recall></div></div>
+  <script type="application/json" id="recallData">{"n": "4.6", "title": "The data pyramid and the flywheel", "href": "4-6-piramida-dannykh.html", "q": [
+ {"q": "How does GR00T N1 train the model on human video, which has no robot actions?", "o": ["It doesn't: the video goes only into the vision-language model", "It recovers latent actions or actions from an inverse dynamics model and learns them as a separate embodiment, through a separate output of the model", "It converts the video into simulation"], "a": 1, "e": "On Ada's table, putting the actions from video into the same output as the robot actions lowered the mix's success from 70 to 54%, and a model trained on video alone through the robot output managed only 3%.", "sec": "pyramid", "secTitle": "The GR00T N1 pyramid: the lower the layer, the farther it is from the robot"},
+ {"q": "The budget is limited. Why did the mix beat the model trained on robot demonstrations alone?", "o": ["Simulation is more accurate than demonstrations", "For the same money there are few demonstrations, and they come from four homes, while simulation shows many different kitchens; a few demonstrations tie the model to the real camera and gripper", "The mix was trained longer"], "a": 1, "e": "With the same budget, 32 demonstrations gave 48%, and a mix of 16 demonstrations, 400 simulation episodes and 400 human clips gave 70%. Without robot demonstrations, the mix fell short of 65%.", "sec": "budget", "secTitle": "A data budget for a task: demonstrations, simulation and human video"},
+ {"q": "What stopped the flywheel of Ada's fleet?", "o": ["The fleet was too small", "Nobody labeled the failures: only successes went into the data, and the model learned from what it could already do", "Too many labeled failures"], "a": 1, "e": "Without labeling, success rose from 35 to 42% over four shifts, and with half of the failures labeled, to 74%. A fleet twice as large reached the same 74%. In RECAP, people judge the outcome of the episodes too.", "sec": "fleet", "secTitle": "Ada's fleet in other people's homes: shift after shift"}
+]}</script>
+</section>
+
+<section class="section alt" id="why">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">1</span> Problem</div>
+      <h2>When there are no demonstrations, or they aren't good enough</h2>
+      <p class="ada-note"><svg class="ada-ico" viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="10" width="48" height="42" rx="18" fill="#f4efe6" stroke="#3d3c38" stroke-width="3"/><rect x="15" y="19" width="34" height="22" rx="10" fill="#1f2430"/><ellipse cx="25" cy="30" rx="4" ry="5.5" fill="#eb6834"/><ellipse cx="39" cy="30" rx="4" ry="5.5" fill="#eb6834"/></svg><span>Ada is a home humanoid on a wheeled base; the course labs are built around her. More about her in <a href="0-1-dve-paradigmy.html#ada">lesson 0.1</a>.</span></p>
+      <p>Part 4 ended with a question that demonstrations don't answer. A model that learns by imitation does, at best, what the operator did: no faster and no more carefully, and where the operator never took it, it doesn't know what to do. In lesson 1.2, DAgger patched this hole: a person showed how to get out of the states the policy itself leads to. In lesson 3.8, π*0.6 went further and learned from its own attempts, telling its better actions from its worse ones. This kind of learning needs two things: a score for each attempt, expressed as a number, and a way to turn the scores into better actions.</p>
+      <p>This is what <strong>reinforcement learning</strong> does: the robot tries acting on its own, gets a numerical score after every step and learns to choose the actions after which the sum of the scores is larger. This number is called the <strong>reward</strong>. No teacher who knows the right action is needed here: it's enough to be able to say how well things went. In their textbook “Reinforcement Learning: An Introduction” (2nd edition, 2018), Richard Sutton and Andrew Barto call this the reward hypothesis: “all of what we mean by goals and purposes can be well thought of as the maximization of the expected value of the cumulative sum of a received scalar signal (called reward).”</p>
+      <p>The reward says what to achieve, not how: in Sutton and Barto's words, it tells the agent “what you want achieved, not how you want it achieved.” Their example is chess: the program is rewarded for winning, not for taking pieces, or it will learn to take pieces at the cost of the game. A robot that is learning to walk is rewarded for moving forward, and a robot in a maze gets a reward of −1 for every step until it gets out. If Ada needs to drive to the kitchen, nobody tells her where to turn: she gets a reward when she arrives and works out for herself how to get it more often and sooner.</p>
+      <p>But the reward for getting there comes at the end, and Ada has to decide where to go from the very first step. How do you choose an action now from numbers that arrive later? First, let's agree on what the problem consists of.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="mdp">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">2</span> Agent and environment</div>
+      <h2>The agent, the environment and one step of interaction</h2>
+      <p>Reinforcement learning describes a problem as an exchange between two parties. The <strong>agent</strong> is the one that makes decisions and learns; here it's Ada's control system. The <strong>environment</strong> is everything else: the apartment, the objects, the people. According to Sutton and Barto, even the robot's own motors and sensors are better counted as part of the environment, because “anything that cannot be changed arbitrarily by the agent is considered to be outside of it.” Time moves in steps \(t = 0, 1, 2, \dots\) At each step, the agent receives a <strong>state</strong> \(s_t\), a description of what is happening right now, and chooses an <strong>action</strong> \(a_t\). In response, the environment moves to a new state \(s_{t+1}\) and gives out a reward \(r_{t+1}\).</p>
+      <p>The rule by which the agent chooses an action is the <strong>policy</strong>, familiar from lesson 0.1. In reinforcement learning, it is written as the probability \(\pi(a \mid s)\) of choosing action \(a\) in state \(s\); a policy can also be deterministic, that is, always choose the same action in a given state. The chain of steps from the start of the task to its end is called an <strong>episode</strong>: it ends in a terminal state, for example when Ada has arrived, and then everything starts over.</p>
+      <p>If the state contains everything that matters for the future, then the next state and the reward depend only on the current state and action, not on how the agent got there. Such a problem is called a <strong>Markov decision process</strong> (MDP). All the theory in this lesson is written for it; what to do when the camera doesn't see everything, we'll cover in later lessons.</p>
+    </div>
+    <figure class="card flow-card">
+      <canvas data-anim="loop" width="720" height="360" role="img" aria-label="Diagram of the exchange between the agent and the environment: Ada as the agent chooses an action, the apartment as the environment sends back a new cell and a reward; at the bottom, the tape of rewards for the episode and the return they add up to"></canvas>
+      <figcaption class="muted-s">One episode in Ada's apartment, step by step. The agent is Ada's control system: its policy looks at which cell Ada is in and chooses an action. The environment is the apartment seen from above, and the orange dot on it is Ada. Orange marks the action the agent chooses. Blue marks what the environment sends back: a new cell and a reward. Along the bottom runs the tape of rewards for the episode: 0 for every step and +10 at the stove. At the end of the episode, the return appears next to the tape: the sum of these rewards with weights, which the next section explains. Click the diagram to pause it.</figcaption>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>In this lesson, the environment is Ada's apartment from lesson 0.4: two bedrooms on the left of the plan, the living room in the middle and the kitchen on the right. The plan is divided into a grid of 12 × 8 cells, 50 cm each. The state is the cell where Ada stands, and there are 71 free cells in total. There are four actions: up, right, down or left on the plan. Ada can't drive into a wall or furniture: if she tries, she stays where she is. Ada has to drive from the bed in the upper bedroom to the stove. For entering the cell by the stove she gets a reward of +10, and the episode ends; every other step gives her 0.</p>
+      <p>This world is much simpler than the real one. There's no randomness in the apartment, the state is known exactly, and all the rewards and transitions can be written down in a table. But in this world, every quantity in this lesson can be computed exactly and seen. A real robot's problem has the same structure, except that the state is camera frames and joint angles, the actions are continuous, and the reward is put together from several terms. For the four-legged ANYmal in the work of Rudin et al. (2021), “the total reward is a weighted sum of nine terms”: the robot is rewarded for following the commanded velocity and penalized for joint torques and accelerations, for abrupt changes of joint targets and for collisions. The behavior depends on the form of a penalty. The ANYmal authors (Hwangbo et al., 2019) noticed that an unbounded penalty for the command tracking error makes falling the better strategy early in training, when the errors are large: a fall ends the episode, and the penalties end with it. So they bounded the penalty.</p>
+      <p>Rewards arrive step by step, but the decision is made once. How do you combine the rewards of future steps into a single number?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="return">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">3</span> Return</div>
+      <h2>Return and discounting: why the future weighs less</h2>
+      <p>Ada chooses her first action at the bed and gets the +10 twelve steps later, at the stove. So an action has to be chosen by all the rewards that will come after it, not by the reward for the next step, which is almost always 0. This weighted sum of future rewards is called the <strong>discounted return</strong>, or simply the return:</p>
+      <div class="formula">\[ G_t = r_{t+1} + \gamma\, r_{t+2} + \gamma^2 r_{t+3} + \dots = \sum_{k=0}^{\infty} \gamma^k\, r_{t+k+1}. \]</div>
+      <p>Here \(G_t\) is the return from step \(t\), \(r_{t+k+1}\) is the reward that will arrive \(k\) steps after it, and \(\gamma\) is the <strong>discount factor</strong>, a number between 0 and 1. A reward \(k\) steps ahead enters the return with weight \(\gamma^k\): at \(\gamma = 0.9\), a reward one step ahead is worth 0.9 of the same reward now, two steps ahead 0.81, and ten steps ahead 0.35. When the episode ends, there are no more rewards, and the sum stops.</p>
+      <p>Why reduce the weight of the future? The first reason is mathematical. Many of a robot's tasks don't split into episodes: it works for hours. If every step gives +1, the undiscounted sum is infinite, while with \(\gamma &lt; 1\) it is at most \(1/(1-\gamma)\). The second reason is practical: with \(\gamma &lt; 1\), the same reward is worth more sooner than later, so the agent hurries. The third reason is statistical: the paper on generalized advantage estimation (GAE; Schulman et al., 2016) explicitly calls \(\gamma\) a way “to reduce variance by downweighting rewards corresponding to delayed effects.” Distant rewards depend on many future random actions, and lowering their weight makes the estimate more stable at the cost of a small bias.</p>
+      <p>The factor sets how far ahead the agent looks. At \(\gamma = 0\), in Sutton and Barto's words, the agent is “myopic” and cares only about the next reward; the closer \(\gamma\) is to 1, the more far-sighted it becomes. A handy measure of how far it looks is the number of steps after which a reward's weight halves: one step at \(\gamma = 0.5\), about 6.6 at 0.9 and 69 at 0.99. The ANYmal authors tuned \(\gamma\) for each task: for walking on command they took \(\gamma = 0.9988\), which by their calculation “corresponds to a half-life of 5.77 s,” and they warn that “too high discount factor might result in a slow convergence.”</p>
+      <p>The return has a property the whole lesson rests on: it can be expressed through itself. The return from step \(t\) is the reward for the next step plus the discounted return from the step after it: \(G_t = r_{t+1} + \gamma\, G_{t+1}\). That's why it's convenient to compute it backward from the end of the episode. Before computing, check how discounting feels by eye.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="forecast">
+  <div class="wrap">
+    <div class="lab-badge"><i>🧩</i> Interactive</div>
+    <h2>Forecasting the return: how much Ada will collect from each step</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>Ada drives from the upper bedroom to the stove by the shortest path, which takes 12 steps. The map shows her route, and each cell on it carries the number of the step \(t\) at which Ada is in that cell. The chart has the step \(t\) on the horizontal axis and the return \(G_t\) on the vertical one: how much Ada will collect from that cell to the end of the episode. The reward for each step is written under the chart. Draw your forecast by dragging across the chart with a mouse or a finger, and compare it with the calculation.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="fc-grid">
+          <figure class="fc-map"><canvas id="fcMap" width="360" height="240" role="img" aria-label="Top-down view of the apartment: Ada's route from the bedroom to the stove with step numbers"></canvas></figure>
+          <figure class="fc-chart"><canvas id="fcCv" width="440" height="320" role="img" aria-label="Chart of the return at each step of the route: your forecast and the calculation"></canvas></figure>
+        </div>
+        <p class="cv-note">The map shows the apartment from above; a cell is 50 × 50 cm. The orange line on it is Ada's route, the numbers show the step \(t\), and the crosshair marks the cell by the stove. On the chart, the horizontal axis is the step \(t\), and the vertical axis is the return \(G_t\) in units of reward. The orange dots are your forecast. The blue dots show the return computed by the formula; they appear after the check. Under the axis is the reward \(r_{t+1}\) for the step from cell \(t\).</p>
+        <div class="ctl-row"><button class="btn sm" type="button" id="fcClear">Clear the forecast</button><span class="muted-s" id="fcStat"></span></div>
+        <div class="readout" id="fcOut"></div>
+      </div>
+      <div class="card guide-card"><div id="fcMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: the return counted from the end, the horizon and the half-life</summary><div class="body">
+      <p><b>Counting from the end.</b> Let the episode end at step \(T\); then \(G_T = 0\), and going backward, \(G_t = r_{t+1} + \gamma\, G_{t+1}\). For Ada's route, \(T = 12\). If the whole reward \(R\) comes on the last step, the return from step \(t\) equals \(G_t = \gamma^{\,T-t-1} R\): each step back multiplies it by \(\gamma\), so the curve on the chart follows powers of \(\gamma\) rather than a straight line. With a reward like π*0.6's (\(-1\) for every step and 0 for the last, successful one) and \(\gamma = 1\), the return equals \(G_t = -(T - t - 1)\): minus the number of steps left before the last one.</p>
+      <p><b>The horizon.</b> If a reward \(c\) arrives at every step without end, the return is the sum of a geometric series:</p>
+      <div class="formula">\[ G_t = \sum_{k=0}^{\infty} \gamma^k c = \frac{c}{1-\gamma}. \]</div>
+      <p>The quantity \(1/(1-\gamma)\) is called the effective horizon: it is 2 steps at \(\gamma = 0.5\), 10 at 0.9 and 100 at 0.99. The number of steps \(h\) over which the weight halves comes from \(\gamma^h = 1/2\): \(h = \ln 2 / \ln(1/\gamma)\). That's 1 step at \(\gamma = 0.5\), 6.58 at 0.9, 68.97 at 0.99 and 577 at 0.9988, as for ANYmal.</p>
+      <p><b>A note on notation.</b> In the return formula, the reward for the step from cell \(t\) is written \(r_{t+1}\), not \(r_t\): it arrives together with the next state. This is how Sutton and Barto write it, but papers use both conventions; in the GAE paper, for example, the reward for step \(t\) is written \(r_t\).</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px" id="forecastAfter">
+      <p>The return is computed for a single episode, after Ada has driven and all the rewards have arrived. To choose an action, you need to know it in advance, and not for one route but for any cell and any action. RL has a separate quantity for that.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="value">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">4</span> Value</div>
+      <h2>State value and action value</h2>
+      <p>The return depends on what the agent will do next and, in general, also on the randomness of the environment, so you don't know it in advance. What you can know is the average. The <strong>state value</strong> \(V^\pi(s)\) is the expected return if the agent starts in state \(s\) and then acts according to the policy \(\pi\). The <strong>action value</strong> \(Q^\pi(s, a)\) is the expected return if you take action \(a\) in state \(s\) and then act according to \(\pi\):</p>
+      <div class="formula">\[ V^\pi(s) = \E_\pi\bigl[\,G_t \mid s_t = s\,\bigr], \qquad Q^\pi(s, a) = \E_\pi\bigl[\,G_t \mid s_t = s,\ a_t = a\,\bigr]. \]</div>
+      <p>Here \(\E_\pi\) is the average over all the episodes that can happen if the agent acts according to \(\pi\). Together these are called <strong>value functions</strong>, and \(Q\) is often called the Q-function. They are related simply: the state value is the average value of the actions, weighted by how often the policy chooses them, \(V^\pi(s) = \sum_a \pi(a \mid s)\, Q^\pi(s, a)\). If the policy is deterministic, \(V^\pi(s)\) equals the \(Q^\pi\) of the action it chooses.</p>
+      <p>The forecast in the interactive is a value too: on a fixed route without randomness, the return from step \(t\) is exactly the \(V^\pi\) of the cell where Ada stands. You've met value before. In lesson 2.3, SayCan's skill value functions were trained with a reward of 1 for success and 0 for failure, without discounting, and the value was the probability of success. In lesson 3.8, π*0.6 gets a reward of −1 per step, and its value equals minus the number of steps until success, as in the third forecast mission.</p>
+      <p>A policy whose value is at least as high as that of any other policy in all states at once is called optimal, and its values are written \(V^*\) and \(Q^*\). If \(Q^*\) is known, acting is simple: in each state, take the action with the largest \(Q^*(s, a)\). But how do you find it without trying every policy, when Ada has \(4^{70}\) of them?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="bellman">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">5</span> Bellman</div>
+      <h2>The Bellman equation: a cell's value through its neighbors</h2>
+      <p>The same recursion of the return gives a hint. Since \(G_t = r_{t+1} + \gamma\, G_{t+1}\), the value of a cell also equals the reward for the next step plus the discounted value of the cell that step leads to. For the optimal policy, a choice is added: of all the actions, the one that gives the most is taken. This is the <strong>Bellman equation</strong>. It is named after Richard Bellman, who in 1957 called this approach dynamic programming. In Ada's apartment, where the transitions are deterministic, it looks like this:</p>
+      <div class="formula">\[ V^*(s) = \max_{a} \bigl[\, r(s, a) + \gamma\, V^*(s') \,\bigr]. \]</div>
+      <p>Here \(s'\) is the cell Ada reaches from \(s\) with action \(a\), \(r(s, a)\) is the reward for that step, and the cell by the stove, where the episode ends, has \(V^* = 0\). The expression in brackets is the action value \(Q^*(s, a)\): the equation says that a cell's value equals the value of the best action in it. If the environment is random, the single cell \(s'\) is replaced by an average over all possible cells, weighted by their probabilities; we give this form in the lab's “Under the hood.”</p>
+    </div>
+    <figure class="card flow-card">
+      <canvas data-anim="backup" width="720" height="380" role="img" aria-label="Diagram of a Bellman update: the estimates of four neighboring cells are multiplied by gamma, the reward is added, and the cell takes the largest result"></canvas>
+      <figcaption class="muted-s">One Bellman update for the cell at the kitchen door, seen from above. Around it are its four neighbors with their values: above it is the passage along the sink to the stove, to the right and below is the kitchen around the table, and to the left is the living room. Blue marks what has already been computed: the neighbors' values. Each value is multiplied by \(\gamma = 0.9\), and the reward for the step (0 here) is added to it. Orange highlights the best action: its \(Q\) becomes the cell's new value. The numbers come from value iteration in the apartment without the puddle, as in the first mission of the lab below. Click the diagram to pause it.</figcaption>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>The equation links every cell to its neighbors but doesn't say where to start: the neighbors' values are unknown too. The simplest way out is to turn the equation into an update rule: start with zero estimates in all cells and recompute all the cells again and again, plugging the estimates from the previous pass into the right-hand side. This is <strong>value iteration</strong>. Sutton and Barto show that it converges to \(V^*\) from any initial estimates if \(\gamma &lt; 1\).</p>
+      <p>Value iteration is related to Dijkstra's algorithm from lesson 0.4. If the reward is −1 for every step and \(\gamma = 1\), a cell's value equals minus the length of the shortest path to the goal, and value iteration finds the same paths as Dijkstra, except that it recomputes all the cells at once instead of expanding them one by one. In exchange, it works with any rewards and, in its general form, with a random environment too, where Dijkstra doesn't apply. Let's see what this looks like in Ada's apartment.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="iterate">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 1</div>
+    <h2>Value iteration in Ada's apartment</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>The apartment is the same as in lesson 0.4, and we look at it from above: on the left of the plan are two bedrooms, in the middle is the living room with a table and a sofa, and on the right is the kitchen with the sink, the stove, the fridge and a table in the middle. Ada stands at the bed in the upper bedroom and has to drive to the cell by the stove: there she gets +10, and the episode ends. The color of a cell shows the current estimate of its value, and the number in the cell is the estimate itself. An arrow shows the action with the largest \(r + \gamma V(s')\) under the current estimates; if all the actions in a cell are still equal, there's no arrow. At first, all estimates are zero. Hover over a cell or click it, and its Bellman update will appear under the scene.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="duo" id="viDuo">
+          <figure class="pane" id="viPaneL"><figcaption class="pane-head"><b id="viHeadL">γ = 0.9</b><span id="viSubL"></span></figcaption><canvas id="viCvL" width="480" height="320" role="img" aria-label="Top-down view of the apartment: cell value estimates, the best actions and Ada's route"></canvas><div class="pane-stat" id="viStatL"></div></figure>
+          <figure class="pane" id="viPaneR" hidden><figcaption class="pane-head"><b id="viHeadR" class="fm">γ = 0.99</b><span id="viSubR"></span></figcaption><canvas id="viCvR" width="480" height="320" role="img" aria-label="The same apartment: value estimates with a different discount factor"></canvas><div class="pane-stat" id="viStatR"></div></figure>
+        </div>
+        <p class="cv-note">Top-down view of the apartment; a cell is 50 × 50 cm. A blue fill means a positive value estimate for the cell (the darker, the closer to 10), and a red fill means a negative one. Gray arrows show the best action under the current estimates, and the orange line is the route Ada will take by following these arrows.</p>
+        <details class="lab-legend"><summary>Legend: marks on the scene</summary><div class="cv-legend" id="viLegend"></div></details>
+        <div class="vi-iter" id="viIter"></div>
+        <div class="ctl-row" id="wrapViRew">
+          <label class="hd-range"><span>Stove reward</span><input id="viGoal" type="range" min="1" max="20" step="1" value="10"><output>+10</output></label>
+          <label class="hd-range"><span>Puddle</span><input id="viPuddle" type="range" min="-5" max="0" step="0.1" value="-1"><output>−1</output></label>
+          <label class="hd-range"><span>Each step</span><input id="viStep" type="range" min="-1" max="0" step="0.05" value="0"><output>0</output></label>
+          <button class="btn sm" type="button" id="viDef">Default rewards</button>
+        </div>
+        <div class="ctl-row" id="wrapViGamma">
+          <label class="hd-range"><span>γ of Ada 1</span><input id="viGL" type="range" min="0.5" max="0.99" step="0.01" value="0.5"><output>0.50</output></label>
+          <label class="hd-range"><span>γ of Ada 2</span><input id="viGR" type="range" min="0.5" max="0.99" step="0.01" value="0.99"><output>0.99</output></label>
+        </div>
+        <div class="ctl-row" id="wrapViStep">
+          <button class="btn sm" type="button" id="viOne">One iteration</button>
+          <button class="btn sm" type="button" id="viAll">To convergence</button>
+          <button class="btn sm" type="button" id="viZero">Reset estimates</button>
+        </div>
+        <div class="readout" id="viOut"></div>
+      </div>
+      <div class="card guide-card"><div id="viMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: the algorithm, convergence and the puddle thresholds</summary><div class="body">
+      <p><b>The algorithm.</b> In the lab, all cells are recomputed at the same time, from the estimates of the previous iteration; that's how the wave is easiest to see:</p>
+      <div class="algo">
+        <div>\(V_0(s) \leftarrow 0\) for all cells</div>
+        <div><b>for</b> \(k = 0, 1, 2, \dots\):</div>
+        <div class="i1"><b>for</b> each cell \(s\) except the cell by the stove: \(V_{k+1}(s) \leftarrow \max_a \bigl[\, r(s, a) + \gamma\, V_k(s') \,\bigr]\)</div>
+        <div class="i1"><b>if</b> \(\max_s |V_{k+1}(s) - V_k(s)| &lt; \theta\): stop</div>
+        <div>policy: in each cell, \(\pi(s) = \arg\max_a \bigl[\, r(s, a) + \gamma\, V(s') \,\bigr]\)</div>
+      </div>
+      <p>Sutton and Barto more often update in place, plugging in the new estimates right away; this way the iteration usually converges faster, and the result is the same. It converges because each update shrinks the distance to the solution: \(\max_s |V_{k+1}(s) - V^*(s)| \le \gamma \max_s |V_k(s) - V^*(s)|\), that is, the error shrinks by a factor of at least \(1/\gamma\) per iteration. In Ada's apartment, the only reward is at the stove, and after \(k\) iterations a cell's estimate already accounts for all paths of at most \(k\) steps, so the estimates become exact as soon as \(k\) reaches the longest of the shortest paths.</p>
+      <p><b>A random environment.</b> If action \(a\) can take Ada from \(s\) to different cells \(s'\) with probabilities \(p(s' \mid s, a)\), for example because the wheels slip on a wet floor, the Bellman equation takes the average:</p>
+      <div class="formula">\[ V^*(s) = \max_a \sum_{s'} p(s' \mid s, a)\,\bigl[\, r(s, a, s') + \gamma\, V^*(s') \,\bigr]. \]</div>
+      <p><b>Where the routes split.</b> Past the kitchen door, Ada has two paths to the stove: past the sink, through the puddle, in 4 steps, and around the table in 6. With a reward \(R\) at the stove, a penalty \(p\) for the puddle and no penalty per step, the path through the puddle is worth \(-p\gamma^2 + R\gamma^3\), and the detour is worth \(R\gamma^5\). Ada goes through the puddle if \(R\gamma(1-\gamma^2) &gt; p\): the two extra steps cost her a share \(1-\gamma^2\) of the reward, and that share has to be compared with the puddle penalty. With \(R = 10\) and \(p = 1\), this holds for \(\gamma\) roughly between 0.10 and 0.946. At \(\gamma = 0.99\), Ada goes through the puddle only if the puddle costs less than 0.197, or if each step costs more than 0.412, or if the stove reward is above 50.8.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px" id="iterateAfter">
+      <p>Value iteration knows nothing about routes: all it does, pass after pass, is compare neighbors. The route emerges from the estimates by itself, because the arrows point to where the estimate is higher. And which route is better depends not only on the reward but also on \(\gamma\): two extra steps cost the impatient Ada 75% of the reward and the far-sighted one 2%, so with the same puddle they drive differently.</p>
+      <p>Value iteration goes straight for the best policy. But often a policy already exists (for example, Ada was trained on demonstrations), and you need to find out exactly where it does worse than it could.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="advantage">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">6</span> Advantage</div>
+      <h2>Advantage: how much better an action is than usual</h2>
+      <p>Comparing actions by \(Q\) itself is awkward. Near the stove all the \(Q\) values are about 10, in the bedroom about 3, and the number alone doesn't tell you whether an action is good or bad. What matters is something else: whether the action is better than what the agent usually does in that state. This difference is called the <strong>advantage</strong>:</p>
+      <div class="formula">\[ A^\pi(s, a) = Q^\pi(s, a) - V^\pi(s). \]</div>
+      <p>Here \(Q^\pi(s, a)\) is how much Ada will collect if she does \(a\) now and then drives as usual, and \(V^\pi(s)\) is how much she will collect if she drives as usual now too. A positive advantage means the action is better than her habitual behavior, and a negative one means it's worse. Schulman et al. put it exactly this way in the GAE paper: the advantage “measures whether or not the action is better or worse than the policy's default behavior.” For a stochastic policy, \(V^\pi\) equals the average \(Q^\pi\) over its actions, so some actions come out better than average and others worse.</p>
+      <p>You've met this word in lesson 3.8: π*0.6 computed the advantage of each of its actions from the value function, labeled actions “Advantage: positive” when the advantage was above a threshold, and learned to output the labeled ones more often. The advantage also gives the simplest improvement rule: in every state, switch to an action with a positive advantage. Sutton and Barto prove the <strong>policy improvement theorem</strong>: the new policy will be no worse than the old one in any state, and if the advantage was above zero in at least one state, it will be strictly better. If after switching you evaluate the policy again, compute the advantages and switch again, and keep going until there's nothing left to improve, you get <strong>policy iteration</strong>. Let's try it on an Ada who can already drive, but not in the best way.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="adv">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 2</div>
+    <h2>Advantage arrows: where Ada's habit costs her</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>Ada was taught to drive from demonstrations. Each time, the operator took her from the bed to the stove along the same long road: along the top wall of the living room, away from the table, and around the kitchen table on its right side. This road takes 18 steps instead of 12. Where the operator never drove, the policy repeats the most frequent action in the demonstrations, “right,” and runs into walls. The puddle has been wiped up, Ada still gets +10 at the stove, and \(\gamma = 0.9\).</p>
+      <p>At first, the plan shows only the habitual actions: a thick arrow in each cell shows what Ada does there. After the calculation, every cell gets four colored arrows, one per action: green means the action is better than the habitual one, red means worse, and gray means the same. Click a cell, and its numbers will appear under the scene, along with buttons that change the habitual action.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <figure class="pane" id="avPane"><figcaption class="pane-head"><b id="avHead" class="fm">Ada's habit</b><span id="avSub"></span></figcaption><canvas id="avCv" width="480" height="320" role="img" aria-label="Top-down view of the apartment: Ada's habitual actions, the advantage arrows and her route"></canvas><div class="pane-stat" id="avStat"></div></figure>
+        <p class="cv-note">Top-down view of the apartment; a cell is 50 × 50 cm. The thick outlined arrow shows the habitual action in a cell. The short colored arrows show the advantage of the four actions: a green one is better than the habitual action, a red one is worse, and a gray one is the same; the brighter the arrow, the bigger the difference. The blue fill shows the cell's value \(V^\pi\) when Ada drives by habit. The orange line is Ada's route from the bed, and a ring marks the selected cell.</p>
+        <details class="lab-legend"><summary>Legend: marks on the scene</summary><div class="cv-legend" id="avLegend"></div></details>
+        <div class="av-cell" id="avCell"></div>
+        <div class="ctl-row" id="wrapAvFree">
+          <button class="btn sm" type="button" id="avRound">Improve one round</button>
+          <button class="btn sm" type="button" id="avReset">Restore Ada's habit</button>
+        </div>
+        <div class="readout" id="avOut"></div>
+      </div>
+      <div class="card guide-card"><div id="avMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: policy evaluation, the sum of advantages and the improvement theorem</summary><div class="body">
+      <p><b>Policy evaluation.</b> For a deterministic policy \(\pi\), the cell values are linked by the Bellman equation without the maximum: \(V^\pi(s) = r(s, \pi(s)) + \gamma\, V^\pi(s')\), where \(s'\) is the cell the habitual action leads to. This is a system of 70 linear equations; the lab solves it with the same update as value iteration, only without choosing the best action. Where Ada's habit runs her into a wall and she stays put, \(V^\pi = 0\): she will never arrive. Then, for each of the four actions, the lab computes \(Q^\pi(s, a) = r(s, a) + \gamma\, V^\pi(s')\) and \(A^\pi = Q^\pi - V^\pi\).</p>
+      <p><b>Why the habitual action has zero advantage.</b> \(V^\pi(s)\) is exactly \(Q^\pi(s, \pi(s))\), so \(A^\pi(s, \pi(s)) = 0\). For a stochastic policy, the same rule takes the form of an average: \(\sum_a \pi(a \mid s)\, A^\pi(s, a) = 0\). That's why the advantage shows the difference from how the agent acts on average, not whether an action is good or bad in itself.</p>
+      <p><b>The policy improvement theorem.</b> If for two deterministic policies \(Q^\pi(s, \pi'(s)) \ge V^\pi(s)\) in all states, that is, no new action has a negative advantage relative to the habit, then \(V^{\pi'}(s) \ge V^\pi(s)\) in all states (Sutton and Barto, section 4.2). The proof expands \(Q^\pi\) one step ahead and applies the inequality again, step after step, until the whole return is computed under the new policy. There are finitely many deterministic policies, and each next one is strictly better, so policy iteration stops after a finite number of rounds, and the last policy is optimal.</p>
+      <p><b>When there is no model.</b> Here \(V^\pi\) and \(Q^\pi\) are computed exactly: the engine knows where every action leads. On a robot, the advantage is estimated from experience, for example like this: \(A \approx r_{t+1} + \gamma\, V(s_{t+1}) - V(s_t)\), that is, the reward for the step plus the value estimate after it minus the estimate before it. How to combine such estimates into an accurate and stable one is covered in the GAE paper and in lesson 5.2.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px" id="advAfter">
+      <p>Policy iteration and value iteration arrived at the same route by different paths: the first improves an existing policy by advantages, the second goes straight for the best values. But both knew everything in advance: where each action leads and what reward it gives. In a real apartment, the robot has no such table.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="explore">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">7</span> Exploration</div>
+      <h2>Exploration and exploitation: why it sometimes pays to drive the wrong way</h2>
+      <p>Value iteration and policy iteration are planning: they know where each action leads and what reward it gives. Sutton and Barto call these methods dynamic programming and immediately state the limitation: they need a perfect model of the environment. A robot in a real apartment has no such model. It learns about a reward only by receiving it, and about what happens after an action only by taking it. That's why RL methods estimate values from their own experience: from episodes and individual transitions. The authors of DQN (Deep Q-Network), which the next section is about, stress that the method is model-free: it learns from transitions drawn from the game emulator.</p>
+      <p>Experience raises a new problem. If you always choose the action that currently looks best, that is, <strong>exploit</strong> what you already know, you may never find out that another action is better. If you keep trying new things all the time, that is, <strong>explore</strong>, you'll get few rewards. The simplest compromise is the <strong>ε-greedy</strong> strategy: with probability \(1 - \varepsilon\) it chooses the action that is best under the current estimates, and with probability \(\varepsilon\) a random one.</p>
+      <p>Sutton and Barto compare such strategies on a problem with ten options, where each option has its own average reward with random spread. Each strategy is run 2,000 times for 1,000 steps. The greedy strategy, \(\varepsilon = 0\), found the best option in only about a third of the tasks: its first tries of the best option happened to go badly, and it never came back to it. Its average reward per step leveled off at about 1, while the best possible was 1.54. The strategy with \(\varepsilon = 0.1\) found the best option sooner, but because of its random choices it took it in no more than 91% of the steps. DQN, which learned to play Atari in 2013, started with \(\varepsilon = 1\), that is, with nothing but random actions, and lowered \(\varepsilon\) to 0.1 over the first million frames.</p>
+      <p>For Ada, this means that to find out she can also get around the kitchen table, she has to turn that way at least once in a while, as long as she doesn't yet know where the arrows lead. And when the states are not 71 cells but as many as the different frames the camera can see, a table of values no longer fits in any memory.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="today">
+  <div class="prose">
+    <div class="kicker"><span class="num">8</span> Today</div>
+    <h2>Value and advantage in modern methods</h2>
+    <p>A table of values works while there are few states. The authors of DQN (DeepMind, 2013) note that estimating the value separately for each state is “totally impractical”: in an Atari game, the state is a sequence of frames. So they train a convolutional network that outputs \(Q\) for each action from the pixels, and they train it with the same Bellman equation: the target for \(Q(s, a)\) is \(r + \gamma \max_{a'} Q(s', a')\). The same architecture, with no tuning for each game, was tested on seven Atari games: it outperformed all previous approaches on six of them and an experienced human player on three. During training, the rewards were clipped to ±1 so that one learning rate would suit all the games.</p>
+    <p>Today, robots learn to walk in simulation with policy gradient methods, which use the advantage directly; they are the subject of lesson 5.2. In the 2019 work, the ANYmal policy was trained with TRPO in nine days of simulated time, which took four hours of computation. In 2021, Rudin et al. trained 4,096 copies of ANYmal in parallel on a single GPU: the policy learned to walk on flat ground in under four minutes and on uneven terrain in twenty. Their PPO uses \(\gamma = 0.99\) and estimates the advantage with GAE.</p>
+    <p>An action value \(Q\) learned from the robot's own experience is at the core of methods that train robots directly in the real world; we'll cover them in lesson 5.3. With such a method, SERL (2024) taught an arm to assemble a circuit board, route a cable and relocate objects in 25–50 minutes of training per task on average. And π*0.6 from lesson 3.8 estimates value from its own episodes, computes the advantage from it and learns to output the actions labeled as better more often. Under the hood, they all use the same return, value, Bellman equation and advantage as in Ada's apartment.</p>
+  </div>
+</section>
+
+<section class="section" id="quiz">
+  <div class="prose">
+    <div class="kicker"><span class="num">9</span> Check yourself</div>
+    <h2>Eight common misconceptions</h2>
+    <div class="quiz" id="quizBox"></div>
+    <p class="score" id="quizScore" style="margin-top:14px"></p>
+  </div>
+</section>
+
+<section class="section alt" id="finale">
+  <div class="prose">
+    <div class="kicker"><span class="num">10</span> Takeaways</div>
+    <h2>Lesson takeaways</h2>
+    <ol class="takeaways" id="takeaways">
+      <li><span>In <strong>reinforcement learning</strong>, the agent acts in the environment on its own and gets a reward after every step. The reward sets what to achieve, not how; an engineer designs it, and the shape of the penalties changes the behavior: for ANYmal, an unbounded penalty made falling pay off.</span></li>
+      <li><span>The <strong>return</strong> is the sum of future rewards with weights \(\gamma^k\). The factor \(\gamma\) sets how far ahead the agent looks: at 0.5 a reward's weight halves in one step, at 0.99 in 69 steps. When the only reward is at the stove, the return doesn't grow toward it along a straight line: each step back multiplies it by \(\gamma\), and at the bed, with \(\gamma = 0.9\), it is 3.14 out of 10.</span></li>
+      <li><span>The <strong>value</strong> \(V^\pi(s)\) is the expected return from a state, and \(Q^\pi(s, a)\) is the expected return after an action. The <strong>Bellman equation</strong> expresses a cell's value through its neighbors, and <strong>value iteration</strong> recomputes all cells until the estimates stop changing: in Ada's apartment, the estimate reached the bed in 12 iterations, one cell per iteration, and settled after the 16th.</span></li>
+      <li><span>The choice depends on \(\gamma\): Ada with \(\gamma = 0.5\) drives through the puddle, and Ada with \(\gamma = 0.99\) goes around the table. The two extra steps cost the first 75% of the reward and the second 2%.</span></li>
+      <li><span>The <strong>advantage</strong> \(A = Q - V\) tells you whether an action is better than the habitual one: for the habitual action of a deterministic policy, it is zero. Switching to actions with \(A &gt; 0\) never makes the policy worse; policy iteration took Ada from her habit of 18 steps and a return of 1.67 to 12 steps and 3.14, the same as value iteration.</span></li>
+      <li><span>All of this was planning with a known model. Without one, values are estimated from experience, and the agent has to both explore and exploit; in large problems, a network replaces the table, as in DQN, and the advantage is at the core of PPO and π*0.6.</span></li>
+    </ol>
+    <h3 style="margin-top:40px">Open questions</h3>
+    <details class="card pad open-q"><summary>How do you design a reward that leaves the agent no loopholes?</summary><p>The agent finds what the reward allows, not what the engineer meant: the chess program takes pieces at the cost of the game, and ANYmal falls to put an end to the penalties. Rudin et al.'s reward consists of nine terms, and their weights had to be tuned to remove gait artifacts such as “a dragging leg.” Sutton and Barto devote a separate section, 17.4, to designing reward signals, but there is no general way to specify a reward without loopholes. That's why interest has grown in rewards that are learned from demonstrations or from human ratings.</p></details>
+    <details class="card pad open-q"><summary>Which discount factor is the right one?</summary><p>For an episodic task where only the final goal matters, \(\gamma = 1\) suggests itself, but then the estimates spread more widely, and for tasks without an end the return is infinite. The ANYmal authors tuned \(\gamma\) for each task by how the learned walking looked, and in GAE \(\gamma\) is no longer treated as part of the task but as a knob that trades variance for bias. In Ada's apartment, the route changed with \(\gamma\). So by choosing \(\gamma\), the engineer also chooses the behavior, and there is no rule for doing that in advance.</p></details>
+    <h3 style="margin-top:34px">Source guide</h3>
+    <p><a href="http://incompleteideas.net/book/the-book-2nd.html" target="_blank" rel="noopener">R. S. Sutton, A. G. Barto, “Reinforcement Learning: An Introduction”, 2nd ed., MIT Press, 2018</a>: a free version is on the authors' website.</p>
+    <ul class="links">
+      <li><strong>Read closely</strong><span>Chapter 3, sections 3.1–3.6: the agent and the environment, reward, returns and episodes, policies and value functions, the Bellman equations, the gridworld example. Chapter 4, sections 4.1–4.4 and 4.6: policy evaluation, the improvement theorem, policy iteration, value iteration and generalized policy iteration, where evaluation and improvement pull each other along. Section 2.3: the ε-greedy strategy on the problem with ten options.</span></li>
+      <li><strong>Safe to skip</strong><span>Sections 4.5 and 4.7 on asynchronous dynamic programming and its efficiency, as well as the proof exercises: they are worth coming back to after lesson 5.2.</span></li>
+      <li><strong>Question to keep in mind</strong><span>Exercise 3.7: a robot in a maze gets +1 for escaping and 0 the rest of the time, with no discounting, and it doesn't learn. Why? What would change in Ada's apartment if the +10 at the stove were counted with \(\gamma = 1\)?</span></li>
+    </ul>
+    <p style="margin-top:18px">Papers in this lesson: <a href="https://arxiv.org/abs/1312.5602" target="_blank" rel="noopener">Playing Atari with Deep Reinforcement Learning</a> (DeepMind, 2013), <a href="https://arxiv.org/abs/1506.02438" target="_blank" rel="noopener">High-Dimensional Continuous Control Using Generalized Advantage Estimation</a> (Schulman et al., 2016), <a href="https://arxiv.org/abs/1901.08652" target="_blank" rel="noopener">Learning Agile and Dynamic Motor Skills for Legged Robots</a> (Hwangbo et al., 2019), <a href="https://arxiv.org/abs/2109.11978" target="_blank" rel="noopener">Learning to Walk in Minutes Using Massively Parallel Deep RL</a> (Rudin et al., 2021), <a href="https://arxiv.org/abs/2401.16013" target="_blank" rel="noopener">SERL</a> (2024), <a href="https://arxiv.org/abs/2511.14759" target="_blank" rel="noopener">π*0.6</a> (Physical Intelligence, 2025).</p>
+    <h3 style="margin-top:34px">Resources</h3>
+    <ul class="links">
+      <li><a href="http://incompleteideas.net/book/the-book-2nd.html" target="_blank" rel="noopener">Sutton &amp; Barto, 2nd edition</a><span>The whole textbook: the PDF and the example code on the authors' website</span></li>
+      <li><a href="https://github.com/leggedrobotics/legged_gym" target="_blank" rel="noopener">legged_gym</a><span>Rudin et al.'s code: thousands of ANYmals in simulation, a reward made of terms, PPO</span></li>
+      <li><a href="https://serl-robot.github.io/" target="_blank" rel="noopener">SERL</a><span>A library and videos of reinforcement learning on a real manipulator</span></li>
+    </ul>
+    <div class="bridge-note"><p>Ada's apartment has few cells and only four moves, so the value of every cell fits in a table. But Ada's steering command can be any number, and her sensors never see the same picture twice, so such a table can't be built.</p><p class="bridge-to"><!--if:5-2-ppo.html--><a href="5-2-ppo.html"><!--/if-->Lesson 5.2 · Policy gradient and PPO: how to train the policy itself without breaking it with too large a step<!--if:5-2-ppo.html--></a><!--/if--></p></div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Lesson 5.1 of the “Modern Robotics and Physical AI” course. All the estimates in the labs are computed exactly in your browser, from the Bellman equations for Ada's apartment; the numbers from the papers and from Sutton and Barto's textbook are taken from the original sources.
+</footer>
+<div class="tooltip" id="tooltip" role="tooltip"></div>
+<script>
+/*@@JS@@*/
+</script>
+</body>
+</html>
