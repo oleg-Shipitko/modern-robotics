@@ -25,6 +25,16 @@
       ]
     },
     {
+      "v": "3.4",
+      "date": "2026-10-22",
+      "title": "Lesson 2.2 made clearer: cross-entropy, latents and the PerAct diagram",
+      "items": [
+        "Lesson 2.2 has three animated diagrams: how the translation head learns with cross-entropy, why all-to-all attention doesn't fit in memory and how Perceiver's 2,048 latents read the input and answer the patches, and the full PerAct diagram with tensor shapes and four heads, assembled from the pieces in those sections. The text on attention and latents is rewritten step by step.",
+        "The tensor-shape task became “Assemble PerAct step by step”, the chart of the 18 RLBench tasks is drawn as bars with a labeled axis, and the moments where a task is decided — grasp, release, going around an obstacle — are named instead of “bottlenecks”.",
+        "Lesson 0.2 names the depth camera RGB-D and explains that it gives color and the distance to every pixel; the term is in the glossary, and its first mentions in lessons 2.1 and 2.2 link to the depth-camera diagram in 0.2."
+      ]
+    },
+    {
       "v": "3.3",
       "date": "2026-10-20",
       "title": "Lessons in full sentences and new animated diagrams",
