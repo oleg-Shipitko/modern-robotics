@@ -76,9 +76,11 @@ function seedTexts(S2, S3) {
   const ownTxt = own === m1 ? `во всех четырёх режимах и на новом приседе в режиме «кисти и стопы» — ${wN(own)}` : `во всех четырёх режимах ${wN(own)}, а на новом приседе в режиме «кисти и стопы» ${wN(m1)}`;
   const t2 = `На зёрнах 1–10 все пять политик обучены заново. Специалист в своём режиме точнее генералиста на учебных записях ${ownTxt}. Ошибка генералиста на проверочных записях во всех режимах ${mm(genTe, 1)} см, ${genFalls ? `и за все ${runs} прогонов он упал ${genFalls} ${genFalls % 10 >= 2 && genFalls % 10 <= 4 && (genFalls % 100 < 12 || genFalls % 100 > 14) ? 'раза' : 'раз'}` : 'и ни одного падения'}. У специалистов в чужих режимах, кроме специалиста «голова и кисти» в режиме «кисти и стопы», где его три точки тоже заданы, ошибка на учебных записях ${mm(foreign, 1)} см. Специалист «кисти и стопы» с командой «углы рук и таз» ошибается хотя бы втрое сильнее генералиста ${wN(m2)}. На поклоне в режиме «голова и кисти» у генералиста ${wN(m3)} голова и кисти ближе 6 см к записи, а углы ног расходятся больше чем на 10°. Смену режима во время ходьбы он проходит без падения и с ошибкой меньше 5 см ${wN(m4)}.`;
   const n3 = S3.length, all3 = (k) => k === n3, w3 = (k) => (all3(k) ? 'на всех десяти зёрнах' : `на ${k} зёрнах из ${n3}`);
-  const better = S3.filter((r) => r.asap.real < r.plain.real).length, betterB = S3.filter((r) => r.asap.real < r.base.real).length, tch = S3.filter((r) => r.tA === 1 && r.tP === 0).length;
-  const t3 = `На зёрнах дообучения 1–10 политика, дообученная с дельта-моделью, ошибается на настоящей Аде на ${mm(S3.map((r) => r.asap.real), 2)} см и срывает ${mm(S3.map((r) => r.asap.realBad), 0)} записей из 21. После обычного дообучения политика ошибается на ${mm(S3.map((r) => r.plain.real), 2)} см и срывает ${mm(S3.map((r) => r.plain.realBad), 0)} записей, а после дообучения с SysID ошибается на ${mm(S3.map((r) => r.sysid.real), 2)} см. С поправкой она точнее, чем после обычного дообучения, ${w3(better)}, и точнее, чем без дообучения, ${w3(betterB)}. Учитель, который прогоняет шаг вперёд, лучше в симуляторе с поправкой, а отвечающий на текущее состояние — в обычном, ${w3(tch)}. В самом симуляторе политика с поправкой ошибается на ${mm(S3.map((r) => r.asap.sim), 2)} см, а после обычного дообучения на ${mm(S3.map((r) => r.plain.sim), 2)} см.`;
-  return { t2, t3, stats: { own, m1, m2, m3, m4, better, betterB, tch, n, n3, genFalls } };
+  const better = S3.filter((r) => r.asap.real < r.plain.real).length, betterS = S3.filter((r) => r.asap.real < r.sysid.real).length, betterB = S3.filter((r) => r.asap.real < r.base.real).length;
+  const tch = S3.filter((r) => r.tA === 1 && r.tP === 0 && r.tS === 0).length, same = better === betterS && better === betterB, up = (s) => s[0].toUpperCase() + s.slice(1);
+  const cmp = same ? `${up(w3(better))} политика с поправкой точнее, чем после обычного дообучения, после дообучения с SysID и без дообучения.` : `Политика с поправкой точнее, чем после обычного дообучения, ${w3(better)}, чем после дообучения с SysID, ${w3(betterS)}, и чем без дообучения, ${w3(betterB)}.`;
+  const t3 = `На зёрнах дообучения 1–10 политика, дообученная с дельта-моделью, ошибается на настоящей Аде на ${mm(S3.map((r) => r.asap.real), 2)} см и срывает ${mm(S3.map((r) => r.asap.realBad), 0)} записей из 21. После обычного дообучения политика ошибается на ${mm(S3.map((r) => r.plain.real), 2)} см и срывает ${mm(S3.map((r) => r.plain.realBad), 0)} записей, а после дообучения с SysID ошибается на ${mm(S3.map((r) => r.sysid.real), 2)} см и срывает ${mm(S3.map((r) => r.sysid.realBad), 0)} записей. ${cmp} Учитель, который прогоняет шаг вперёд, лучше в симуляторе с поправкой, а отвечающий на текущее состояние — в обычном и в симуляторе с SysID, ${same && tch === better ? 'тоже ' : ''}${w3(tch)}. В самом симуляторе политика с поправкой ошибается на ${mm(S3.map((r) => r.asap.sim), 2)} см, а после обычного дообучения на ${mm(S3.map((r) => r.plain.sim), 2)} см.`;
+  return { t2, t3, stats: { own, m1, m2, m3, m4, better, betterS, betterB, tch, n, n3, genFalls } };
 }
 
 if (process.argv.includes('--train')) {
@@ -131,7 +133,7 @@ if (process.argv.includes('--train')) {
     check(txt.includes(sp(T.t3)), '«Под капотом» лаборатории 3 называет диапазоны по зёрнам 1–10');
     const s = T.stats;
     check(s.m2 >= 9 && s.m3 >= 8 && s.m4 >= 9, `выводы миссий лаборатории 2 держатся хотя бы на 8 зёрнах из 10: М2 ${s.m2}, М3 ${s.m3}, М4 ${s.m4}`);
-    check(s.better === 10 && s.betterB === 10 && s.tch === 10, `выводы лаборатории 3 на всех зёрнах: с поправкой лучше обычного дообучения ${s.better}, лучше без дообучения ${s.betterB}, учителя ${s.tch}`);
+    check(s.better === 10 && s.betterS === 10 && s.betterB === 10 && s.tch === 10, `выводы лаборатории 3 на всех зёрнах: с поправкой лучше обычного дообучения ${s.better}, лучше дообучения с SysID ${s.betterS}, лучше без дообучения ${s.betterB}, учителя (шаг вперёд с поправкой, текущее состояние в обычном и с SysID) ${s.tch}`);
     const r1 = R2[E.CFG.SEED]; check(r1.m1s < r1.m1g && r1.m2s > 3 * r1.m2g && r1.m3up < 6 && r1.m3leg > 10 && !r1.m4fall && r1.m4g < 5, `на зерне лабораторий (${E.CFG.SEED}) выполняются все выводы миссий лаборатории 2`);
     finish();
   })().catch((e) => { console.error(e); process.exit(1); });
@@ -357,15 +359,16 @@ const lessonsDir = path.resolve(__dirname, '../lessons');
     await p.eval(`(() => { const G = window.__l63.Gap; G.st.view = 'pred'; G.api.render(); return true; })()`); await show(p, 'delta', '#delta .lab', 'l63-delta-pred.png');
     await nextMission(p, '#gMis');
     t0 = Date.now(); r = await viaUI(p, '#gMis', 1); outs.push(r.out); const tTune = (Date.now() - t0) / 1000;
-    check(r.ok && /ставка сыграла/i.test(r.out) && r.out.includes(`с поправкой, ${f2(as.real)} см, сорвано ${as.realBad} записей из 21`) && r.out.includes(`${f2(ps.real)} см и сорвано ${ps.realBad} из 21`) && L3.tA === 1 && L3.tP === 0, `миссия 4 (${tTune.toFixed(0)} с в браузере): с поправкой ${f2(as.real)} см (${as.realBad}), обычное дообучение ${f2(ps.real)} см (${ps.realBad}), без дообучения ${f2(bs.real)} см`);
-    check(tTune < 30, `дообучение двух политик в браузере занимает секунды: ${tTune.toFixed(1)} с`);
+    check(r.ok && /ставка сыграла/i.test(r.out) && r.out.includes(`с поправкой, ${f2(as.real)} см, сорвано ${as.realBad} записей из 21`) && r.out.includes(`${f2(ps.real)} см и сорвано ${ps.realBad} из 21`) && r.out.includes(`после дообучения с SysID — ${f2(ss.real)} см и ${ss.realBad} из 21`) && L3.tA === 1 && L3.tP === 0 && L3.tS === 0, `миссия 4 (${tTune.toFixed(0)} с в браузере): с поправкой ${f2(as.real)} см (${as.realBad}), обычное дообучение ${f2(ps.real)} см (${ps.realBad}), с SysID ${f2(ss.real)} см (${ss.realBad}), без дообучения ${f2(bs.real)} см`);
+    const gEv = J(await p.eval(`JSON.stringify(window.__l63.Gap.POLS.map((id) => { const e = window.__l63.Gap.st.evals[id]; return e ? [e.sim.errK, e.real.errK] : null; }))`)), gWant = [bs, ps, ss, as];
+    check(gEv.every((e, i) => e && Math.abs(e[0] - gWant[i].sim) < 1e-9 && Math.abs(e[1] - gWant[i].real) < 1e-9), 'сводка после миссии 4: столбики у всех четырёх политик (без дообучения, обычный симулятор, SysID, дельта-модель), числа как в Node');
+    check(tTune < 25, `дообучение трёх политик в браузере занимает около 15 секунд, как сказано в миссии: ${tTune.toFixed(1)} с`);
     await p.eval(`(() => { const G = window.__l63.Gap; G.st.hold = true; G.st.t = 1.3; G.st.view = 'real'; G.api.render(); return true; })()`); await show(p, 'delta', '#delta .lab', 'l63-delta-tuned.png'); await p.eval(`window.__l63.Gap.st.hold = false; true`);
     await nextMission(p, '#gMis');
     check(await visible(p, '#wrapGPol') && await visible(p, '#wrapGRec') && await visible(p, '#wrapGView'), 'свободный режим: политика, запись и сводка видны');
-    t0 = Date.now(); await seg(p, '#gPol', 'sysid');
-    for (let i = 0; i < 600 && !(await p.eval(`!!window.__l63.Gap.st.evals.sysid`)); i++) await sleep(50);
-    const gs = J(await p.eval(`JSON.stringify({ real: window.__l63.Gap.st.evals.sysid.real.errK, bad: window.__l63.Gap.st.evals.sysid.real.n - window.__l63.Gap.st.evals.sysid.real.ok })`));
-    check(Math.abs(gs.real - ss.real) < 1e-9, `свободный режим: дообучение с SysID в браузере (${((Date.now() - t0) / 1000).toFixed(0)} с) — ${f2(gs.real)} см на настоящей Аде, как в Node`);
+    await seg(p, '#gPol', 'sysid'); await sleep(150);
+    const gs = J(await p.eval(`JSON.stringify({ pol: window.__l63.Gap.st.pol, busy: window.__l63.Gap.st.busy, real: window.__l63.Gap.st.evals.sysid.real.errK })`));
+    check(gs.pol === 'sysid' && !gs.busy && Math.abs(gs.real - ss.real) < 1e-9, `свободный режим: политика с SysID уже дообучена в миссии 4 и показывается сразу, без нового дообучения: ${f2(gs.real)} см на настоящей Аде, как в Node`);
     const da = await text(p, '#deltaAfter');
     const daMiss = missing(da, [`с ${f2(bs.sim)} до ${f2(bs.real)} см`, `${bs.realBad} записей из 21 против ${bs.simBad}`, `с ${f2(L3.simErr)}° до ${f2(L3.sid.err)}°`, `массу ×${f1(L3.sid.W.mass)}`, `до ${f2(L3.dErr)}°`, `${f2(a0[0])} × новая команда + ${f2(a0[1])} × прошлая`, `сдвиг ${f1(a0[4] * E.HALF[0] * 180 / Math.PI)}°`, `ошибка на настоящей Аде ${f2(as.real)} см и сорвано ${as.realBad} записей`, `ошибка ${f2(ps.real)} см и сорвано ${ps.realBad} записей`, `${f2(ss.real)} см и ${ss.realBad} записей`, `${f2(as.sim)} см против ${f2(ps.sim)} см`]);
     check(!daMiss.length, 'текст после лаборатории 3 называет те же числа' + (daMiss.length ? ' — нет: ' + daMiss.join(', ') : ''));
@@ -381,8 +384,8 @@ const lessonsDir = path.resolve(__dirname, '../lessons');
 
     // ---------- тексты совпадают с расчётом ----------
     const fin = await text(p, '#finale .takeaways');
-    const finMiss = missing(fin, ['5 записей из 10', `(${f2(L2.m1.s.errK)} против ${f2(L2.m1.g.errK)} см на новом приседе)`, `на ${f2(L2.m2.s.errK)} см`, `с ${f2(bs.real)} до ${f2(as.real)} см`, `только до ${f2(ps.real)} см`, '94,10%', '47,11%', 'в темпе 0,7×']);
-    check(!finMiss.length, 'итоги урока называют числа лабораторий и статей' + (finMiss.length ? ' — нет: ' + finMiss.join(', ') : ''));
+    const finMiss = missing(fin, ['5 записей из 10', `(${f2(L2.m1.s.errK)} против ${f2(L2.m1.g.errK)} см на новом приседе)`, `на ${f2(L2.m2.s.errK)} см`, `с ${f2(bs.real)} до ${f2(as.real)} см`, `только до ${f2(ps.real)} см`, '94,10%', '47,11%', `Резкий удар и резкий поклон в темпе ${f1(L1.slow.bowFast)}× проходят`]);
+    check(!finMiss.length && L1.slow.kickFast === L1.slow.bowFast && L1.slow.sprint < L1.slow.bowFast, `итоги урока называют числа лабораторий и статей; в темпе ${f1(L1.slow.bowFast)}× проходят только резкий удар и резкий поклон, бег — с ${f1(L1.slow.sprint)}×` + (finMiss.length ? ' — нет: ' + finMiss.join(', ') : ''));
     check(!(await p.eval(`document.body.innerText.includes('@@')`)), 'в тексте страницы не осталось заглушек @@');
     // ---------- квиз, глоссарий, формулы, консоль ----------
     const qz = J(await p.eval(`JSON.stringify([...document.querySelectorAll('#quizBox .q-card')].map((c) => c.querySelectorAll('.q-opt').length))`));
@@ -405,7 +408,7 @@ const lessonsDir = path.resolve(__dirname, '../lessons');
     const m = await B.page(url, { width: 390, height: 844, dpr: 2, mobile: true, light: true });
     await m.waitFor('window.__lessonReady === true', 30000); await sleep(600);
     await m.eval(`document.querySelector('.topbar').style.visibility = 'hidden'; true`);
-    await m.eval(`(async () => { const W = window.__l63; L63.MODE_IDS; W.Filter.IDS.forEach((id) => W.Filter.api.predict(id, 1)); await W.Filter.api.runAll(); W.Filter.st.hold = true; W.Filter.st.sel = 'bowFast'; W.Filter.st.t = 0.6; W.Filter.api.render(); W.Modes.api.set({ preset: 'h2o', spec: 'h2o', rec: 'squat12', sw: null }); W.Modes.st.hold = true; W.Modes.st.t = 1.2; W.Modes.api.render(); await W.Gap.api.tuneTwo(); W.Gap.st.hold = true; W.Gap.st.t = 1.3; W.Gap.api.render(); return true; })()`, true);
+    await m.eval(`(async () => { const W = window.__l63; L63.MODE_IDS; W.Filter.IDS.forEach((id) => W.Filter.api.predict(id, 1)); await W.Filter.api.runAll(); W.Filter.st.hold = true; W.Filter.st.sel = 'bowFast'; W.Filter.st.t = 0.6; W.Filter.api.render(); W.Modes.api.set({ preset: 'h2o', spec: 'h2o', rec: 'squat12', sw: null }); W.Modes.st.hold = true; W.Modes.st.t = 1.2; W.Modes.api.render(); await W.Gap.api.tuneAll(); W.Gap.st.hold = true; W.Gap.st.t = 1.3; W.Gap.api.render(); return true; })()`, true);
     check((await m.eval('document.documentElement.scrollWidth')) <= 390, 'телефон: ширина ' + await m.eval('document.documentElement.scrollWidth'));
     const wide = await m.eval(`[...document.querySelectorAll('.lab')].filter((l) => { const card = l.closest('.wrap') || l.parentElement; return l.scrollWidth > card.clientWidth + 1 || [...l.querySelectorAll('.card')].some((c) => c.scrollWidth > c.clientWidth + 1); }).length`);
     check(wide === 0, 'ни одна лаборатория не шире своей карточки: ' + wide);

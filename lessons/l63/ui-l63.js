@@ -140,7 +140,7 @@ const SchemeKit = (() => {
 
 /* ---------- Схема `distill`: учитель → ученик с маской команды → работа на роботе ----------
    Обучение (0–8 с): четыре эпизода по 2 с, у каждого своя маска частей команды (биты из Bernoulli(0,5), как в HOVER); учитель видит всё тело
-   и запись вперёд, его действие — метка для ученика (DAgger: ученик едет сам, учитель размечает). На роботе (8–12 с): учителя нет, команду дают
+   и запись вперёд, его действие — метка для ученика (DAgger: ученик управляет сам, учитель размечает). На роботе (8–12 с): учителя нет, команду дают
    голова и кисти оператора в VR-шлеме (режим OmniH2O), ученик тот же. */
 (() => {
   const S = SchemeKit, T = 12, MASKS = [[1, 0, 1, 0, 1], [0, 1, 0, 1, 0], [1, 0, 0, 0, 1], [0, 1, 1, 0, 0]], DEPLOY = [0, 1, 0, 0, 0];
@@ -202,7 +202,7 @@ const SchemeKit = (() => {
       ar([xa, B_(B.stu)[1] + 2], [xa, B.sim[1] - 2], P.mot, 2.2); lab('действие ученика', xa + 10, g3, P.mot, 'left');
     }
     const cc = deploy ? (n ? ['На роботе учителя нет:', 'команда — голова и кисти'] : ['На роботе учителя нет. Команду дают голова и кисти оператора', 'в VR-шлеме, остальные части маски выключены'])
-      : (n ? ['Ученик едет сам, учитель', 'размечает его шаги (DAgger)'] : ['Обучение: у каждого эпизода своя маска частей команды. Ученик', 'едет сам, а учитель размечает его шаги своим действием (DAgger)']);
+      : (n ? ['Ученик сам управляет Адой,', 'а учитель размечает его шаги (DAgger)'] : ['Обучение: у каждого эпизода своя маска частей команды. Ученик', 'сам управляет Адой, а учитель размечает его шаги своим действием (DAgger)']);
     A.lab(c, k, cc[0], g.cap[0], g.cap[1], { px: 12, weight: 700, color: P.ink, halo: false, align: 'left' });
     A.lab(c, k, cc[1], g.cap[0], g.cap[1] + 18, { px: 12, weight: 600, color: P.ink2, halo: false, align: 'left' });
   }
@@ -414,7 +414,7 @@ const Modes = (() => {
       bet: { q: 'кто точнее повторит новую запись в режиме «кисти и стопы»?', options: ['Генералист: он видел больше разных команд', 'Специалист: вся его сеть училась только этому режиму', 'Одинаково: учитель у них один'], answer: (r) => (Math.abs(r.g.errK - r.s.errK) < 0.2 ? 2 : r.s.errK < r.g.errK ? 1 : 0) },
       action: { label: 'Запустить обоих в режиме «кисти и стопы»', run: (X) => X.set({ preset: 'h2o', spec: 'h2o', rec: 'squat12', sw: null }) }, controls: ['preset'],
       criteria: [{ label: 'Обе политики повторяют запись без падения', test: (r) => r && !r.g.fall && !r.s.fall }],
-      explain: (r) => `Ошибка точек у специалиста ${fmt(r.s.errK, 1)} см, у генералиста ${fmt(r.g.errK, 1)} см. Сеть у них одного размера, но генералисту она нужна для всех сочетаний частей команды, а специалисту только для одного. У HOVER вышло наоборот: генералист обогнал специалистов, но их учили с подкреплением с нуля, а не по одному учителю. Авторы HOVER сами показывают, что выигрыш даёт дистилляция из учителя: даже на одном режиме она лучше обучения с подкреплением.` },
+      explain: (r) => `Ошибка точек у специалиста ${fmt(r.s.errK, 1)} см, у генералиста ${fmt(r.g.errK, 1)} см. Сеть у них одного размера, но генералисту она нужна для всех сочетаний частей команды, а специалисту только для одного. У HOVER вышло наоборот: генералист обогнал специалистов, но их учили с подкреплением с нуля, а не по одному учителю. Авторы HOVER делают отсюда вывод, что даже в одном режиме дистилляция из учителя лучше обучения с подкреплением. Значит, часть выигрыша генералиста даёт сам способ обучения, а не только то, что он учился во всех режимах.` },
     { short: 'Чужой режим', title: 'Команда, которой специалист не видел', text: 'Та же запись и тот же специалист «кисти и стопы», но команда теперь в другом виде, как у ExBody: углы суставов рук и скорость, высота и наклон таза, а положений кистей и стоп нет.',
       bet: { q: 'что сделает специалист «кисти и стопы» с такой командой?', options: ['Справится: команда описывает то же движение', 'Не справится: таких частей команды он не видел, а нужных ему точек в ней нет', 'Сразу упадёт'], answer: (r) => (r.s.fall && r.s.tFall < 0.5 ? 2 : r.s.errK > 3 * r.g.errK ? 1 : 0) },
       action: { label: 'Подать команду «углы рук и таз»', run: (X) => X.set({ preset: 'exbody', spec: 'h2o', rec: 'squat12', sw: null }) }, controls: ['preset'],
@@ -531,10 +531,10 @@ const Gap = (() => {
     const parts = [];
     for (const id of POLS) { const ev = st.evals[id]; if (ev) parts.push(`<b>${PNAME[id]}</b>: в симуляторе ${fmt(ev.sim.errK, 2)} см, сорвано ${ev.sim.n - ev.sim.ok} из ${ev.sim.n}; на настоящей Аде ${fmt(ev.real.errK, 2)} см, сорвано ${ev.real.n - ev.real.ok} из ${ev.real.n}.`); }
     if (st.data) parts.push(`Предсказание шага настоящей Ады: симулятор ${fmt(st.data.simErr, 2)}°${st.sid ? `, с подобранными параметрами ${fmt(st.sid.err, 2)}°` : ''}${st.delta ? `, с дельта-моделью ${fmt(st.delta.err, 2)}°` : ''}.`);
-    setOut($('#gOut'), parts.join(' ') || 'Нажми кнопку миссии: политика-генералист в режиме «все углы и таз» поедет на настоящей Аде.');
+    setOut($('#gOut'), parts.join(' ') || 'Нажми кнопку миссии: политика-генералист в режиме «все углы и таз» повторит записи в симуляторе и на настоящей Аде.');
   }
   function render() { drawScene(); drawChart(); segSet('#gPol', st.pol); segSet('#gRec', st.rec); segSet('#gView', st.view); readout(); }
-  async function busy(msg, gen, w0, w1) { st.busy = true; st.msg = msg; render(); let last = 0; const R = await runChunked(gen, (h) => { const now = performance.now(); st.prog = w0 + (w1 - w0) * (h.it / h.of); if (now - last > 120) { last = now; readout(); } }, 14); return R; }
+  async function busy(msg, gen, w0, w1) { st.busy = true; st.msg = msg; st.prog = w0; render(); let last = 0; const R = await runChunked(gen, (h) => { const now = performance.now(); st.prog = w0 + (w1 - w0) * (h.it / h.of); if (now - last > 120) { last = now; readout(); } }, 14); return R; }
   async function base() { if (!st.evals.base) { st.busy = true; st.msg = 'Прогоны на 21 записи в симуляторе и на настоящей Аде:'; st.prog = 0.5; render(); await sleep0(); evalOf('base'); st.busy = false; } st.pol = 'base'; render(); if (ctl) ctl.update(); return { ev: st.evals.base }; }
   async function collectData() {
     await base();
@@ -549,20 +549,29 @@ const Gap = (() => {
     st.view = 'pred'; render(); if (ctl) ctl.update();
     return { data: st.data, sid: st.sid, delta: st.delta };
   }
-  async function tune(id) {
+  /** Дообучение политики id; part = [k, n]: k-е из n дообучений подряд, полоска прогресса общая на все n. */
+  async function tune(id, part) {
     if (st.pols[id]) return st.pols[id];
     if (id === 'asap' && !st.delta) await fitD();
     if (id === 'sysid' && !st.sid) await collectData();
+    const [k, n] = part || [0, 1], p0 = k / n, dp = 1 / n;
     const W = id === 'sysid' ? st.sid.W : E.NOM, delta = id === 'asap' ? st.delta.fn : null;
-    const R = await busy(`Дообучение (${PSHORT[id]}):`, E.fineTune(E.policy('gen'), { W, delta, refs: train(), rounds: FT.rounds, per: FT.per, steps: FT.steps, seed: E.CFG.SEED, teachRefs: train().slice(0, 8) }), 0, 0.9);
-    st.pols[id] = R.S; st.pols[id].teacher = R.teacher; st.busy = true; st.msg = 'Прогоны на 21 записи:'; st.prog = 0.95; readout(); await sleep0(); evalOf(id); st.busy = false;
+    const R = await busy(n > 1 ? `Дообучение ${k + 1} из ${n} (${PSHORT[id]}):` : `Дообучение (${PSHORT[id]}):`, E.fineTune(E.policy('gen'), { W, delta, refs: train(), rounds: FT.rounds, per: FT.per, steps: FT.steps, seed: E.CFG.SEED, teachRefs: train().slice(0, 8) }), p0, p0 + 0.9 * dp);
+    st.pols[id] = R.S; st.pols[id].teacher = R.teacher; st.busy = true; st.msg = 'Прогоны на 21 записи:'; st.prog = p0 + 0.95 * dp; readout(); await sleep0(); evalOf(id); st.busy = false;
     return st.pols[id];
   }
-  async function tuneTwo() { await tune('asap'); await tune('plain'); st.pol = 'asap'; st.view = 'real'; render(); if (ctl) ctl.update(); return { asap: st.evals.asap, plain: st.evals.plain, base: st.evals.base, teacher: st.pols.asap.teacher, teacherPlain: st.pols.plain.teacher }; }
+  /** Миссия 4: дообучить копии генералиста в симуляторе с поправкой, в обычном и с параметрами SysID и сравнить их на настоящей Аде. */
+  const TUNED = ['asap', 'plain', 'sysid'];
+  async function tuneAll() {
+    const todo = TUNED.filter((id) => !st.pols[id]);
+    for (let k = 0; k < todo.length; k++) await tune(todo[k], [k, todo.length]);
+    st.pol = 'asap'; st.view = 'real'; render(); if (ctl) ctl.update();
+    return { asap: st.evals.asap, plain: st.evals.plain, sysid: st.evals.sysid, base: st.evals.base, teacher: st.pols.asap.teacher, teacherPlain: st.pols.plain.teacher, teacherSysid: st.pols.sysid.teacher };
+  }
   function state() { return { pol: st.pol, rec: st.rec, view: st.view, busy: st.busy, evals: st.evals, data: st.data, sid: st.sid, delta: st.delta }; }
   const api = {
     reset() { st.pol = 'base'; st.rec = 'walk07'; st.view = 'real'; render(); },
-    state, render, st, base, collectData, fitD, tune, tuneTwo, evalOf, PNAME,
+    state, render, st, base, collectData, fitD, tune, tuneAll, evalOf, PNAME,
   };
   const ankle = (C) => C[0];
   const missions = [
@@ -581,12 +590,12 @@ const Gap = (() => {
       action: { label: 'Обучить дельта-модель', run: (X) => X.fitD() },
       criteria: [{ label: 'С дельта-моделью ошибка шага меньше, чем с подобранными параметрами', test: (r) => r && r.delta.err < r.sid.err }],
       explain: (r) => { const a = ankle(r.delta.C); return `С поправкой ошибка шага ${fmt(r.delta.err, 2)}° против ${fmt(r.sid.err, 2)}° у SysID и ${fmt(r.data.simErr, 2)}° у симулятора как есть. Для голеностопа поправка равна ${fmt(a[0], 2)} × новая команда + ${fmt(a[1], 2)} × прошлая + ${fmt(a[2], 2)} × угол сустава и постоянный сдвиг: новая команда почти отменяется, а прошлая возвращается. Модель сама нашла, что команда доходит до приводов с опозданием на шаг, хотя слова «задержка» в ней нет. Постоянный сдвиг ${fmt(a[4] * E.HALF[0] * 180 / Math.PI, 1)}° — это сдвиг нуля голеностопа, у настоящей Ады он ${fmt(E.REAL.ank * 180 / Math.PI, 1)}°.`; } },
-    { short: 'Дообучение', title: 'Дообучить и вернуться на робота', text: 'Дообучаем политику DAgger в симуляторе с поправкой: она применяется к каждой команде, и симулятор ведёт себя как настоящая Ада. Для сравнения столько же дообучаем копию той же политики в обычном симуляторе. Учитель в каждом симуляторе тот, который в нём лучше: отвечающий на текущее состояние или сначала прогоняющий шаг вперёд. На настоящей Аде обе политики работают без поправки.',
-      bet: { q: 'станет ли политика лучше на настоящей Аде, если поправку при этом не включать?', options: ['Нет: на роботе поправки нет, значит, и пользы нет', 'Да: в симуляторе с поправкой она научилась подавать команду заранее, и на роботе ошибка заметно меньше, чем после обычного дообучения', 'Станет лучше ровно настолько, насколько и после обычного дообучения'], answer: (r) => (r.asap.real.errK < r.plain.real.errK - 0.3 ? 1 : r.asap.real.errK < r.base.real.errK - 0.2 ? 2 : 0) },
-      action: { label: 'Дообучить в двух симуляторах', run: (X) => X.tuneTwo() },
-      criteria: [{ label: 'С поправкой на настоящей Аде ошибка меньше, чем после обычного дообучения', test: (r) => r && r.asap.real.errK < r.plain.real.errK }, { label: 'И меньше, чем без дообучения', test: (r) => r && r.asap.real.errK < r.base.real.errK }],
-      explain: (r) => `На настоящей Аде ошибка политики, дообученной с поправкой, ${fmt(r.asap.real.errK, 2)} см, сорвано ${r.asap.real.n - r.asap.real.ok} записей из 21. После обычного дообучения ошибка ${fmt(r.plain.real.errK, 2)} см и сорвано ${r.plain.real.n - r.plain.real.ok} из 21, а без дообучения ошибка ${fmt(r.base.real.errK, 2)} см. В симуляторе с поправкой лучшим оказался учитель, который прогоняет шаг вперёд, а в обычном — тот, что отвечает на текущее состояние: задержку видит только симулятор с поправкой. У ASAP на роботе G1 ошибка удара ногой уменьшилась с 61,2 до 50,2 мм.` },
-    { short: 'Свободно', title: 'Свободный режим', text: 'Выбирай политику и запись: на сцене одна и та же политика в симуляторе и на настоящей Аде. Сводка показывает ошибку всех обученных политик или ошибку предсказания шага. Дообучи и политику с подобранными параметрами и найди запись, на которой даже дообучение с поправкой не спасает настоящую Аду.', final: true, controls: ['pol', 'rec', 'view'] },
+    { short: 'Дообучение', title: 'Дообучить и вернуться на робота', text: 'Дообучаем политику DAgger в симуляторе с поправкой: она применяется к каждой команде, и симулятор ведёт себя как настоящая Ада. Для сравнения столько же дообучаем две копии той же политики: в обычном симуляторе и в симуляторе с параметрами, которые подобрал SysID. Учитель в каждом симуляторе тот, который в нём лучше: отвечающий на текущее состояние или сначала прогоняющий шаг вперёд. На настоящей Аде все три политики работают без поправки. Три дообучения займут около 15 секунд на компьютере, на телефоне дольше.',
+      bet: { q: 'станет ли политика лучше на настоящей Аде, если поправку при этом не включать?', options: ['Нет: на роботе поправки нет, значит, и пользы нет', 'Да: в симуляторе с поправкой она научилась подавать команду заранее, и на роботе ошибка заметно меньше, чем после двух других дообучений', 'Станет лучше ровно настолько, насколько и после обычного дообучения'], answer: (r) => (r.asap.real.errK < Math.min(r.plain.real.errK, r.sysid.real.errK) - 0.3 ? 1 : r.asap.real.errK < r.base.real.errK - 0.2 ? 2 : 0) },
+      action: { label: 'Дообучить в трёх симуляторах', run: (X) => X.tuneAll() },
+      criteria: [{ label: 'С поправкой на настоящей Аде ошибка меньше, чем после обычного дообучения', test: (r) => r && r.asap.real.errK < r.plain.real.errK }, { label: 'И меньше, чем после дообучения с SysID', test: (r) => r && r.asap.real.errK < r.sysid.real.errK }, { label: 'И меньше, чем без дообучения', test: (r) => r && r.asap.real.errK < r.base.real.errK }],
+      explain: (r) => `На настоящей Аде ошибка политики, дообученной с поправкой, ${fmt(r.asap.real.errK, 2)} см, сорвано ${r.asap.real.n - r.asap.real.ok} записей из 21. После обычного дообучения ошибка ${fmt(r.plain.real.errK, 2)} см и сорвано ${r.plain.real.n - r.plain.real.ok} из 21, после дообучения с SysID — ${fmt(r.sysid.real.errK, 2)} см и ${r.sysid.real.n - r.sysid.real.ok} из 21, а без дообучения ошибка ${fmt(r.base.real.errK, 2)} см. Подобранные параметры помогают меньше поправки: задержки команды и сдвига нуля в их списке нет. В симуляторе с поправкой лучшим оказался учитель, который прогоняет шаг вперёд, а в обычном и с SysID — тот, что отвечает на текущее состояние: задержку видит только симулятор с поправкой. У ASAP на роботе G1 ошибка удара ногой уменьшилась с 61,2 до 50,2 мм.` },
+    { short: 'Свободно', title: 'Свободный режим', text: 'Выбирай политику и запись: на сцене одна и та же политика в симуляторе и на настоящей Аде. Сводка показывает ошибку всех четырёх политик или ошибку предсказания шага. Найди запись, на которой даже дообучение с поправкой не спасает настоящую Аду.', final: true, controls: ['pol', 'rec', 'view'] },
   ];
   function init() {
     segBind('#gPol', async (v) => { if (st.busy) return; if (!polOf(v)) { await tune(v); } st.pol = v; render(); });
