@@ -283,10 +283,10 @@
         </dl>
       </article>
       <article class="card act-card">
-        <h3>Depth camera</h3>
+        <h3>Depth camera (RGB-D)</h3>
         <canvas data-anim="depth" width="360" height="220" role="img" aria-label="Top view: a projector paints dots on an object, two cameras see the same dot with an offset; the closer the object, the larger the offset"></canvas>
         <dl>
-          <dt>What it measures</dt><dd>Distance to every point in the frame: a depth map.</dd>
+          <dt>What it measures</dt><dd>Distance to every point in the frame, that is, a depth map. Together with the color image this is RGB-D: color and depth for every pixel, from which a point cloud is built.</dd>
           <dt>How it works</dt><dd>Two cameras look from different positions. The closer an object, the more it shifts between their frames, and distance is computed from the shift. A projector paints dots on the scene so there is something to lock onto on smooth surfaces. The diagram is a top view.</dd>
           <dt>Weak spot</dt><dd>Shiny and transparent objects and bright sunlight interfere with it. The error grows with the square of distance: far away, the shift drops below a pixel.</dd>
           <dt>Where it’s used</dt><dd>On humanoid heads and manipulator wrists. Intel RealSense D435i gives depth up to 1280×720 at 90 frames per second.</dd>

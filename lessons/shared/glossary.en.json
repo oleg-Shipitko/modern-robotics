@@ -1702,5 +1702,11 @@
   "t": "Classifier guidance",
   "d": "A way to give a diffusion model a task at inference without new training: the task is written as a differentiable cost of the plan, and at each denoising step the cost's gradient shifts the plan toward meeting it. Unlike with classifier-free guidance, the model doesn't need to be trained with a condition. This is how BeyondMimic steers a humanoid by joystick, to a point and around an obstacle.",
   "a": "classifier guidance|guidance (?:with|by) the gradient(?: of (?:a|the) cost)?|guiding (?:the )?diffusion with (?:a|the) gradient"
+ },
+ {
+  "id": "rgb-d",
+  "t": "RGB-D",
+  "d": "A depth camera: together with the color image (RGB) it gives the distance to every pixel (D, depth). Color and depth are turned into a point cloud and a voxel grid. How the camera measures depth is shown in the diagram in lesson 0.2.",
+  "a": "RGB-D|depth cameras?"
  }
 ]
