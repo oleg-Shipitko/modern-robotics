@@ -1612,5 +1612,53 @@
   "t": "In-context adaptation",
   "d": "A policy with a history of observations and actions in its input adjusts its behavior to the floor, a load or a push without changing its weights. The history changes, not the network, just as a language model changes its answer based on a prompt. In Radosavovic et al., this is a causal transformer over 16 “observation, action” pairs.",
   "a": "in-context adaptation|adaptation in context"
+ },
+ {
+  "id": "motion-imitation",
+  "t": "Motion imitation",
+  "d": "Training a policy with reinforcement learning in a physics simulation where the reward is computed from a recording of human motion: for closeness to the frame of the recording (tracking, DeepMimic) or for the policy's transitions being indistinguishable from the recorded ones (AMP). The policy outputs target angles for PD controllers, and balance and the response to pushes come from the simulation.",
+  "a": "motion imitation"
+ },
+ {
+  "id": "motion-tracking",
+  "t": "Motion tracking",
+  "d": "Motion imitation with a reward for the pose's closeness to the frame of the recording at the same phase: joint angles and velocities, hand and foot positions, the center of mass (DeepMimic). The policy is called a tracker. Tracking is accurate but tied to the recording's tempo: to walk faster, you need a different recording.",
+  "a": "motion tracking|motion trackers?"
+ },
+ {
+  "id": "phase-variable",
+  "t": "Phase variable",
+  "d": "A number φ from 0 to 1 in the input of a DeepMimic policy that shows where the recording is now: 0 is its start and 1 its end, and for cyclic motions it goes back to 0 after the end. The phase tells which frame to compare the pose with and ties the policy to the recording's tempo.",
+  "a": "phase variables?"
+ },
+ {
+  "id": "rsi",
+  "t": "Reference state initialization (RSI)",
+  "d": "A training episode starts from a random frame of the recording, with its pose and velocities, rather than from the same pose every time. This way, the policy sees the late phases of the motion from the very first episodes. Without RSI, the DeepMimic character learned a hop instead of a backflip, and ExBody's training didn't work at all.",
+  "a": "reference state initiali[sz]ation|(?-i:RSI)"
+ },
+ {
+  "id": "early-termination",
+  "t": "Early termination",
+  "d": "An episode ends when the torso or the head touches the floor, and the reward for the rest of it is zero. This is both a fall penalty and a filter on experience: lying-down states don't pile up in it. For walking, it barely changes the result; for a backflip, it's decisive.",
+  "a": "early terminations?"
+ },
+ {
+  "id": "amp",
+  "t": "AMP",
+  "d": "Adversarial motion priors (Peng et al., 2021): a discriminator learns to tell transitions from the recordings from the policy's transitions, and the policy gets a style reward max[0, 1 − 0.25(D − 1)²] together with a task reward. There's no phase and no choice of recording, so dozens of unlabeled recordings go into training, and the gait changes with the command.",
+  "a": "(?-i:AMP)|adversarial motion priors?"
+ },
+ {
+  "id": "discriminator",
+  "t": "Discriminator",
+  "d": "A network that looks at a sample and answers whether it's real or produced by a model. In AMP, the discriminator scores a transition between two neighboring states: from a recording (a score of 1) or from the policy (−1). It learns along with the policy, and its score serves as the policy's style reward.",
+  "a": "discriminators?"
+ },
+ {
+  "id": "mode-collapse",
+  "t": "Mode collapse",
+  "d": "A weakness of adversarial models: out of a dataset with different variants, the model reproduces only some and loses the other modes. An AMP policy trained on a large dataset of recordings imitates only a small subset of the motions.",
+  "a": "mode collapse"
  }
 ]

@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>6.2 Imitating human motion — Modern Robotics and Physical AI</title>
+<meta name="description" content="Lesson 6.2 of the “Modern Robotics and Physical AI” course: how to teach a humanoid to move from recordings of human motion. Motion tracking with a phase, starts from a random frame and early termination (DeepMimic), a discriminator instead of a per-frame reward (AMP), retargeting a human skeleton onto a robot's body, and tracking only the upper body (ExBody). Transfer a stair climb and a squat to Ada and check whether she stays up, train one policy with two rewards and average two recordings.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<script>
+  (function () { try { var t = localStorage.getItem('mr-theme'); if (t) document.documentElement.dataset.theme = t; else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme = 'dark'; } catch (e) {} })();
+</script>
+<style>
+/*@@CSS@@*/
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html#program" title="To the course program"><div>Modern Robotics and Physical AI<small>Lesson 6.2 · Imitating human motion</small></div></a>
+    <nav class="toc" aria-label="Lesson sections">
+      <a href="#natural">Naturalness</a>
+      <a href="#mocap">Recordings</a>
+      <a href="#retarget">Retargeting</a>
+      <a href="#deepmimic">DeepMimic</a>
+      <a href="#amp">AMP</a>
+      <a href="#track">Comparison</a>
+      <a href="#mix">Mixing</a>
+      <a href="#today">Today</a>
+      <a href="#quiz">Quiz</a>
+      <a href="#finale">Takeaways</a>
+    </nav>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Toggle theme">◐</button>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main>
+
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="kicker"><span class="num">6.2</span> Part 6 · Humanoid robots</div>
+    <h1>Imitating human motion: <span class="amp">motion tracking, an adversarial prior and retargeting</span></h1>
+    <p class="lead">In lesson 6.1, Ada learned to hold a velocity command with a reward of nine terms, but she doesn't walk like a person: at 0.6 m/s, she makes 3.4 steps a second, 18 cm each, and keeps her knees bent all the time. The reward has no “walk like a human” term, and nobody knows how to write one. DeepMimic (Peng et al., 2018) proposed rewarding the policy for staying close to a recording of human motion. The phase of the recording in the policy's input, episodes that start from a random frame of the recording, and episodes cut short by a fall taught simulated characters to walk, run and do flips from 0.5–5 seconds of recording per skill, at a cost of 60 million steps and two days of computation for each skill. AMP (2021) dropped the comparison with a frame as well: a second network learns to tell the policy's motions from the recorded ones, and the policy is rewarded when its motions can't be told apart from them. This lets datasets of dozens of unlabeled recordings go into training, and the gait changes with the velocity command on its own. Between the recording and the robot lies the transfer of motion to a body with different link lengths and joint limits, and ExBody (2024), on the H1 robot, kept only the upper-body motion from the recordings. In this lesson, you'll transfer a person's stair climb and squat to Ada and check whether she stays on her feet, train one policy with two rewards, and see what comes out of the mean of two recordings.</p>
+    <div class="hero-meta"><span>≈ 60 minutes</span><span>3 labs, an interactive and a quiz</span><span id="heroMis">missions with a goal</span></div>
+    <div class="hero-list">
+      <div><b>HUMAN → ADA</b>Transfer a stair climb and a squat from a human skeleton to Ada's legs in three ways, and find where a foot sinks into a stair, a joint goes past its limit and the center of mass leaves the support</div>
+      <div><b>TWO REWARDS</b>Train one policy with a “repeat the recording's frame” reward and with a reward from a network that tells Ada's motions from the recorded ones, and compare their rhythm, accuracy and speed at a different command</div>
+      <div><b>THE MEAN OF TWO RECORDINGS</b>Average two walking recordings started with different legs, and see what a policy learns from such a mean</div>
+      <div><b>FROM THE PAPERS</b>Look at the numbers from DeepMimic, AMP, ExBody and H2O: reward weights, ablations, recording datasets, hours and millions of steps</div>
+    </div>
+    <p style="margin-top:28px"><a class="btn primary" href="#natural">Start the lesson ↓</a></p>
+  </div>
+</section>
+
+<section class="recall-sec" id="recall" aria-label="Warm-up on the previous lesson">
+  <div class="wrap"><div class="card recall" data-recall></div></div>
+  <script type="application/json" id="recallData">{"n": "6.1", "title": "RL-based locomotion", "href": "6-1-lokomotsiya.html", "q": [
+ {"q": "The walking reward is only the torso's forward speed, and a fall isn't penalized at all. What will the policy do?", "o": ["Learn to walk fast", "Lie down and push itself along the floor with its legs: that also moves you forward, and there's no balance to keep", "Stand still"], "a": 1, "e": "In Lab 1, Ada with this reward falls after 0.6 s and then crawls on her torso at 1.37 m/s, more than twice as fast as the Ada with the full reward of nine terms. The reward says what to achieve, not how.", "sec": "reward", "secTitle": "Reward builder: from “forward only” to nine terms"},
+ {"q": "Why does each copy get its own random velocity command when training for walking?", "o": ["So that the copies don't get in each other's way", "So that the policy learns to link the number in its input to speed: a network that had only seen 0.6 m/s walked at 0.71 m/s at a command of 0.9", "To save simulation time"], "a": 1, "e": "The random-command Ada held both 0.3 and 0.9 m/s and reached the new speed 0.4 s after the command jumped. In Rudin et al., each copy has its own command for the whole episode; in Radosavovic et al., there's a new one every 10 seconds.", "sec": "command", "secTitle": "Velocity command: random commands versus a single one"},
+ {"q": "Why do Rudin et al. use 2,048–4,096 robots rather than 16,384, even though the GPU can fit them?", "o": ["More robots means longer training", "With the same rollout batch, each robot is left with fewer than 25 consecutive steps, and GAE stops working; with too few robots, neighboring steps are similar to each other", "16,384 robots don't fit in memory"], "a": 1, "e": "Meanwhile, training time falls almost linearly up to 4,000 robots. In Lab 3, on the same budget, 8 copies beat both 2 copies (noisy updates) and 32 (too few updates).", "sec": "scale", "secTitle": "Thousands of copies: why thousands"}
+]}</script>
+</section>
+
+<section class="section alt" id="natural">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">1</span> Naturalness</div>
+      <h2>Naturalness can't be written as reward terms</h2>
+      <p>The policy from lesson 6.1 walks, follows the velocity command and doesn't fall, but its gait isn't human: the steps are short and frequent, and the knees stay bent all the time. You could penalize each such property with a separate reward term: for energy, for joint accelerations, for asymmetric steps. The DeepMimic authors write that naïve objectives such as forward progress or maintaining a desired velocity “often produce gaits that exhibit extraneous motion of the limbs, asymmetric gaits, and other objectionable artifacts.” Crafting terms that remove these artifacts, in their words, “requires a substantial degree of human insight, and often yields only modest improvements.” Naturalness can't be stated as a number: we recognize it when we see it, but we can't say what it's made of.</p>
+      <p class="ada-note"><svg class="ada-ico" viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="10" width="48" height="42" rx="18" fill="#f4efe6" stroke="#3d3c38" stroke-width="3"/><rect x="15" y="19" width="34" height="22" rx="10" fill="#1f2430"/><ellipse cx="25" cy="30" rx="4" ry="5.5" fill="#eb6834"/><ellipse cx="39" cy="30" rx="4" ry="5.5" fill="#eb6834"/></svg><span>Ada is the course's home humanoid; since lesson 6.1, she has legs instead of a wheeled base. More about her and her home in <a href="0-1-dve-paradigmy.html#ada">lesson 0.1</a>.</span></p>
+      <p>Examples of natural motion, on the other hand, are everywhere: people walk, squat and wave their arms every day, and these motions can be recorded. With recordings, you don't need to describe naturalness in words and weights. You can reward the policy for moving like the recording. This approach is called <strong>motion imitation</strong>. The policy still learns by reinforcement in a physics simulation, as in lesson 6.1, but the reward is computed from the recording. This lesson covers two ways of saying what “like the recording” means: compare the pose with the frame of the recording at the same phase of the motion, or train a second network to tell the policy's motions from the recorded ones. First, let's look at what a motion recording is and why you can't simply hand it to the robot.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="mocap">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">2</span> Recordings</div>
+      <h2>Human motion recordings and the robot's body</h2>
+      <p>Human motion is recorded with <strong>motion capture</strong>. Several cameras film markers on a person's body, and the positions of the joints and the angles between the links of the skeleton are reconstructed from the markers. The result is a sequence of frames, and each frame stores a pose: the position of the pelvis and the angles of all joints. There are plenty of such recordings. DeepMimic took its motions from the open CMU and SFU libraries, 0.5–5 seconds of recording per skill. For its “locomotion” dataset, AMP collected 56 recordings of eight people, 434 seconds in total. H2O (He et al., 2024), which lesson 6.3 covers in detail, used the AMASS library, which holds 40 hours of motion capture, and ExBody selected 780 recordings with a total length of 3.7 hours from the CMU library. The recordings in this lesson's labs are simpler. They are our own curves of hip, knee and ankle angles over the phase of a step, similar to human walking, plus a squat and arm waving. The pelvis in them is reconstructed so that the support foot stands on the floor and doesn't slip. That's enough to take the methods apart.</p>
+      <p>You can't hand the recording to the robot directly: it captures a person, and a different body will repeat it. The robot has different link lengths and fewer degrees of freedom, its joints have their own limits, and its actuators have a torque limit. Transferring motion from one body to another is called <strong>retargeting</strong>. In lesson 4.2, retargeting transferred the motion of the operator's hand to the robot's hand; here the whole body is transferred. The simplest way is to copy the joint angles. That's how DeepMimic transferred recordings to a model of the Atlas robot: the authors “simply copied the local joint rotations from the humanoid to the Atlas, without any further modification.” ExBody transfers recordings to the Unitree H1 robot the same way, and its authors admit that they lose information: H1 has 19 degrees of freedom, and the human model has 69. H2O does it differently. First, it fits the shape of the human model to the robot using 12 joints that both of them have, and then, in each frame, it looks for the robot's joint angles that put these 12 points where they are on the human. Copying angles, the H2O authors write, “can lead to large differences in end-effector positions due to the large difference in kinematic trees,” and without fitting the shape, H1 ended up with an in-toed gait.</p>
+      <p>Ada's leg proportions are almost human: her thigh and shin are 30 cm each, and the person in our recordings has 45 and 43 cm. But Ada herself is a third shorter, while the floor and the stairs in the home are the same as for a person. And her hip bends forward only up to 86°, versus 125° for a person. Which of these gets in the way of the transfer, and can it be fixed with joint angles alone?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="retarget">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 1</div>
+    <h2>Human → Ada retargeting: proportions, joint limits and balance</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>Two scenes show the same motion frame by frame: one shows the person from the recording, the other shows Ada after the transfer. The motion repeats in a loop. The first recording is a climb up two stairs 17 cm high, one stair at a time with both feet: the person puts the leg nearer to the viewer on the stair, shifts weight onto it and brings the other foot up next to it, and then goes back down. The readout under the scenes says what goes wrong over a cycle. We look at how far a foot sinks into a stair or the floor, whether the foot the person is standing on at that moment hangs above the support, and whether joints go past their limits. The stair climb and the squat are slow, so for them we also check Ada's center of mass: she can stay up only if it stays over her feet. The recording and the transfer method unlock as you go through the missions.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="duo">
+          <canvas id="rCvH" width="320" height="300" role="img" aria-label="Side view: the person performs the recorded motion: a stair climb, walking, a squat or arm waving"></canvas>
+          <canvas id="rCvA" width="320" height="300" role="img" aria-label="Side view: Ada repeats the same motion after the transfer; red marks feet inside a stair or below the floor and joints past their limits; in slow motions, the center of mass and the support are shown"></canvas>
+        </div>
+        <p class="cv-note">Side view; the figures move forward. One scene shows the person from the recording, with a blue outline and a round head, the other shows Ada. The stairs are drawn as a hatched profile of the same height on both scenes, and in this recording the camera stays still. In the other recordings, the pelvis of both figures stays in place, and the marks on the floor run backward, as in walking. The lighter leg and arm are the ones farther from the viewer. A red foot has sunk below the floor or into a stair, and a red ring on a joint means its angle is past the limit of Ada's joint. In slow motions, a circle with a cross on Ada's scene marks the center of mass, and a dashed line shows its projection down. Segments under the feet show the support: they're green when the center of mass is over the support and red when it's off the support.</p>
+        <div class="ctl-row">
+          <div class="ctl" id="wrapRMotion" hidden><span class="ctl-l">Recording</span><div class="seg small" id="rMotion" role="group" aria-label="Motion recording"><button type="button" data-v="step" aria-pressed="true">stairs</button><button type="button" data-v="walk" aria-pressed="false">walking</button><button type="button" data-v="squat" aria-pressed="false">squat</button><button type="button" data-v="wave" aria-pressed="false">arm waving</button></div></div>
+          <div class="ctl" id="wrapRMethod" hidden><span class="ctl-l">Transfer</span><div class="seg small" id="rMethod" role="group" aria-label="Retargeting method"><button type="button" data-v="copy" aria-pressed="true">angles as is</button><button type="button" data-v="points" aria-pressed="false">keypoints</button><button type="button" data-v="fix" aria-pressed="false">points, limits and floor</button></div></div>
+          <label class="hd-range" id="wrapRL1" hidden><span>Ada's thigh</span><input id="rL1" type="range" min="20" max="40" step="1" value="30"><output>30 cm</output></label>
+          <label class="hd-range" id="wrapRL2" hidden><span>Ada's shin</span><input id="rL2" type="range" min="20" max="44" step="1" value="30"><output>30 cm</output></label>
+        </div>
+        <div class="readout" id="rOut"></div>
+      </div>
+      <div class="card guide-card"><div id="rMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: the skeleton, the recordings, three transfer methods and the center of mass</summary><div class="body">
+      <p><b>Skeleton.</b> The model is flat, seen from the side: a pelvis, a torso with a head, two arms (shoulder and elbow) and two legs (hip, knee, ankle and a foot with a heel and a toe). Angles are measured as in lesson 6.1. The torso pitch \(\theta\) is positive forward, the hip flexion \(q_h\) is measured from the torso, the knee flexion is \(q_k \ge 0\), and the ankle angle \(q_a\) is positive when the toe rises. The directions of the links from the vertical are: for the thigh \(\alpha_1 = q_h - \theta\), for the shin \(\alpha_2 = \alpha_1 - q_k\), for the foot \(\beta = \alpha_2 + q_a\), and at \(\beta = 0\) the foot lies flat on the floor. The person's thigh is 0.45 m and shin 0.43 m, the ankle is 8 cm above the sole, the heel 6 cm behind the ankle, and the toe 17 cm in front of it. The person's joint limits: hip from −30 to 125°, knee from 0 to 145°, ankle from −45 to 35°. Ada's lengths are the same as in lesson 6.1: thigh and shin 0.30 m each, the ankle 5 cm above the sole, the heel 6 cm behind the ankle, and the toe 12 cm in front. Her joint limits: hip from −57 to 86°, knee from 0 to 132°, ankle from −52 to 52°.</p>
+      <p><b>Recordings.</b> In the walking recording, the hip angle changes as \(q_h(\varphi) = 0.10 + 0.36\cos 2\pi\varphi\), the knee flexion is the sum of two “bumps” of the form \(\exp(-(\Delta\varphi/w)^2)\) centered at phases 0.14 and 0.72, and the ankle pushes off at phase 0.62. The other leg runs with phase \(\varphi + 0.5\). A cycle lasts 1.2 s and has 60 frames, 50 per second. In the squat, both legs move the same way: at the lowest point, the thigh is almost horizontal, the torso leans forward by 43°, the hip is bent by 123°, the knee by 109° and the ankle by 29°, and the foot lies flat on the floor; a cycle lasts 2.4 s. In arm waving, the legs stand still, and the arm nearer to the viewer is raised and swings. In these three recordings, the pelvis in every frame is placed so that the lowest point of the sole lies on the floor and the support foot doesn't slip. That gives the speed of the walking recording: 1.22 m/s for the person. The stair climb is built differently, from the feet. The staircase of two stairs, 17 cm high and 28 cm deep, starts at x = 0. For each stair, the near foot rises in place, moves over the edge and comes down on the stair; then the weight shifts forward, the rear foot rolls onto its toe and is brought up next to the other one. The descent repeats the climb backward in time, and the whole cycle lasts 6 s. The torso leans forward the most, up to 29°, while the weight shifts. The pelvis in every frame is placed so that the person's center of mass (from the mass fractions of the links in Winter's tables) is over the support and the legs reach the feet; the joint angles come from inverse kinematics. The person's hip bends up to 81° in this motion.</p>
+      <p><b>Three methods.</b> “Angles as is”: Ada's joint angles equal the person's, and the position of the pelvis is multiplied by the ratio of leg lengths \(s = 0.65 / 0.96 = 0.68\). The floor and the stairs are not scaled. “Keypoints”: the ankles and the foot tilt are placed relative to the support where they are on the person. On a flat floor, this is the ankle position relative to the pelvis multiplied by \(s\). On the stairs, Ada's feet go where the person's feet are, the pelvis stays above the same spot, its height above the support is multiplied by \(s\), and the pelvis doesn't rise higher than the legs can reach. The hip and knee angles come from the inverse kinematics of a two-link leg, as in lesson 0.3. “Points, limits and floor”: the same points, but if the required hip flexion exceeds the limit, the torso leans less by the missing angle. The direction of the thigh and the position of the foot don't change, and the arms keep their direction in the world. Then the other angles are clipped to their limits, and the pelvis is placed on the support: in frames where the person's foot is on the support, the lowest point of Ada's sole also lies on the support. The keypoint error on a flat floor is the mean distance between Ada's knees, ankles and toes and the same points of the person multiplied by \(s\).</p>
+      <p><b>Center of mass and support.</b> Ada's center of mass is computed from the masses of her body's links from lesson 6.1: the torso with the head and arms, 18 kg, at the middle of the torso, and the thigh 2.6 kg, the shin 1.8 kg and the foot 0.6 kg at the middles of the links. The support is the segment between the points of the sole that touch the floor or a stair or are closer to it than 1 cm. The check is static, so it only suits slow motions: in walking, the center of mass keeps leaving the support foot, and balance is held by the motion itself.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px" id="retargetAfter">
+      <p>When the angles are copied, the person's step shrinks along with Ada, while the floor and the stairs stay the same: for each 17 cm stair, a step at Ada's scale lifts her only 11.5 cm, the shortfall adds up, and the foot sinks into the second stair by up to 11.2 cm. Keypoints put the feet on the real floor and stairs, but for Ada these stairs are taller: the hip goes past its limit in 19% of frames, by up to 7°. The third method leans the torso 7° less than the person's, and for the stairs that's enough: the joints are within their limits, and the center of mass is over the support. In the squat, the same correction needs 39°, and the center of mass moves past the heels by up to 2.7 cm. Each pose correction fixes one violation and creates another, and kinematics doesn't check balance at all.</p>
+      <p>Whether Ada stays up is decided by forces, and only physics computes them. So the recording shouldn't just be played back; a policy should learn from it right in a physics simulation and find for itself how to keep its balance while staying close to the recording. How do you build such a reward?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="deepmimic">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">3</span> DeepMimic</div>
+      <h2>DeepMimic: a reward for closeness to the frame, the phase, reference state initialization and early termination</h2>
+      <p>A recording gives kinematics, that is, angles and positions without forces. The policy, as in lesson 6.1, outputs target joint angles, PD controllers track them, and the motion itself comes out of a physics simulation that has both gravity and a floor. <strong>DeepMimic</strong> (Peng, Abbeel, Levine, van de Panne, 2018) connects the two with a reward: at every step, the policy gets more the closer its pose is to the frame of the recording. This approach is called <strong>motion tracking</strong>, and the policy is called a tracker. The DeepMimic policy outputs target angles 30 times a second, and the physics runs at 1.2 kHz. To know which frame to compare against, a <strong>phase variable</strong> \(\varphi\) is added to the policy's input. It's a number from 0 to 1 that shows where the recording is now: zero means its start and one its end, and for cyclic motions like walking, the phase starts again from zero after the end.</p>
+      <p>The imitation reward is the sum of four terms: matching the joint angles, their velocities, the positions of the hands and feet, and the position of the center of mass, with weights 0.65, 0.1, 0.15 and 0.1. Each term is the exponential of the negative error and therefore lies between 0 and 1. A task reward is added to the imitation, for example for the direction and speed of walking, hitting a target or throwing a ball, with a weight of 0.3 versus 0.7 for the imitation. The DeepMimic policy is a network of two layers with 1024 and 512 neurons, and it is trained with PPO from lesson 5.2.</p>
+      <p>Two decisions turned out to matter more than the architecture. The first is <strong>reference state initialization</strong> (RSI): an episode starts not from the same pose every time but from a random frame of the recording, with its angles and velocities. Without it, the policy learns the motion strictly in order. As the authors write, “before mastering the earlier phases, little progress can be made on the later phases,” and a character that can't land yet won't find out that the jump of a backflip pays off. The second decision is <strong>early termination</strong>: an episode ends when the torso or the head touches the floor, and the reward for the rest of the episode is zero. This makes falling unprofitable, and the experience doesn't fill up with states of the character, in the authors' words, “struggling on the ground in vain.”</p>
+    </div>
+    <figure class="card flow-card">
+      <canvas data-anim="mimic" width="720" height="420" role="img" aria-label="DeepMimic diagram: the human recording goes through retargeting and becomes a strip of frames for Ada; the phase clock runs at the recording's pace and is fed to the policy; the policy outputs target angles, PD controllers and physics produce a new state, which is compared with the frame of the recording at the same phase; the closeness reward goes into PPO training; a new episode starts from a random frame of the recording, and a fall ends the episode"></canvas>
+      <figcaption class="muted-s">The DeepMimic loop. The recording and the physics are shown in blue, the policy and the target angles in orange, and the phase clock, the comparison and the reward in purple. The human and Ada recordings run in step with the phase clock φ, and the current frame is highlighted. The pale Ada in the physics block shows the frame of the recording at phase φ, the bright one shows Ada in the simulation, and the closer they are to each other, the higher the reward. Every new episode starts from a random frame of the recording, and a fall ends the episode, with zero reward for the rest of it. The term weights come from the paper; the reward values on the diagram are illustrative. Click the diagram to pause it.</figcaption>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>Table 5 of the paper shows where these two decisions change the outcome. For walking, the three variants are almost equal, while for the backflip without RSI, in the authors' words, “the policy never learns to perform a full mid-air flip. Instead, it performs a small backwards hop while remaining upright.”</p>
+      <div class="num-table paper" role="table" aria-label="DeepMimic Table 5: normalized return with RSI and early termination, with early termination only, with RSI only">
+        <div class="num-row num-h" role="row"><span role="columnheader">Skill</span><span role="columnheader">RSI and termination</span><span role="columnheader">Termination only</span><span role="columnheader">RSI only</span></div>
+        <div class="num-row" role="row"><span role="cell"><b>Backflip</b></span><span role="cell">0.791</span><span role="cell">0.730</span><span role="cell">0.379</span></div>
+        <div class="num-row" role="row"><span role="cell"><b>Sideflip</b></span><span role="cell">0.823</span><span role="cell">0.717</span><span role="cell">0.355</span></div>
+        <div class="num-row" role="row"><span role="cell"><b>Spinkick</b></span><span role="cell">0.848</span><span role="cell">0.858</span><span role="cell">0.358</span></div>
+        <div class="num-row" role="row"><span role="cell"><b>Walk</b></span><span role="cell">0.980</span><span role="cell">0.981</span><span role="cell">0.974</span></div>
+      </div>
+      <p class="cv-note">The normalized return of an episode is 0 for the lowest possible total reward and 1 for the highest. The numbers come from Table 5 of the DeepMimic paper.</p>
+      <p>The same for our flat Ada and the policy you'll train in Lab 2: tracking the walking recording, three seeds, 100 iterations. Hover over a row or click it.</p>
+      <div class="num-table abl" id="ablOurs" role="table" aria-label="Ablations of RSI and early termination on the flat Ada: normalized check return over three seeds, pose error, check outcome, number of checks with a fall during training">
+        <div class="num-row num-h" role="row"><span role="columnheader">Variant</span><span role="columnheader">Check return, seeds 1–3</span><span role="columnheader">Pose error</span><span role="columnheader">Check</span><span role="columnheader">Checks with a fall</span></div>
+      </div>
+      <div class="abl-out" id="ablOut"></div>
+      <p>In our case, even walking goes worse without RSI. Our training is much weaker than DeepMimic's: 100 iterations of random search versus tens of millions of PPO steps, and a policy that starts every episode standing simply doesn't have time to learn to get going. For ExBody, which we'll see at the end of the lesson, training without RSI didn't work at all.</p>
+      <p>DeepMimic's price shows up in two places. The first is training. According to the authors, a policy for an individual skill typically needs about 60 million steps of experience, which takes “about 2 days on an 8-core machine,” and policies have to be trained separately for each skill. The second is the phase. The policy needs a variable “synchronized with the reference motion, which advances linearly with time,” and this, as the authors write, “limits the ability of the policy to adjust the timing of the motion.” For the character to walk faster or slower, you need a different recording. For it to switch from one motion to another, you need the max of the reward over several recordings, the recording's number in the input, or several policies picked between by their value functions. Can you say “like the recording” without pointing to a frame?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="amp">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">4</span> AMP</div>
+      <h2>AMP: a discriminator instead of a per-frame reward</h2>
+      <p>DeepMimic's reward is a measure of pose closeness that people designed and whose weights were tuned by hand, and it has to be checked again for every new motion. Large datasets also need a way to choose which recording to imitate right now. <strong>AMP</strong> (adversarial motion priors; Peng, Ma, Abbeel, Levine, Kanazawa, 2021) replaces the designed measure with a learned one. A prior here means a learned notion of which motions look like the recorded ones, and it's called adversarial because it's learned in a contest between two networks. The second network, the <strong>discriminator</strong> \(D(s, s')\), looks at a transition between two neighboring states and answers whether it comes from the recordings or was produced by the policy. It's transitions that are compared, not “state, action” pairs, because a recording has no actions. The discriminator is trained like a regression: it should give transitions from the recordings a 1 and the policy's transitions a −1. The policy gets a <strong>style reward</strong> \(r^S = \max[0,\; 1 - 0.25\,(D - 1)^2]\), which lies between 0 and 1 and is higher the closer the score is to “recording.” A task reward is added to it, and both have a weight of 0.5. There's no phase and no choice of recording: as the authors write, “composition of disparate skills emerges automatically from the motion prior, without requiring a high-level motion planner or other task-specific annotations of the motion clips.”</p>
+      <p>Adversarial training, where two networks learn against each other, is known for its instability, and AMP rests on three decisions. The first concerns the discriminator's features: the joint velocities and rotations, the velocity of the body, and the positions of the hands and feet relative to the pelvis, with nothing about the task. Without velocities, a character doing a roll, in the authors' words, “is prone to converging to a strategy of holding a fixed pose on the ground, instead of performing a roll.” The second decision is a gradient penalty: the squared gradient of the discriminator with respect to the features of the recorded transitions is added to its loss with a coefficient of 10, so that its score changes smoothly near the real data. In the authors' ablations, this is “the most vital component,” and models trained without it “tend to exhibit large performance fluctuations.” The third decision is a buffer of old policy transitions, so that the discriminator doesn't adapt to the latest batch. RSI and early termination from DeepMimic stay.</p>
+    </div>
+    <figure class="card flow-card">
+      <canvas data-anim="amp" width="720" height="380" role="img" aria-label="AMP diagram: transitions between neighboring frames of the recordings and Ada's transitions in physics go into the discriminator; it learns to tell the former from the latter; its score of Ada's transition becomes the style reward; the task reward comes from the velocity command; the policy, without a phase, learns from the sum of the two rewards"></canvas>
+      <figcaption class="muted-s">The AMP loop. The recordings and the task are shown in blue, the policy and Ada's transitions in orange, and the discriminator and the style reward in purple. The pairs of tiles running to the discriminator are transitions \((s, s')\): from the recordings and from Ada in physics. The discriminator learns to give the recordings a 1 and Ada a −1, and Ada gets a style reward for each of her transitions and adds it to the task reward. Which frame of the recording to compare with doesn't matter: there's no phase, and Ada in physics steps to her own rhythm. The formula and the weights come from the paper; the discriminator's scores on the diagram are illustrative. Click the diagram to pause it.</figcaption>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>The authors show what this gives on the “locomotion” dataset: 56 recordings of walking, running and jogging by eight people, 434 seconds in total. The task is to move in a given direction at a speed of 1 to 5 m/s, and the policy switches on its own from walking at about 1 m/s to jogging at about 2.5 m/s and to running at about 4.5 m/s. With a dataset of walking recordings alone, the policy, in the authors' words, does “not show any transitions to faster running gaits even at faster target speeds” and can't meet the fast commands. Recordings of walking and of punching, none of which shows a person walking up to a target to punch it, produce a policy that walks up and punches.</p>
+      <p>The price is accuracy and stability. On a single walking recording, DeepMimic's tracking gives a pose error of 0.018 m and AMP 0.030 m, after time alignment. The authors explain it this way: “Since the tracking-based policies are synchronized with their respective reference motions, they are generally able to learn faster and achieve lower errors.” On the front flip, with AMP, “instead of performing a flip, the character learns to simply shuffle forwards in order to avoid falling,” and on large datasets AMP, like many adversarial models, is prone to mode collapse: out of many motions, the policy imitates only some. Training one AMP policy takes 100–300 million steps, 30–140 hours on 16 cores.</p>
+      <p>So the same policy can have two rewards: with a phase and a comparison to the frame, or without a phase, with a discriminator. How will the gaits differ if both learn from one recording, and what happens when the velocity command doesn't match the recording's speed?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="track">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 2</div>
+    <h2>Tracking versus AMP: one recording, two rewards, a different speed</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>The recording is human walking transferred to Ada with the third method from Lab 1. On Ada, the recorded walk moves at 0.83 m/s, and a step cycle, that is, a step with one leg and a step with the other, lasts 1.2 s, which is 0.83 cycles a second. Both methods use the same policy: a joint rhythm over the phase plus feedback on the torso pitch, the pelvis height and the speed, 35 numbers in all. It is trained by augmented random search (ARS), like the stepping rhythm in Lab 3 of lesson 6.1: 100 iterations, each with 33 episodes of 2.4 s with a random velocity command and a start from a random frame of the recording. Only the reward differs. A check lasts 4 s and starts from the first frame of the recording. We compare the policies' accuracy by the pose error after alignment: the mean deviation of Ada's joint angles from the recording after the recording has been shifted in phase to best match Ada's gait.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <canvas id="tCv" class="walk-cv" width="640" height="300" role="img" aria-label="Side view: Ada walks through the check run of the chosen policy; the pale Ada is the frame of the recording on its clock; the camera follows the pelvis"></canvas>
+        <p class="cv-note">Side view: Ada walks forward, the camera follows her pelvis, and the marks on the floor show meters. The pale Ada is a ghost, that is, the frame of the recording on its clock from the same starting point. Ada's outline is blue for the tracker and orange for the AMP policy. A red cross marks a fall. The scene's label gives the policy, the velocity command and the current speed.</p>
+        <div class="ctl-row">
+          <div class="ctl" id="wrapTPol" hidden><span class="ctl-l">Policy</span><div class="seg small" id="tPol" role="group" aria-label="Which policy to show"><button type="button" data-v="track" aria-pressed="true">motion tracker</button><button type="button" data-v="amp" aria-pressed="false">AMP</button></div></div>
+          <label class="hd-range" id="wrapTV" hidden><span>Command</span><input id="tV" type="range" min="50" max="150" step="5" value="100"><output>1.00×</output></label>
+          <div class="ctl" id="wrapTView" hidden><span class="ctl-l">Summary</span><div class="seg small" id="tView" role="group" aria-label="What the summary shows"><button type="button" data-v="curve" aria-pressed="true">learning curves</button><button type="button" data-v="speed" aria-pressed="false">speeds</button></div></div>
+        </div>
+        <div class="t-chart"><canvas id="tChart" width="640" height="220" role="img" aria-label="Summary: the learning curves of the two policies, that is, the mean reward per step over the iterations, or the mean speeds at commands from 0.5 to 1.5 times the recording's speed"></canvas></div>
+        <p class="cv-note">Summary. On the learning curves, the horizontal axis shows the iteration and the vertical axis the mean reward per step in the check, from 0 to 1. The blue line shows the tracker, the orange one the AMP policy, and a red dot marks a check with a fall. On the speed summary, the bars show the mean speed over 4 s at each command, the dashed line shows the command itself, and a pale bar means the policy fell.</p>
+        <div class="prog-line" id="tProg" hidden><i></i></div>
+        <div class="readout" id="tOut"></div>
+      </div>
+      <div class="card guide-card"><div id="tMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: the physics, the policy, the two rewards and the training</summary><div class="body">
+      <p><b>Physics.</b> The model is simpler than in lesson 6.1: the legs are massless, and all of Ada's mass, 28 kg, is assigned to the torso, with the center of mass at the middle of the torso, 23 cm above the pelvis, and a moment of inertia of 1.2 kg·m². The joints obey \(\ddot q = k_p (q^\ast - q) - k_d \dot q\) with \(k_p = 420\) s⁻² and \(k_d = 30\) s⁻¹, and an acceleration limit of 260 rad/s² plays the role of the torque limit. The angle limits are the same as Ada's in Lab 1. The floor pushes on the heel and the toe with a 24,000 N/m spring with damping, and friction works as a spring from the contact point, limited by \(\mu = 0.9\). A fall is a torso pitch of more than 1 rad, the pelvis lower than 45% of the leg length, or the top of the torso or the head touching the floor. The physics step is 2.5 ms, and each policy step covers 8 physics steps (50 Hz). This way, training two policies in the browser takes seconds, while Ada's link lengths, joint limits and mass stay the same as in lesson 6.1.</p>
+      <p><b>Policy.</b> The target angle of joint \(j\) of a leg with phase \(\varphi_s\) (one leg follows phase \(\varphi\), the other \(\varphi + 0.5\)) is</p>
+      <div class="formula">\[ q^\ast_j = c_j + a_j(\Delta v)\sum_{k=1}^{2}\big(a_{jk}\cos 2\pi k\varphi_s + b_{jk}\sin 2\pi k\varphi_s\big) + \sum_{i=1}^{5} G_{ji} f_i, \]</div>
+      <p>where \(f = [\theta,\; 0.2\,\omega,\; (y - y_0)/0.1,\; (v - v^\ast)/0.5,\; (v^\ast - v_{\text{ref}})/0.5]\) are the torso pitch and angular velocity, the pelvis height, the speed error and the command itself relative to the recording's speed, and the amplitude changes with the command as \(a_j(\Delta v) = 1 + s_j (v^\ast - v_{\text{ref}})\). For the tracker, the phase \(\varphi\) runs at the recording's frequency, and for AMP, at its own frequency \(f_0 + f_1 (v^\ast - v_{\text{ref}})\), which the policy learns itself, starting from \(f_0 = 1\) Hz and \(f_1 = 0\). 35 parameters in all.</p>
+      <p><b>The tracker's reward</b> is built as in DeepMimic: \(r = 0.7\, r^I + 0.3\, r^G\), where</p>
+      <div class="formula">\[ \begin{aligned} r^I ={}& 0.65\, e^{-2\sum_j (q_j - \hat q_j)^2} + 0.1\, e^{-0.1\sum_j (\dot q_j - \hat{\dot q}_j)^2} \\ &+ 0.15\, e^{-40\sum_{\text{feet}}\|p - \hat p\|^2} + 0.1\, e^{-10\|p_{\text{pelvis}} - \hat p_{\text{pelvis}}\|^2}. \end{aligned} \]</div>
+      <p>Here \(\hat q\) and \(\hat p\) are taken from the frame of the recording at phase \(\varphi\), and the foot and pelvis positions are computed in world coordinates on the recording's clock. The task reward \(r^G = e^{-10 (v^\ast - v)^2}\) rewards following the velocity command, as in AMP, only on our scale of speeds. <b>The AMP reward</b> is \(r = 0.5\, r^G + 0.5\, r^S\), where \(r^S = \max[0, 1 - 0.25 (D - 1)^2]\). The discriminator is a 34 → 24 → 1 network on the features of two neighboring states: joint angles and velocities, torso pitch, speed, pelvis height and foot heights. It is trained with the loss</p>
+      <div class="formula">\[ \min_D\; \mathbb E_{\text{ref}}\,(D - 1)^2 + \mathbb E_{\pi}\,(D + 1)^2 + \tfrac{10}{2}\, \mathbb E_{\text{ref}}\,\|\nabla D\|^2, \]</div>
+      <p>and we estimate the gradient penalty with the difference \(D(x + \varepsilon u) - D(x - \varepsilon u)\) along a random direction \(u\) rather than with the exact gradient used in the paper. Each iteration has 6 Adam steps of 32 transitions, and the policy buffer holds the latest 12,000 transitions.</p>
+      <p><b>Training.</b> Augmented random search (ARS) from lesson 6.1: 16 random directions of size 0.06 and an update along the 8 best with a step of 0.03, normalized by the spread; for AMP's stepping frequency, the directions are 3 times longer. Each episode has its own random command from 0.5 to 1.5 times the recording's speed, a start from a random frame of the recording, and early termination on a fall; an episode lasts 2.4 s. There are 100 iterations, and the result is the policy with the best check in the last third of training. We compute the pose error after alignment: we try phase shifts of the recording in steps of 1/60 of a cycle and take the smallest mean \(|q - \hat q|\) over the frames after 0.5 s, until Ada falls. This is a simplified time alignment, similar to DTW in the AMP paper.</p>
+      <p><b>The same in any browser.</b> The engine's exponential, logarithm, sine, cosine and arctangent are built from additions and multiplications, as in lessons 5.2–6.1, and all randomness uses seed 3. That's why Node, Chrome and Safari compute exactly the same thing.</p>
+      <p id="trackSeeds"><b>Ten seeds.</b> On seeds 1–10, at the recording's command, both policies walk without falling and cover 3.2–3.6 m in 4 s. The pose error after alignment is 5.4–7.0° for the tracker and 6.2–11.0° for the AMP policy, and on every seed it's higher for AMP. At the recording's command, the AMP policy's step cycle is 0.82–1.17 Hz, and it differs from the recording's frequency, 0.83 Hz, by more than 0.03 Hz on 9 seeds out of 10. At a command of 1.25×, the AMP policy is faster than the tracker on all ten seeds (0.94–1.10 versus 0.83–0.92 m/s), and on all ten it learned to step more often as the command grows: at 1.25×, its step cycle is 0.95–1.30 Hz. Between commands of 0.75× and 1.25×, its speed changes more than the tracker's, again on all ten, and at 0.75× neither policy falls.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px" id="trackAfter">
+      <p>In 4 seconds, the tracker covers 3.26 m at 0.81 m/s, almost like the recording, and stays close to its ghost: the pose error after alignment is 5.4°. The AMP policy covers 3.47 m at 0.86 m/s, but its step cycle runs at 0.96 Hz versus 0.83 for the recording, so the ghost sometimes gets ahead of it and sometimes falls behind. Its pose error is 10.4°, and the style reward in the check is 0.67. At commands of 0.62, 0.83 and 1.04 m/s, the tracker walks at 0.65, 0.81 and 0.92 m/s, and the AMP policy at 0.69, 0.86 and 1.03 m/s, stepping at 0.81, 0.96 and 1.12 Hz. The tracker is tied to the recording's tempo: its clock runs at the recording's frequency, and the reward for the pelvis and foot positions on that clock pulls it toward the recording's speed. The AMP policy changes both the frequency and the length of its steps as long as its transitions still look like the recorded ones.</p>
+      <p>Both policies learned from one recording. Real datasets have hundreds of recordings, and they often disagree with each other: one person starts walking with the left leg, another with the right. What happens if you train a tracker on the mean of such recordings?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="mix">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 3</div>
+    <h2>Mixing recordings: the mean of two recordings versus picking one</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>Recording A is Ada's walking from Lab 2. Recording B is the same walking started with the other leg, so its frames are shifted by half a cycle. In lesson 1.3, the teacher drove around the kettle sometimes on one side and sometimes on the other, and a regression trained on the mean squared error steered Ada straight into the kettle. Here it's the same story with motion: shift recording B in phase and see what comes out of the mean of the two recordings. Then we'll train two trackers, as in Lab 2: one on the mean, and one with the max of the reward over the two recordings, as in DeepMimic.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <canvas id="mCv" class="walk-cv" width="640" height="300" role="img" aria-label="Side view: three Adas in place, showing recording A, recording B with a phase shift and their frame-by-frame mean; after training, two trackers next to each other: one on the mean and one with the max over the recordings"></canvas>
+        <p class="cv-note">Side view; each figure's pelvis stays in place. Until the trackers are trained, the scene shows three poses at the same moment: recording A, recording B with the phase shift from the slider, and their mean with an orange outline; a red foot has sunk below the floor. After training, the scene shows two trackers: the one on the mean (orange outline) and the one with the max over the recordings (blue). The pale Ada next to each tracker is the frame of its recording on the recording's clock. The marks on the floor run backward at Ada's speed, and the labels under the figures give the step length and the imitation reward.</p>
+        <div class="ctl-row">
+          <label class="hd-range" id="wrapMOff" hidden><span>B shift, % of cycle</span><input id="mOff" type="range" min="0" max="50" step="5" value="0"><output>0%</output></label>
+          <div class="ctl" id="wrapMMode" hidden><span class="ctl-l">Scene</span><div class="seg small" id="mMode" role="group" aria-label="What the scene shows"><button type="button" data-v="kin" aria-pressed="true">mean of recordings</button><button type="button" data-v="pol" aria-pressed="false">two trackers</button></div></div>
+        </div>
+        <div class="prog-line" id="mProg" hidden><i></i></div>
+        <div class="readout" id="mOut"></div>
+      </div>
+      <div class="card guide-card"><div id="mMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: the frame-by-frame mean and the max over recordings</summary><div class="body">
+      <p><b>Mean.</b> Recording B is recording A with the phase shifted by half a cycle, so the legs swap roles in it. The frame-by-frame mean is \(\bar q(\varphi) = \tfrac12 [q_A(\varphi) + q_B(\varphi)]\), and the torso pitch and the pelvis height are averaged the same way. At a 50% shift, \(q_B(\varphi) = q_A(\varphi + 0.5)\), and the angles of the two legs in the mean coincide: a step length of 0 cm, both feet at the same height, while the pelvis of the mean moves forward at the same speed as before. The step length is the largest difference between the ankle positions along the floor over a cycle.</p>
+      <p><b>Two trackers.</b> The policy and the training are the same as for the tracker in Lab 2. The first tracker is rewarded for closeness to the averaged recording. The second gets \(r^I = \max(r^I_A, r^I_B)\): at each step, the reward is taken from whichever recording the pose is closer to. That's how DeepMimic combined five recordings of walking and turning. The second tracker's ghost on the scene is the frame of the recording its pose is closer to.</p>
+      <p id="mixSeeds"><b>Ten seeds.</b> On seeds 1–10, both trackers walk without falling. The imitation reward of the tracker on the mean is 0.45–0.54 versus 0.68–0.81 for the tracker with the max, the pose error is 8.2–11.0° versus 5.1–7.4°, and on every seed the tracker on the mean is worse on both metrics. Its step length is 43–52 cm, even though in its recording it's zero.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px" id="mixAfter">
+      <p>At a 50% shift, the mean of the two recordings puts the legs together: a step length of 0 cm, while the pelvis glides forward at 0.83 m/s, and no walking looks like that. The tracker on the mean still walks, 3.67 m in 4 seconds with a step length of 49 cm, even though its recording has no steps. It can't reproduce such a recording, and its imitation reward is 0.51 versus 0.68 for the tracker with the max over the recordings, with a pose error of 8.7° versus 7.3°. The tracker with the max picks one of the two recordings in every frame and follows it. AMP doesn't have this difficulty at all: the discriminator looks at transitions, and recordings A and B have the very same ones. AMP's weakness lies elsewhere: on large datasets, in the authors' words, its policy “is prone to imitating only a small subset of the example behaviors,” and the choice between recordings comes back in a different form. Lesson 6.3 covers how this is handled.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="today">
+  <div class="prose">
+    <div class="kicker"><span class="num">5</span> Today</div>
+    <h2>On real humanoids: upper body from the recording, legs from the command</h2>
+    <p>Motion imitation moved from simulation to real robots with caveats, and the first one concerns the legs. <strong>ExBody</strong> (Cheng et al., 2024) trains a single policy for the Unitree H1 robot: 19 degrees of freedom, a mass of about 51.5 kg, a height of about 1.8 m. There are 780 recordings, from the CMU library, and they are transferred by copying angles. The authors' key idea is “to NOT mimic exactly the same as the reference motion.” Nine joints and six keypoints of the upper body, that is, the shoulders, elbows and hands, are rewarded for matching the recording, while the legs only have to follow a command for the body: velocity, roll, pitch and height, taken from the same recording or from a joystick. Tracking the whole body gave the authors worse results on all metrics, because “while the reference motion is designed for a single step, the robot executes multiple steps in an attempt to stabilize.” Without RSI, training didn't work at all: a mean episode length of 0.23 versus 16.87. The authors tried AMP as an addition to the reward. Episodes with it lasted longer, but the robot tracked the velocity command worse, walked with almost straight legs and low foot clearance, and stumbled, and on the real robot the roll and pitch of the body deviated by 0.087 rad on average versus 0.051 without AMP. The authors write that “for such a complex system, AMP reward itself is not sufficient.” The trained robot walks on gravel and grass, shakes hands and dances with a person, repeating motions from recordings and from a diffusion model that generates motion from a text description.</p>
+    <p><strong>H2O</strong> (He et al., 2024) went further in retargeting. It fits the shape of the human model to the robot, then fits 12 keypoints, and then checks the recordings with physics. A tracker with privileged information, like the teacher from lesson 5.5, tries to reproduce all 10,000 retargeted recordings in simulation, and the roughly 1,500 that it can't manage are thrown out: among them are cartwheels and steps wider than the robot's legs are long. This is exactly the check that kinematics lacked in Lab 1. A single whole-body tracker learns from the remaining roughly 8,500 recordings and imitates a person standing in front of an ordinary camera in real time.</p>
+  </div>
+</section>
+
+<section class="section alt" id="quiz">
+  <div class="prose">
+    <div class="kicker"><span class="num">6</span> Check yourself</div>
+    <h2>Eight common misconceptions</h2>
+    <div class="quiz" id="quizBox"></div>
+    <p class="score" id="quizScore" style="margin-top:14px"></p>
+  </div>
+</section>
+
+<section class="section" id="finale">
+  <div class="prose">
+    <div class="kicker"><span class="num">7</span> Takeaways</div>
+    <h2>Lesson takeaways</h2>
+    <ol class="takeaways">
+      <li><span>Natural motion can't be specified with reward terms: according to the DeepMimic authors, such terms require human insight and give modest improvements. Instead, <strong>recordings of human motion</strong> are used, and the policy is rewarded for resembling them. The recordings in this lesson are synthetic, while in the papers they come from the CMU, SFU and AMASS libraries.</span></li>
+      <li><span>Retargeting stands between the recording and the robot. When angles are copied, the person's step shrinks along with Ada, while the floor and the stairs stay the same: on a staircase with 17 cm stairs, Ada's foot sinks into the second stair by up to 11.2 cm. Keypoints put the feet in place, but Ada's hip goes past its limit, and correcting the torso lean in the squat moves the center of mass past the heels: kinematics doesn't check balance.</span></li>
+      <li><span><strong>DeepMimic</strong> trains the policy in physics with a reward for closeness to the frame of the recording at phase \(\varphi\): angles, velocities, hands and feet, center of mass, with weights 0.65, 0.1, 0.15 and 0.1, plus a task with a weight of 0.3. Starting from a random frame of the recording and early termination decide the outcome for flips. The price is 60 million steps and two days of computation per skill, plus being tied to the recording's tempo.</span></li>
+      <li><span><strong>AMP</strong> replaces the comparison with a frame by a discriminator on transitions \((s, s')\) and a style reward \(1 - 0.25(D - 1)^2\). There's no phase and no choice of recording, so dozens of unlabeled recordings go into training, and the gait changes with the command. The price is accuracy (0.030 versus 0.018 m for tracking on walking) and a tendency to imitate only part of a large dataset.</span></li>
+      <li><span>In the lab, one policy learned with two rewards. The tracker walks next to the recording's ghost with a pose error of 5.4°, while the AMP policy steps to its own rhythm, 0.96 Hz versus 0.83 for the recording, with an error of 10.4°, and at a command of 1.25× it walks at 1.03 m/s versus 0.92 m/s for the tracker. The mean of two recordings started with different legs puts the legs together while the pelvis moves: a tracker on it still steps, but its imitation reward is 0.51 versus 0.68 for the tracker with the max over the recordings.</span></li>
+      <li><span>On robots, ExBody imitates the recording only with the upper body and gives the legs a command for the body, because whole-body tracking made H1's gait brittle. H2O fits the body shape and keypoints and filters out the infeasible with a tracker in simulation: out of 10,000 recordings, about 8,500 remain.</span></li>
+    </ol>
+    <h3 style="margin-top:40px">Open questions</h3>
+    <details class="card pad open-q"><summary>Similar to whom?</summary><p>DeepMimic's reward was designed by people and AMP's discriminator is learned, but both compare motion with human recordings, while the robot has a different body, different actuators and different joint limits. A recording after retargeting is no longer human, and neither method defines what counts as natural for a body whose hip bends only up to 86°. ExBody answers by giving up leg tracking, H2O by filtering out the infeasible, and there's no general answer.</p></details>
+    <details class="card pad open-q"><summary>How many recordings can one policy handle?</summary><p>Tracking with a phase trains one policy on one recording, or on the max over a few similar ones. AMP takes dozens of recordings but tends to imitate only some of them. H2O trains one tracker on 8,500 recordings and, instead of a phase, feeds it the keypoints of the target frame. Where the limit on the number of motions lies and how not to lose the rare ones is covered in lesson 6.3 and the work that came after it.</p></details>
+    <h3 style="margin-top:34px">Paper guide</h3>
+    <p><a href="https://arxiv.org/abs/1804.02717" target="_blank" rel="noopener">X. B. Peng, P. Abbeel, S. Levine, M. van de Panne, “DeepMimic: Example-Guided Deep Reinforcement Learning of Physics-Based Character Skills”, 2018</a>.</p>
+    <ul class="links">
+      <li><strong>Read closely</strong><span>Section 5.3: the four reward terms and their weights. Sections 6.1–6.2 and Table 5: why starting from a random frame and early termination decide the outcome for flips and barely change it for walking. Section 7: three ways to combine several recordings. Section 10.3: the transfer to Atlas by copying angles, and what a policy trained for the human model does on Atlas without new training.</span></li>
+      <li><strong>Safe to skip</strong><span>Sections 9 and 10.1 on the strike and throw tasks, and the PPO derivation and multi-step returns in the appendices, if you've done lesson 5.2.</span></li>
+      <li><strong>Question to keep in mind</strong><span>The center-of-mass and foot rewards are computed in world coordinates on the recording's clock. What does that do to the policy if there's a stair in its way that wasn't in the recording, and why do the authors call the phase a limitation?</span></li>
+    </ul>
+    <p style="margin-top:18px">Other papers in this lesson: <a href="https://arxiv.org/abs/2104.02180" target="_blank" rel="noopener">AMP</a> (Peng, Ma, Abbeel, Levine, Kanazawa, 2021), with the discriminator on transitions, the gradient penalty and Table 3 with the errors of tracking and AMP; <a href="https://arxiv.org/abs/2402.16796" target="_blank" rel="noopener">ExBody</a> (Cheng et al., 2024), with upper-body tracking on H1 and the ablations in Table IV; <a href="https://arxiv.org/abs/2403.04436" target="_blank" rel="noopener">H2O</a> (He et al., 2024), with retargeting through fitting the body shape and filtering recordings with a tracker in simulation.</p>
+    <h3 style="margin-top:34px">Resources</h3>
+    <ul class="links">
+      <li><a href="https://xbpeng.github.io/projects/DeepMimic/index.html" target="_blank" rel="noopener">DeepMimic</a><span>Skill videos, code and motion recordings</span></li>
+      <li><a href="https://xbpeng.github.io/projects/AMP/index.html" target="_blank" rel="noopener">AMP</a><span>Videos of gaits that change with speed, and a comparison with tracking</span></li>
+      <li><a href="https://expressive-humanoid.github.io" target="_blank" rel="noopener">ExBody</a><span>The H1 robot dances, shakes hands and walks on gravel</span></li>
+      <li><a href="https://human2humanoid.com" target="_blank" rel="noopener">H2O</a><span>Whole-body teleoperation in front of an ordinary camera</span></li>
+    </ul>
+    <div class="bridge-note"><p>Ada can learn from a motion recording: a tracker imitates one recording almost frame for frame, and an AMP policy takes the style from the recordings and adjusts its steps to the command. But tracking with a phase trains one policy per recording, AMP imitates only part of the motions in a large dataset, and H2O was left with about 8,500 recordings after filtering, each of which a policy has to be able to reproduce.</p><p class="bridge-to"><!--if:6-3-upravlenie-vsem-telom.html--><a href="6-3-upravlenie-vsem-telom.html"><!--/if-->Lesson 6.3 · Whole-body control: how a single policy reproduces any whole-body motion and follows different commands<!--if:6-3-upravlenie-vsem-telom.html--></a><!--/if--></p></div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Lesson 6.2 of the “Modern Robotics and Physical AI” course. The motion recordings in the labs are synthetic, the policies are trained right in your browser with a fixed seed, and the ablation table was computed in advance with the same engine; the numbers from the papers are taken from the original sources.
+</footer>
+<div class="tooltip" id="tooltip" role="tooltip"></div>
+<script>
+/*@@JS@@*/
+</script>
+</body>
+</html>
