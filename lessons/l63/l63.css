@@ -1,0 +1,69 @@
+/* ---------- урок 6.3 «Управление всем телом» ---------- */
+.cv-note { margin: 6px 2px 0; font-size: 13px; line-height: 1.45; color: var(--ink-3); }
+.ctl { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.ctl-l { font-size: 13.5px; font-weight: 650; color: var(--ink-3); }
+.ctl-row .hd-range output { min-width: 52px; }
+.ctl-row .hd-range input { width: 170px; }
+.btn[hidden] { display: none !important; }
+.guide-card .g-go { white-space: normal; text-align: left; max-width: 100%; }
+.seg.small button { padding-left: 8px; padding-right: 8px; font-size: 13px; }
+.seg.small { flex-wrap: wrap; }
+
+/* схема */
+.flow-card { margin: 18px 0 0; padding: 14px 14px 12px; }
+.flow-card canvas { width: 100%; height: auto; display: block; }
+.flow-card figcaption { margin: 10px 2px 0; }
+
+/* сцены и сводка */
+.walk-cv { width: 100%; height: auto; aspect-ratio: 640 / 300; display: block; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); }
+.t-chart { margin-top: 12px; }
+.t-chart canvas { width: 100%; height: auto; display: block; aspect-ratio: 640 / 220; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.prog-line { height: 4px; border-radius: 2px; background: var(--surface-2); overflow: hidden; margin-top: 10px; }
+.prog-line i { display: block; height: 100%; width: 0; background: var(--e2e); }
+.prog-line[hidden] { display: none; }
+
+/* лаборатория 1: карточки записей с прогнозом и итогом */
+.f-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 178px), 1fr)); gap: 8px; margin-top: 12px; }
+.f-chip { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); min-width: 0; }
+.f-chip.sel { border-color: var(--e2e); box-shadow: 0 0 0 1px var(--e2e) inset; }
+.f-chip.ok { background: color-mix(in srgb, var(--good) 8%, var(--surface)); }
+.f-chip.no { background: color-mix(in srgb, var(--critical) 8%, var(--surface)); }
+.f-name { all: unset; cursor: pointer; font-size: 13.5px; font-weight: 650; color: var(--ink); line-height: 1.3; }
+.f-name:focus-visible { outline: 2px solid var(--e2e); outline-offset: 2px; border-radius: 4px; }
+.f-pred { display: flex; gap: 6px; flex-wrap: wrap; }
+.f-pred button { font: inherit; font-size: 12.5px; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--line-2); background: var(--surface-2); color: var(--ink-2); cursor: pointer; }
+.f-pred button[aria-pressed="true"] { background: var(--e2e-soft); border-color: var(--e2e); color: var(--ink); font-weight: 650; }
+.f-res { font-size: 12.5px; line-height: 1.35; color: var(--ink-2); }
+.f-chip.ok .f-res { color: var(--good); }
+.f-chip.no .f-res { color: var(--critical); }
+
+/* таблица из статьи */
+.num-table { margin: 18px 0 4px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--surface); font-size: 14px; line-height: 1.4; }
+.num-row { display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(0, .8fr) minmax(0, .9fr) minmax(0, .8fr); gap: 10px; padding: 9px 12px; border-top: 1px solid var(--line); }
+.num-row:first-child { border-top: 0; }
+.num-h { background: var(--surface-2); font-size: 12px; font-weight: 700; color: var(--ink-3); text-transform: uppercase; letter-spacing: .03em; }
+.num-row b { color: var(--ink); font-weight: 650; }
+.num-row span { color: var(--ink-2); min-width: 0; }
+.num-table .num-row[data-k] { cursor: pointer; }
+.num-table .num-row.hot { background: var(--e2e-soft); }
+.abl-out { margin: 10px 0 0; padding: 10px 14px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line); font-size: 14.5px; color: var(--ink-2); min-height: 44px; }
+
+/* живые миссии: невыполненный критерий — «ещё нет», серым */
+.m-live .m-crit li.no i { border-color: var(--line-2); color: var(--ink-3); background: var(--surface-2); }
+.m-live .m-crit li.no i::before { content: '·'; }
+
+@media (max-width: 760px) {
+  .num-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .num-h span:nth-child(n+3) { display: none; }
+  .num-table .num-row:not(.num-h) span:nth-child(2)::before { content: "Чисел во входе: "; color: var(--ink-3); }
+  .num-table .num-row:not(.num-h) span:nth-child(3)::before { content: "Без срыва: "; color: var(--ink-3); }
+  .num-table .num-row:not(.num-h) span:nth-child(4)::before { content: "Ошибка, мм: "; color: var(--ink-3); }
+  html[lang="en"] .num-table .num-row:not(.num-h) span:nth-child(2)::before { content: "Inputs: "; }
+  html[lang="en"] .num-table .num-row:not(.num-h) span:nth-child(3)::before { content: "Without failure: "; }
+  html[lang="en"] .num-table .num-row:not(.num-h) span:nth-child(4)::before { content: "Error, mm: "; }
+}
+@media (max-width: 560px) {
+  .ctl-row .hd-range { display: grid; grid-template-columns: 112px 1fr 64px; width: 100%; }
+  .ctl-row .hd-range input { width: 100%; }
+  .t-chart canvas { aspect-ratio: 380 / 270; }
+}
