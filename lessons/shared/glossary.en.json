@@ -1660,5 +1660,47 @@
   "t": "Mode collapse",
   "d": "A weakness of adversarial models: out of a dataset with different variants, the model reproduces only some and loses the other modes. An AMP policy trained on a large dataset of recordings imitates only a small subset of the motions.",
   "a": "mode collapse"
+ },
+ {
+  "id": "universal-tracker",
+  "t": "Universal tracker",
+  "d": "A whole-body policy that gets the target frame of a motion in its input as part of the command and reproduces any recording fed to it frame by frame, including the pose of a person in front of a camera in real time. It needs neither a phase nor the recording's number, so one network replaces the trackers of individual recordings. This is how H2O and OmniH2O work.",
+  "a": "universal (?:whole-body )?trackers?|universal motion imitators?"
+ },
+ {
+  "id": "policy-distillation",
+  "t": "Policy distillation",
+  "d": "Transferring the skill of one policy to another: the student learns to repeat the teacher's actions instead of solving the task from scratch. Usually the teacher sees the robot's full state in the simulator, while the student has only sensors, and the student is trained with DAgger: it acts on its own, and the teacher labels its states. This is how the OmniH2O and HOVER students were obtained.",
+  "a": "(?:policy )?distillation"
+ },
+ {
+  "id": "command-mode",
+  "t": "Command mode",
+  "d": "A way of specifying motion to a whole-body policy: which body parts are given and by what, point positions, joint angles or pelvis motion. ExBody gives the arm angles and the pelvis motion, H2O gives points across the whole body, and OmniH2O only the head and hands. A policy trained for a single mode is called a specialist.",
+  "a": "command modes?"
+ },
+ {
+  "id": "command-mask",
+  "t": "Command mask",
+  "d": "A set of bits, one for each part of the command: the parts that are on are given, and the ones that are off arrive as zeros. In HOVER, the mask is chosen at random at the start of each training episode, so one policy understands any combination of parts and works in all command modes.",
+  "a": "command mask"
+ },
+ {
+  "id": "generalist",
+  "t": "Generalist",
+  "d": "A single policy for all command modes, trained with a random command mask, unlike a specialist, which is trained in one mode. In HOVER, the generalist beats specialists trained with reinforcement learning. In the lab of lesson 6.3, a specialist trained by the same teacher is more accurate in its own mode but errs several times more in another, while the generalist switches modes on the move.",
+  "a": "(?-i:generalists?)(?! models?)"
+ },
+ {
+  "id": "delta-action-model",
+  "t": "Delta action model",
+  "d": "A correction to the simulator learned from data recorded on the real robot: given the state and the action, it outputs an addition to the action with which the simulator, starting from the recorded state, ends up where the robot did (ASAP). The policy is fine-tuned in the simulator with the correction and runs on the robot without it.",
+  "a": "delta(?: action)? models?"
+ },
+ {
+  "id": "classifier-guidance",
+  "t": "Classifier guidance",
+  "d": "A way to give a diffusion model a task at inference without new training: the task is written as a differentiable cost of the plan, and at each denoising step the cost's gradient shifts the plan toward meeting it. Unlike with classifier-free guidance, the model doesn't need to be trained with a condition. This is how BeyondMimic steers a humanoid by joystick, to a point and around an obstacle.",
+  "a": "classifier guidance|guidance (?:with|by) the gradient(?: of (?:a|the) cost)?|guiding (?:the )?diffusion with (?:a|the) gradient"
  }
 ]
