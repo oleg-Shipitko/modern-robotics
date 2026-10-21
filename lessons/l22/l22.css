@@ -10,6 +10,8 @@
 .cv-legend i.ring { width: 10px; height: 10px; border-radius: 50%; background: transparent; border: 2px solid var(--c); }
 .cv-legend i.sq { width: 9px; height: 9px; border-radius: 2px; }
 .cv-legend i.cube { width: 11px; height: 11px; border-radius: 2px; background: color-mix(in srgb, var(--c) 55%, transparent); border: 1.5px solid var(--c); }
+.cv-legend i.bar { width: 16px; height: 8px; border-radius: 2px; }
+.cv-legend i.bar-o { width: 16px; height: 8px; border-radius: 2px; background: transparent; border: 1.5px solid var(--c); box-sizing: border-box; }
 .cv-legend i.cross { width: 11px; height: 11px; background: linear-gradient(45deg, transparent 42%, var(--c) 42% 58%, transparent 58%), linear-gradient(-45deg, transparent 42%, var(--c) 42% 58%, transparent 58%); border-radius: 0; }
 .sub-h { margin: 18px 0 8px; font-size: 15.5px; }
 .cmd-line { margin: 0 0 10px; font-size: 15.5px; color: var(--ink-2); }
@@ -26,6 +28,7 @@
 .sort-intro p { margin: 0; }
 .shape-sort .c-zones { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .shape-sort .c-zone-h { font-family: var(--mono); font-size: 13px; }
+.shape-sort .c-card.c-desc { max-width: none; }
 .shape-sort .c-card { font-size: 13.5px; }
 @media (max-width: 900px) { .shape-sort .c-zones { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 420px) { .shape-sort .c-zones { grid-template-columns: 1fr; } }
@@ -54,8 +57,15 @@
 .win-cap { font-size: 12.5px; font-weight: 650; color: var(--ink-3); text-align: center; line-height: 1.25; }
 .win-box .cv-legend { margin-top: 10px; }
 .win-note { margin: 8px 0 0; font-size: 13.5px; color: var(--ink-2); }
-/* схема пути данных */
+/* анимированные схемы: перекрёстная энтропия, латенты (в тексте разделов) и путь данных целиком */
+.scheme-fig { margin: 0 0 22px; padding: 14px 16px 12px; max-width: 820px; }
+.scheme-fig canvas { display: block; width: 100%; height: auto; }
+.scheme-fig figcaption { margin-top: 8px; }
+.scheme-fig canvas[data-layout="n"] { max-width: 460px; margin: 0 auto; }
+@media (max-width: 520px) { .scheme-fig { padding: 10px 10px 8px; } }
 .flow-card { margin: 18px 0 0; padding: 14px 14px 12px; }
+.flow-card canvas { display: block; width: 100%; height: auto; }
+.flow-card canvas[data-layout="n"] { max-width: 460px; margin: 0 auto; }
 .flow-card figcaption { margin: 10px 2px 0; }
 
 .cv-note { margin: 8px 0 0; font-size: 14px; line-height: 1.5; color: var(--ink-3); }
