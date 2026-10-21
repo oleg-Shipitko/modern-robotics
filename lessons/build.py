@@ -472,6 +472,11 @@ for k in keys:
         if len(keys) == 1:
             print(f'— {k}: нет {k}/lesson.en.html, английская версия не собирается')
         continue
-    build(k)
+    try:
+        build(k)
+    except Exception as e:  # черновик ещё не вышедшего урока может быть недописан — общую сборку он не останавливает
+        if len(keys) == 1 or LESSONS[k][0] in PUB:
+            raise
+        print(f'— {k}: не собирается ({type(e).__name__}: {str(e)[:80]}), урок ещё не вышел, пропускаю')
 if '--both' in sys.argv and not EN:  # вторая версия — отдельным запуском, у неё свои словари и глоссарий
     subprocess.run([sys.executable, __file__] + [a for a in sys.argv[1:] if a != '--both'], check=True, env={**os.environ, 'MR_LANG': 'en'})
