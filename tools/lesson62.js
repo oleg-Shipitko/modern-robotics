@@ -26,7 +26,15 @@ const POS = /(^|[^а-яё])(слева|справа|сверху|снизу|ле
 /* ---------- числа лабораторий в Node: те же расчёты, что на странице ---------- */
 function rtNumbers() {
   const M = (motion, method, body) => E.rtMetrics(E.retarget(E.clipOf(E.HUMAN, motion), method, body ? Object.assign({}, E.ADA, body) : E.ADA));
-  return { walkCopy: M('walk', 'copy'), squatCopy: M('squat', 'copy'), squatClamp: M('squat', 'clamp'), squatFix: M('squat', 'fix'), freeCopy: M('walk', 'copy', { L2: 0.20 }), freeFix: M('walk', 'fix', { L2: 0.20 }), humanV: E.clipOf(E.HUMAN, 'walk').v };
+  const st = E.clipOf(E.HUMAN, 'step');
+  return { stairsCopy: M('step', 'copy'), stairsPoints: M('step', 'points'), stairsFix: M('step', 'fix'), squatFix: M('squat', 'fix'), walkCopy: M('walk', 'copy'), freeCopy: M('walk', 'copy', { L2: 0.20 }), freeFix: M('walk', 'fix', { L2: 0.20 }), humanV: E.clipOf(E.HUMAN, 'walk').v,
+    humanHip: E.deg(Math.max(...st.frames.map((f) => Math.max(f.q[0], f.q[3])))), lift: E.STEP.H * 100 * E.legLen(E.ADA) / E.legLen(E.HUMAN) };
+}
+/** Запись человека «две ступеньки» правдоподобна: стопы не уходят в опору, суставы в пределах, центр масс (доли Winter) над опорой. */
+function stairsHuman() {
+  const H = E.clipOf(E.HUMAN, 'step'); let pen = 0, over = 0, com = 0;
+  for (const f of H.frames) { const P = E.fk(E.HUMAN, f); for (const k of E.SOLE) pen = Math.max(pen, E.groundStep(P[k][0]) - P[k][1]); over = Math.max(over, ...E.overLimits(E.HUMAN, f.q)); const sup = E.supportOf(P, E.groundStep), c = E.comHumanX(f, P); if (sup) com = Math.max(com, c < sup[0] ? sup[0] - c : c > sup[1] ? c - sup[1] : 0); }
+  return { pen, over, com };
 }
 const freqAmp = (R, C, vf) => R.p[E.IDX.f0] + R.p[E.IDX.f1] * (C.v * vf - C.v);
 function trainNumbers(seed) {
@@ -78,7 +86,8 @@ if (process.argv.includes('--precompute')) {
 } else if (process.argv.includes('--numbers')) {
   const R = rtNumbers(), N = trainNumbers(E.CFG.SEED);
   const rt = (k) => { const m = R[k]; return `под полом ${f1(m.pen)} см, над полом ${f1(m.float)} см, за пределами ${f0(m.overShare * 100)}% (бедро ${f0(m.overJ[0])}°, колено ${f0(m.overJ[1])}°, голеностоп ${f0(m.overJ[2])}°), точки ${f1(m.kp)} см, центр масс ${m.com == null ? '—' : f1(m.com) + ' см ' + (m.comFwd ? 'вперёд' : 'назад') + ' в ' + f0(m.comShare * 100) + '%'}, корпус ${f0(m.lean)}°`; };
-  for (const k of ['walkCopy', 'squatCopy', 'squatClamp', 'squatFix', 'freeCopy', 'freeFix']) console.log('лаб. 1', k + ':', rt(k));
+  for (const k of ['stairsCopy', 'stairsPoints', 'stairsFix', 'squatFix', 'walkCopy', 'freeCopy', 'freeFix']) console.log('лаб. 1', k + ':', rt(k));
+  console.log('лаб. 1 человек на лестнице: бедро до', f0(R.humanHip), '°; правдоподобие', JSON.stringify(stairsHuman()));
   console.log('лаб. 1 скорость человека', f2(R.humanV), 'м/с; запись Ады', f2(N.clip.v), 'м/с,', f2(N.clip.f), 'Гц');
   const e = (x) => `${f2(x.v)} м/с, ${f2(x.dist)} м${x.fell ? ', падение ' + f1(x.fellAt * E.DT) + ' с' : ''}, поза ${f1(x.align)}°, имитация ${f2(x.rI)}, стиль ${f2(x.rS)}, шаг ${f0(x.stride)} см`;
   for (const vf of [0.5, 0.75, 1, 1.25, 1.5]) console.log('лаб. 2', vf + '×', '(' + f2(N.clip.v * vf) + ' м/с): трекер', e(N.track.ev[vf]), '| AMP', e(N.amp.ev[vf]));
@@ -176,8 +185,8 @@ async function labLabels(p) {
     };
     const R = W.Retarget, st = R.st, keep = { motion: st.motion, method: st.method, phi: st.phi, L1: st.L1, L2: st.L2, shown: st.shown };
     st.shown = false; chk('rCvA', 'Ада до миссии', () => R.api.render()); st.shown = true;
-    for (const [mo, me] of [['walk', 'copy'], ['squat', 'copy'], ['squat', 'clamp'], ['squat', 'fix'], ['wave', 'fix']]) for (const ph of [0.1, 0.35, 0.5, 0.75]) { st.motion = mo; st.method = me; st.phi = ph; chk('rCvH', 'человек ' + mo, () => R.api.render()); chk('rCvA', 'Ада ' + mo + '/' + me, () => R.api.render()); }
-    st.L2 = 0.2; st.motion = 'walk'; st.method = 'copy'; for (const ph of [0.2, 0.6]) { st.phi = ph; chk('rCvA', 'Ада с голенью 20 см', () => R.api.render()); }
+    for (const mo of ['step', 'walk', 'squat', 'wave']) for (const me of ['copy', 'points', 'fix']) for (const ph of (mo === 'step' ? [0.04, 0.12, 0.2, 0.28, 0.33, 0.4, 0.48, 0.56, 0.65, 0.75, 0.85, 0.95] : [0.1, 0.35, 0.5, 0.75])) { st.motion = mo; st.method = me; st.phi = ph; chk('rCvH', 'человек ' + mo, () => R.api.render()); chk('rCvA', 'Ада ' + mo + '/' + me, () => R.api.render()); }
+    for (const [l1, l2] of [[0.3, 0.2], [0.4, 0.3], [0.2, 0.44], [0.4, 0.44], [0.2, 0.2]]) for (const mo of ['step', 'walk']) for (const me of ['copy', 'fix']) for (const ph of [0.12, 0.33, 0.48, 0.75]) { Object.assign(st, { L1: l1, L2: l2, motion: mo, method: me, phi: ph }); chk('rCvA', 'Ада ' + l1 + '/' + l2 + ' ' + mo + '/' + me, () => R.api.render()); }
     Object.assign(st, keep); R.api.render();
     const T = W.Track, tk = { pol: T.st.pol, vf: T.st.vf, t: T.st.t, view: T.st.view };
     for (const pol of ['track', 'amp']) for (const vf of [0.5, 1, 1.25]) for (const tt of [0.3, 2.5]) { Object.assign(T.st, { pol, vf, t: tt }); chk('tCv', 'сцена ' + pol, () => T.api.render()); }
@@ -253,43 +262,42 @@ const lessonsDir = path.resolve(__dirname, '../lessons');
     check(/^Нажми кнопку миссии/.test(await text(p, '#rOut')), 'до кнопки миссии итог переноса не показан (ставка не выдана)');
     await show(p, 'retarget', '#retarget .lab', 'l62-rt-start.png');
     const outs = [];
+    const hold = (ph) => p.eval(`(() => { const R = window.__l62.Retarget; R.st.hold = true; R.st.phi = ${ph}; R.api.render(); return true; })()`);
+    const unhold = () => p.eval(`window.__l62.Retarget.st.hold = false; true`);
+    const sh = stairsHuman();
+    check(sh.pen < 0.001 && sh.over < 1e-9 && sh.com < 0.001, `запись человека «две ступеньки»: стопы не уходят в опору (${f1(sh.pen * 100)} см), суставы в пределах, центр масс над опорой (выход ${f1(sh.com * 100)} см)`);
     let r = await viaUI(p, '#rMis', 1); outs.push(r.out);
-    const w1 = RT.walkCopy;
-    check(r.ok && /ставка сыграла/i.test(r.out) && r.out.includes(`не больше чем на ${f1(w1.pen)} см`) && r.out.includes(`в среднем на ${f1(w1.kp)} см`), `миссия 1 (ходьба, углы как есть): под полом ${f1(w1.pen)} см, над полом ${f1(w1.float)} см, точки ${f1(w1.kp)} см`);
+    const c1 = RT.stairsCopy;
+    check(r.ok && /ставка сыграла/i.test(r.out) && r.out.includes(`во вторую ступеньку до ${f1(c1.pen)} см`) && r.out.includes(`только на ${f1(RT.lift)} см`), `миссия 1 (лестница, углы как есть): стопа во второй ступеньке до ${f1(c1.pen)} см, шаг поднимает Аду на ${f1(RT.lift)} см`);
+    await hold(0.33); await show(p, 'retarget', '#retarget .lab', 'l62-rt-copy.png'); await unhold();
     await nextMission(p, '#rMis');
     r = await viaUI(p, '#rMis', 1); outs.push(r.out);
-    const s1 = RT.squatCopy;
-    check(r.ok && /ставка сыграла/i.test(r.out) && r.out.includes(`В ${f0(s1.overShare * 100)}% кадров`) && r.out.includes(`до ${f0(s1.overJ[0])}°`), `миссия 2 (присед, углы как есть): бедро за пределом в ${f0(s1.overShare * 100)}% кадров, до ${f0(s1.overJ[0])}°`);
-    await p.eval(`(() => { const R = window.__l62.Retarget; R.st.hold = true; R.st.phi = 0.5; R.api.render(); return true; })()`);
-    await show(p, 'retarget', '#retarget .lab', 'l62-rt-squat.png');
-    await p.eval(`window.__l62.Retarget.st.hold = false; true`);
+    const c2 = RT.stairsPoints;
+    check(r.ok && /ставка сыграла/i.test(r.out) && c2.pen < 1 && r.out.includes(`в ${f0(c2.overShare * 100)}% кадров выходит за предел, до ${f0(c2.overJ[0])}° сверх 86°`) && r.out.includes(`сгибает бедро до ${f0(RT.humanHip)}°`), `миссия 2 (лестница, ключевые точки): стопы на ступеньках (${f1(c2.pen)} см), бедро за пределом в ${f0(c2.overShare * 100)}% кадров, до ${f0(c2.overJ[0])}°`);
+    await hold(0.12); await show(p, 'retarget', '#retarget .lab', 'l62-rt-points.png'); await unhold();
     await nextMission(p, '#rMis');
     r = await viaUI(p, '#rMis', 1); outs.push(r.out);
-    const s2 = RT.squatClamp;
-    check(r.ok && /ставка сыграла/i.test(r.out) && s2.comFwd && r.out.includes(`вперёд, за носки, до ${f1(s2.com)} см в ${f0(s2.comShare * 100)}% кадров`) && r.out.includes(`на ${f1(s2.kp)} см`), `миссия 3 (присед, углы в пределах): центр масс вперёд за опору до ${f1(s2.com)} см в ${f0(s2.comShare * 100)}% кадров, точки ${f1(s2.kp)} см`);
-    await p.eval(`(() => { const R = window.__l62.Retarget; R.st.hold = true; R.st.phi = 0.5; R.api.render(); return true; })()`);
-    await show(p, 'retarget', '#retarget .lab', 'l62-rt-clamp.png');
-    await p.eval(`window.__l62.Retarget.st.hold = false; true`);
+    const c3 = RT.stairsFix;
+    check(r.ok && /ставка сыграла/i.test(r.out) && c3.com <= 0.5 && c3.overShare === 0 && r.out.includes(`всего на ${f0(c3.lean)}°`), `миссия 3 (лестница, точки, пределы и пол): корпус наклонён на ${f0(c3.lean)}° меньше, суставы в пределах, центр масс над опорой`);
+    await hold(0.12); await show(p, 'retarget', '#retarget .lab', 'l62-rt-fix.png'); await unhold();
     await nextMission(p, '#rMis');
     r = await viaUI(p, '#rMis', 1); outs.push(r.out);
-    const s3 = RT.squatFix;
-    check(r.ok && /ставка сыграла/i.test(r.out) && !s3.comFwd && r.out.includes(`всего на ${f1(s3.kp)} см против ${f1(s2.kp)}`) && r.out.includes(`выпрямить на ${f0(s3.lean)}°`) && r.out.includes(`назад, за пятки, до ${f1(s3.com)} см`), `миссия 4 (присед, точки, пределы и пол): точки ${f1(s3.kp)} см, корпус выпрямлен на ${f0(s3.lean)}°, центр масс назад до ${f1(s3.com)} см`);
-    await p.eval(`(() => { const R = window.__l62.Retarget; R.st.hold = true; R.st.phi = 0.5; R.api.render(); return true; })()`);
-    await show(p, 'retarget', '#retarget .lab', 'l62-rt-fix.png');
-    await p.eval(`window.__l62.Retarget.st.hold = false; true`);
+    const s4 = RT.squatFix;
+    check(r.ok && /ставка сыграла/i.test(r.out) && !s4.comFwd && r.out.includes(`не хватает до ${f0(s4.lean)}°`) && r.out.includes(`назад, за пятки, до ${f1(s4.com)} см в ${f0(s4.comShare * 100)}% кадров`), `миссия 4 (присед, тот же способ): корпус выпрямлен на ${f0(s4.lean)}°, центр масс назад до ${f1(s4.com)} см в ${f0(s4.comShare * 100)}% кадров`);
+    await hold(0.5); await show(p, 'retarget', '#retarget .lab', 'l62-rt-squat.png'); await unhold();
     await nextMission(p, '#rMis');
     check(await visible(p, '#wrapRMotion') && await visible(p, '#wrapRMethod') && await visible(p, '#wrapRL1') && await visible(p, '#wrapRL2'), 'свободный режим: запись, способ и ползунки видны');
     await seg(p, '#rMotion', 'walk'); await seg(p, '#rMethod', 'copy'); await setRange(p, '#rL2', 20); await sleep(100);
     const fc = J(await p.eval(`JSON.stringify(window.__l62.Retarget.api.state())`));
     await seg(p, '#rMethod', 'fix'); await sleep(100);
     const ff = J(await p.eval(`JSON.stringify(window.__l62.Retarget.api.state())`));
-    check(fc.pen > 2 && ff.pen < 0.05 && Math.abs(fc.pen - RT.freeCopy.pen) < 1e-9, `свободный режим: с голенью 20 см копирование углов уводит стопу под пол на ${f1(fc.pen)} см, подгонка точек — на ${f1(ff.pen)} см`);
-    await setRange(p, '#rL2', 30); await seg(p, '#rMethod', 'copy');
+    check(fc.pen > 2 && ff.pen < 0.05 && Math.abs(fc.pen - RT.freeCopy.pen) < 1e-9, `свободный режим: с голенью 20 см копирование углов уводит стопу под пол при ходьбе на ${f1(fc.pen)} см, третий способ — на ${f1(ff.pen)} см`);
+    await setRange(p, '#rL2', 30); await seg(p, '#rMotion', 'step'); await seg(p, '#rMethod', 'copy');
     const ra = await text(p, '#retargetAfter');
-    const raMiss = missing(ra, [`не больше чем на ${f1(w1.pen)} см`, `в ${f0(s1.overShare * 100)}% кадров оно за пределом, до ${f0(s1.overJ[0])}°`, `за опору до ${f1(s2.com)} см`, `с ошибкой ${f1(s3.kp)} см`, `выпрямить на ${f0(s3.lean)}°`, `за пятки до ${f1(s3.com)} см`]);
+    const raMiss = missing(ra, [`только на ${f1(RT.lift)} см`, `во вторую ступеньку до ${f1(c1.pen)} см`, `в ${f0(c2.overShare * 100)}% кадров выходит за предел, до ${f0(c2.overJ[0])}°`, `на ${f0(c3.lean)}° меньше`, `нужно уже ${f0(s4.lean)}°`, `за пятки до ${f1(s4.com)} см`]);
     check(!raMiss.length, 'текст после лаборатории 1 называет те же числа' + (raMiss.length ? ' — нет: ' + raMiss.join(', ') : ''));
     const deep1 = await text(p, '#retarget .deep');
-    check(deep1.includes(`${f2(RT.humanV)} м/с у человека`), `«Под капотом» лаборатории 1: скорость записи человека ${f2(RT.humanV)} м/с`);
+    check(deep1.includes(`${f2(RT.humanV)} м/с у человека`) && deep1.includes(`сгибается до ${f0(RT.humanHip)}°`), `«Под капотом» лаборатории 1: скорость записи человека ${f2(RT.humanV)} м/с, бедро на лестнице до ${f0(RT.humanHip)}°`);
 
     // ---------- лаборатория 2 ----------
     console.log('лаборатория 2');
@@ -355,7 +363,7 @@ const lessonsDir = path.resolve(__dirname, '../lessons');
 
     // ---------- тексты совпадают с расчётом ----------
     const fin = await text(p, '#finale .takeaways');
-    const finMiss = missing(fin, [`не больше чем на ${f1(w1.pen)} см`, `до ${f0(s1.overJ[0])}° сверх него`, `${f1(tr.align)}°`, `${f2(N.amp.f[2])} Гц`, `${f2(N.amp.ev[1.25].v)} м/с против ${f2(N.track.ev[1.25].v)}`, `${f2(mm.rI)} против ${f2(xx.rI)}`, '0,030 против 0,018']);
+    const finMiss = missing(fin, [`во вторую ступеньку до ${f1(c1.pen)} см`, `${f1(tr.align)}°`, `${f2(N.amp.f[2])} Гц`, `${f2(N.amp.ev[1.25].v)} м/с против ${f2(N.track.ev[1.25].v)}`, `${f2(mm.rI)} против ${f2(xx.rI)}`, '0,030 против 0,018']);
     check(!finMiss.length, 'итоги урока называют числа лабораторий и статей' + (finMiss.length ? ' — нет: ' + finMiss.join(', ') : ''));
     check(!(await p.eval(`document.body.innerText.includes('@@')`)), 'в тексте страницы не осталось заглушек @@');
     // ---------- квиз, глоссарий, формулы, консоль ----------
@@ -371,7 +379,7 @@ const lessonsDir = path.resolve(__dirname, '../lessons');
     check(!p.logs.length, 'консоль: ' + (p.logs.join(' | ') || 'чисто'));
     // тёмная тема
     await p.eval(`document.documentElement.dataset.theme = 'dark'; window.dispatchEvent(new Event('resize')); true`); await sleep(600);
-    await p.eval(`(() => { const W = window.__l62; W.Retarget.st.hold = true; W.Retarget.st.motion = 'squat'; W.Retarget.st.method = 'fix'; W.Retarget.st.phi = 0.5; W.Retarget.api.render(); return true; })()`);
+    await p.eval(`(() => { const W = window.__l62; W.Retarget.st.hold = true; W.Retarget.st.motion = 'step'; W.Retarget.st.method = 'copy'; W.Retarget.st.phi = 0.33; W.Retarget.api.render(); return true; })()`);
     for (const [id, sel, n] of [['retarget', '#retarget .lab', 'l62-rt-dark.png'], ['track', '#track .lab', 'l62-track-dark.png'], ['mix', '#mix .lab', 'l62-mix-dark.png'], ['deepmimic', '#deepmimic .flow-card', 'l62-mimic-dark.png'], ['amp', '#amp .flow-card', 'l62-amp-dark.png']]) await show(p, id, sel, n);
     check(!p.logs.length, 'консоль после тёмной темы: ' + (p.logs.join(' | ') || 'чисто'));
 
@@ -379,7 +387,7 @@ const lessonsDir = path.resolve(__dirname, '../lessons');
     const m = await B.page(url, { width: 390, height: 844, dpr: 2, mobile: true, light: true });
     await m.waitFor('window.__lessonReady === true', 30000); await sleep(600);
     await m.eval(`document.querySelector('.topbar').style.visibility = 'hidden'; true`);
-    await m.eval(`(async () => { const W = window.__l62; await W.Retarget.api.set('squat', 'fix'); W.Retarget.st.hold = true; W.Retarget.st.phi = 0.5; await W.Track.api.speeds(); W.Track.st.view = 'curve'; W.Mix.st.off = 0.5; W.Mix.api.render(); W.Retarget.api.render(); W.Track.api.render(); return true; })()`, true);
+    await m.eval(`(async () => { const W = window.__l62; await W.Retarget.api.set('step', 'copy'); W.Retarget.st.hold = true; W.Retarget.st.phi = 0.33; await W.Track.api.speeds(); W.Track.st.view = 'curve'; W.Mix.st.off = 0.5; W.Mix.api.render(); W.Retarget.api.render(); W.Track.api.render(); return true; })()`, true);
     check((await m.eval('document.documentElement.scrollWidth')) <= 390, 'телефон: ширина ' + await m.eval('document.documentElement.scrollWidth'));
     const wide = await m.eval(`[...document.querySelectorAll('.lab')].filter((l) => { const card = l.closest('.wrap') || l.parentElement; return l.scrollWidth > card.clientWidth + 1 || [...l.querySelectorAll('.card')].some((c) => c.scrollWidth > c.clientWidth + 1); }).length`);
     check(wide === 0, 'ни одна лаборатория не шире своей карточки: ' + wide);

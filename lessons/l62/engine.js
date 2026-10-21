@@ -99,7 +99,7 @@
      Руки: плечо q_s (вперёд +), локоть q_e (сгиб +): γ1 = q_s − θ, γ2 = γ1 + q_e. +x — вперёд, +y — вверх.
      HA — высота голеностопа над подошвой, FH и FT — пятка позади и носок впереди голеностопа. */
   const HUMAN = { name: 'человек', L1: 0.45, L2: 0.43, HA: 0.08, FH: 0.06, FT: 0.17, LT: 0.52, LS: 0.52, HC: 0.73, RH: 0.11, LUA: 0.30, LFA: 0.27, W: 0.11,
-    LIM: { hip: [rad(-30), rad(125)], knee: [0, rad(145)], ankle: [rad(-45), rad(30)], sh: [rad(-60), rad(180)], el: [0, rad(150)] } };
+    LIM: { hip: [rad(-30), rad(125)], knee: [0, rad(145)], ankle: [rad(-45), rad(35)], sh: [rad(-60), rad(180)], el: [0, rad(150)] } };
   /** Ада — как в уроке 6.1 (L61.BODY, L61.LIM и рисунок AdaBody): бедро и голень по 0,30 м, голеностоп на 5 см над
       подошвой, пятка на 6 см позади голеностопа, носок на 12 см впереди, корпус 0,46 м, голова высотой 0,15 м над ним
       (центр на 0,555 м выше таза), плечевой сустав на 0,368 м выше таза, плечо 0,20 м, предплечье 0,17 м. Пределы
@@ -179,6 +179,8 @@
       leg(phi) { const s = (1 - DM.sincos(TAU * phi)[1]) / 2; return [2.15 * s, 1.90 * s, 0.50 * s]; },
       torso(phi) { const s = (1 - DM.sincos(TAU * phi)[1]) / 2; return 0.75 * s; },
       arm(phi) { const s = (1 - DM.sincos(TAU * phi)[1]) / 2; return [1.4 * s, 0.1]; } },
+    // подъём на две ступеньки по 0,17 м приставным шагом и спуск: стопы ставятся на пол и ступеньки, углы — обратной кинематикой (stepHuman)
+    step: { name: 'две ступеньки', T: 6.0, cyclic: true, step: true },
     wave: { name: 'махи рукой', T: 1.6, cyclic: true,
       leg() { return [0.05, 0.08, 0.06]; },   // стопа лежит на полу: β = 0,05 − 0,03 − 0,08 + 0,06 = 0
       torso() { return 0.03; },
@@ -198,6 +200,11 @@
       в скорость v (м/с); для ходьбы v > 0, для приседа и махов v = 0. */
   function clipOf(B, key, opts) {
     opts = opts || {}; const M = MOTIONS[key], N = Math.round(M.T * FPS), frames = [];
+    if (M.step) {
+      for (let k = 0; k < N; k++) { const h = stepHuman(k / N); frames.push({ phi: k / N, x: h.x, y: h.y, th: h.th, q: h.q, arm: h.arm }); }
+      for (let k = 0; k < N; k++) { const a = frames[k], b = frames[(k + 1) % N]; a.qd = new Float64Array(NJ); for (let j = 0; j < NJ; j++) a.qd[j] = (b.q[j] - a.q[j]) * FPS; }
+      return { key, name: M.name, B, T: M.T, N, frames, v: 0, cyclic: true, f: 1 / M.T, ground: groundStep };
+    }
     let x = 0, prevP = null, prevStance = -1;
     for (let k = 0; k < N; k++) {
       const phi = k / N, A = frameAngles(M, phi);
@@ -231,41 +238,119 @@
   }
 
   /* ---------- 3. ретаргетинг человек → Ада ----------
-     copy  — углы суставов как есть, таз по масштабу длины ног (так переносили записи DeepMimic на Atlas и ExBody на H1);
-     clamp — те же углы, обрезанные по пределам суставов Ады; таз опускается или поднимается так, чтобы в кадрах, где у
-             человека стопа на полу, у Ады самая низкая точка подошвы тоже лежала на полу;
-     fix   — ключевые точки: голеностоп относительно таза по масштабу ног и наклон стопы, как у человека, — обратной
-             кинематикой ноги (как H2O: положения точек, а не углы); если бедро упирается в предел, корпус наклоняется
-             меньше, чтобы бедро сохранило направление (руки сохраняют направление в мире); остальное обрезается по
-             пределам, таз ставится на пол, как в clamp.
+     Мир не масштабируется: пол и ступенька у человека и у Ады одни и те же (groundOf).
+     copy   — углы суставов как есть, таз по масштабу длины ног s = 0,65 / 0,96 (так переносили записи DeepMimic на Atlas
+              и ExBody на H1);
+     points — ключевые точки: голеностопы и наклон стоп — там же относительно опор, где у человека: на ровном полу —
+              положение голеностопа относительно таза в масштабе (как H2O: положения точек, а не углы), у ступеньки —
+              на настоящих полу и ступеньке, таз — как у человека в масштабе, но не выше, чем дотягиваются ноги;
+              углы бедра и колена — обратной кинематикой ноги;
+     fix    — то же, а бедро в пределе: корпус наклоняется меньше на недостающий угол (направление бедра и стопы не
+              меняются, руки сохраняют направление в мире), остальное обрезается по пределам, таз ставится на опору.
      Для каждой позы Ады считается центр масс по массам звеньев из урока 6.1 (корпус с головой и руками 18 кг, бедро
-     2,6, голень 1,8, стопа 0,6) и опора — отрезок пола под точками подошвы, которые его касаются (ближе 1 см). */
-  const METHODS_RT = ['copy', 'clamp', 'fix'];
+     2,6, голень 1,8, стопа 0,6) и опора — отрезок под точками подошвы, которые касаются пола или ступеньки (ближе 1 см). */
+  const METHODS_RT = ['copy', 'points', 'fix'];
   const MASS = { torso: 18, thigh: 2.6, shin: 1.8, foot: 0.6 };
-  /** Поставить таз на пол: в кадрах, где у человека стопа на полу, самая низкая точка подошвы Ады — на полу. */
-  function onFloor(B, pose, Ph) {
-    const hs = Math.min(soleMin(Ph, 0), soleMin(Ph, 1));
-    if (hs < 0.005) { const P = fk(B, pose, null, true); pose.y -= Math.min(soleMin(P, 0), soleMin(P, 1)); }
+  const flat = () => 0;
+  const groundOf = (C) => (C && C.ground) || flat;
+  /** Наименьший зазор подошвы ноги s над опорой (пол или ступенька) в точках пятки и носка. */
+  function gapMin(P, sd, g) { const K = sd ? 'R' : 'L', h = P['heel' + K], t = P['toe' + K]; return Math.min(h[1] - g(h[0]), t[1] - g(t[0])); }
+  /** Поставить таз на опору: в кадрах, где у человека стопа на опоре, самая низкая точка подошвы Ады — на опоре. */
+  function onFloor(B, pose, Ph, g) {
+    if (Math.min(gapMin(Ph, 0, g), gapMin(Ph, 1, g)) < 0.005) { const P = fk(B, pose, null, true); pose.y -= Math.min(gapMin(P, 0, g), gapMin(P, 1, g)); }
   }
+
+  /* ---- две ступеньки: план стоп и таза, углы — обратной кинематикой ----
+     Лестница из двух ступенек высотой 0,17 м и глубиной 0,28 м начинается в x = 0. Человек поднимается приставным шагом:
+     ближняя к зрителю нога (R) поднимается на месте, переносится над краем ступеньки и опускается на неё, вес переходит
+     вперёд, задняя стопа (L) перекатывается на носок и приставляется; так на каждую ступеньку, потом спуск — то же в
+     обратном времени. Корпус сильнее всего наклонён вперёд при переносе веса. У человека таз ставится так, чтобы центр масс
+     (доли масс звеньев по Winter) был над опорой, а высота таза — не больше, чем дотягиваются ноги. В переносе стопа
+     наклоняется вместе с голенью, чтобы голеностоп оставался в пределах. */
+  const STEP = { H: 0.17, D: 0.28, xF: -0.24, x1: 0.09, lean0: 0.08, lean1: 0.5, clr: 0.07, heel: 0.6, heelAt: 0.3, slack: 0.985, aUp: 0.45, aDn: 0.7 };
+  const groundStep = (x) => (x < 0 ? 0 : STEP.H * Math.min(2, Math.floor(x / STEP.D) + 1));
+  const STEP_SPOTS = [{ x: STEP.xF, y: 0 }, { x: STEP.x1, y: STEP.H }, { x: STEP.x1 + STEP.D, y: 2 * STEP.H }];   // места стоп: пол, ступенька 1, ступенька 2
+  const STEP_PH = [[0.02, 0.09, 0.155, 0.225], [0.26, 0.33, 0.395, 0.465]];   // от половины цикла: подъём ближней ноги, перенос веса, приставление
+  const WINTER = { hat: 0.678, thigh: 0.1, shank: 0.0465, foot: 0.0145, hatAt: 0.29 / 0.52 };   // доли массы; центр головы, рук и корпуса — на 0,56 длины корпуса
+  /** Горизонталь центра масс человека (доли Winter). */
+  function comHumanX(pose, P) {
+    const [sT] = DM.sincos(pose.th); let mx = WINTER.hat * (pose.x + WINTER.hatAt * HUMAN.LT * sT);
+    for (const K of ['L', 'R']) mx += WINTER.thigh * (P.hip[0] + P['knee' + K][0]) / 2 + WINTER.shank * (P['knee' + K][0] + P['ankle' + K][0]) / 2 + WINTER.foot * (P['heel' + K][0] + P['toe' + K][0]) / 2;
+    return mx;
+  }
+  const easeStep = (u) => (u <= 0 ? 0 : u >= 1 ? 1 : (1 - DM.sincos(PI * u)[1]) / 2);
+  const progStep = (p, a, b) => easeStep((p - a) / (b - a));
+  const lerp = (a, b, t) => a + (b - a) * t;
+  /** Голеностоп по точке носка на опоре и наклону стопы β (носок вниз — β < 0). */
+  function fromToe(B, tx, ty, beta) { const [sb, cb] = DM.sincos(beta); return { x: tx - B.FT * cb - B.HA * sb, y: ty - B.FT * sb + B.HA * cb, beta }; }
+  /** Стопы, наклон корпуса и доля веса на верхней опоре в фазе φ для тела B; стопы — на местах STEP_SPOTS. */
+  function stepFeet(B, phi) {
+    const s = legLen(B) / legLen(HUMAN), p = phi < 0.5 ? phi : 1 - phi, S = STEP_SPOTS;
+    let R = { x: S[0].x, y: S[0].y + B.HA, beta: 0 }, L = R, th = STEP.lean0, w = 0, k0 = 0;
+    for (let k = 0; k < 2; k++) {
+      const [a, b, c, d] = STEP_PH[k]; if (p < a) break;
+      const uR = progStep(p, a, b), uW = progStep(p, b, c), uL = progStep(p, c, d);
+      const from = { x: S[k].x, y: S[k].y + B.HA, beta: 0 }, to = { x: S[k + 1].x, y: S[k + 1].y + B.HA, beta: 0 }, top = to.y + STEP.clr * s;
+      // перенос: подъём на месте, перенос над краем ступеньки, опускание
+      const swing = (a0, u) => { const up = easeStep(u / 0.35), mv = easeStep((u - 0.3) / 0.45), dn = easeStep((u - 0.75) / 0.25);
+        return { x: lerp(a0.x, to.x, mv), y: lerp(lerp(a0.y, top, up), to.y, dn), beta: lerp(a0.beta, 0, easeStep((u - 0.2) / 0.6)) + 0.1 * DM.sincos(PI * u)[0], air: true }; };
+      R = uR <= 0 ? from : uR >= 1 ? to : swing(from, uR);
+      L = uL <= 0 ? fromToe(B, S[k].x + B.FT, S[k].y, -STEP.heel * progStep(uW, STEP.heelAt, 1)) : uL >= 1 ? to : swing(fromToe(B, S[k].x + B.FT, S[k].y, -STEP.heel), uL);
+      th = STEP.lean0 + (STEP.lean1 - STEP.lean0) * DM.sincos(PI * Math.min(1, 0.2 * uR + 0.5 * uW + 0.3 * uL))[0];
+      w = uL > 0 ? 1 : uW; k0 = k;
+    }
+    return { s, R, L, th, w, sup: S[k0].y * (1 - w) + S[k0 + 1].y * w };
+  }
+  /** Углы ног по положению таза и целям стоп; reach — насколько цель дальше вытянутой ноги (м). */
+  function stepSolve(B, F, xp, yp) {
+    const q = new Float64Array(NJ); let reach = 0;
+    for (let sd = 0; sd < 2; sd++) {
+      const G = sd ? F.R : F.L, dx = G.x - xp, dy = G.y - yp, d = Math.sqrt(dx * dx + dy * dy); if (d > B.L1 + B.L2) reach = Math.max(reach, d - B.L1 - B.L2);
+      let ik = ikLeg(B, F.th, dx, dy, G.beta);
+      if (G.air) { const a2 = ik[0] - F.th - ik[1]; ik = ikLeg(B, F.th, dx, dy, clamp(G.beta, a2 - STEP.aDn, a2 + STEP.aUp)); }
+      q[3 * sd] = ik[0]; q[3 * sd + 1] = ik[1]; q[3 * sd + 2] = ik[2];
+    }
+    return { x: xp, y: yp, th: F.th, q, arm: Float64Array.from([0.15, 0.3, 0.15, 0.3]), reach };
+  }
+  /** Высота таза не больше, чем дотягиваются обе ноги до своих целей. */
+  function stepCap(B, F, xp, yp) { for (const G of [F.L, F.R]) { const dx = G.x - xp, r = (B.L1 + B.L2) * STEP.slack, m = Math.sqrt(Math.max(0, r * r - dx * dx)); if (yp - G.y > m) yp = G.y + m; } return yp; }
+  /** Поза человека в фазе φ: таз над опорой по центру масс. */
+  function stepHuman(phi) {
+    const B = HUMAN, F = stepFeet(B, phi), mid = (G) => G.x + (B.FT - B.FH) / 2, target = mid(F.L) * (1 - F.w) + mid(F.R) * F.w;
+    let xp = target - 0.05, yp = legLen(B) - 0.02 + F.sup;
+    for (let it = 0; it < 30; it++) { yp = stepCap(B, F, xp, yp); const pz = stepSolve(B, F, xp, yp); xp += (target - comHumanX(pz, fk(B, pz))) * 0.8; }
+    return stepSolve(B, F, xp, stepCap(B, F, xp, yp));
+  }
+  /** Ада по ключевым точкам в фазе φ: стопы — там же, где стопы человека, таз — над тем же местом, высота над опорой в масштабе ноги. */
+  function stepPoints(B, phi, hf) {
+    const F = stepFeet(B, phi), xp = hf.x;
+    return stepSolve(B, F, xp, stepCap(B, F, xp, F.sup + (hf.y - F.sup) * F.s));
+  }
+
   function retarget(human, method, B) {
-    B = B || ADA; const s = legLen(B) / legLen(human.B), out = [];
+    B = B || ADA; const s = legLen(B) / legLen(human.B), out = [], g = groundOf(human), stepClip = !!MOTIONS[human.key].step;
     for (const f of human.frames) {
-      const q = new Float64Array(NJ), arm = Float64Array.from(f.arm);
-      const Ph = fk(human.B, { x: 0, y: 0, th: f.th, q: f.q, arm: f.arm });
-      let th = f.th, lean = 0;
-      if (method === 'fix') {
-        const tg = [];
-        for (let sd = 0; sd < 2; sd++) { const K = sd ? 'R' : 'L', ank = Ph['ankle' + K], a2h = f.q[3 * sd] - f.th - f.q[3 * sd + 1]; tg.push([ank[0] * s, ank[1] * s, a2h + f.q[3 * sd + 2]]); }
-        // бедро за пределом — меньше наклон корпуса: угол бедра к вертикали (α1 = q_h − θ) не меняется
-        for (let sd = 0; sd < 2; sd++) { const ik = ikLeg(B, th, tg[sd][0], tg[sd][1], tg[sd][2]); if (ik[0] > B.LIM.hip[1] + lean) lean = ik[0] - B.LIM.hip[1]; }
-        th -= lean; arm[0] -= lean; arm[2] -= lean;
-        for (let sd = 0; sd < 2; sd++) { const ik = ikLeg(B, th, tg[sd][0], tg[sd][1], tg[sd][2]); q[3 * sd] = ik[0]; q[3 * sd + 1] = ik[1]; q[3 * sd + 2] = ik[2]; }
-      } else for (let j = 0; j < NJ; j++) q[j] = f.q[j];
-      const pose = { x: f.x * s, y: f.y * s, th, q, arm };
-      if (method !== 'copy') { clampJoints(B, q, arm); onFloor(B, pose, Ph); }
+      const Ph = fk(human.B, { x: f.x, y: f.y, th: f.th, q: f.q, arm: f.arm });
+      let pose, lean = 0;
+      if (method === 'copy') pose = { x: f.x * s, y: f.y * s, th: f.th, q: Float64Array.from(f.q), arm: Float64Array.from(f.arm) };
+      else {
+        if (stepClip) { const pz = stepPoints(B, f.phi, f); pose = { x: pz.x, y: pz.y, th: pz.th, q: pz.q, arm: Float64Array.from(f.arm) }; }
+        else {
+          // голеностоп относительно таза в масштабе и наклон стопы, как у человека; углы — обратной кинематикой
+          const q = new Float64Array(NJ), Pr = fk(human.B, { x: 0, y: 0, th: f.th, q: f.q, arm: f.arm });
+          for (let sd = 0; sd < 2; sd++) { const K = sd ? 'R' : 'L', ank = Pr['ankle' + K], beta = f.q[3 * sd] - f.th - f.q[3 * sd + 1] + f.q[3 * sd + 2], ik = ikLeg(B, f.th, ank[0] * s, ank[1] * s, beta); q[3 * sd] = ik[0]; q[3 * sd + 1] = ik[1]; q[3 * sd + 2] = ik[2]; }
+          pose = { x: f.x * s, y: f.y * s, th: f.th, q, arm: Float64Array.from(f.arm) };
+        }
+        if (method === 'fix') {
+          // бедро за пределом — меньше наклон корпуса: угол бедра к вертикали (α1 = q_h − θ) и стопы не меняются
+          for (let sd = 0; sd < 2; sd++) if (pose.q[3 * sd] > B.LIM.hip[1] + lean) lean = pose.q[3 * sd] - B.LIM.hip[1];
+          pose.th -= lean; pose.q[0] -= lean; pose.q[3] -= lean; pose.arm[0] -= lean; pose.arm[2] -= lean;
+          clampJoints(B, pose.q, pose.arm); onFloor(B, pose, Ph, g);
+        }
+      }
       out.push(Object.assign(pose, { phi: f.phi, lean, hum: f }));
     }
-    return { method, B, s, human, frames: out, T: human.T, N: human.N };
+    return { method, B, s, human, frames: out, T: human.T, N: human.N, ground: g };
   }
   /** Центр масс Ады по позе (м): корпус — середина корпуса, бедро и голень — середины звеньев, стопа — середина стопы. */
   function comOf(B, pose, P) {
@@ -278,34 +363,37 @@
     }
     return [mx / m, my / m];
   }
-  /** Опора: отрезок [x0, x1] под точками подошвы, которые касаются пола (ниже 1 см), или null. */
-  function supportOf(P) {
-    let x0 = Infinity, x1 = -Infinity;
-    for (const k of SOLE) if (P[k][1] < 0.01) { if (P[k][0] < x0) x0 = P[k][0]; if (P[k][0] > x1) x1 = P[k][0]; }
+  /** Опора: отрезок [x0, x1] под точками подошвы, которые касаются пола или ступеньки (ближе 1 см), или null. */
+  function supportOf(P, g) {
+    g = g || flat; let x0 = Infinity, x1 = -Infinity;
+    for (const k of SOLE) if (P[k][1] - g(P[k][0]) < 0.01) { if (P[k][0] < x0) x0 = P[k][0]; if (P[k][0] > x1) x1 = P[k][0]; }
     return x0 <= x1 ? [x0, x1] : null;
   }
   /** Насколько проекция центра масс вышла за опору (м, 0 — над опорой). */
-  function comOut(B, pose, P) { P = P || fk(B, pose); const c = comOf(B, pose, P), sup = supportOf(P); if (!sup) return 0; return c[0] < sup[0] ? c[0] - sup[0] : c[0] > sup[1] ? c[0] - sup[1] : 0; }   // > 0 — впереди опоры, < 0 — позади
+  function comOut(B, pose, P, g) { P = P || fk(B, pose); const c = comOf(B, pose, P), sup = supportOf(P, g); if (!sup) return 0; return c[0] < sup[0] ? c[0] - sup[0] : c[0] > sup[1] ? c[0] - sup[1] : 0; }   // > 0 — впереди опоры, < 0 — позади
   /** Метрики ретаргетинга по циклу: проникновение в пол (см), зависание опорной стопы (см), превышение пределов (град),
       доля кадров с нарушением пределов, ошибка ключевых точек (см, относительно таза по масштабу), наибольший выход
       центра масс за опору (см, только для медленных движений — приседа и махов), поправка наклона корпуса (град). */
   function rtMetrics(R) {
-    const B = R.B, s = R.s, slow = !MOTIONS[R.human.key].twoLeg; let pen = 0, fl = 0, overSum = 0, overFrames = 0, kpErr = 0, kpN = 0, maxOver = 0, cOut = 0, cFrames = 0, lean = 0; const overJ = new Float64Array(3);
+    const B = R.B, s = R.s, g = R.ground || flat, slow = !MOTIONS[R.human.key].twoLeg;
+    let pen = 0, fl = 0, overSum = 0, overFrames = 0, kpErr = 0, kpN = 0, maxOver = 0, cOut = 0, cFrames = 0, lean = 0; const overJ = new Float64Array(3);
     for (const f of R.frames) {
-      const P = fk(B, f), Ph = fk(R.human.B, { x: 0, y: 0, th: f.hum.th, q: f.hum.q, arm: f.hum.arm });
-      const hs = Math.min(soleMin(Ph, 0), soleMin(Ph, 1)), m = Math.min(soleMin(P, 0), soleMin(P, 1));
-      if (m < -pen) pen = -m;
-      if (hs < 0.005 && m > fl) fl = m;   // у человека стопа на полу, у Ады выше пола
+      const P = fk(B, f), Ph = fk(R.human.B, { x: f.hum.x, y: f.hum.y, th: f.hum.th, q: f.hum.q, arm: f.hum.arm }), Pr = fk(R.human.B, { x: 0, y: 0, th: f.hum.th, q: f.hum.q, arm: f.hum.arm });
+      for (let sd = 0; sd < 2; sd++) {
+        const m = gapMin(P, sd, g); if (-m > pen) pen = -m;
+        if (gapMin(Ph, sd, g) < 0.005 && m > fl) fl = m;   // у человека эта стопа на опоре, у Ады — над ней
+      }
       const ov = overLimits(B, f.q); let o = 0; for (let j = 0; j < NJ; j++) o += ov[j];
       if (o > 1e-9) overFrames++; overSum += o; if (o > maxOver) maxOver = o;
       for (let j = 0; j < NJ; j++) if (ov[j] > overJ[j % 3]) overJ[j % 3] = ov[j];
-      for (const k of ['kneeL', 'ankleL', 'toeL', 'kneeR', 'ankleR', 'toeR']) { kpErr += Math.sqrt(sq(P[k][0] - f.x - Ph[k][0] * s) + sq(P[k][1] - f.y - Ph[k][1] * s)); kpN++; }
-      if (slow) { const co = comOut(B, f, P); if (Math.abs(co) > Math.abs(cOut)) cOut = co; if (Math.abs(co) > 0.005) cFrames++; }
+      for (const k of ['kneeL', 'ankleL', 'toeL', 'kneeR', 'ankleR', 'toeR']) { kpErr += Math.sqrt(sq(P[k][0] - f.x - Pr[k][0] * s) + sq(P[k][1] - f.y - Pr[k][1] * s)); kpN++; }
+      if (slow) { const co = comOut(B, f, P, g); if (Math.abs(co) > Math.abs(cOut)) cOut = co; if (Math.abs(co) > 0.005) cFrames++; }
       if (f.lean > lean) lean = f.lean;
     }
     const N = R.frames.length;
     return { pen: pen * 100, float: fl * 100, overDeg: deg(overSum / N), overMax: deg(maxOver), overShare: overFrames / N, overJ: [deg(overJ[0]), deg(overJ[1]), deg(overJ[2])], kp: kpErr / kpN * 100, com: slow ? Math.abs(cOut) * 100 : null, comFwd: slow ? cOut > 0 : null, comShare: slow ? cFrames / N : null, lean: deg(lean), N };
   }
+
 
   /* ---------- 4. физика: корпус — твёрдое тело, ноги без массы, ПД в суставах, пол — пружина с трением ----------
      Проще, чем XPBD-модель урока 6.1, чтобы обучение двух политик шло секунды: вся масса Ады (28 кг) отнесена к корпусу,
@@ -625,7 +713,7 @@
   }
 
   const API = { DM, rng, randn, clamp, deg, rad, HUMAN, ADA, LIM: ADA.LIM, NJ, JN, PTS, SOLE, FPS, DT, H_SUB, N_SUB, WORLD, CFG, NP, IDX, ND, Q_STAND,
-    fk, newPoints, soleMin, ikLeg, clampJoints, overLimits, legLen, standing, MOTIONS, walkMotion, frameAngles, clipOf, clipAt, METHODS_RT, retarget, rtMetrics, MASS, comOf, supportOf, comOut,
+    fk, newPoints, soleMin, gapMin, ikLeg, clampJoints, overLimits, legLen, standing, MOTIONS, walkMotion, frameAngles, clipOf, clipAt, METHODS_RT, retarget, rtMetrics, MASS, comOf, supportOf, comOut, STEP, STEP_SPOTS, groundStep, groundOf, stepHuman, stepPoints, comHumanX, WINTER,
     makeState, poseOf, hipOf, substep, envStep, observe, policyInit, features, targets, phiOf, clipTransitions, dnet, dfwd, dtrain, styleReward,
     trackReward, taskReward, rollout, train, run, evaluate, meanClip, swapLegs, adaClip, ABL, refAt, resid, mixStats };
   if (typeof module !== 'undefined' && module.exports) module.exports = API; else root.L62 = API;
