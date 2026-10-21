@@ -1,7 +1,7 @@
 /* =====================================================================
    ui-l61.js — урок 6.1 «Локомоция на основе RL».
-   0) рисунок Ады с ногами (AdaBody — сбоку по кадру симуляции и спереди;
-      выносится в shared/ для 6.2–6.6), анимированные схемы (shared/anim.js):
+   0) анимированные схемы (shared/anim.js; Ада с ногами сбоку и спереди —
+      AdaBody из shared/ada-legs.js, общий рисунок для уроков 6.1–6.3):
       контур обучения ходьбы в симуляторе с тысячами копий и наградой из
       слагаемых; история наблюдений и действий как токены трансформера;
    1) лаборатория «Конструктор награды»: слагаемые с весами, политики PPO,
@@ -39,85 +39,6 @@ function syncRange(inp, text) { inp.nextElementSibling.textContent = text; setRa
 function segBind(sel, fn) { $(sel).addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) fn(b.dataset.v); }); }
 function segSet(sel, v) { $$(sel + ' button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === String(v)))); }
 const canvasNarrow = (cv, w) => (cv.getBoundingClientRect().width || w) < 500;
-
-/* =====================================================================
-   0а. AdaBody — рисунок Ады с ногами. Кандидат в shared/ada-legs.js:
-   зависит только от L61.BODY (длины звеньев) и HeroKit.
-   side(c, X, Y, f, o): вид сбоку по кадру f = [x, y, наклон, 6 углов суставов, vx]
-   (L61.snap), X/Y — метры → пиксели; o.ghost — полупрозрачно, o.color — цвет суставов.
-   front(c, x, yb, s, P, dark): вид спереди, как adaFront в 8.3, но с ногами.
-   ===================================================================== */
-const AdaBody = (() => {
-  const B = L61.BODY;
-  const colors = () => { const d = HeroKit.dark(); return { fill: d ? '#2a2926' : '#f4efe6', line: d ? '#b0afa6' : '#3d3c38', far: d ? '#3a3935' : '#e4ded2', farLine: d ? '#8a8980' : '#6f6d66', screen: '#1f2430', eye: '#eb6834', belt: '#4a3aa7' }; };
-  const sc = (a) => [Math.sin(a), Math.cos(a)];
-  /** Точки тела (метры) по кадру: бедро, колени, голеностопы, пятки и носки, верх корпуса, голова. */
-  function points(f) {
-    const [x, y, p] = f, s = sc(p), hip = [x + s[0] * B.LT / 2, y - s[1] * B.LT / 2], top = [x - s[0] * B.LT / 2, y + s[1] * B.LT / 2];
-    const leg = (k) => {
-      const aT = p + f[3 + k * 3], aS = aT - f[4 + k * 3], aF = aS + f[5 + k * 3], st = sc(aT), ss = sc(aS), sf = sc(aF);
-      const knee = [hip[0] + st[0] * B.L1, hip[1] - st[1] * B.L1], ankle = [knee[0] + ss[0] * B.L2, knee[1] - ss[1] * B.L2];
-      const ctr = [ankle[0] - (sf[1] * B.FA - sf[0] * B.HF / 2), ankle[1] - (sf[0] * B.FA + sf[1] * B.HF / 2)];
-      const pt = (lx, ly) => [ctr[0] + sf[1] * lx - sf[0] * ly, ctr[1] + sf[0] * lx + sf[1] * ly];
-      return { knee, ankle, heel: pt(-B.LF / 2, -B.HF / 2), toe: pt(B.LF / 2, -B.HF / 2), heelT: pt(-B.LF / 2 + 0.01, B.HF / 2), toeT: pt(B.LF / 2 - 0.02, B.HF / 2), aT, aS, aF };
-    };
-    return { hip, top, torso: [x, y, p], L: leg(0), R: leg(1), head: [x - s[0] * (B.LT / 2 + B.HEAD / 2 + 0.02), y + s[1] * (B.LT / 2 + B.HEAD / 2 + 0.02)] };
-  }
-  function capsule(c, X, Y, a, b, wPx, fill, line) {
-    c.lineCap = 'round'; c.lineJoin = 'round';
-    c.strokeStyle = line; c.lineWidth = wPx + 3; c.beginPath(); c.moveTo(X(a[0]), Y(a[1])); c.lineTo(X(b[0]), Y(b[1])); c.stroke();
-    c.strokeStyle = fill; c.lineWidth = wPx; c.beginPath(); c.moveTo(X(a[0]), Y(a[1])); c.lineTo(X(b[0]), Y(b[1])); c.stroke();
-  }
-  function foot(c, X, Y, L, fill, line) {
-    c.beginPath(); c.moveTo(X(L.heel[0]), Y(L.heel[1])); c.lineTo(X(L.toe[0]), Y(L.toe[1])); c.lineTo(X(L.toeT[0]), Y(L.toeT[1])); c.lineTo(X(L.heelT[0]), Y(L.heelT[1])); c.closePath();
-    c.fillStyle = fill; c.fill(); c.strokeStyle = line; c.lineWidth = 2; c.lineJoin = 'round'; c.stroke();
-  }
-  /** Ада сбоку, смотрит вправо. Дальняя (левая) нога и рука — приглушённые, ближняя (правая) — поверх корпуса. */
-  function side(c, X, Y, f, o) {
-    o = o || {}; const K = colors(), P = points(f), m = X(1) - X(0);           // m — пикселей в метре
-    const wT = 0.085 * m, wS = 0.07 * m, jr = Math.max(2.5, 0.028 * m), col = o.color || K.line;
-    c.save(); if (o.ghost) c.globalAlpha = 0.35;
-    const legDraw = (L, fill, line) => { capsule(c, X, Y, P.hip, L.knee, wT, fill, line); capsule(c, X, Y, L.knee, L.ankle, wS, fill, line); foot(c, X, Y, L, fill, line); for (const p of [L.knee, L.ankle]) { c.beginPath(); c.arc(X(p[0]), Y(p[1]), jr, 0, 7); c.fillStyle = line; c.fill(); } };
-    // руки качаются противоположно ногам (условно): угол плеча = −0,35·угол бедра своей стороны
-    const [tx, ty, p] = P.torso, s = sc(p), sh = [tx - s[0] * B.LT * 0.3, ty + s[1] * B.LT * 0.3];
-    const armDraw = (hipQ, fill, line) => { const a = p - 0.35 * hipQ - 0.1, sa = sc(a), el = [sh[0] + sa[0] * 0.2, sh[1] - sa[1] * 0.2], a2 = a + 0.35, s2 = sc(a2), hd = [el[0] + s2[0] * 0.17, el[1] - s2[1] * 0.17]; capsule(c, X, Y, sh, el, 0.055 * m, fill, line); capsule(c, X, Y, el, hd, 0.05 * m, fill, line); c.beginPath(); c.arc(X(hd[0]), Y(hd[1]), 0.03 * m, 0, 7); c.fillStyle = line; c.fill(); };
-    legDraw(P.L, K.far, K.farLine); armDraw(f[3], K.far, K.farLine);
-    // корпус: скруглённый прямоугольник, повёрнутый на наклон
-    c.save(); c.translate(X(tx), Y(ty)); c.rotate(-p);
-    c.beginPath(); c.roundRect(-0.11 * m, -B.LT / 2 * m, 0.22 * m, B.LT * m, 0.07 * m); c.fillStyle = K.fill; c.fill(); c.strokeStyle = col; c.lineWidth = 2.2; c.stroke();
-    c.beginPath(); c.roundRect(-0.045 * m, -0.02 * m, 0.09 * m, 0.03 * m, 0.012 * m); c.fillStyle = K.belt; c.fill();
-    // голова с экраном и глазом (вид сбоку — один глаз)
-    const hy = -(B.LT / 2 + B.HEAD / 2 + 0.02) * m;
-    c.beginPath(); c.roundRect(-0.1 * m, hy - B.HEAD / 2 * m, 0.2 * m, B.HEAD * m, 0.06 * m); c.fillStyle = K.fill; c.fill(); c.strokeStyle = col; c.lineWidth = 2.2; c.stroke();
-    c.beginPath(); c.roundRect(0.0 * m, hy - 0.055 * m, 0.085 * m, 0.11 * m, 0.03 * m); c.fillStyle = K.screen; c.fill();
-    c.fillStyle = K.eye; c.beginPath(); c.ellipse(0.045 * m, hy - 0.005 * m, 0.014 * m, 0.02 * m, 0, 0, 7); c.fill();
-    c.restore();
-    legDraw(P.R, K.fill, col); armDraw(f[6], K.fill, col);
-    c.beginPath(); c.arc(X(P.hip[0]), Y(P.hip[1]), jr, 0, 7); c.fillStyle = col; c.fill();
-    c.restore();
-    return P;
-  }
-  /** Ада спереди с ногами: голова с экраном, корпус, руки, две ноги со стопами. x — центр, yb — низ стоп, s — масштаб (как adaFront в 8.3). */
-  function front(c, x, yb, s, P, dark) {
-    const K = colors();
-    c.save(); c.translate(x, yb); c.scale(s, s);
-    c.lineWidth = 2.2; c.strokeStyle = K.line; c.fillStyle = K.fill;
-    for (const lx of [-9, 9]) {   // ноги: бедро, голень, стопа
-      c.beginPath(); c.roundRect(lx - 5, -44, 10, 22, 4); c.fill(); c.stroke();
-      c.beginPath(); c.roundRect(lx - 4, -26, 8, 20, 3.5); c.fill(); c.stroke();
-      c.beginPath(); c.roundRect(lx - 7, -7, 14, 7, 3); c.fill(); c.stroke();
-    }
-    c.beginPath(); c.roundRect(-18, -88, 36, 46, 10); c.fill(); c.stroke();               // корпус
-    c.beginPath(); c.roundRect(-5, -62, 10, 4, 2); c.fillStyle = K.belt; c.fill();
-    c.fillStyle = K.fill; c.lineCap = 'round'; c.lineWidth = 3.4;
-    c.beginPath(); c.moveTo(-18, -80); c.lineTo(-27, -58); c.moveTo(18, -80); c.lineTo(27, -58); c.stroke();   // руки
-    c.lineWidth = 2.2; c.beginPath(); c.roundRect(-17, -116, 34, 26, 9); c.fill(); c.stroke();                 // голова
-    c.beginPath(); c.roundRect(-12, -111, 24, 16, 6); c.fillStyle = K.screen; c.fill();
-    c.fillStyle = K.eye; c.beginPath(); c.ellipse(-5, -103, 2, 3, 0, 0, 7); c.ellipse(5, -103, 2, 3, 0, 0, 7); c.fill();
-    c.restore();
-  }
-  return { points, side, front, colors };
-})();
 
 /* =====================================================================
    0б. Схема `loop`: контур обучения ходьбы в симуляторе по Rudin et al.
@@ -275,7 +196,7 @@ const AdaBody = (() => {
 /* =====================================================================
    Сцена: одна Ада в живой симуляции, вид сбоку. Логический канвас 320 × 240,
    105 пикселей на метр, пол на y = 206, камера следует за Адой по x.
-   Кандидат в shared/ вместе с AdaBody, Runner и playRuns (INTEGRATION.md, раздел 5).
+   Ада рисуется AdaBody из shared/ada-legs.js.
    ===================================================================== */
 const Pane = (() => {
   const W = 320, H = 240, M = 105, FLOOR = 206, CX = 150;

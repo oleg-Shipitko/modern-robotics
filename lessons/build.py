@@ -124,10 +124,10 @@ LESSONS = {
         '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'shared/arm-core.js', 'l57/engine.js', 'l57/ui-l57.js'],
     }),
     'l61': ('6-1-lokomotsiya.html', ['l01/lesson.css', 'shared/lab.css', 'l61/l61.css'], {
-        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'l61/engine.js', 'l61/ui-l61.js'],
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'shared/ada-legs.js', 'l61/engine.js', 'l61/ui-l61.js'],
     }),
     'l62': ('6-2-imitatsiya-dvizheniy.html', ['l01/lesson.css', 'shared/lab.css', 'l62/l62.css'], {
-        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'l62/engine.js', 'l62/ui-l62.js'],
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'shared/ada-legs.js', 'l62/engine.js', 'l62/ui-l62.js'],
     }),
     'l63': ('6-3-upravlenie-vsem-telom.html', ['l01/lesson.css', 'shared/lab.css', 'l63/l63.css'], {
         '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'l63/engine.js', 'l63/ui-l63.js'],

@@ -182,6 +182,7 @@ const N = labNumbers();
     check((await p.eval(`document.querySelectorAll('#recall .rc-q').length`)) === 3, 'разминка по уроку 5.7: три вопроса');
     check((await p.eval(`JSON.stringify(Object.keys(L61.DATA.policies).sort())`)) === JSON.stringify(['fixed', 'full512', 'fwd', 'fwdFall', 'noAir', 'noSmooth']), 'вшиты шесть политик: ' + await p.eval(`Object.keys(L61.DATA.policies).join(', ')`));
     check((await p.eval(`L61.CFG.SEED`)) === 1 && (await p.eval(`[window.__l61.Reward.SEED, window.__l61.Command.SEED, window.__l61.Copies.SEED].join(',')`)) === [SEED1, SEED2, SEED3].join(','), `зёрна: обучение 1, сцены лабораторий ${SEED1}, ${SEED2}, ${SEED3}`);
+    check(await p.eval(`['LT', 'L1', 'L2', 'LF', 'HF', 'FA', 'HEAD'].every((k) => AdaBody.BODY[k] === L61.BODY[k])`), 'рисунок Ады из shared/ada-legs.js: длины звеньев те же, что у тела Ады в движке');
     const note = await text(p, '#legs .ada-note');
     check(/Ада — домашний гуманоид курса; с этого урока у неё ноги/.test(note) && await p.eval(`!!document.querySelector('#legs .ada-note a[href="0-1-dve-paradigmy.html#ada"]')`), 'заметка об Аде: с этого урока у неё ноги, ссылка на 0.1');
     const lead = await text(p, '.hero .lead');
