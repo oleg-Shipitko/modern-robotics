@@ -132,6 +132,15 @@ LESSONS = {
     'l63': ('6-3-upravlenie-vsem-telom.html', ['l01/lesson.css', 'shared/lab.css', 'l63/l63.css'], {
         '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'shared/ada-legs.js', 'l63/engine.js', 'l63/ui-l63.js'],
     }),
+    'l64': ('6-4-lokomanipulyatsiya.html', ['l01/lesson.css', 'shared/lab.css', 'l64/l64.css'], {
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'shared/ada-legs.js', 'l64/engine.js', 'l64/ui-l64.js'],
+    }),
+    'l65': ('6-5-apparatnaya-chast.html', ['l01/lesson.css', 'shared/lab.css', 'l65/l65.css'], {
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'shared/ada-legs.js', 'l65/engine.js', 'l65/ui-l65.js'],
+    }),
+    'l66': ('6-6-obzor-platform.html', ['l01/lesson.css', 'shared/lab.css', 'l66/l66.css'], {
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'shared/ada-legs.js', 'l66/engine.js', 'l66/ui-l66.js'],
+    }),
     'l81': ('8-1-klassika-v-konture.html', ['l01/lesson.css', 'shared/lab.css', 'l81/l81.css'], {
         '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'shared/arm-core.js', 'l81/engine.js', 'l81/ui-l81.js'],
     }),
@@ -154,6 +163,9 @@ LESSONS = {
     }),
     'c3': ('proverka-chasti-3.html', ['l01/lesson.css', 'shared/lab.css', 'shared/check.css', 'c3/c3.css'], {
         '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/arm-core.js', 'l37/engine.js', 'shared/check.js', 'c3/ui-c3.js'],
+    }),
+    'c6': ('proverka-chasti-6.html', ['l01/lesson.css', 'shared/lab.css', 'shared/check.css', 'c6/c6.css'], {
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/ada-legs.js', 'l61/engine.js', 'shared/check.js', 'c6/ui-c6.js'],
     }),
     'c5': ('proverka-chasti-5.html', ['l01/lesson.css', 'shared/lab.css', 'shared/check.css', 'c5/c5.css'], {
         '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/arm-core.js', 'l51/engine.js', 'shared/check.js', 'c5/ui-c5.js'],
