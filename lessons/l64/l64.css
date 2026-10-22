@@ -1,0 +1,42 @@
+/* ---------- урок 6.4 «Локоманипуляция» ---------- */
+.cv-note { margin: 6px 2px 0; font-size: 13px; line-height: 1.45; color: var(--ink-3); }
+.ctl { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.ctl-l { font-size: 13.5px; font-weight: 650; color: var(--ink-3); }
+.ctl-row .hd-range output { min-width: 64px; }
+.ctl-row .hd-range input { width: 170px; }
+.ctl-row .dim { opacity: .55; }
+.btn[hidden] { display: none !important; }
+.guide-card .g-go { white-space: normal; text-align: left; max-width: 100%; }
+.seg.small button { padding-left: 8px; padding-right: 8px; font-size: 13px; }
+.seg.small { flex-wrap: wrap; }
+
+/* схема */
+.flow-card { margin: 18px 0 0; padding: 14px 14px 12px; }
+.flow-card canvas { width: 100%; height: auto; display: block; }
+.flow-card figcaption { margin: 10px 2px 0; }
+
+/* сцены и сводки */
+.walk-cv { width: 100%; height: auto; aspect-ratio: 640 / 300; display: block; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); }
+.t-chart { margin-top: 12px; }
+.t-chart canvas { width: 100%; height: auto; display: block; aspect-ratio: 640 / 220; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.prog-line { height: 4px; border-radius: 2px; background: var(--surface-2); overflow: hidden; margin-top: 10px; }
+.prog-line i { display: block; height: 100%; width: 0; background: var(--e2e); }
+.prog-line[hidden] { display: none; }
+
+/* интерактив: интерфейсы систем */
+.if-sort { margin-top: 22px; }
+.if-sort .c-zones { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.if-sort .c-card { font-size: 13.5px; }
+.if-out { margin: 10px 0 0; padding: 10px 14px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line); font-size: 14.5px; color: var(--ink-2); min-height: 44px; }
+
+/* живые миссии: невыполненный критерий — «ещё нет», серым */
+.m-live .m-crit li.no i { border-color: var(--line-2); color: var(--ink-3); background: var(--surface-2); }
+.m-live .m-crit li.no i::before { content: '·'; }
+
+@media (max-width: 1100px) { .if-sort .c-zones { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .if-sort .c-zones { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 560px) {
+  .ctl-row .hd-range { display: grid; grid-template-columns: 112px 1fr 70px; width: 100%; }
+  .ctl-row .hd-range input { width: 100%; }
+  .t-chart canvas { aspect-ratio: 360 / 270; }
+}
