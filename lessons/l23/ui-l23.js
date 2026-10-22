@@ -9,7 +9,10 @@
       функций робота и функции, которые модель дописывает сама;
    4) VoxPoser: код по строкам строит карты, планировщик ищет путь,
       вазу можно двигать, в том числе пока захват едет.
-   Движок — l23/engine.js (без DOM).
+   Кроме лабораторий: схема подсказки SayCan (раздел 1, PromptDemo) — кандидаты
+   по очереди подставляются в строку «Робот: 1.» и получают оценку; диаграмма
+   чисел из статьи SayCan (statBars и statMeter, образец для других уроков).
+   Движок — l23/engine.js (без DOM); схема устройства VoxPoser — l23/flow.js.
    ===================================================================== */
 'use strict';
 
@@ -793,6 +796,10 @@ const LabVox = (() => {
     });
   }
   const VASE_M3 = { x: 46, y: 28 };
+  /** Код выполнили кнопками под кодом, а у текущей миссии своя кнопка «Выполнить код»: критерии и ставка проверяются
+   *  только по ней (shared/missions.js). Нажимаем её сами, чтобы результат засчитался. В таких миссиях кнопки под кодом
+   *  скрыты (ручка run), так что это страховка: без неё путь на сцене есть, а перехода к следующей миссии нет. */
+  function viaMission() { if (!ctl || ctl.busy || st.pc < LINES.length) return; const go = $('#vMis .g-go'); if (go && !go.disabled && !go.hidden) go.click(); }
   const api = {
     reset() { st.vase = Object.assign({}, E.VASE0); st.avoid = true; st.pc = 0; st.trail = []; st.reached = false; st.collided = false; st.oldPath = null; st.onOld = false; setView('cost'); setW(1); },
     state, stepLine, runAll, setAvoid, setW, setView, go,
@@ -804,19 +811,20 @@ const LabVox = (() => {
   };
   const missions = [
     { short: 'Карты', title: 'Собери карты строка за строкой', text: 'Код написала языковая модель. Выполняй его по строке: detect находит предметы, следующие строки заполняют карту притяжения к ручке и карту избегания вокруг вазы, а execute передаёт карты планировщику.',
-      controls: ['view'], onEnter: (X) => X.prepare({ vase: E.VASE0, avoid: true, wo: 1 }),
+      controls: ['view', 'run'], onEnter: (X) => X.prepare({ vase: E.VASE0, avoid: true, wo: 1 }),
       criteria: [{ label: 'Все строки кода выполнены', test: (r, s) => s.all }, { label: 'Путь доходит до ручки', test: (r, s) => s.path && s.reached }, { label: 'Путь не задевает вазу', test: (r, s) => s.path && !s.hit }],
       hint: 'Кнопка «Выполнить строку» — под кодом. Переключатель «Карта» под сценой показывает каждую карту отдельно.',
       explain: () => 'Языковая модель не выдала ни одной точки пути. Она решила, к чему тянуться и чего избегать, и записала это кодом; детектор нашёл ручку и вазу, а путь построил планировщик по взвешенной сумме карт. Переключи «Карта»: притяжение растёт к ручке, избегание — пятно вокруг вазы, стоимость — их сумма с весами 2 и 1.' },
-    { short: 'Без избегания', title: 'Закомментируй карту избегания', text: 'Что, если модель забудет про вазу? Закомментируй строки, которые строят карту избегания: нажми на любую из них в коде. Потом выполни код.',
+    { short: 'Без избегания', title: 'Закомментируй карту избегания', text: 'Что, если модель забудет про вазу? Закомментируй строки, которые строят карту избегания: нажми на любую из них в коде. Карты и путь пропадут. Потом нажми «Выполнить код»: путь построится заново.',
       controls: ['view'],
       bet: { q: 'что станет с путём?', options: ['Не изменится: про вазу сказано в просьбе', 'Пойдёт к ручке напрямую и заденет вазу', 'Планировщик не найдёт путь'], answer: (r) => (r.hit ? 1 : r.reached ? 0 : 2) },
       action: { label: 'Выполнить код', run: (X) => X.runAll() },
       criteria: [{ label: 'Строки карты избегания закомментированы', test: (r) => !r.avoid }, { label: 'Путь задевает вазу', test: (r) => r.hit }],
       fail: (r) => (r.avoid ? 'Сначала закомментируй строки карты избегания: нажми на одну из них в коде.' : ''),
+      hint: 'Нажми на любую строку карты избегания в коде (строки с vase и avoidance_map), сделай ставку и нажми «Выполнить код». Кнопок под кодом в этой миссии нет: код запускает кнопка миссии, и по ней проверяется результат.',
       explain: () => 'Без карты избегания стоимость зависит только от расстояния до ручки, и лучший путь — прямая через вазу. Языковая модель знала про вазу, но планировщик видит только карты: знание, которое не попало в код, до движения не доходит.' },
     { short: 'Подвинь вазу', title: 'Поставь вазу на пути', text: 'Строки избегания снова на месте. Перетащи вазу туда, где сейчас проходит путь. Код тот же: detect находит вазу на новом месте, карты и путь пересчитываются.',
-      controls: ['view'], onEnter: (X) => X.prepare({ vase: VASE_M3, avoid: true, run: true, wo: 1 }),
+      controls: ['view', 'run'], onEnter: (X) => X.prepare({ vase: VASE_M3, avoid: true, run: true, wo: 1 }),
       criteria: [{ label: 'Ваза стоит там, где проходил путь', test: (r, s) => s.onOld }, { label: 'Новый путь не задевает вазу', test: (r, s) => s.onOld && s.path && !s.hit }, { label: 'Путь доходит до ручки', test: (r, s) => s.onOld && s.path && s.reached }],
       hint: 'Возьми вазу мышью или пальцем. Серый пунктир — путь до того, как ты её подвинул.',
       explain: () => 'Языковую модель не спрашивали заново: код подзадачи тот же, поменялся только ответ детектора. В статье путь пересчитывают 5 раз в секунду, поэтому VoxPoser справлялся и тогда, когда предметы двигали во время движения.' },
@@ -828,7 +836,7 @@ const LabVox = (() => {
       fail: (r) => (!r.movedDuring ? 'Подвинь вазу, пока захват едет: возьми её мышью или пальцем.' : r.collided ? 'Захват задел вазу. Не ставь вазу вплотную перед захватом: планировщику нужно время.' : ''),
       explain: (r) => `Путь пересчитывался ${r.replans} ${plural(r.replans, 'раз', 'раза', 'раз')}: каждые 0,2 секунды планировщик брал свежее положение вазы и строил путь от того места, где захват был сейчас. Это MPC из урока 0.3: исполнить начало плана и пересчитать. В статье с помехами — толкали руку, переставляли предметы — VoxPoser выполнил 70% попыток, а код с примитивами — 0%.` },
     { short: 'Вес', title: 'Подбери вес избегания', text: 'Ваза вернулась на прежнее место, а вес карты избегания упал до 0,2. Подбери вес так, чтобы захват прошёл мимо вазы, но без лишнего крюка: зазор не больше 5 см.',
-      controls: ['view', 'w'], onEnter: (X) => X.prepare({ vase: E.VASE0, avoid: true, run: true, wo: 0.2 }),
+      controls: ['view', 'w', 'run'], onEnter: (X) => X.prepare({ vase: E.VASE0, avoid: true, run: true, wo: 0.2 }),
       criteria: [{ label: 'Путь не задевает вазу', test: (r, s) => s.path && !s.hit }, { label: 'Зазор до вазы не больше 5 см', test: (r, s) => s.path && !s.hit && s.gapCm <= 5 }, { label: 'Путь доходит до ручки', test: (r, s) => s.path && s.reached }],
       hint: 'Ползунок «Вес избегания» — под сценой. Вес притяжения остаётся 2.',
       explain: (r, ctx) => `Вес задаёт, насколько планировщик готов удлинить путь ради зазора: маленький — захват идёт впритирку и задевает вазу, большой — делает крюк. В статье веса 2 и 1, и у нас вес 1 при весе притяжения 2 тоже попадает в окно. Подбирают такие числа вручную, и это одна из настроек, которую авторы называют ограничением метода вместе с ручной настройкой подсказок.` },
@@ -843,19 +851,115 @@ const LabVox = (() => {
       end: () => { st.drag = false; draw(); if (ctl) ctl.update(); },
     });
     $('#vCode').addEventListener('click', (e) => { const ln = e.target.closest('.code-ln.tog'); if (ln && !st.moving) setAvoid(!st.avoid); });
-    $('#vStep').addEventListener('click', stepLine);
-    $('#vAll').addEventListener('click', runAll);
+    $('#vStep').addEventListener('click', () => { stepLine(); viaMission(); });
+    $('#vAll').addEventListener('click', () => { runAll(); viaMission(); });
     $('#vGo').addEventListener('click', () => { if (!st.moving) go(); });
     segBind('#vView', setView);
     $('#vW').addEventListener('input', (e) => setW(+e.target.value));
     syncRange($('#vW'), fmt(st.wo, 1));
     vLegend();
-    ctl = mountMissions('#vMis', missions, api, { controls: { view: '#wrapVView', w: '#wrapVW', go: '#vGo' }, scene: '#vCv' });
+    ctl = mountMissions('#vMis', missions, api, { controls: { view: '#wrapVView', w: '#wrapVW', go: '#vGo', run: '#vBtns' }, scene: '#vCv' });
     render(); redrawOn(draw);
     return ctl;
   }
-  return { init, api, st, LINES };
+  return { init, api, st, LINES, viaMission };
 })();
+
+/* =====================================================================
+   Подсказка SayCan (раздел 1). Примеры в подсказке задают формат «список
+   шагов»; после новой просьбы модель должна продолжить строку «Робот: 1.».
+   SayCan не даёт ей писать свободно: по очереди подставляет описание каждого
+   навыка и спрашивает, насколько вероятно такое продолжение. Кандидаты —
+   навыки Ады с оценками первого шага из движка (заданы заранее, как в
+   лаборатории 1): по очереди встают в строку ответа и получают оценку, в
+   конце круга видны все. Нажатие на кандидата подставляет его вручную.
+   ===================================================================== */
+const PromptDemo = (() => {
+  const E = L23, SHOW = 5, STEP = 1100, HOLD = 2600;
+  function init() {
+    const box = $('#pfCands'), slot = $('#pfSlot'); if (!box || !slot) return null;
+    const sc = E.llmScores([]), order = E.SKILLS.map((s, i) => ({ text: s.text, v: sc[i] })).sort((a, b) => b.v - a.v);
+    const top = order.slice(0, SHOW), rest = order.slice(SHOW), restSum = rest.reduce((a, x) => a + x.v, 0);
+    const blank = slot.textContent, rows = [];
+    let timer = 0, j = -1, manual = false;
+    /** Кандидат k стоит в строке ответа (k < 0 — пропуск); оценки видны у кандидатов до k включительно или у всех. */
+    function show(k, all) {
+      j = k;
+      rows.forEach((r, i) => { r.classList.toggle('cur', i === k); r.classList.toggle('scored', all || i <= k); r.setAttribute('aria-pressed', String(i === k)); });
+      slot.textContent = k < 0 ? blank : top[k].text; slot.classList.toggle('filled', k >= 0);
+    }
+    top.forEach((o, i) => {
+      const bar = h('span', { class: 'bar' }, h('i', { style: `--c:var(--e2e);--w:${(o.v * 100).toFixed(1)}%` }), h('b', null, fmt(o.v, 2)));
+      const r = h('button', { type: 'button', class: 'pf-row', 'aria-pressed': 'false', title: 'Подставить этот навык в строку ответа' }, h('span', { class: 'pf-name' }, o.text), bar);
+      r.addEventListener('click', () => { stop(); manual = true; show(i, true); });
+      rows.push(r); box.append(r);
+    });
+    box.append(h('div', { class: 'pf-rest' }, `… ещё ${rest.length} навыков, в сумме ${fmt(restSum, 2)}`));
+    function stop() { clearTimeout(timer); timer = 0; }
+    function tick() {
+      const n = j + 1;
+      if (n < top.length) { show(n); timer = setTimeout(tick, STEP / SPEED.k); }
+      else { show(-1, true); rows[0].classList.add('best'); timer = setTimeout(() => { rows[0].classList.remove('best'); tick(); }, HOLD / SPEED.k); }
+    }
+    function start() { if (timer || manual) return; j = -1; show(-1, false); tick(); }
+    if (HeroKit.reduced()) { show(-1, true); return { show, top }; }
+    const io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) start(); else { stop(); manual = false; } }, { rootMargin: '0px 0px -10% 0px' });
+    io.observe(box);
+    return { show, top, start, stop };
+  }
+  return { init };
+})();
+
+/* =====================================================================
+   Числа из статей — диаграммой (образец для всего курса).
+   statBars(el, spec) — столбцы по группам, число на каждом столбце:
+     spec = { series: [{ id, label, color }],                 ряды: подпись легенды и цвет (CSS)
+              groups: [{ label, values: { id: число | null } }], группы столбцов; null — столбца нет
+              max: 100, unit: '%', ticks: [0, 50, 100], height: 150 }   ось слева, деления по ticks
+   statMeter(el, spec) — одна полоса на две части (доля и остаток):
+     spec = { title, label, value, rest, max: 100, unit: '%', color }
+   Подписи — цветом текста, цвет только у столбцов; шрифты, размеры и темы — из
+   CSS (l23.css, .sb-* и .sm-*), на телефоне столбцы ниже и у́же.
+   ===================================================================== */
+function statBars(el, spec) {
+  const max = spec.max || 100, unit = spec.unit == null ? '%' : spec.unit, ticks = spec.ticks || [0, 50, 100];
+  el.innerHTML = ''; el.classList.add('sb'); if (spec.height) el.style.setProperty('--sb-h', spec.height + 'px');
+  if (spec.series.length > 1) el.append(h('div', { class: 'sb-legend' }, spec.series.map((sr) => h('span', null, h('i', { style: `--c:${sr.color}` }), sr.label))));
+  const plot = h('div', { class: 'sb-plot', style: `grid-template-columns: repeat(${spec.groups.length}, minmax(0, 1fr))` });
+  plot.append(h('div', { class: 'sb-axis', 'aria-hidden': 'true' }, ticks.map((t) => h('span', { class: 'sb-tick' + (t ? '' : ' zero'), style: `--p:${t / max * 100}` }, h('em', null, fmt(t, 0) + unit)))));
+  spec.groups.forEach((g, gi) => {
+    const bars = h('div', { class: 'sb-bars', style: `grid-column:${gi + 1}` });
+    for (const sr of spec.series) {
+      const v = g.values[sr.id]; if (v == null) continue;
+      bars.append(h('div', { class: 'sb-bar', style: `--v:${v / max * 100};--c:${sr.color}`, title: `${g.label}: ${sr.label} ${fmt(v, 0)}${unit}` }, h('b', null, fmt(v, 0) + unit), h('i')));
+    }
+    plot.append(bars, h('div', { class: 'sb-glab', style: `grid-column:${gi + 1}` }, g.label));
+  });
+  el.append(plot);
+  return el;
+}
+function statMeter(el, spec) {
+  const max = spec.max || 100, unit = spec.unit == null ? '%' : spec.unit, v = spec.value;
+  el.innerHTML = ''; el.classList.add('sm');
+  if (spec.title) el.append(h('div', { class: 'sm-h' }, spec.title));
+  el.append(h('div', { class: 'sm-bar', style: `--v:${v / max * 100}%;--c:${spec.color}`, title: `${spec.label} ${fmt(v, 0)}${unit}, ${spec.rest} ${fmt(max - v, 0)}${unit}` }, h('i', { class: 'sm-fill' }), h('i', { class: 'sm-rest' })));
+  el.append(h('div', { class: 'sm-labs' }, h('span', null, h('b', null, fmt(v, 0) + unit), ' ', spec.label), h('span', null, h('b', null, fmt(max - v, 0) + unit), ' ', spec.rest)));
+  return el;
+}
+/** Диаграмма раздела SayCan: таблицы 2 и 3 статьи (101 просьба) и доли ошибок. */
+function initStats() {
+  const a = $('#sStats'), b = $('#sErrs'); if (!a || !b) return;
+  statBars(a, {
+    series: [{ id: 'plan', label: 'верный план', color: 'var(--classic)' }, { id: 'exec', label: 'задача доведена до конца', color: 'var(--e2e)' }],
+    groups: [
+      { label: 'макет кухни', values: { plan: 84, exec: 74 } },
+      { label: 'настоящая кухня', values: { plan: 81, exec: 60 } },
+      { label: 'макет, без функций ценности', values: { plan: 67, exec: null } },
+      { label: 'макет, FLAN вместо PaLM', values: { plan: 70, exec: 61 } },
+    ],
+  });
+  statMeter(b, { title: 'Откуда ошибки', label: 'языковая модель', rest: 'функции ценности', value: 65, color: 'var(--hybrid)' });
+}
 
 /* ---------- Квиз ---------- */
 function renderQuiz(boxSel, Q, scoreSel) {
@@ -899,9 +1003,10 @@ function initQuiz() {
     safe('theme', initTheme); safe('nav', initNav);
     safe('plan', () => { mis.plan = LabPlan.init(); }); safe('mono', () => { mis.mono = LabMono.init(); });
     safe('code', () => { mis.code = LabCode.init(); }); safe('vox', () => { mis.vox = LabVox.init(); });
+    safe('prompt', () => { mis.prompt = PromptDemo.init(); }); safe('stats', initStats);
     safe('quiz', initQuiz);
     safe('count', () => { const n = ['sMis', 'mMis', 'cMis', 'vMis'].reduce((s, id) => s + Math.max(0, $$('#' + id + ' .g-steps li').length - 1), 0); $('#heroMis').textContent = `${n} ${plural(n, 'миссия', 'миссии', 'миссий')} с целью`; });
-    window.__l23 = { mis, SPEED, LabPlan, LabMono, LabCode, LabVox, L23 }; window.__lessonReady = true;
+    window.__l23 = { mis, SPEED, LabPlan, LabMono, LabCode, LabVox, L23, statBars, statMeter }; window.__lessonReady = true;
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();

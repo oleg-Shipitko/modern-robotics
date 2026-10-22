@@ -57,7 +57,7 @@ LESSONS = {
         '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'l22/engine.js', 'shared/anim.js', 'l22/flow.js', 'l22/ui-l22.js'],
     }),
     'l23': ('2-3-llm-planirovshchiki.html', ['l01/lesson.css', 'shared/lab.css', 'l23/l23.css'], {
-        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'l23/engine.js', 'l23/ui-l23.js'],
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'l23/engine.js', 'shared/anim.js', 'l23/flow.js', 'l23/ui-l23.js'],
     }),
     # часть 3: мир стола из 2.1 (l21/engine.js) для 3.1–3.6, рука Ады (shared/arm-core.js) для 3.7, схемы — shared/anim.js
     'l31': ('3-1-rt-1.html', ['l01/lesson.css', 'shared/lab.css', 'l31/l31.css'], {
