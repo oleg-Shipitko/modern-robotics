@@ -25,6 +25,16 @@
       ]
     },
     {
+      "v": "3.5",
+      "date": "2026-10-22",
+      "title": "Lesson 2.3 made clearer: the SayCan prompt, numbers as a chart, a VoxPoser diagram",
+      "items": [
+        "Lesson 2.3 shows the SayCan prompt as it is: the examples set the format of a step list, after a new request the model has to continue the line “Robot: 1.”, and SayCan fills the blank with each skill's description and asks the model to score it. The PaLM-SayCan results from the paper are a bar chart instead of a paragraph of numbers. A new animated VoxPoser diagram shows how the language model writes code, the detector finds objects, the code fills the attraction and avoidance maps, and the planner builds the path and replans on the move.",
+        "In the VoxPoser lab, the mission “Comment out the avoidance map” was credited only through its own button, not through the buttons under the code, so the next mission never appeared. Fixed.",
+        "Part checks now link straight to the first lesson of the next part once it is out, next to the course program link. The part 2 question about the “where to pick” map asks where the map puts its peak."
+      ]
+    },
+    {
       "v": "3.4",
       "date": "2026-10-22",
       "title": "Lesson 2.2 made clearer: cross-entropy, latents and the PerAct diagram",
