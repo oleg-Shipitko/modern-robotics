@@ -136,7 +136,7 @@ LESSONS = {
         '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'shared/ada-legs.js', 'l64/engine.js', 'l64/ui-l64.js'],
     }),
     'l65': ('6-5-apparatnaya-chast.html', ['l01/lesson.css', 'shared/lab.css', 'l65/l65.css'], {
-        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'shared/ada-legs.js', 'l65/engine.js', 'l65/ui-l65.js'],
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'shared/ada-legs.js', 'shared/stats-chart.js', 'l65/engine.js', 'l65/ui-l65.js'],
     }),
     'l66': ('6-6-obzor-platform.html', ['l01/lesson.css', 'shared/lab.css', 'l66/l66.css'], {
         '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'shared/ada-legs.js', 'l66/engine.js', 'l66/ui-l66.js'],
