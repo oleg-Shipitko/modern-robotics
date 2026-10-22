@@ -1708,5 +1708,41 @@
   "t": "RGB-D",
   "d": "A depth camera: together with the color image (RGB) it gives the distance to every pixel (D, depth). Color and depth are turned into a point cloud and a voxel grid. How the camera measures depth is shown in the diagram in lesson 0.2.",
   "a": "RGB-D|depth cameras?"
+ },
+ {
+  "id": "loco-manipulation",
+  "t": "Loco-manipulation",
+  "d": "Work with the hands during which the body also walks, squats or bends: carrying a cup, pushing a door open, squatting for an object. The arms and legs are coupled: a load changes the balance, and a step changes where the hand reaches, so walking and manipulation are hard to hand to separate controllers.",
+  "a": "loco-?manipulation"
+ },
+ {
+  "id": "whole-body-controller",
+  "t": "Whole-body controller",
+  "d": "The lower level of humanoid control: a policy trained with reinforcement learning in a simulator, such as the tracker from lesson 6.3, which 50 times a second receives a command from the upper-level model and the readings of the body's sensors and outputs target joint angles so that the robot keeps its balance. In the labs of lesson 6.4, its place is taken by a classical stepping controller.",
+  "a": "whole-body controllers?|body controllers?"
+ },
+ {
+  "id": "whole-body-teleop",
+  "t": "Whole-body teleoperation",
+  "d": "Teleoperation in which the operator drives the robot as a whole, from the feet to the hands: from a pose in front of a single camera (HumanPlus), from a VR headset with trackers on the legs (TWIST2) or from a motion capture system (TWIST). What gets recorded is the same command that the whole-body controller receives, so the recordings are immediately usable as actions for an autonomous policy.",
+  "a": "whole-body teleoperation"
+ },
+ {
+  "id": "shadowing",
+  "t": "Shadowing",
+  "d": "Teleoperation in HumanPlus: the operator stands next to the robot in front of an ordinary webcam, a pose estimator recovers the pose of the operator's body 25 times a second, retargeting turns it into a target pose for the robot, and the whole-body tracker executes it. One person drives the robot's whole body, including walking and squats, and the equipment costs $50.",
+  "a": "shadowing(?! transformer)"
+ },
+ {
+  "id": "level-interface",
+  "t": "Interface between the levels",
+  "d": "Which numbers the upper-level model passes to the whole-body controller and what they mean: the torso velocity and height (HOMIE, AMO), the positions of the head and hands (OmniH2O, SONIC's three points), the angles of all the joints or the foot poses (HumanPlus, TWIST2, Atlas, Helix 02), or a learned vector (LeVERB, SONIC's tokens). A simple interface is easy to learn, and the model's errors don't bring the robot down; a detailed one lets the model control the legs but demands precision from it.",
+  "a": "interfaces? between (?:the )?levels|level interfaces?"
+ },
+ {
+  "id": "motion-token",
+  "t": "Motion token",
+  "d": "A learned code for a frame of whole-body motion in SONIC: 64 numbers that the tracker can execute. A VLA model that output tokens instead of explicit poses of all the joints succeeded on loco-manipulation tasks in 68% of attempts on average versus 27%: a compact space is easier to learn, and small errors in whole-body poses turn into large tracking errors.",
+  "a": "(?:universal )?motion tokens?"
  }
 ]
