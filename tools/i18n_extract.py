@@ -13,7 +13,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent / 'lessons'
 SITE = ROOT.parent / 'site'
 SHARED = ['shared/missions.js', 'shared/cards.js', 'shared/check.js', 'shared/thanks.js', 'shared/feedback.js',
           'shared/glossary.js', 'shared/recall.js', 'shared/progress.js', 'shared/guide.js', 'shared/kit.js',
-          'shared/anim.js', 'shared/drive-lab.js', 'shared/kettle-draw.js', 'shared/drive-core.js', 'shared/kettle-core.js',
+          'shared/anim.js', 'shared/stats-chart.js', 'shared/drive-lab.js', 'shared/kettle-draw.js', 'shared/drive-core.js', 'shared/kettle-core.js',
           'shared/arm-core.js', 'shared/actuator-core.js', 'shared/mpc-core.js', 'l01/ui-core.js']
 SITE_JS = ['assets/hero/modes.js', 'assets/hero/cspace.js', 'assets/hero/walk.js']  # kit.js и thanks.js — копии из shared
 CYR = re.compile(r'[А-Яа-яЁё]')

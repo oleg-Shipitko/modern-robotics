@@ -35,7 +35,7 @@ lessons/     course lessons
   lNM/       lesson N.M: lesson.html and lesson.en.html, styles, the lab engine and UI, i18n.en.json with the English JS strings
   cN/        the check at the end of part N
   shared/    common modules: canvas helpers (kit.js), lab missions (missions.js), card sorting (cards.js),
-             animated diagrams (anim.js), glossary with first-mention hints (glossary.json, glossary.en.json),
+             animated diagrams (anim.js), bar charts of numbers from papers (stats-chart.js), glossary with first-mention hints (glossary.json, glossary.en.json),
              warm-up questions, progress, feedback, statistics, the "Say thanks" button,
              shared lab engines (Ada's home, the arm, the actuator model, MPC, Ada with legs)
 server/      thanks/ — the "Say thanks" counter; stats/ — anonymous lesson statistics (Yandex Cloud Functions and YDB serverless)
@@ -115,7 +115,7 @@ lessons/     уроки курса
   lNM/       урок N.M: lesson.html и lesson.en.html, стили, движок и интерфейс лабораторий, i18n.en.json с английскими строками JS
   cN/        проверка в конце части N
   shared/    общие модули: канвас и подписи (kit.js), миссии лабораторий (missions.js), сортировка карточек (cards.js),
-             анимированные схемы (anim.js), глоссарий с подсказками к первому упоминанию (glossary.json, glossary.en.json),
+             анимированные схемы (anim.js), диаграммы чисел из статей (stats-chart.js), глоссарий с подсказками к первому упоминанию (glossary.json, glossary.en.json),
              разминка, прогресс, отзыв, статистика, кнопка «Сказать спасибо»,
              общие движки лабораторий (дом Ады, рука, модель привода, MPC, Ада с ногами)
 server/      thanks/ — счётчик «Сказать спасибо»; stats/ — анонимная статистика уроков (Yandex Cloud Functions и YDB serverless)

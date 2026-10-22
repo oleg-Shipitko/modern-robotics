@@ -1,5 +1,8 @@
 // Урок 2.3 «LLM-планировщики и VoxPoser»: лаборатории дают обещанные в тексте исходы, миссии проходятся через интерфейс,
-// консоль чиста, телефон без горизонтальной прокрутки. Снимки — shots/l23-*.png.
+// консоль чиста, телефон без горизонтальной прокрутки. Схема подсказки SayCan показывает кандидатов с оценками, диаграмма
+// чисел из статьи собрана из таблиц 2 и 3 общим модулем shared/stats-chart.js, анимированная схема устройства VoxPoser идёт и её подписи внутри канваса.
+// Миссия 2 лаборатории VoxPoser проходится кликами мышью, как читатель: раньше код, выполненный кнопками под кодом, не
+// засчитывался, и перехода к миссии 3 не было. Снимки — shots/l23-*.png (l23-prompt, l23-stats, l23-voxposer-scheme и телефонные l23-m-*).
 // Урок собирается на дату выпуска: MR_ASOF=2026-10-10 python3 lessons/build.py l23.
 const path = require('path');
 const fs = require('fs');
@@ -22,7 +25,72 @@ async function viaUI(p, mis, bet) {
   })()`, true).then(J);
 }
 const nextMission = (p, mis) => p.eval(`(() => { const b = document.querySelector('${mis} .g-next'); if (!b || b.hidden) return false; b.click(); return true; })()`);
+const nextVisible = (p, mis) => p.eval(`(() => { const b = document.querySelector('${mis} .g-next'); return !!b && !b.hidden; })()`);
 const critOk = (p, mis) => p.eval(`(() => { const li = [...document.querySelectorAll('${mis} .m-crit li')]; return li.length > 0 && li.every((x) => x.className === 'ok'); })()`);
+const outText = (p, mis) => p.eval(`(document.querySelector('${mis} .g-out:not([hidden])') || {}).textContent || ''`);
+/** Клик мышью по центру элемента, как читатель: прокрутка к нему, проверка, что под курсором именно он, настоящие события мыши. */
+async function mouseClick(p, sel, idx) {
+  const at = async () => p.eval(`(() => { const e = document.querySelectorAll(${JSON.stringify(sel)})[${idx || 0}]; if (!e) return null; e.scrollIntoView({ block: 'center', behavior: 'instant' }); const r = e.getBoundingClientRect(); const x = r.left + r.width / 2, y = r.top + r.height / 2; const t = document.elementFromPoint(x, y); return { x, y, hit: !!t && (t === e || e.contains(t)), dis: !!e.disabled }; })()`);
+  let r = await at(); if (!r) throw new Error('нет элемента ' + sel);
+  if (!r.hit) { await sleep(700); r = await at(); }                                  // страница ещё плавно прокручивается
+  await p.S('Input.dispatchMouseEvent', { type: 'mouseMoved', x: r.x, y: r.y });
+  await p.S('Input.dispatchMouseEvent', { type: 'mousePressed', x: r.x, y: r.y, button: 'left', clickCount: 1 });
+  await p.S('Input.dispatchMouseEvent', { type: 'mouseReleased', x: r.x, y: r.y, button: 'left', clickCount: 1 });
+  await sleep(100);
+  return r;
+}
+const waitFree = async (p, mis) => { for (let i = 0; i < 600 && await p.eval(`document.querySelector('${mis}').classList.contains('m-busy')`); i++) await sleep(50); await sleep(150); };
+/** Кадры схемы для проверки подписей и кадр для снимка. */
+const SCHEMES = { voxposer: { frames: [0.8, 2.6, 5, 7, 8.6, 10.2, 13, 16.5], shot: 13 } };
+const SCHEME_NAME = { voxposer: 'схема устройства VoxPoser' };
+/** Анимированная схема (shared/anim.js): на каждом кадре подписи внутри канваса, не мельче 9,6 px и не налезают друг на друга;
+ *  тексты кадров — для проверки содержания. Без anim.js в сборке схемы нет: none = true. */
+async function schemeLabels(p, kind, frames) {
+  return JSON.parse(await p.eval(`(() => {
+    const cv = document.querySelector('canvas[data-anim=${kind}]');
+    if (!cv || typeof Anim === 'undefined') return JSON.stringify({ none: true, bad: [] });
+    cv.scrollIntoView({ block: 'center' });
+    const orig = CanvasRenderingContext2D.prototype.fillText, bad = [], small = [], texts = {}, prints = new Set();
+    let boxes = null, W = 0, H = 0;
+    CanvasRenderingContext2D.prototype.fillText = function (txt, x, y) {
+      if (boxes && this.canvas === cv) {
+        const m = this.measureText(txt), fs = parseFloat(/([\\d.]+)px/.exec(this.font)[1]), a = this.textAlign;
+        const x0 = a === 'center' ? x - m.width / 2 : a === 'right' ? x - m.width : x;
+        boxes.push({ t: String(txt), fs, x0, x1: x0 + m.width, y0: y - fs / 2, y1: y + fs / 2 });
+      }
+      return orig.apply(this, arguments);
+    };
+    for (const t of ${JSON.stringify(frames)}) {
+      boxes = []; Anim.seek(cv, t); const b = boxes; boxes = null;
+      { const d = cv.toDataURL(); let hh = 0; for (let i = 0; i < d.length; i += 3) hh = (hh * 31 + d.charCodeAt(i)) >>> 0; prints.add(hh); }
+      [W, H] = cv.style.aspectRatio.split('/').map(Number); texts[t] = b.map((q) => q.t);
+      const kk = W / cv.getBoundingClientRect().width;
+      b.forEach((q) => { if (q.x0 < 1 || q.x1 > W - 1 || q.y0 < 0 || q.y1 > H) bad.push('t = ' + t + ': за краем «' + q.t + '»'); if (q.fs / kk < 9.6) small.push('t = ' + t + ': «' + q.t + '» ' + (q.fs / kk).toFixed(1) + ' px'); });
+      for (let i = 0; i < b.length; i++) for (let j = i + 1; j < b.length; j++) {
+        const ox = Math.min(b[i].x1, b[j].x1) - Math.max(b[i].x0, b[j].x0), oy = Math.min(b[i].y1, b[j].y1) - Math.max(b[i].y0, b[j].y0);
+        if (ox > 1 && oy > 1) bad.push('t = ' + t + ': «' + b[i].t + '» на «' + b[j].t + '»');
+      }
+    }
+    CanvasRenderingContext2D.prototype.fillText = orig;
+    return JSON.stringify({ layout: cv.dataset.layout, W, H, bad: bad.concat(small), texts, distinct: prints.size });
+  })()`));
+}
+/** Схема: подписи в канвасе, кадры этапов различаются, содержание ключевых кадров; снимок кадра. */
+async function schemeChecks(p, where, layout) {
+  for (const [kind, S] of Object.entries(SCHEMES)) {
+    const r = await schemeLabels(p, kind, S.frames);
+    if (r.none) { check(false, `${where}${SCHEME_NAME[kind]}: схемы нет — в build.py для l23 нужны shared/anim.js и l23/flow.js перед l23/ui-l23.js`); continue; }
+    check(r.layout === layout && r.bad.length === 0, `${where}${SCHEME_NAME[kind]} ${r.W}×${r.H}: подписи в канвасе, не мельче 9,6 px и не налезают` + (r.bad.length ? ': ' + r.bad.slice(0, 4).join('; ') : ''));
+    check(r.distinct === S.frames.length, `${where}${SCHEME_NAME[kind]}: кадры ${S.frames.length} этапов различаются (разных ${r.distinct})`);
+    const tx = (t) => r.texts[String(t)] || [];
+    check(tx(2.6).includes('языковая модель пишет код') && tx(2.6).includes('vase = detect("ваза")') && tx(5).includes('находит на кадре') && tx(5).includes('ваза') && tx(7).includes('карта притяжения') && tx(7).includes('карта избегания') && tx(8.6).includes('−2 ×') && tx(8.6).includes('стоимость'),
+      `${where}схема: просьба, код модели, детектор находит ручку и вазу, карты притяжения и избегания, стоимость как взвешенная сумма`);
+    check(tx(13).some((q) => /^пересчёт пути: \d+$/.test(q)) && tx(13).includes('5 раз в секунду') && tx(16.5).includes('захват у ручки'),
+      `${where}схема: езда с пересчётом пути 5 раз в секунду, в конце захват у ручки`);
+    await p.eval(`(() => { const cv = document.querySelector('canvas[data-anim=${kind}]'); Anim.seek(cv, ${S.shot}); cv.classList.remove('paused'); return true; })()`);
+    await p.shotEl(out(`l23-${where ? 'm-' : ''}${kind}-scheme.png`), `figure:has(> canvas[data-anim=${kind}])`, where ? 4 : 6);
+  }
+}
 (async () => {
   const B = await launch({ w: 1300, h: 1000 });
   console.log('компьютер');
@@ -33,7 +101,7 @@ const critOk = (p, mis) => p.eval(`(() => { const li = [...document.querySelecto
   // отсылки вперёд: первое упоминание модели из будущего урока в основном тексте (без разминки, глоссария, формул,
   // раздела «Сегодня» и итога) и в исходниках интерактивов идёт с номером урока «урок N.M» не дальше 160 символов; остальные упоминания свободны
   const fwdNames = ['RT-1', 'RT-2', 'Open X-Embodiment', 'Octo', 'OpenVLA', 'SmolVLA', 'π0', 'PaliGemma', 'Helix', 'GR00T', 'Gemini', 'PaLM-E'];
-  const fwdSrc = ['../lessons/l23/ui-l23.js', '../lessons/l23/engine.js'].map((f) => fs.readFileSync(path.resolve(__dirname, f), 'utf8')).join('\n');
+  const fwdSrc = ['../lessons/l23/ui-l23.js', '../lessons/l23/engine.js', '../lessons/l23/flow.js'].map((f) => fs.readFileSync(path.resolve(__dirname, f), 'utf8')).join('\n');
   const fwdCheck = async () => {
     const body = await p.eval('(() => { const m = document.querySelector("main").cloneNode(true); m.querySelectorAll("#recall, #glData, #today, #finale, .katex").forEach((e) => e.remove()); return m.textContent; })()');
     const near = (t, w) => { const i = t.indexOf(w); return i < 0 || /урок[а-яё]*\s+\d\.\d/i.test(t.slice(Math.max(0, i - 160), i + w.length + 160)); };
@@ -42,6 +110,18 @@ const critOk = (p, mis) => p.eval(`(() => { const li = [...document.querySelecto
   };
   check((await p.eval(`!!document.querySelector('a[href="proverka-chasti-2.html"]')`)), 'ссылка на проверку части 2 на месте');
   await p.eval('window.__l23.SPEED.k = 20; true');
+
+  // ---------- 0. Знание: подсказка SayCan с кандидатами ----------
+  console.log('Подсказка SayCan');
+  const pf = J(await p.eval(`JSON.stringify({ n: document.querySelectorAll('#pfCands .pf-row').length, top: window.__l23.mis.prompt.top.map((o) => [o.text, +o.v.toFixed(2)]), rest: document.querySelector('#pfCands .pf-rest').textContent, old: document.body.textContent.includes('какой навык?') })`));
+  check(pf.n === 5 && pf.top[0][0] === 'взять чашку из шкафа' && pf.top[0][1] === 0.52 && pf.top[1][0] === 'сварить кофе' && pf.top[2][0] === 'открыть шкаф', `кандидаты: ${pf.top.map((t) => `${t[0]} ${t[1]}`).join(', ')}`);
+  check(/ещё 6 навыков, в сумме 0,\d\d/.test(pf.rest) && !pf.old, 'остальные навыки одной строкой, «какой навык?» убран: ' + pf.rest);
+  const pf2 = J(await p.eval(`(() => { const P = window.__l23.mis.prompt; P.stop(); P.show(2, true); return JSON.stringify({ slot: document.getElementById('pfSlot').textContent, cur: document.querySelectorAll('#pfCands .pf-row.cur').length, scored: document.querySelectorAll('#pfCands .pf-row.scored').length }); })()`));
+  check(pf2.slot === 'открыть шкаф' && pf2.cur === 1 && pf2.scored === 5, 'кандидат встаёт в строку «Робот: 1.», оценки видны: ' + pf2.slot);
+  await p.eval(`document.querySelectorAll('#pfCands .pf-row')[0].click(); true`); await sleep(100);
+  check((await p.eval(`document.getElementById('pfSlot').textContent`)) === 'взять чашку из шкафа', 'нажатие на кандидата подставляет его в строку ответа');
+  await p.eval(`window.__l23.mis.prompt.show(2, true); true`); await sleep(500);
+  await p.shotEl(out('l23-prompt.png'), '.prompt-fig', 6);
 
   // ---------- 1. SayCan: миссии через интерфейс ----------
   console.log('SayCan');
@@ -78,6 +158,13 @@ const critOk = (p, mis) => p.eval(`(() => { const li = [...document.querySelecto
   check(s5.saycan.ids[0] === 'brew' && !['open', 'cup', 'place'].some((x) => s5.saycan.ids.includes(x)) && s5.saycan.success && await critOk(p, '#sMis'), `миссия 5: SayCan начинает с «сварить кофе», ${s5.saycan.n} шагов`);
   check(s5.llm.ids[0] === 'cup' && s5.llm.ids[1] === 'place' && s5.llm.fails === 2 && s5.llm.success, 'одна языковая модель: два первых шага срываются, но кофе готов');
   await p.eval(`document.getElementById('saycan').scrollIntoView({ behavior: 'instant' }); true`); await sleep(300); await p.shotEl(out('l23-saycan-world.png'), '#saycan .lab', 6);
+  // диаграмма чисел из статьи: таблицы 2 и 3, доли ошибок
+  const sb = J(await p.eval(`JSON.stringify({ vals: [...document.querySelectorAll('#sStats .sb-bar b')].map((b) => b.textContent), legend: [...document.querySelectorAll('#sStats .sb-legend span')].map((s) => s.textContent), groups: [...document.querySelectorAll('#sStats .sb-glab')].map((g) => g.textContent), ticks: [...document.querySelectorAll('#sStats .sb-tick em')].map((e) => e.textContent), fill: document.querySelector('#sErrs .sm-fill').style.getPropertyValue('--v') || getComputedStyle(document.querySelector('#sErrs .sm-bar')).getPropertyValue('--v'), labs: [...document.querySelectorAll('#sErrs .sm-labs span')].map((s) => s.textContent), cap: document.querySelector('.stat-cap').textContent })`));
+  check(sb.vals.join(' ') === '84% 74% 81% 60% 67% 70% 61%' && sb.groups.length === 4 && sb.legend.join(' | ') === 'верный план | задача доведена до конца', 'диаграмма SayCan: столбцы ' + sb.vals.join(' ') + ', группы: ' + sb.groups.join('; '));
+  check(sb.ticks.join(' ') === '0% 50% 100%' && sb.fill.trim() === '65%' && sb.labs.join(' | ') === '65% языковая модель | 35% функции ценности', 'ось 0–100 %, доли ошибок 65 / 35');
+  check(/84%.*74%.*81%.*60%.*67%.*70%.*61%.*65%.*35%/.test(sb.cap) && !/84%/.test(await p.eval(`document.querySelector('#saycan .stat-fig + .prose p').textContent`)), 'числа — в подписи диаграммы, абзац после неё — вывод без чисел');
+  check(await p.eval(`typeof window.StatsChart === 'object' && window.__l23.statBars === window.StatsChart.bars && window.__l23.statMeter === window.StatsChart.meter && document.getElementById('sStats').classList.contains('stat-bars') && document.getElementById('sErrs').classList.contains('stat-meter')`), 'диаграмму строит общий модуль shared/stats-chart.js (StatsChart.bars и StatsChart.meter)');
+  await p.shotEl(out('l23-stats.png'), '.stat-fig', 6);
 
   // ---------- 2. Inner Monologue ----------
   console.log('Inner Monologue');
@@ -125,22 +212,32 @@ const critOk = (p, mis) => p.eval(`(() => { const li = [...document.querySelecto
   const c4 = J(await p.eval(`JSON.stringify(window.__l23.LabCode.api.finish())`));
   check(c4.moves === 9, 'без проскальзывания — 9 сдвигов («вместо 9» в разборе)');
 
-  // ---------- 4. VoxPoser ----------
+  // ---------- 4. VoxPoser: схема устройства, миссии 1 и 2 мышью, как читатель ----------
   console.log('VoxPoser');
-  const v1 = J(await p.eval(`(() => { const X = window.__l23.LabVox.api; for (let i = 0; i < 12; i++) X.stepLine(); return JSON.stringify(X.state()); })()`));
-  check(v1.all && v1.reached && !v1.hit && v1.gapCm > 0, `миссия 1: путь ${v1.lenCm.toFixed(0)} см, до ручки, зазор до вазы ${v1.gapCm.toFixed(1)} см`);
-  check(await critOk(p, '#vMis'), 'миссия 1 засчитана');
+  await schemeChecks(p, '', 'w');
+  const vState = () => p.eval(`JSON.stringify(window.__l23.LabVox.api.state())`).then(J);
+  check(!(await p.eval(`document.getElementById('vBtns').hidden`)), 'миссия 1: кнопки «Выполнить строку» и «Выполнить всё» под кодом видны');
+  for (let i = 0; i < 9; i++) await mouseClick(p, '#vStep');
+  const v1 = await vState();
+  check(v1.all && v1.reached && !v1.hit && v1.gapCm > 0, `миссия 1: девять нажатий «Выполнить строку» мышью — путь ${v1.lenCm.toFixed(0)} см, до ручки, зазор до вазы ${v1.gapCm.toFixed(1)} см`);
+  check(await critOk(p, '#vMis') && await nextVisible(p, '#vMis'), 'миссия 1 засчитана, кнопка «Следующая миссия» видна');
   await p.eval(`document.getElementById('voxposer').scrollIntoView({ behavior: 'instant' }); true`); await sleep(300); await p.shotEl(out('l23-voxposer.png'), '#voxposer .lab', 6);
-  await nextMission(p, '#vMis');
-  await p.eval(`document.querySelector('#vCode .code-ln.tog').click(); true`); await sleep(100);
-  check(J(await p.eval(`JSON.stringify(window.__l23.LabVox.api.state())`)).path === false, 'после правки кода путь скрыт до запуска (ставку не выдаёт)');
-  r = await viaUI(p, '#vMis', 1);
-  const v2 = J(await p.eval(`JSON.stringify(window.__l23.LabVox.api.state())`));
-  check(r.ok && !v2.avoid && v2.hit, `миссия 2: без карты избегания путь ${v2.lenCm.toFixed(0)} см и задевает вазу`);
+  await mouseClick(p, '#vMis .g-next'); await sleep(900);                              // карточка плавно прокручивается к условию миссии 2
+  check((await p.eval(`window.__l23.mis.vox.index`)) === 1 && await p.eval(`document.getElementById('vBtns').hidden`), 'миссия 2: кнопки под кодом скрыты — код запускает кнопка «Выполнить код» в карточке миссии');
+  await mouseClick(p, '#vMis .m-bet .opts .btn', 1);
+  await mouseClick(p, '#vCode .code-ln.tog', 1);
+  const v2a = await vState();
+  check(!v2a.avoid && v2a.pc === 0 && v2a.path === false, 'нажатие мышью на строку карты избегания комментирует её; карты и путь скрыты до запуска (ставку не выдаёт)');
+  const goBtn = await mouseClick(p, '#vMis .g-go');
+  check(!goBtn.dis, 'после ставки кнопка «Выполнить код» доступна');
+  await waitFree(p, '#vMis');
+  const v2 = await vState();
+  check(await critOk(p, '#vMis') && !v2.avoid && v2.hit, `миссия 2 кликами мышью: без карты избегания путь ${v2.lenCm.toFixed(0)} см и задевает вазу — засчитана`);
+  check(await nextVisible(p, '#vMis') && /Ставка сыграла/.test(await outText(p, '#vMis')), 'переход к миссии 3 появился, ставка сыграла');
   await p.eval(`window.__l23.LabVox.api.setView('avoid'); true`);
   await nextMission(p, '#vMis'); await sleep(100);
-  const v3a = J(await p.eval(`JSON.stringify(window.__l23.LabVox.api.state())`));
-  check(v3a.avoid && v3a.path && !v3a.hit, 'миссия 3: строки избегания вернулись, ваза в стороне от пути');
+  const v3a = await vState();
+  check(v3a.avoid && v3a.path && !v3a.hit && !(await p.eval(`document.getElementById('vBtns').hidden`)), 'миссия 3: строки избегания вернулись, ваза в стороне от пути, кнопки под кодом снова видны');
   const mid = J(await p.eval(`JSON.stringify(window.__l23.LabVox.st.plan.path[Math.floor(window.__l23.LabVox.st.plan.path.length / 2)])`));
   const v3 = J(await p.eval(`JSON.stringify(window.__l23.LabVox.api.dragVase(${JSON.stringify(mid)}))`));
   check(v3.onOld && !v3.hit && v3.reached && await critOk(p, '#vMis'), `миссия 3: ваза на прежнем пути, новый путь обходит её с зазором ${v3.gapCm.toFixed(1)} см`);
@@ -160,7 +257,7 @@ const critOk = (p, mis) => p.eval(`(() => { const li = [...document.querySelecto
   await p.eval(`document.getElementById('voxposer').scrollIntoView({ behavior: 'instant' }); true`); await sleep(300); await p.shotEl(out('l23-voxposer-go.png'), '#voxposer .lab', 6);
   await p.eval('window.__l23.SPEED.k = 20; true');
   await nextMission(p, '#vMis'); await sleep(100);
-  const w02 = J(await p.eval(`JSON.stringify(window.__l23.LabVox.api.state())`));
+  const w02 = await vState();
   check(w02.wo === 0.2 && w02.hit, 'миссия 5: вес 0,2 — путь задевает вазу');
   const w1 = J(await p.eval(`(window.__l23.LabVox.api.setW(1), JSON.stringify(window.__l23.LabVox.api.state()))`));
   check(!w1.hit && w1.gapCm <= 5 && w1.reached && await critOk(p, '#vMis'), `вес 1 (как в статье при весе притяжения 2): зазор ${w1.gapCm.toFixed(1)} см — миссия засчитана`);
@@ -180,6 +277,7 @@ const critOk = (p, mis) => p.eval(`(() => { const li = [...document.querySelecto
   await p.eval(`document.documentElement.dataset.theme = 'dark'; window.dispatchEvent(new Event('resize')); true`); await sleep(500);
   await p.eval(`window.__l23.LabPlan.api.select('saycan', 1); true`);
   await p.eval(`document.getElementById('saycan').scrollIntoView({ behavior: 'instant' }); true`); await sleep(300); await p.shotEl(out('l23-saycan-dark.png'), '#saycan .lab', 6);
+  await p.shotEl(out('l23-stats-dark.png'), '.stat-fig', 6);
   await p.eval(`document.getElementById('voxposer').scrollIntoView({ behavior: 'instant' }); true`); await sleep(300); await p.shotEl(out('l23-voxposer-dark.png'), '#voxposer .lab', 6);
   await p.eval(`document.getElementById('code').scrollIntoView({ behavior: 'instant' }); true`); await sleep(300); await p.shotEl(out('l23-code-dark.png'), '#code .lab', 6);
 
@@ -189,13 +287,25 @@ const critOk = (p, mis) => p.eval(`(() => { const li = [...document.querySelecto
   await m.eval('window.__l23.SPEED.k = 20; true');
   await m.eval(`window.__l23.LabPlan.api.run('llm').then(() => window.__l23.LabPlan.api.run('saycan')).then(() => true)`, true);
   await m.eval(`window.__l23.LabMono.api.run().then(() => true)`, true);
-  await m.eval(`(window.__l23.LabCode.api.finish(), window.__l23.LabVox.api.runAll(), true)`);
+  await m.eval(`window.__l23.LabCode.api.finish(); true`);
+  // VoxPoser на телефоне: миссия 1 строками, в миссии 2 код запущен кнопкой «Выполнить всё» под кодом (она скрыта, но
+  // нажата программно, как если бы снова появилась): страховка viaMission засчитывает миссию через её кнопку
+  await m.eval(`(() => { const X = window.__l23.LabVox.api; for (let i = 0; i < 12; i++) X.stepLine(); return true; })()`);
+  check(await critOk(m, '#vMis'), 'телефон: миссия 1 VoxPoser засчитана');
+  await nextMission(m, '#vMis'); await sleep(200);
+  await m.eval(`(() => { const root = document.querySelector('#vMis'); root.querySelectorAll('.m-bet .opts .btn')[1].click(); document.querySelectorAll('#vCode .code-ln.tog')[0].click(); document.getElementById('vAll').click(); return true; })()`);
+  await waitFree(m, '#vMis');
+  check(await critOk(m, '#vMis') && await nextVisible(m, '#vMis'), 'телефон: код в миссии 2 выполнен кнопкой под кодом — миссия всё равно засчитана, переход к миссии 3 виден');
+  await m.eval(`window.__l23.mis.prompt.stop(); window.__l23.mis.prompt.show(2, true); true`);
   check((await m.eval('document.documentElement.scrollWidth')) <= 390, 'телефон: ширина ' + await m.eval('document.documentElement.scrollWidth'));
+  const over = await m.eval(`JSON.stringify([...document.querySelectorAll('.lab, .prompt-fig, .stat-fig, .scheme-fig')].filter((e) => e.scrollWidth > e.clientWidth + 1).map((e) => (e.closest('section') || {}).id + ' ' + e.className))`);
+  check(over === '[]', 'на телефоне содержимое лабораторий, подсказки и диаграммы не шире карточек ' + (over === '[]' ? '' : over));
   await m.S('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
-  for (const [id, n] of [['llm', 'l23-m-llm.png'], ['saycan', 'l23-m-saycan.png'], ['monologue', 'l23-m-monologue.png'], ['code', 'l23-m-code.png'], ['voxposer', 'l23-m-voxposer.png']]) {
+  for (const [id, sel, n] of [['llm', '#llm .wrap', 'l23-m-llm.png'], ['llm', '.prompt-fig', 'l23-m-prompt.png'], ['saycan', '#saycan .lab', 'l23-m-saycan.png'], ['saycan', '.stat-fig', 'l23-m-stats.png'], ['monologue', '#monologue .lab', 'l23-m-monologue.png'], ['code', '#code .lab', 'l23-m-code.png'], ['voxposer', '#voxposer .lab', 'l23-m-voxposer.png']]) {
     await m.eval(`document.getElementById('${id}').scrollIntoView({ behavior: 'instant' }); true`); await sleep(300);
-    await m.shotEl(out(n), id === 'llm' ? '#llm .wrap' : '#' + id + ' .lab', 4);
+    await m.shotEl(out(n), sel, 4);
   }
+  await schemeChecks(m, 'телефон: ', 'n');
   check(!m.logs.length, 'консоль телефона: ' + (m.logs.join(' | ') || 'чисто'));
   await B.close();
   console.log(bad ? `ИТОГ: ${bad} проверок не прошли` : 'ИТОГ: все проверки прошли');

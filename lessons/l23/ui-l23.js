@@ -11,7 +11,7 @@
       вазу можно двигать, в том числе пока захват едет.
    Кроме лабораторий: схема подсказки SayCan (раздел 1, PromptDemo) — кандидаты
    по очереди подставляются в строку «Робот: 1.» и получают оценку; диаграмма
-   чисел из статьи SayCan (statBars и statMeter, образец для других уроков).
+   чисел из статьи SayCan — общий модуль shared/stats-chart.js (StatsChart.bars и StatsChart.meter).
    Движок — l23/engine.js (без DOM); схема устройства VoxPoser — l23/flow.js.
    ===================================================================== */
 'use strict';
@@ -910,46 +910,10 @@ const PromptDemo = (() => {
   return { init };
 })();
 
-/* =====================================================================
-   Числа из статей — диаграммой (образец для всего курса).
-   statBars(el, spec) — столбцы по группам, число на каждом столбце:
-     spec = { series: [{ id, label, color }],                 ряды: подпись легенды и цвет (CSS)
-              groups: [{ label, values: { id: число | null } }], группы столбцов; null — столбца нет
-              max: 100, unit: '%', ticks: [0, 50, 100], height: 150 }   ось слева, деления по ticks
-   statMeter(el, spec) — одна полоса на две части (доля и остаток):
-     spec = { title, label, value, rest, max: 100, unit: '%', color }
-   Подписи — цветом текста, цвет только у столбцов; шрифты, размеры и темы — из
-   CSS (l23.css, .sb-* и .sm-*), на телефоне столбцы ниже и у́же.
-   ===================================================================== */
-function statBars(el, spec) {
-  const max = spec.max || 100, unit = spec.unit == null ? '%' : spec.unit, ticks = spec.ticks || [0, 50, 100];
-  el.innerHTML = ''; el.classList.add('sb'); if (spec.height) el.style.setProperty('--sb-h', spec.height + 'px');
-  if (spec.series.length > 1) el.append(h('div', { class: 'sb-legend' }, spec.series.map((sr) => h('span', null, h('i', { style: `--c:${sr.color}` }), sr.label))));
-  const plot = h('div', { class: 'sb-plot', style: `grid-template-columns: repeat(${spec.groups.length}, minmax(0, 1fr))` });
-  plot.append(h('div', { class: 'sb-axis', 'aria-hidden': 'true' }, ticks.map((t) => h('span', { class: 'sb-tick' + (t ? '' : ' zero'), style: `--p:${t / max * 100}` }, h('em', null, fmt(t, 0) + unit)))));
-  spec.groups.forEach((g, gi) => {
-    const bars = h('div', { class: 'sb-bars', style: `grid-column:${gi + 1}` });
-    for (const sr of spec.series) {
-      const v = g.values[sr.id]; if (v == null) continue;
-      bars.append(h('div', { class: 'sb-bar', style: `--v:${v / max * 100};--c:${sr.color}`, title: `${g.label}: ${sr.label} ${fmt(v, 0)}${unit}` }, h('b', null, fmt(v, 0) + unit), h('i')));
-    }
-    plot.append(bars, h('div', { class: 'sb-glab', style: `grid-column:${gi + 1}` }, g.label));
-  });
-  el.append(plot);
-  return el;
-}
-function statMeter(el, spec) {
-  const max = spec.max || 100, unit = spec.unit == null ? '%' : spec.unit, v = spec.value;
-  el.innerHTML = ''; el.classList.add('sm');
-  if (spec.title) el.append(h('div', { class: 'sm-h' }, spec.title));
-  el.append(h('div', { class: 'sm-bar', style: `--v:${v / max * 100}%;--c:${spec.color}`, title: `${spec.label} ${fmt(v, 0)}${unit}, ${spec.rest} ${fmt(max - v, 0)}${unit}` }, h('i', { class: 'sm-fill' }), h('i', { class: 'sm-rest' })));
-  el.append(h('div', { class: 'sm-labs' }, h('span', null, h('b', null, fmt(v, 0) + unit), ' ', spec.label), h('span', null, h('b', null, fmt(max - v, 0) + unit), ' ', spec.rest)));
-  return el;
-}
-/** Диаграмма раздела SayCan: таблицы 2 и 3 статьи (101 просьба) и доли ошибок. */
+/** Диаграмма раздела SayCan: таблицы 2 и 3 статьи (101 просьба) и доли ошибок — общий модуль shared/stats-chart.js. */
 function initStats() {
   const a = $('#sStats'), b = $('#sErrs'); if (!a || !b) return;
-  statBars(a, {
+  StatsChart.bars(a, {
     series: [{ id: 'plan', label: 'верный план', color: 'var(--classic)' }, { id: 'exec', label: 'задача доведена до конца', color: 'var(--e2e)' }],
     groups: [
       { label: 'макет кухни', values: { plan: 84, exec: 74 } },
@@ -958,7 +922,7 @@ function initStats() {
       { label: 'макет, FLAN вместо PaLM', values: { plan: 70, exec: 61 } },
     ],
   });
-  statMeter(b, { title: 'Откуда ошибки', label: 'языковая модель', rest: 'функции ценности', value: 65, color: 'var(--hybrid)' });
+  StatsChart.meter(b, { title: 'Откуда ошибки', label: 'языковая модель', rest: 'функции ценности', value: 65, color: 'var(--hybrid)' });
 }
 
 /* ---------- Квиз ---------- */
@@ -1006,7 +970,7 @@ function initQuiz() {
     safe('prompt', () => { mis.prompt = PromptDemo.init(); }); safe('stats', initStats);
     safe('quiz', initQuiz);
     safe('count', () => { const n = ['sMis', 'mMis', 'cMis', 'vMis'].reduce((s, id) => s + Math.max(0, $$('#' + id + ' .g-steps li').length - 1), 0); $('#heroMis').textContent = `${n} ${plural(n, 'миссия', 'миссии', 'миссий')} с целью`; });
-    window.__l23 = { mis, SPEED, LabPlan, LabMono, LabCode, LabVox, L23, statBars, statMeter }; window.__lessonReady = true;
+    window.__l23 = { mis, SPEED, LabPlan, LabMono, LabCode, LabVox, L23, statBars: StatsChart.bars, statMeter: StatsChart.meter }; window.__lessonReady = true;
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
