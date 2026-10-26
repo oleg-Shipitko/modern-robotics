@@ -14,7 +14,6 @@
  "<b>Ставка не сыграла.</b> ": "<b>Your bet was wrong.</b> ",
  "Карточки": "Cards",
  "Проверить": "Check",
- "Разложено ${n} из ${spec.items.length}": "${n} of ${spec.items.length} placed",
  "Всё разложено — можно проверять": "All placed — ready to check",
  "<p><b>${score} из ${spec.items.length}.</b> ${score === spec.items.length ? 'Всё верно.' : 'Разбор ошибок:'}</p>": "<p><b>${score} of ${spec.items.length}.</b> ${score === spec.items.length ? 'All correct.' : 'Where it went wrong:'}</p>",
  "Выбор ответа": "Multiple choice",
@@ -118,5 +117,8 @@
  "тумба": "dresser",
  "плита и мойка": "stove and sink",
  "кресло": "armchair",
- "Нажимай варианты по порядку: первый, второй и так далее. Чтобы убрать вариант из порядка, нажми на него ещё раз.": "Tap the options in order: first, second, and so on. To take an option out of the order, tap it again."
+ "Нажимай варианты по порядку: первый, второй и так далее. Чтобы убрать вариант из порядка, нажми на него ещё раз.": "Tap the options in order: first, second, and so on. To take an option out of the order, tap it again.",
+ "Переложить ошибочные": "Re-sort the wrong ones",
+ "Верные карточки закреплены, переложи остальные: ${n - locked.size} из ${N - locked.size}": "Correct cards are locked, re-sort the rest: ${n - locked.size} of ${N - locked.size}",
+ "Разложено ${n} из ${N}": "${n} of ${N} placed"
 }

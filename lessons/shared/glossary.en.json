@@ -675,7 +675,13 @@
   "id": "action-bins",
   "t": "Action bins",
   "d": "A way to output a distribution over actions: the range of each dimension is split into equal intervals, bins, and the model predicts the probability of each bin as a class, while the robot gets the center of the chosen one. Bins over separate dimensions lose the links between dimensions; choosing them one by one (autoregression) brings the links back. RT-1 uses 256 bins for each of 11 dimensions.",
-  "a": "action bins?|bins? of actions|action discretization|actions? as tokens?|action tokens?|(?<=called\\s)bins"
+  "a": "action bins?|bins? of actions|action discretization|actions? as tokens?|(?<=called\\s)bins"
+ },
+ {
+  "id": "action-token",
+  "t": "Action token",
+  "d": "The index of the bin that the value of one action dimension falls into: one of 256 classes. RT-1 outputs 11 such tokens in a single pass, one per dimension, and the robot receives the bin centers.",
+  "a": "action tokens?|tokens? of (?:an |the )?action"
  },
  {
   "id": "ablation",

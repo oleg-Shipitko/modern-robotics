@@ -2,7 +2,9 @@
    shared/cards.js — разложи карточки по корзинам.
    Перетаскивание мышью и пальцем, а для клавиатуры и на всякий случай —
    «нажми карточку, потом корзину». «Проверить» отмечает каждую карточку
-   ✓/✗ и показывает разбор ошибок.
+   ✓/✗ и показывает разбор ошибок. После проверки с ошибками «Переложить
+   ошибочные» оставляет верные карточки на месте (они закреплены), возвращает
+   неверные в набор и даёт проверить снова; разбор ошибок остаётся на экране.
    Cards.sort(root, { items: [{ id, label, sub?, target, why }], targets: [{ id, label, note? }],
                       checkLabel?, onCheck?(score, total) })
    Подходит и для «расставь по шкале»: корзины — интервалы шкалы.
@@ -14,7 +16,7 @@ window.Cards = (function () {
     if (typeof root === 'string') root = document.querySelector(root);
     root.innerHTML = ''; root.classList.add('c-sort');
     const pool = el('div', 'c-pool'), zones = el('div', 'c-zones'), bar = el('div', 'c-bar'), out = el('div', 'c-out');
-    const cards = {}, zoneBody = {}; let sel = null, checked = false;
+    const cards = {}, zoneBody = {}, locked = new Set(); let sel = null, checked = false;   // locked — верные карточки после «Переложить ошибочные»
     pool.append(el('div', 'c-pool-h', 'Карточки'));
     const poolBody = el('div', 'c-body'); pool.append(poolBody);
     spec.targets.forEach((t) => {
@@ -34,24 +36,25 @@ window.Cards = (function () {
       attachDrag(c, it.id); poolBody.append(c);
     });
     const checkBtn = el('button', 'btn primary sm', spec.checkLabel || 'Проверить'); checkBtn.type = 'button'; checkBtn.disabled = true;
+    const redoBtn = el('button', 'btn sm', 'Переложить ошибочные'); redoBtn.type = 'button'; redoBtn.hidden = true;
     const resetBtn = el('button', 'btn sm', 'Начать заново'); resetBtn.type = 'button';
     const status = el('span', 'muted-s');
-    bar.append(checkBtn, resetBtn, status);
+    bar.append(checkBtn, redoBtn, resetBtn, status);
     root.append(pool, zones, bar, out);
     function placed() { return spec.items.filter((it) => cards[it.id].parentElement !== poolBody).length; }
     function refresh() {
-      const n = placed(); checkBtn.disabled = n < spec.items.length || checked;
-      status.textContent = checked ? '' : n < spec.items.length ? `Разложено ${n} из ${spec.items.length}` : 'Всё разложено — можно проверять';
-      pool.classList.toggle('c-empty', n === spec.items.length);
+      const n = placed(), N = spec.items.length; checkBtn.disabled = n < N || checked;
+      status.textContent = checked ? '' : n < N ? (locked.size ? `Верные карточки закреплены, переложи остальные: ${n - locked.size} из ${N - locked.size}` : `Разложено ${n} из ${N}`) : 'Всё разложено — можно проверять';
+      pool.classList.toggle('c-empty', n === N);
     }
     function place(id, zone) {
-      if (checked) return;
+      if (checked || locked.has(id)) return;
       const c = cards[id]; (zone ? zoneBody[zone] : poolBody).append(c); refresh();
     }
     function select(id) { sel = id; Object.values(cards).forEach((c) => c.classList.toggle('c-sel', c.dataset.id === id)); root.classList.toggle('c-selecting', !!id); }
     function attachDrag(c, id) {
       let start = null, drag = false, ghost = null;
-      c.addEventListener('pointerdown', (e) => { if (checked || e.button > 0) return; start = { x: e.clientX, y: e.clientY }; drag = false; try { c.setPointerCapture(e.pointerId); } catch (err) { /* синтетическое событие */ } });
+      c.addEventListener('pointerdown', (e) => { if (checked || locked.has(id) || e.button > 0) return; start = { x: e.clientX, y: e.clientY }; drag = false; try { c.setPointerCapture(e.pointerId); } catch (err) { /* синтетическое событие */ } });
       c.addEventListener('pointermove', (e) => {
         if (!start) return;
         if (!drag && Math.hypot(e.clientX - start.x, e.clientY - start.y) > 6) {
@@ -71,7 +74,7 @@ window.Cards = (function () {
           const under = document.elementFromPoint(e.clientX, e.clientY), z = under && under.closest('.c-zone, .c-pool');
           if (z && root.contains(z)) place(id, z.classList.contains('c-pool') ? null : z.dataset.zone);
           ghost.remove(); ghost = null; c.classList.remove('c-dragging'); root.querySelectorAll('.c-over').forEach((x) => x.classList.remove('c-over'));
-        } else if (!checked) select(sel === id ? null : id);
+        } else if (!checked && !locked.has(id)) select(sel === id ? null : id);
         start = null; drag = false;
       };
       c.addEventListener('pointerup', end); c.addEventListener('pointercancel', (e) => { if (ghost) { ghost.remove(); ghost = null; } c.classList.remove('c-dragging'); start = null; drag = false; });
@@ -87,15 +90,23 @@ window.Cards = (function () {
       out.innerHTML = `<p><b>${score} из ${spec.items.length}.</b> ${score === spec.items.length ? 'Всё верно.' : 'Разбор ошибок:'}</p>` +
         (wrong.length ? '<ul>' + wrong.map((it) => `<li><b>${it.label}</b> → ${tname(it.target)}. ${it.why || ''}</li>`).join('') + '</ul>' : '') +
         (spec.after ? `<p>${spec.after}</p>` : '');
+      redoBtn.hidden = !wrong.length;
       refresh(); if (spec.onCheck) spec.onCheck(score, spec.items.length);
     });
+    // верные карточки остаются на месте и закрепляются, неверные возвращаются в набор; разбор ошибок остаётся на экране
+    redoBtn.addEventListener('click', () => {
+      if (!checked) return;
+      checked = false; redoBtn.hidden = true; select(null);
+      spec.items.forEach((it) => { const c = cards[it.id]; if (c.classList.contains('c-ok')) { locked.add(it.id); return; } c.classList.remove('c-bad'); c.disabled = false; poolBody.append(c); });
+      refresh();
+    });
     resetBtn.addEventListener('click', () => {
-      checked = false; out.innerHTML = '';
+      checked = false; out.innerHTML = ''; locked.clear(); redoBtn.hidden = true;
       spec.items.forEach((it) => { const c = cards[it.id]; c.classList.remove('c-ok', 'c-bad'); c.disabled = false; poolBody.append(c); });
       refresh();
     });
     refresh();
-    return { get checked() { return checked; }, place, check: () => checkBtn.click(), reset: () => resetBtn.click() };
+    return { get checked() { return checked; }, get locked() { return [...locked]; }, place, check: () => checkBtn.click(), redo: () => redoBtn.click(), reset: () => resetBtn.click() };
   }
   return { sort };
 })();

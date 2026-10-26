@@ -2,6 +2,18 @@
   "_comment": "What's new on the site, English version: the same versions and dates as site/changelog.json, titles and items in English. The first number of a version is the last released part, the second grows with every update between releases. An entry with a future date appears on the page on that day (Moscow time). Newest first.",
   "versions": [
     {
+      "v": "4.1",
+      "date": "2026-10-26",
+      "title": "Lesson 3.1 made clearer: a FiLM diagram, the term “action token”, card sorting without a dead end",
+      "items": [
+        "In lesson 3.1 the intro spells out the 11 numbers of an action, ImageNet and Gato are explained, and the FiLM paragraph is rewritten: how the command sets a scale and a shift for every channel of the feature map and why the layer is transparent at the start of training. A new animated diagram shows the command meeting the image inside the vision network: channel bars grow and fade with the command vector.",
+        "The mission debriefs in the lesson 3.1 lab are rewritten in full sentences, including the “8 bins” mission: the model learned the bins, but the centre of a 12 px bin usually misses the cube.",
+        "The glossary has a new term, “Action token”, and the tooltip on these words no longer leads to “Action bins”.",
+        "In card sorting across all lessons, after a check with mistakes there is a “Re-sort the wrong ones” button: correct cards stay in place, wrong ones return, and the mission can be passed on the second try.",
+        "In lesson 3.2 SayCan asks the language model which step is useful for the task."
+      ]
+    },
+    {
       "v": "5.0",
       "date": "2026-10-31",
       "title": "Part 5: reinforcement learning",
