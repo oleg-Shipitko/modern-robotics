@@ -1,6 +1,6 @@
 # Modern Robotics and Physical AI · Modern Robotics и Physical AI
 
-[English](#english) · [Русский](#русский)
+[English](#english) · [Русский](#modern-robotics-и-physical-ai)
 
 ## English
 
@@ -82,7 +82,7 @@ tools/deploy.sh --dryrun                 # what a deployment would upload
 - Code: [MIT](LICENSE).
 - Lesson texts and illustrations: [CC BY-NC 4.0](LICENSE-CONTENT). You may quote, translate and use them in teaching with a link to the course, but not for commercial purposes.
 
-## Русский
+## Modern Robotics и Physical AI
 
 Бесплатный онлайн-курс о современной робототехнике: от классического управления и behavior cloning до моделей зрения, языка и действий (VLA) и гуманоидов. Каждый урок — самодостаточная HTML-страница с лабораторными работами: небольшие нейросети обучаются прямо в браузере, без сервера и без установки.
 
