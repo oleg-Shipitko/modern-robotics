@@ -2,6 +2,15 @@
   "_comment": "What's new on the site, English version: the same versions and dates as site/changelog.json, titles and items in English. The first number of a version is the last released part, the second grows with every update between releases. An entry with a future date appears on the page on that day (Moscow time). Newest first.",
   "versions": [
     {
+      "v": "4.2",
+      "date": "2026-10-27",
+      "title": "A robot photo in lesson 3.1 and the Taylor Swift story in lesson 3.3",
+      "items": [
+        "Lesson 3.1 now has a photo of the Everyday Robots mobile manipulator that recorded the RT-1 demonstrations (a frame from the AutoRT paper, CC BY 4.0).",
+        "Lesson 3.3, section “What emerged on its own”, tells the story of the command “move the Coke can to Taylor Swift”: where the model learned a celebrity that was never in the robot data, and how RT-2 and RT-1 handled the command."
+      ]
+    },
+    {
       "v": "4.1",
       "date": "2026-10-26",
       "title": "Lesson 3.1 made clearer: a FiLM diagram, the term “action token”, card sorting without a dead end",
