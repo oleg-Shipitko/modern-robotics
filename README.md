@@ -1,8 +1,8 @@
 # Modern Robotics and Physical AI · Modern Robotics и Physical AI
 
-[English](#english) · [Русский](#modern-robotics-и-physical-ai)
+[English](#modern-robotics-and-physical-ai) · [Русский](#modern-robotics-и-physical-ai)
 
-## English
+## Modern Robotics and Physical AI
 
 A free online course on modern robotics, from classical control and behavior cloning to vision-language-action models and humanoids. Every lesson is a self-contained HTML page with hands-on labs: small neural networks train right in the browser, with no server and nothing to install.
 
