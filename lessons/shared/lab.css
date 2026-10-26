@@ -247,7 +247,7 @@ canvas[data-anim].paused { outline: 2px dashed var(--line-2); outline-offset: 2p
 @media (max-width: 640px) { .stat-fig { padding: 12px 14px 12px; } .stat-grid { grid-template-columns: 1fr; gap: 18px; } .stat-bars { --sb-h: 124px; --sb-w: 18px; --sb-ax: 36px; } .sb-glab { font-size: 11.5px; } }
 
 /* Фото железа в тексте урока: настоящий кадр как есть (без замены фона — решение автора 27.10), подпись и источник под снимком */
-.photo-fig { margin: 18px auto 20px; max-width: 560px; }
+.photo-fig { margin: 18px auto 20px; max-width: 640px; }
 .photo-fig img { display: block; width: 100%; height: auto; border-radius: 14px; border: 1px solid var(--line); }
 .photo-fig figcaption { margin-top: 7px; font-size: 13.5px; line-height: 1.45; color: var(--ink-2); }
 .photo-fig .photo-cred { display: block; margin-top: 3px; font-size: 11.5px; color: var(--ink-3); text-decoration: none; }

@@ -2,6 +2,16 @@
   "_comment": "What's new on the site, English version: the same versions and dates as site/changelog.json, titles and items in English. The first number of a version is the last released part, the second grows with every update between releases. An entry with a future date appears on the page on that day (Moscow time). Newest first.",
   "versions": [
     {
+      "v": "4.4",
+      "date": "2026-10-27",
+      "title": "A new robot frame in 3.1, links to the RT-2 recordings, the sponge in 2.3",
+      "items": [
+        "In lesson 3.1 the Everyday Robots photo is replaced by a frame that shows the whole robot — head, arm and mobile base — at a waste sorting station in a Google office (Herzog et al., CC BY 4.0).",
+        "In lesson 3.3 the Taylor Swift story now links to the recordings of the experiments on the Google DeepMind blog and on the paper's website.",
+        "In lesson 2.3 the SayCan story is completed: to the request about the spilled drink an ungrounded model suggests a cleaner or a vacuum, while PaLM-SayCan finds a sponge and brings it."
+      ]
+    },
+    {
       "v": "4.3",
       "date": "2026-10-27",
       "title": "Lesson 1.5: sauce on the pizza",
