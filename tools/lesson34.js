@@ -32,7 +32,7 @@ const shotSec = async (p, id, file, sel) => { await p.eval(`document.getElementB
   const heroMis = await p.eval(`document.getElementById('heroMis').textContent`);
   check(/^9 миссий с целью$/.test(heroMis), 'число миссий в шапке: ' + heroMis);
   check((await p.eval(`document.querySelectorAll('#recall .rc-q').length`)) === 3, 'разминка по уроку 3.3: три вопроса');
-  check((await p.eval(`!!document.querySelector('a[href="3-5-otkrytye-vla.html"]')`)), 'ссылка на урок 3.5 на месте (сборка на 24.10)');
+  check((await p.eval(`!!document.querySelector('a[href="3-5-otkrytye-vla.html"]')`)), 'ссылка на урок 3.5 на месте (сборка на 26.10)');
   check((await p.eval(`document.querySelectorAll('section.section').length`)) === 9 && (await p.eval(`[...document.querySelectorAll('.kicker .num')].map((e) => e.textContent).join(',')`)) === '3.4,1,2,3,4,5,6', 'девять разделов, нумерация только у текстовых: ' + await p.eval(`[...document.querySelectorAll('.kicker .num')].map((e) => e.textContent).join(',')`));
   await p.eval('window.__l34.SPEED.k = 20; true');
 

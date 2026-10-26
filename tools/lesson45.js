@@ -1,6 +1,6 @@
 // Урок 4.5 «Симуляция и синтетические данные»: лаборатории и интерактив дают обещанные в тексте исходы, миссии
 // проходятся через интерфейс, схема движется, консоль чиста, телефон без горизонтальной прокрутки. Снимки — shots/l45-*.png.
-// Урок собирается на дату выпуска: MR_ASOF=2026-10-24 python3 lessons/build.py l45.
+// Урок собирается на дату выпуска: MR_ASOF=2026-10-26 python3 lessons/build.py l45.
 const path = require('path');
 const { launch, sleep } = require('./cdp');
 const url = 'file://' + path.resolve(__dirname, '../site/lessons/4-5-simulyatsiya.html');

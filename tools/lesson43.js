@@ -1,6 +1,6 @@
 // Урок 4.3 «Датасеты роботов»: лаборатории и интерактив дают обещанные в тексте исходы, миссии проходятся через
 // интерфейс, схема движется, консоль чиста, телефон без горизонтальной прокрутки. Снимки — shots/l43-*.png.
-// Урок собирается на дату выпуска: MR_ASOF=2026-10-24 python3 lessons/build.py l43.
+// Урок собирается на дату выпуска: MR_ASOF=2026-10-26 python3 lessons/build.py l43.
 const path = require('path');
 const { launch, sleep } = require('./cdp');
 const url = 'file://' + path.resolve(__dirname, '../site/lessons/4-3-datasety-robotov.html');
@@ -34,7 +34,7 @@ const text = (p, sel) => p.eval(`document.querySelector('${sel}').textContent.re
   const hero = await p.eval(`document.getElementById('heroMis').textContent`);
   check(/^7 миссий с целью$/.test(hero), 'число миссий в шапке: ' + hero);
   check((await p.eval(`document.querySelectorAll('#recall .rc-q').length`)) === 3, 'разминка по уроку 4.2: три вопроса');
-  check(await p.eval(`!!document.querySelector('a[href="4-4-video-lyudey.html"]')`), 'ссылка на урок 4.4 на месте (часть 4 выходит целиком 24.10)');
+  check(await p.eval(`!!document.querySelector('a[href="4-4-video-lyudey.html"]')`), 'ссылка на урок 4.4 на месте (часть 4 выходит целиком 26.10)');
   await p.eval('window.__l43.SPEED.k = 20; true');
 
   // ---------- схема ----------

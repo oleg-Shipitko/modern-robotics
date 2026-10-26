@@ -1,6 +1,6 @@
 // Урок 4.6 «Пирамида данных и маховик»: лаборатории дают обещанные в тексте исходы, миссии проходятся через
 // интерфейс, схемы движутся, консоль чиста, телефон без горизонтальной прокрутки. Снимки — shots/l46-*.png.
-// Урок собирается на дату выпуска: MR_ASOF=2026-10-24 python3 lessons/build.py l46.
+// Урок собирается на дату выпуска: MR_ASOF=2026-10-26 python3 lessons/build.py l46.
 const path = require('path');
 const { launch, sleep } = require('./cdp');
 const url = 'file://' + path.resolve(__dirname, '../site/lessons/4-6-piramida-dannykh.html');

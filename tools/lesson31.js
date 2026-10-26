@@ -1,6 +1,6 @@
 // Урок 3.1 «RT-1»: лаборатория и интерактив дают обещанные в тексте исходы, миссии проходятся через интерфейс,
 // схема движется, консоль чиста, телефон без горизонтальной прокрутки. Снимки — shots/l31-*.png.
-// Урок собирается на дату выпуска части: MR_ASOF=2026-10-24 python3 lessons/build.py l31.
+// Урок собирается на дату выпуска части: MR_ASOF=2026-10-26 python3 lessons/build.py l31.
 const path = require('path');
 const { launch, sleep } = require('./cdp');
 const url = 'file://' + path.resolve(__dirname, '../site/lessons/3-1-rt-1.html');
