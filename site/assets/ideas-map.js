@@ -13,7 +13,9 @@
    внутри дорожки; связи «выросло из» появляются при наведении (прямые)
    и по клику (вся цепочка предков и потомков). Телефон (≤ 640 px): ось
    вертикальная, чипы в один столбец, связи — только у выбранной работы.
-   Клик или Enter на чипе: карточка (под схемой, на телефоне — панель снизу).
+   Клик или Enter на чипе: карточка (под схемой, на телефоне — панель снизу)
+   с проблемой, решением, ссылками на урок и на исходную публикацию (поле
+   paper: адрес или список {t, url}; открывается в новой вкладке).
    Фильтры по части курса и по дорожке бледнят чужие чипы; #id в адресе
    открывает работу.
    ===================================================================== */
@@ -358,11 +360,16 @@
     if (n.hrefRu) return `<a class="im-lesson" href="${esc(n.hrefRu)}" hreflang="ru">${esc(tpl(UI.lessonRu || UI.lesson, { n: n.lesson }))}</a>`;
     return `<span class="im-lesson soon">${esc(tpl(UI.lessonSoon, { n: n.lesson }))}</span>`;
   }
+  // исходная публикация: одна ссылка «Статья ↗» или по ссылке на каждую, если их несколько («Genie ↗», «Cosmos ↗»)
+  function paperLinks(n) {
+    const list = typeof n.paper === 'string' ? [{ url: n.paper }] : Array.isArray(n.paper) ? n.paper : [];
+    return list.filter((p) => p && p.url).map((p) => `<a class="im-paper" href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.t ? tpl(UI.paperNamed || '{t} ↗', { t: p.t }) : UI.paper || 'Paper ↗')}</a>`).join('');
+  }
   function showCard(n) {
     const date = n.month ? `${UI.months[n.month - 1]} ${n.year}` : String(n.year);
     const chips = (ids, cls) => ids.length ? ids.map((id) => { const m = byId.get(id); return `<button type="button" class="im-chip ${cls} lane-${esc(m.lane)}" data-go="${esc(id)}">${cls === 'anc' ? '<span class="mk">←</span>' : ''}${esc(m.title)}${cls === 'desc' ? '<span class="mk">→</span>' : ''}</button>`; }).join('') : `<span class="none">${esc(UI.none)}</span>`;
     card.innerHTML = `<button type="button" class="im-close" aria-label="${esc(UI.close)}">×</button>`
-      + `<div class="im-card-head"><h2><i class="dot lane-${esc(n.lane)}"></i><span>${esc(n.title)}</span></h2><span class="meta">${esc(n.org)} · ${date} · ${esc(laneOf[n.lane].title)}</span>${lessonLink(n)}</div>`
+      + `<div class="im-card-head"><h2><i class="dot lane-${esc(n.lane)}"></i><span>${esc(n.title)}</span></h2><span class="meta">${esc(n.org)} · ${date} · ${esc(laneOf[n.lane].title)}</span><span class="im-links">${lessonLink(n)}${paperLinks(n)}</span></div>`
       + `<dl><dt>${esc(UI.problem)}</dt><dd>${esc(n.problem)}</dd><dt>${esc(UI.contribution)}</dt><dd>${esc(n.contribution)}</dd></dl>`
       + `<div class="im-rel"><span class="im-rel-t">${esc(UI.from)}:</span>${chips(n.parents, 'anc')}</div>`
       + `<div class="im-rel"><span class="im-rel-t">${esc(UI.to)}:</span>${chips(n.children, 'desc')}</div>`;

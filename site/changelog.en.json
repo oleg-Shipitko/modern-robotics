@@ -2,6 +2,14 @@
   "_comment": "What's new on the site, English version: the same versions and dates as site/changelog.json, titles and items in English. The first number of a version is the last released part, the second grows with every update between releases. An entry with a future date appears on the page on that day (Moscow time). Newest first.",
   "versions": [
     {
+      "v": "4.6",
+      "date": "2026-10-27",
+      "title": "Ideas map: simpler texts, links to papers",
+      "items": [
+        "All 62 cards on the ideas map are rewritten more simply: the problem in one sentence, the solution in one or two, without the internals of the methods. The “Contribution” label is now “Solution”, and every work links to its original paper."
+      ]
+    },
+    {
       "v": "4.5",
       "date": "2026-10-27",
       "title": "The course ideas map",

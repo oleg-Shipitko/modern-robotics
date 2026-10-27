@@ -11,6 +11,12 @@
 // «Классика») бледнят чужие чипы; Esc снимает выбор;
 // на 390 px нет горизонтальной прокрутки, ось вертикальная, карточка открывается панелью снизу. Английская
 // страница: то же, lang="en", карточка с «Lesson 3.1».
+// Тексты и публикации: у каждого узла есть paper (адрес https или список {t, url}), и поле доходит до английской
+// страницы; problem не длиннее 130 знаков, contribution — 260 (RU и EN); в карточке метки «Проблема» и «Решение»
+// («Problem», «Solution»), а «Вклад» («Contribution») нет нигде на странице; у RT-1 рядом с «Урок 3.1 →» ссылка
+// «Статья ↗» («Paper ↗») на https://arxiv.org/abs/2212.06817 в новой вкладке с rel="noopener", у «Genie и Cosmos» —
+// две ссылки «Genie ↗» и «Cosmos ↗»; тексты в карточке совпадают с JSON; на телефоне ссылка видна в нижней панели.
+// Снимки карточек: ideas-map-card.png (RT-1), ideas-map-card-kalman.png, ideas-map-card-pi0.png, ideas-map-en-card.png.
 //   node tools/ideas_map.js            проверки и снимки shots/ideas-map-*.png
 //   node tools/ideas_map.js --no-shots только проверки
 // Выход с кодом 1, если хотя бы одна проверка не прошла.
@@ -22,9 +28,31 @@ const PAGE = 'file://' + path.join(ROOT, 'site/karta-idey.html');
 const PAGE_EN = path.join(ROOT, 'site/en/karta-idey.html');
 const SHOTS = path.join(ROOT, 'shots');
 const DATA = JSON.parse(fs.readFileSync(path.join(ROOT, 'lessons/shared/ideas-map.json'), 'utf8'));
+const DATA_EN = JSON.parse(fs.readFileSync(path.join(ROOT, 'lessons/shared/ideas-map.en.json'), 'utf8'));
+const EN_BY_ID = new Map(DATA_EN.nodes.map((n) => [n.id, n]));
+const MAX_PROBLEM = 130, MAX_SOLUTION = 260; // знаков: «Проблема» — одна фраза до ~110, «Решение» — одна-две фразы до ~230
+const RT1_PAPER = 'https://arxiv.org/abs/2212.06817';
+const papersOf = (n) => (typeof n.paper === 'string' ? [{ url: n.paper }] : Array.isArray(n.paper) ? n.paper : []);
 const shots = !process.argv.includes('--no-shots');
 let bad = 0;
 const ok = (cond, msg) => { console.log((cond ? '  ✓ ' : '  ✗ ') + msg); if (!cond) bad++; };
+
+// данные: ссылка на публикацию у каждого узла и длина текстов карточки
+function dataChecks() {
+  console.log('данные: lessons/shared/ideas-map.json и ideas-map.en.json');
+  const badPaper = DATA.nodes.filter((n) => { const ps = papersOf(n); return !ps.length || ps.some((x) => !/^https:\/\/\S+$/.test(x.url || '') || (Array.isArray(n.paper) && !x.t)); }).map((n) => n.id);
+  ok(!badPaper.length, `у всех ${DATA.nodes.length} узлов есть paper: адрес https или список {t, url}` + (badPaper.length ? '; нет или неверно у ' + badPaper.join(', ') : ''));
+  ok(byId.get('rt1').paper === RT1_PAPER, `RT-1: paper = ${byId.get('rt1').paper}`);
+  const gc = papersOf(byId.get('genie-cosmos'));
+  ok(gc.length === 2 && gc[0].t === 'Genie' && gc[1].t === 'Cosmos', `«Genie и Cosmos»: две публикации (${gc.map((x) => x.t).join(', ')})`);
+  ok(DATA.nodes.every((n) => EN_BY_ID.has(n.id)) && !DATA_EN.nodes.some((n) => 'paper' in n), 'английские тексты есть у всех узлов, paper живёт только в русском файле');
+  for (const [lang, nodes] of [['RU', DATA.nodes], ['EN', DATA.nodes.map((n) => Object.assign({ id: n.id }, EN_BY_ID.get(n.id) || {}))]]) {
+    const longP = nodes.filter((n) => !(n.problem && n.problem.length <= MAX_PROBLEM)), longC = nodes.filter((n) => !(n.contribution && n.contribution.length <= MAX_SOLUTION));
+    const avg = (k) => Math.round(nodes.reduce((sum, n) => sum + (n[k] || '').length, 0) / nodes.length);
+    ok(!longP.length && !longC.length, `${lang}: problem ≤ ${MAX_PROBLEM} и contribution ≤ ${MAX_SOLUTION} знаков (в среднем ${avg('problem')} и ${avg('contribution')}, самые длинные ${Math.max(...nodes.map((n) => (n.problem || '').length))} и ${Math.max(...nodes.map((n) => (n.contribution || '').length))})`
+      + (longP.length || longC.length ? '; длиннее: ' + [...new Set([...longP, ...longC].map((n) => n.id))].join(', ') : ''));
+  }
+}
 
 // предки и потомки по JSON — чтобы сверить подсветку
 const byId = new Map(DATA.nodes.map((n) => [n.id, n]));
@@ -91,6 +119,8 @@ const OVERLAPS = `(() => {
   }
   return out;
 })()`;
+const PAPER_LINKS = `JSON.stringify([...document.querySelectorAll('#imCard a.im-paper')].map((a) => ({ text: a.textContent, href: a.getAttribute('href'), target: a.getAttribute('target'), rel: a.getAttribute('rel') || '', withLesson: a.parentElement.classList.contains('im-links') && !!a.parentElement.querySelector('.im-lesson') })))`;
+const CARD_TEXTS = `JSON.stringify([...document.querySelectorAll('#imCard dd')].map((d) => d.textContent))`;
 const MIN_FONT = `Math.min(...[...document.querySelectorAll('#imSvg .chip-t')].map((t) => parseFloat(getComputedStyle(t).fontSize)))`;
 const EDGES_ON = `document.querySelectorAll('#imSvg .edge.on').length`;
 const SEL = `JSON.stringify({ anc: [...document.querySelectorAll('#imSvg .node.anc')].map((g) => g.dataset.id).sort(), desc: [...document.querySelectorAll('#imSvg .node.desc')].map((g) => g.dataset.id).sort(), on: document.querySelectorAll('#imSvg .edge.on').length, direct: document.querySelectorAll('#imSvg .edge.on.direct').length, off: document.querySelectorAll('#imSvg .node.off').length, sel: (document.querySelector('#imSvg .node.sel') || { dataset: {} }).dataset.id || null, mkl: [...document.querySelectorAll('#imSvg .node.anc .mk-l')].filter((t) => getComputedStyle(t).opacity === '1').length, mkr: [...document.querySelectorAll('#imSvg .node.desc .mk-r')].filter((t) => getComputedStyle(t).opacity === '1').length })`;
@@ -161,10 +191,21 @@ async function checkWide(B, url, lang) {
   await sleep(500);
   const cardText = await p.eval(`document.getElementById('imCard').textContent`);
   ok((ru ? /Урок 3\.1/ : /Lesson 3\.1/).test(cardText), `карточка RT-1 содержит «${ru ? 'Урок' : 'Lesson'} 3.1»`);
-  const labels = ru ? ['Проблема', 'Вклад', 'Выросло из', 'Привело к'] : ['Problem', 'Contribution', 'Grew out of', 'Led to'];
+  const labels = ru ? ['Проблема', 'Решение', 'Выросло из', 'Привело к'] : ['Problem', 'Solution', 'Grew out of', 'Led to'];
   ok(labels.every((l) => cardText.includes(l)), `в карточке есть «${labels.join('», «')}»`);
+  const OLD = ru ? 'Вклад' : 'Contribution';
+  ok(!cardText.includes(OLD) && !(await p.eval(`document.body.innerText`)).includes(OLD), `метки «${OLD}» нет ни в карточке, ни на странице`);
   const href = await p.eval(`(document.querySelector('#imCard a.im-lesson') || { getAttribute: () => '' }).getAttribute('href')`);
   ok(/3-1-rt-1\.html$/.test(href || ''), `ссылка на урок: ${href}`);
+  const PAPER = ru ? 'Статья ↗' : 'Paper ↗';
+  let pl = JSON.parse(await p.eval(PAPER_LINKS));
+  ok(pl.length === 1 && pl[0].text === PAPER && pl[0].href === RT1_PAPER && pl[0].target === '_blank' && /(^|\s)noopener(\s|$)/.test(pl[0].rel),
+    `в карточке RT-1 ссылка «${PAPER}» на ${pl.map((x) => x.href).join(', ') || 'нет'} в новой вкладке, rel="${pl.map((x) => x.rel).join()}"`);
+  ok(pl.length === 1 && pl[0].withLesson, `«${PAPER}» стоит рядом со ссылкой «${ru ? 'Урок' : 'Lesson'} 3.1 →»`);
+  const inPage = JSON.parse(await p.eval(`JSON.stringify(JSON.parse(document.getElementById('imData').textContent).nodes.map((n) => [n.id, n.paper]))`));
+  ok(inPage.length === DATA.nodes.length && inPage.every(([id, paper]) => JSON.stringify(paper) === JSON.stringify(byId.get(id).paper)), `данные страницы: paper у всех ${inPage.length} узлов, как в ideas-map.json`);
+  const texts = async (id) => { const t = JSON.parse(await p.eval(CARD_TEXTS)), src = ru ? byId.get(id) : EN_BY_ID.get(id); return t.length === 2 && t[0] === src.problem && t[1] === src.contribution; };
+  ok(await texts('rt1'), `тексты карточки RT-1 — из ${ru ? 'ideas-map.json' : 'ideas-map.en.json'}`);
   const anc = closure('rt1', (id) => byId.get(id).parents || []), desc = closure('rt1', (id) => children.get(id));
   const H = JSON.parse(await p.eval(SEL));
   ok(H.sel === 'rt1', 'RT-1 выделен');
@@ -175,6 +216,19 @@ async function checkWide(B, url, lang) {
   ok(H.off === DATA.nodes.length - 1 - anc.size - desc.size, `остальные чипы побледнели: ${H.off}`);
   ok(await p.eval(`location.hash === '#rt1'`), 'адрес получил #rt1');
   if (ru && shots) await fullShot(p, path.join(SHOTS, 'ideas-map-card.png'));
+  if (!ru && shots) await fullShot(p, path.join(SHOTS, 'ideas-map-en-card.png'));
+  for (const id of ['kalman', 'pi0']) {
+    await p.eval(CLICK(`#imSvg .node[data-id="${id}"]`));
+    await sleep(300);
+    pl = JSON.parse(await p.eval(PAPER_LINKS));
+    ok(await texts(id) && pl.length === 1 && pl[0].text === PAPER && pl[0].href === byId.get(id).paper, `карточка ${(ru ? byId.get(id) : EN_BY_ID.get(id)).title}: тексты из JSON, «${PAPER}» → ${pl.map((x) => x.href).join(', ')}`);
+    if (ru && shots) await fullShot(p, path.join(SHOTS, `ideas-map-card-${id}.png`));
+  }
+  await p.eval(CLICK('#imSvg .node[data-id="genie-cosmos"]'));
+  await sleep(300);
+  pl = JSON.parse(await p.eval(PAPER_LINKS));
+  const gc = papersOf(byId.get('genie-cosmos'));
+  ok(pl.length === 2 && pl.every((x, i) => x.text === gc[i].t + ' ↗' && x.href === gc[i].url && x.target === '_blank' && /noopener/.test(x.rel)), `«Genie и Cosmos»: ${pl.map((x) => `«${x.text}» → ${x.href}`).join(', ')}`);
   // клавиатура: Enter на чипе DAgger
   await p.eval(`document.querySelector('#imSvg .node[data-id="dagger"]').focus()`);
   await key(p, 'Enter', 'Enter');
@@ -242,6 +296,8 @@ async function checkPhone(B, url, lang) {
   ok(await p.eval(EDGES_ON) === directN, `связи только у выбранной работы: ${directN}`);
   const sheet = await p.eval(`(() => { const c = document.getElementById('imCard'); const r = c.getBoundingClientRect(); return { open: c.classList.contains('open'), fixed: getComputedStyle(c).position, bottom: Math.round(innerHeight - r.bottom), text: c.textContent.trim().replace(/\\s+/g, ' ').slice(0, 60) }; })()`);
   ok(sheet.open && sheet.fixed === 'fixed' && Math.abs(sheet.bottom) < 2, `карточка открылась панелью снизу (${sheet.text}…)`);
+  const pp = JSON.parse(await p.eval(`JSON.stringify([...document.querySelectorAll('#imCard a.im-paper')].map((a) => { const r = a.getBoundingClientRect(); return { text: a.textContent, href: a.getAttribute('href'), seen: r.width > 0 && r.height > 0 && r.top >= 0 && r.bottom <= innerHeight && r.left >= 0 && r.right <= innerWidth }; }))`));
+  ok(pp.length === 1 && pp[0].href === RT1_PAPER && pp[0].seen, `в нижней панели видна ссылка «${pp.map((x) => x.text).join()}» на ${pp.map((x) => x.href).join()}`);
   if (ru && shots) { await p.shot(path.join(SHOTS, 'ideas-map-phone-card.png')); console.log('  снимок shots/ideas-map-phone-card.png'); }
   await p.eval(CLICK('#imCard .im-close'));
   await sleep(300);
@@ -249,6 +305,7 @@ async function checkPhone(B, url, lang) {
 }
 
 (async () => {
+  dataChecks();
   const B = await launch({ w: 1440, h: 1000 });
   try {
     await checkWide(B, PAGE, 'ru');
