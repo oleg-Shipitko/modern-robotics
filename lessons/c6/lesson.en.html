@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Part 6 check — Modern Robotics and Physical AI</title>
+<meta name="description" content="Part 6 check of the “Modern Robotics and Physical AI” course: 24 questions shuffled across lessons 6.1–6.6 on humanoid robots (learning to walk with reinforcement learning, imitating human motion, a whole-body tracker, loco-manipulation, hardware and a survey of platforms), plus a live-scene task: use the shift log to find which decisions let Ada with legs down, and replace them. At the end, a score and the topics worth revisiting.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<script>
+  (function () { try { var t = localStorage.getItem('mr-theme'); if (t) document.documentElement.dataset.theme = t; else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme = 'dark'; } catch (e) {} })();
+</script>
+<style>
+/*@@CSS@@*/
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html#program" title="To the course program"><div>Modern Robotics and Physical AI<small>Part 6 check</small></div></a>
+    <nav class="toc" aria-label="Page sections">
+      <a href="#tasks">Tasks</a>
+      <a href="#result">Result</a>
+    </nav>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Toggle theme">◐</button>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main>
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="kicker"><span class="num">6</span> Part 6 · Humanoid robots</div>
+    <h1>Part 6 <span class="amp">check</span></h1>
+    <p class="lead">The quiz at the end of a lesson tests that lesson right after you read it. Here the tasks from all lessons of the part come shuffled: that shows what has stuck and whether the topics connect in your head. At the end you get a score per lesson and links to the sections worth revisiting.</p>
+    <div class="hero-meta"><span>≈ 30 minutes</span><span id="chkCount">questions and a scene task</span><span>can be retaken</span></div>
+    <div class="hero-list">
+      <div><b>6.1</b>Walking as a reinforcement learning problem: a reward of many terms, random velocity commands, thousands of copies and Digit's transformer over history</div>
+      <div><b>6.2–6.3</b>Recordings of human motion: retargeting, DeepMimic and AMP, a universal tracker, teacher and student, HOVER's command masks and ASAP's correction to the simulator</div>
+      <div><b>6.4</b>Loco-manipulation: the upper-level model sets goals, the whole-body controller keeps balance, and whole-body teleoperation records its commands</div>
+      <div><b>6.5–6.6</b>Actuators, hands, touch, the computer and the battery in one budget; eight platforms on four questions: control, data, body and where they work</div>
+    </div>
+    <p style="margin-top:28px"><a class="btn primary" href="#tasks">Start the check ↓</a></p>
+  </div>
+</section>
+
+<section class="section" id="tasks">
+  <div class="wrap">
+    <div class="chk-list" id="chkList"></div>
+  </div>
+</section>
+
+<section class="section alt" id="result">
+  <div class="wrap">
+    <div class="prose" style="max-width:820px">
+      <div class="kicker"><span class="num">✓</span> Result</div>
+      <h2>Check result</h2>
+      <p class="score" id="quizScore"></p>
+      <p class="chk-wait" id="chkWait"></p>
+      <div id="chkResult" hidden>
+        <div class="chk-table" id="chkTable"></div>
+        <h3 style="margin-top:28px">What to revisit</h3>
+        <ul class="links" id="chkReview"></ul>
+        <p style="margin-top:22px"><button class="btn" type="button" id="chkAgain">Take it again</button></p>
+      </div>
+      <div class="bridge-note"><p>In the scene task, Ada got through her shift, but each of her skills is paid for with experience: the walking policy of lesson 6.1 trained for half an hour on 512 copies in the simulator, the SONIC tracker on 700 hours of motion capture, and Agility trains Digit 5 on 65,000 hours of Digit 4's operation. Such experience is gathered on real robots or from human recordings, and both ways are expensive and slow.</p><p class="bridge-to">Lesson 7.1 · World Models and Dreamer: how to learn what happens after an action and train a policy on attempts in the model's imagination</p></div>
+      <p style="margin-top:18px"><a href="../index.html#program">Course program and release dates →</a></p>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  Part 6 check of the “Modern Robotics and Physical AI” course. Your answers stay in the browser; the site only sees anonymous totals.
+</footer>
+<div class="tooltip" id="tooltip" role="tooltip"></div>
+<script>
+/*@@JS@@*/
+</script>
+</body>
+</html>

@@ -172,12 +172,15 @@
     const TEA = { direct5: ['direct', 5], direct25: ['direct', 25], wbc: ['wbc', 5] };
     function teaRun(o) { const key = `t:${o}`; return cache[key] || (cache[key] = L64.episode(TEA[o][0], TEA[o][1], 1, { keep: true })); }
     function tea(o) {
-      const e = teaRun(o), p1 = e.pushes[0], m = { out: e.out, spilled: e.spilled, fell: e.fell, placed: e.placed, phiMax: e.phiMax };
+      const e = teaRun(o), m = { out: e.out, spilled: e.spilled, fell: e.fell, placed: e.placed, phiMax: e.phiMax };
       if (e.ok) { const n = e.pushes.filter((p) => p.t < e.placed).length; return { ok: true, m, text: `Кот толкнул Аду ${n} ${pl(n, 'раз', 'раза', 'раз')}, и каждый раз контроллер тела переставлял стопу и держал кисть: через ${fx(e.placed, 1)} с чашка на полке. Модель отвечает 5 раз в секунду и решает только, с какой скоростью идти.` }; }
+      // текст отказа верен для любого исхода движка: толчок назван, только если был до пролива, «сразу после толчка» — если
+      // пролив случился не позже чем через 0,3 с, «чай уже пролит» — только если чай пролит; иначе отказ — удар о полку
+      const p1 = e.spilled == null ? null : e.pushes.filter((q) => q.t <= e.spilled).pop();
       let s = '';
-      if (e.spilled != null) s = `На ${fx(p1.t, 1)} с кот толкнул Аду, и сразу после толчка, на ${fx(e.spilled, 1)} с, чай пролился`;
+      if (e.spilled != null) s = !p1 ? `На ${fx(e.spilled, 1)} с чай пролился` : e.spilled - p1.t <= 0.3 ? `На ${fx(p1.t, 1)} с кот толкнул Аду, и сразу после толчка, на ${fx(e.spilled, 1)} с, чай пролился` : `На ${fx(p1.t, 1)} с кот толкнул Аду, на ${fx(e.spilled, 1)} с чай пролился`;
       if (e.fell != null) s += (s ? ', а ' : '') + `на ${fx(e.fell, 1)} с Ада упала${e.out === 'fell' && e.fell > 6 ? ' у полки' : ''}`;
-      else if (e.placed != null) s += (s ? '. Ада не упала и поставила чашку на ' : 'Ада поставила чашку на ') + `${fx(e.placed, 1)} с, но чай уже пролит`;
+      else if (e.placed != null && e.spilled != null) s += '. Ада не упала и поставила чашку на ' + `${fx(e.placed, 1)} с, но чай уже пролит`;
       else if (e.hit != null) s += (s ? ', а ' : '') + `на ${fx(e.hit, 1)} с Ада упёрлась в полку`;
       return { ok: false, m, text: (s ? s.charAt(0).toUpperCase() + s.slice(1) : 'Чашка не на полке') + '.' };
     }
@@ -560,14 +563,26 @@
       for (let mx = Math.ceil(V.xa * 2) / 2; mx <= V.xb + 1e-9; mx += 0.5) { const px = V.X(mx); c.beginPath(); c.moveTo(px, L.FL); c.lineTo(px, L.FL + (Math.abs(mx - Math.round(mx)) < 1e-9 ? 7 : 4)); c.stroke(); }
     }
     function tag(L, p, text, x, y, col) { K.label(L.c, L.k, text, x, y, { px: 11, weight: 700, color: col, haloColor: p.bg }); }
-    /** Флажок на полу: где сейчас темп команды или гости; за краем сцены — стрелка у края. */
-    function flag(L, p, V, x, text, adaX) {
-      const { c, k } = L; let px = V.X(x); const y0 = V.Y(0), y1 = V.Y(0.44), ya = V.Y(0.3);
-      if (px > L.W - 12) { px = L.W - 12; arrow(c, px - 22, ya, px, ya, p.pu, 2.4, 8); K.label(c, k, text, px - 4, ya - 13, { px: 10, weight: 650, color: p.pu, align: 'right', haloColor: p.bg }); return; }
-      if (px < 12) { px = 12; arrow(c, px + 22, ya, px, ya, p.pu, 2.4, 8); K.label(c, k, text, px + 4, ya - 13, { px: 10, weight: 650, color: p.pu, align: 'left', haloColor: p.bg }); return; }
+    /** Рамка Ады в пикселях [x0, x1, y0, y1] по кадру AdaBody: точки тела с запасом 0,13 м на корпус, ноги и руки. */
+    function adaBox(L, V, f) {
+      const P = AdaBody.points(f), q = [P.hip, P.top, P.head, P.L.knee, P.L.ankle, P.L.heel, P.L.toe, P.R.knee, P.R.ankle, P.R.heel, P.R.toe];
+      const xs = q.map((v) => V.X(v[0])), ys = q.map((v) => V.Y(v[1])), d = 0.13 * L.SC;
+      return [Math.min(...xs) - d, Math.max(...xs) + d, Math.min(...ys) - d, Math.max(...ys) + d];
+    }
+    /** Флажок на полу: где сейчас темп команды или гости; за краем сцены — стрелка у края. Подпись не выходит за край сцены
+     *  и не ложится на Аду (ada — её рамка, adaBox): над флажком она прижимается к краю сцены, а если там её закрыла бы Ада,
+     *  встаёт по другую сторону флажка; если места нет и там, подпись не рисуется. Ширина подписи — по самому тексту. */
+    function flag(L, p, V, x, text, ada) {
+      const { c, k } = L; let px = V.X(x); const y0 = V.Y(0), y1 = V.Y(0.44), ya = V.Y(0.3), M = 4;
+      K.font(c, k, 10, 650); const w = c.measureText(text).width, hh = 7 * k;
+      const free = (l, y) => l >= M && l + w <= L.W - M && !(ada && l < ada[1] && l + w > ada[0] && y - hh < ada[3] && y + hh > ada[2]);
+      const put = (l, y) => K.label(c, k, text, l, y, { px: 10, weight: 650, color: p.pu, align: 'left', haloColor: p.bg });
+      if (px > L.W - 12) { px = L.W - 12; arrow(c, px - 22, ya, px, ya, p.pu, 2.4, 8); if (free(px - 4 - w, ya - 13)) put(px - 4 - w, ya - 13); return; }
+      if (px < 12) { px = 12; arrow(c, px + 22, ya, px, ya, p.pu, 2.4, 8); if (free(px + 4, ya - 13)) put(px + 4, ya - 13); return; }
       c.strokeStyle = p.pu; c.lineWidth = 2; c.beginPath(); c.moveTo(px, y0); c.lineTo(px, y1); c.stroke();
       c.fillStyle = p.pu; c.beginPath(); c.moveTo(px, y1); c.lineTo(px + 14, y1 + 5); c.lineTo(px, y1 + 10); c.closePath(); c.fill();
-      if (adaX == null || Math.abs(x - adaX) > 0.32) K.label(c, k, text, px, y1 - 9, { px: 10, weight: 650, color: p.pu, haloColor: p.bg });
+      const over = Math.max(M, Math.min(L.W - M - w, px - w / 2)), aside = ada && (ada[0] + ada[1]) / 2 < px ? px + 18 : px - 6 - w;
+      for (const [l, y] of [[over, y1 - 9], [aside, y1 + 5]]) if (free(l, y)) { put(l, y); return; }
     }
     function rotated(c, px, py, th, fn) { if (!th) { fn(); return; } c.save(); c.translate(px, py); c.rotate(th); c.translate(-px, -py); fn(); c.restore(); }
     function boxRect(L, p, V, x, z) { const { c } = L, w = 0.26 * L.SC, hh = 0.2 * L.SC; c.fillStyle = K.dark() ? '#6b5537' : '#d9b98c'; c.strokeStyle = p.ink2; c.lineWidth = 1.4; c.beginPath(); c.roundRect(V.X(x) - w / 2, V.Y(z) - hh / 2, w, hh, 3); c.fill(); c.stroke(); c.beginPath(); c.moveTo(V.X(x) - w / 2, V.Y(z)); c.lineTo(V.X(x) + w / 2, V.Y(z)); c.stroke(); }
@@ -594,7 +609,7 @@
       hall(L, p, t) {
         const { c } = L, o = st.ran.walk, slow = o === 'fwd' || o === 'fwdFall', cmd = slow ? 0.3 : 0.9, run = C6.walkRun(o, cmd), fr = run.frames, n = fr.length, i = Math.min(n - 1, Math.floor(t * 50)), f = fr[i];
         const V = cam(L, f[0] + 0.3, 0.36); floor(L, p, V);
-        flag(L, p, V, fr[0][0] + cmd * Math.min(t, 6), 'темп команды', f[0]);
+        flag(L, p, V, fr[0][0] + cmd * Math.min(t, 6), 'темп команды', adaBox(L, V, f));
         AdaBody.side(c, V.X, V.Y, f, { color: p.or });
         const low = AdaBody.points(f).hip[1] < 0.4, fell = run.fell != null && run.terminate && i >= n - 1;
         if (fell) tag(L, p, 'падение', V.X(f[0]), V.Y(1.0), p.bad); else if (low) tag(L, p, 'корпус на полу', V.X(f[0]), V.Y(1.0), p.bad);
@@ -643,8 +658,9 @@
         const e = C6.styleRun(o, C6.VF), fr = e.frames, n = fr.length, i = Math.min(n - 1, Math.floor(t * 50)), f = fr[i], C = e.clip, V = cam(L, f.x + 0.3, 0.38); floor(L, p, V);
         const g = L62.refAt(C, f.t * C.f, f.t, 0, 0);
         AdaBody.side(c, V.X, V.Y, f62({ x: g.xw, y: g.y, th: g.th, q: g.q }), { ghost: true, arms: g.arm });
-        flag(L, p, V, e.vcmd * f.t, 'гости', f.x);
-        AdaBody.side(c, V.X, V.Y, f62(f), { color: p.or, arms: f.arm });
+        const fa = f62(f);
+        flag(L, p, V, e.vcmd * f.t, 'гости', adaBox(L, V, fa));
+        AdaBody.side(c, V.X, V.Y, fa, { color: p.or, arms: f.arm });
         const avg = f.t > 0 ? f.x / f.t : 0;
         return { dur: (n - 1) / 50, lines: [`гости ${fx(e.vcmd, 2)} м/с · Ада в среднем ${fx(avg, 2)} м/с`, `цикл шага ${fx(e.freq, 2)} Гц, у записи ${fx(C6.clipsOf().A.f, 2)} Гц`] };
       },
@@ -683,7 +699,7 @@
         const tau = cloud ? Math.min(t * SL, st.stop[key]) : t * SL, f = at(tau), stopped = cloud && t * SL >= st.stop[key];
         const V = cam(L, f[0] + 0.3, 0.38); floor(L, p, V);
         // роутер на стене и связь с облаком
-        const rx = V.X(1.5), ry = V.Y(1.45), lost = t >= DROP;
+        const rx = V.X(1.5), ry = Math.max(V.Y(1.45), L.TOP + 27), lost = t >= DROP;   // дуги и крестик — до 23 px над роутером, ниже полосы заголовка
         c.fillStyle = p.bg; c.strokeStyle = p.ink2; c.lineWidth = 1.5; c.beginPath(); c.roundRect(rx - 13, ry - 4, 26, 9, 2); c.fill(); c.stroke();
         for (let j = 1; j <= 3; j++) { c.strokeStyle = lost ? alpha(p.bad, 0.8) : alpha(p.ink2, 0.75); c.lineWidth = 1.6; c.beginPath(); c.arc(rx, ry - 4, 6 * j, Math.PI * 1.2, Math.PI * 1.8); c.stroke(); }
         if (lost) K.cross(c, rx, ry - 16, 6, p.bad, 2.2);
