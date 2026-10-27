@@ -224,7 +224,7 @@ html { scroll-padding-top: 76px; scroll-behavior: smooth; }
     <details class="card"><summary>Do I need a robot?</summary><div class="a">No. All labs run in the browser.</div></details>
     <details class="card"><summary>What background do I need?</summary><div class="a">Python and the basics of machine learning. Formulas and code live in separate blocks and are not required to follow the main text.</div></details>
     <details class="card"><summary>How long does the course take?</summary><div class="a">A lesson takes 30–45 minutes. The course has 54 lessons in nine parts, and all lessons are equally important.</div></details>
-    <details class="card"><summary>When will the remaining lessons come out?</summary><div class="a">A new part is released in full every Saturday at 9:00 Moscow time. Released lessons are marked in the program; announcements are posted in the Telegram channel «Продакт роботов» (in Russian).</div></details>
+    <details class="card"><summary>When will the remaining lessons come out?</summary><div class="a">Parts are released in full, on a Saturday at 9:00 Moscow time. Released lessons are marked in the program; new parts are announced in the Telegram channel «Продакт роботов» (in Russian).</div></details>
     <details class="card"><summary>Can I use the materials for teaching?</summary><div class="a">Yes, with attribution and for non-commercial purposes. The lab code can be used without restrictions under the MIT license.</div></details>
     <details class="card"><summary>Does the course collect data about readers?</summary><div class="a">No. The site counts only anonymous totals: how many times a lesson was opened, how far people read, how many missions they completed and how they answered the quiz. The feedback at the end of a lesson is stored without a name or contact details. There are no cookies and no data about readers. The totals and feedback show which lessons and tasks need more work. Details are in the <a href="privacy.html">privacy policy</a>.</div></details>
   </div>
@@ -287,7 +287,7 @@ const PARTS = [
     const to = PARTS.length - 1, el = document.createElement('div'); el.className = 'soon';
     el.innerHTML = '<div class="soon-line"><span class="soon-pill">Coming soon</span></div><p class="soon-note"></p>';
     const note = el.querySelector('.soon-note');
-    note.textContent = (from === to ? `Part ${to} is in the works.` : `Parts ${from}–${to} are in the works.`) + ' A new part comes out every Saturday at\u00a09:00 Moscow time; announcements are posted in the Telegram channel ';
+    note.textContent = (from === to ? `Part ${to} is coming later.` : `Parts ${from}–${to} are coming later.`) + ' Parts are released in full, on a Saturday at\u00a09:00 Moscow time; announcements are posted in the Telegram channel ';
     const a = document.createElement('a'); a.href = box.dataset.channel; a.target = '_blank'; a.rel = 'noopener'; a.textContent = '«Продакт роботов»';
     note.append(a, ' (in Russian).');
     return el;
