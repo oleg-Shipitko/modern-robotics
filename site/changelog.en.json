@@ -2,6 +2,31 @@
   "_comment": "What's new on the site, English version: the same versions and dates as site/changelog.json, titles and items in English. The first number of a version is the last released part, the second grows with every update between releases. An entry with a future date appears on the page on that day (Moscow time). Newest first.",
   "versions": [
     {
+      "v": "6.0",
+      "date": "2026-11-07",
+      "title": "Part 6: humanoid robots",
+      "items": [
+        "Lessons 6.1 “RL-based locomotion”, 6.2 “Imitating human motion”, 6.3 “Whole-body control”, 6.4 “Loco-manipulation”, 6.5 “Humanoid hardware”, 6.6 “A survey of humanoid platforms”, and the Part 6 check with a live scene task.",
+        "Ada has legs now: in every lesson of the part she is a humanoid rather than a robot on a wheeled base.",
+        "Animated diagrams: the walking training loop over thousands of copies and Digit's transformer over history, DeepMimic and AMP, training a whole-body tracker with command masks, control levels in teleoperation and at work, two actuators with different gear ratios and two hands, and three control stacks of real humanoids.",
+        "Numbers from papers and specs are shown as bar charts.",
+        "The Part 6 lessons and the Part 6 check are available in English from day one.",
+        "38 new glossary terms, and the “VLM” tooltip now also appears on the words “vision-language model”."
+      ]
+    },
+    {
+      "v": "5.0",
+      "date": "2026-10-31",
+      "title": "Part 5: reinforcement learning",
+      "items": [
+        "Lessons 5.1 “RL basics: reward, value, advantage”, 5.2 “Policy gradient and PPO”, 5.3 “Off-policy and SAC”, 5.4 “Sim-to-real transfer: randomization”, 5.5 “Learning with privileged information”, 5.6 “Offline RL”, 5.7 “RL on real robots and VLA fine-tuning”, and the Part 5 check with a live scene task.",
+        "Animated diagrams: the agent–environment loop and the Bellman update, a policy gradient step and the PPO cycle, the replay buffer and the SAC update, a command's path in the simulator and on the real arm, the automatic domain randomization loop, the two teacher–student stages and RMA, three ways to learn from experience, the HIL-SERL loop and RECAP.",
+        "Training in the Part 5 labs gives the same numbers in Chrome, Safari and on the iPhone: the lesson engines don't depend on the browser's built-in math.",
+        "The Part 5 lessons and the Part 5 check are available in English from day one.",
+        "36 new glossary terms."
+      ]
+    },
+    {
       "v": "4.6",
       "date": "2026-10-27",
       "title": "Ideas map: simpler texts, links to papers",
@@ -54,18 +79,6 @@
         "The glossary has a new term, “Action token”, and the tooltip on these words no longer leads to “Action bins”.",
         "In card sorting across all lessons, after a check with mistakes there is a “Re-sort the wrong ones” button: correct cards stay in place, wrong ones return, and the mission can be passed on the second try.",
         "In lesson 3.2 SayCan asks the language model which step is useful for the task."
-      ]
-    },
-    {
-      "v": "5.0",
-      "date": "2026-10-31",
-      "title": "Part 5: reinforcement learning",
-      "items": [
-        "Lessons 5.1 “RL basics: reward, value, advantage”, 5.2 “Policy gradient and PPO”, 5.3 “Off-policy and SAC”, 5.4 “Sim-to-real transfer: randomization”, 5.5 “Learning with privileged information”, 5.6 “Offline RL”, 5.7 “RL on real robots and VLA fine-tuning”, and the Part 5 check with a live scene task.",
-        "Animated diagrams: the agent–environment loop and the Bellman update, a policy gradient step and the PPO cycle, the replay buffer and the SAC update, a command's path in the simulator and on the real arm, the automatic domain randomization loop, the two teacher–student stages and RMA, three ways to learn from experience, the HIL-SERL loop and RECAP.",
-        "Training in the Part 5 labs gives the same numbers in Chrome, Safari and on the iPhone: the lesson engines don't depend on the browser's built-in math.",
-        "The Part 5 lessons and the Part 5 check are available in English from day one.",
-        "36 new glossary terms."
       ]
     },
     {
