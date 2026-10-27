@@ -12,7 +12,7 @@ let bad = 0;
 const check = (ok, msg) => { if (!ok) bad++; console.log((ok ? '  ✓ ' : '  ✗ ') + msg); };
 const J = (s) => JSON.parse(s);
 const sp = (s) => String(s).replace(/[  ]/g, ' ').replace(/−/g, '-');
-const finish = () => { console.log(bad ? `ИТОГ: ${bad} проверок не прошли` : 'ИТОГ: все проверки прошли'); process.exit(bad ? 1 : 0); };
+const finish = () => { console.log(bad ? `ИТОГ: ${bad} проверок не прошли` : 'ИТОГ: все проверки прошли'); process.exit(bad ? 1:0); };
 const LESSON = path.resolve(__dirname, '../lessons/l65/lesson.html');
 const plain = () => sp(fs.readFileSync(LESSON, 'utf8')).replace(/<[^>]+>/g, '').replace(/\s+/g, ' ');
 const fr = (v, d) => sp((+v).toLocaleString('ru-RU', { minimumFractionDigits: d, maximumFractionDigits: d }));
@@ -53,9 +53,9 @@ if (process.argv.includes('--numbers')) {
 } else if (process.argv.includes('--check')) {
   const C = claims(), txt = plain();
   check(C.n === 720, `сочетаний частей: ${C.n}`);
-  check(C.h1[0] > 1.5 && C.h1[1] < 2, `батарея как у H1 вместо как у G1: время в ${C.h1[0].toFixed(2)}–${C.h1[1].toFixed(2)} раза больше на всех сочетаниях (текст: в 1,5–2 раза, но не вдвое)`);
-  check(C.thor[0] >= 0.30 && C.thor[1] <= 0.45, `Thor вместо Orin NX: время падает на ${(C.thor[0] * 100).toFixed(1)}–${(C.thor[1] * 100).toFixed(1)} % (текст: на 31–44 %)`);
-  check(txt.includes('на 31–44 %') && Math.round(C.thor[0] * 100) === 31 && Math.round(C.thor[1] * 100) === 44, '«Под капотом» называет те же проценты падения времени с Thor');
+  check(C.h1[0] > 1.85 && C.h1[1] < 2 && txt.includes('даёт почти вдвое больше времени, но не вдвое'), `батарея как у H1 вместо как у G1: время в ${C.h1[0].toFixed(2)}–${C.h1[1].toFixed(2)} раза больше на всех сочетаниях (текст: почти вдвое, но не вдвое)`);
+  check(C.thor[0] >= 0.30 && C.thor[1] <= 0.45, `Thor вместо Orin NX: время падает на ${(C.thor[0] * 100).toFixed(1)}–${(C.thor[1] * 100).toFixed(1)}% (текст: на 31–44%)`);
+  check(txt.includes('на 31–44%') && Math.round(C.thor[0] * 100) === 31 && Math.round(C.thor[1] * 100) === 44, '«Под капотом» называет те же проценты падения времени с Thor');
   check(C.minArm.shadow === '8518' && ['inspire', 'leap', 'allegro', 'sharpa'].every((h) => C.minArm[h] === '8513'), `кисти Shadow требуют в руках не меньше 8518, остальные обходятся 8513: ${JSON.stringify(C.minArm)}`);
   check(C.f3[0] === 12 && C.f3[1] === 240 && C.f3[2], `батарея 2,3 кВт·ч оставляет ногам запас только в ${C.f3[0]} сочетаниях из ${C.f3[1]}, все с руками 5013 и ногами 10413; ни одно сочетание с ней задачу не выполняет`);
   check(txt.includes(`только в ${C.f3[0]} сочетаниях из ${C.f3[1]}`), '«Под капотом» называет то же число сочетаний');
@@ -133,7 +133,7 @@ async function labLabels(p) {
     let prev = E.DEFAULT;
     for (const c of confs) { st.pinned = Object.assign({}, E.DEFAULT, prev); st.pinnedName = 'после миссии 3'; st.pinRes = E.compute(st.pinned); st.cfg = Object.assign({}, E.DEFAULT, c); st.res = E.compute(st.cfg); st.shown = true; chk('bCv', 'бюджет ' + JSON.stringify(c), () => B.api.drawScene()); prev = c; }
     Object.assign(st, keep); B.api.render();
-    if (document.getElementById('partsCv')) { chk('partsCv', 'части Ады', () => window.dispatchEvent(new Event('resize'))); }
+    if (document.getElementById('partsCv')) { chk('partsCv', 'части Ады', () => App.emit('resize')); }
     Pr.fillText = oT;
     return JSON.stringify({ bad: [...bad], minPx, texts });
   })()`));
@@ -167,7 +167,7 @@ const lessonsDir = path.resolve(__dirname, '../lessons');
 
     // ---------- схемы ----------
     for (const kind of ['drive', 'hand']) {
-      const moved = await p.eval(`(() => { const cv = document.querySelector('canvas[data-anim="${kind}"]'); Anim.seek(cv, 0.3); const x = cv.toDataURL(); Anim.seek(cv, ${kind === 'drive' ? 2.45 : 1.5}); return x !== cv.toDataURL(); })()`);
+      const moved = await p.eval(`(() => { const cv = document.querySelector('canvas[data-anim="${kind}"]'); Anim.seek(cv, 0.3); const x = cv.toDataURL(); Anim.seek(cv, ${kind === 'drive' ? 2.45:1.5}); return x !== cv.toDataURL(); })()`);
       check(moved, `схема ${kind} движется: кадры в разные моменты разные`);
       const sl = await schemeLabels(p, kind, FRAMES[kind]);
       check(!sl.none && sl.layout === 'w' && !sl.bad.length && sl.distinct === FRAMES[kind].length, `схема ${kind} (широкая): подписи в канвасе, не налезают, не мельче 10 px (наименьшая ${sl.minPx && sl.minPx.toFixed(1)}), в своих блоках` + (sl.bad.length ? ': ' + sl.bad.slice(0, 4).join('; ') : ''));
@@ -242,7 +242,7 @@ const lessonsDir = path.resolve(__dirname, '../lessons');
     const baMiss = missing(ba, [`плечу нужно ${f1(r1.arm.peakNeed)} Н·м пиком и ${f1(r1.arm.sustNeed)} Н·м длительно`, `прибавляют ${f1(r2.mass.total - r1.mass.total)} кг`, `нужно ${f1(r2.knee.peakNeed)} Н·м при ${f1(r2.knee.peak)}`, `весит ${f1(r3.mass.total)} кг и работает ${f1(r3.hours)} ч`, `тяжелеет до ${f1(r4.mass.total)} кг`, `с ${f1(r3.hours)} до ${f1(r5.hours)} ч`, `возвращает ${f1(r6.hours)} ч ценой ${f1(r6.mass.batt - r5.mass.batt)} кг`, `весила бы ${f1(r6f.mass.batt)} кг`]);
     check(!baMiss.length && !r6f.checks.legs && !R.m6f10.checks.legs, 'текст после лаборатории называет те же числа, что движок' + (baMiss.length ? ' — нет: ' + baMiss.join(', ') : ''));
     const deep = await text(p, '#budget details.deep');
-    check(deep.includes('Ада весит 28 кг, как в уроке 6.1') && deep.includes('1 кг на 130 Вт·ч') && deep.includes('0,7') && deep.includes('на 31–44 %'), '«Под капотом» описывает модель: 28 кг, 130 Вт·ч/кг, стоимость перемещения 0,7, диапазон Thor');
+    check(deep.includes('Ада весит 28 кг, как в уроке 6.1') && deep.includes('1 кг на 130 Вт·ч') && deep.includes('0,7') && deep.includes('на 31–44%'), '«Под капотом» описывает модель: 28 кг, 130 Вт·ч/кг, стоимость перемещения 0,7, диапазон Thor');
     const wideD = await p.eval(`[...document.querySelectorAll('.lab')].filter((l) => l.scrollWidth > l.clientWidth + 1 || [...l.querySelectorAll('.card')].some((c) => c.scrollWidth > c.clientWidth + 1 || c.getBoundingClientRect().right > l.getBoundingClientRect().right + 1)).length`);
     check(wideD === 0, 'компьютер: после всех миссий ни одна карточка лаборатории не вылезает за свою колонку: ' + wideD);
     const outBad = outs.filter((x) => POS.test(x));
@@ -250,10 +250,12 @@ const lessonsDir = path.resolve(__dirname, '../lessons');
     const ll = await labLabels(p);
     check(!ll.bad.length && ll.minPx >= 9.95, `канвасы лаборатории и рисунка частей (компьютер): подписи в канвасе, не налезают, не мельче 10 px (наименьшая ${ll.minPx.toFixed(1)})` + (ll.bad.length ? ': ' + ll.bad.slice(0, 4).join('; ') : ''));
     check(!ll.texts.some((x) => POS.test(x)), 'канвасы лаборатории: в подписях нет слов о расположении');
+    const armLab = J(await p.eval(`(() => { const cv = document.getElementById('partsCv'), Pr = CanvasRenderingContext2D.prototype, oT = Pr.fillText, out = []; Pr.fillText = function (t, x, y) { if (this.canvas === cv) { const tr = this.getTransform(); out.push({ t: String(t), x: (x * tr.a + tr.e) / cv.width }); } return oT.apply(this, arguments); }; App.emit('resize'); Pr.fillText = oT; return JSON.stringify(out.filter((q) => /приводы/.test(q.t))); })()`));
+    check(armLab.length === 2 && armLab.every((q) => q.x > 0.5), 'рисунок частей: подписи приводов рук и ног справа от фигуры, не на голове Ады: ' + armLab.map((q) => `${q.t} ${q.x.toFixed(2)}`).join(', '));
 
     // ---------- итоги, квиз, глоссарий, формулы, консоль ----------
     const fin = await text(p, '#finale .takeaways');
-    const finMiss = missing(fin, ['в 3,7 раза сильнее', '42–47 %', '189 Н·м/кг', '6 кг против 3,6', '4,3 кг', '7 мкм', 'трёх граммов', 'срезал время работы на треть']);
+    const finMiss = missing(fin, ['в 3,7 раза сильнее', '42–47%', '189 Н·м/кг', '6 кг против 3,6', '4,3 кг', '7 мкм', 'трёх граммов', 'срезал время работы на треть']);
     check(!finMiss.length, 'итоги урока называют числа схем, статей и лаборатории' + (finMiss.length ? ' — нет: ' + finMiss.join(', ') : ''));
     check(!(await p.eval(`document.body.innerText.includes('@@')`)), 'в тексте страницы не осталось заглушек @@');
     const qz = J(await p.eval(`JSON.stringify([...document.querySelectorAll('#quizBox .q-card')].map((c) => c.querySelectorAll('.q-opt').length))`));
@@ -292,6 +294,9 @@ const lessonsDir = path.resolve(__dirname, '../lessons');
     check(!ml.bad.length && ml.minPx >= 9.95, `телефон, канвасы лаборатории: подписи в канвасе, не налезают, не мельче 10 px (наименьшая ${ml.minPx.toFixed(1)})` + (ml.bad.length ? ': ' + ml.bad.slice(0, 4).join('; ') : ''));
     const statsM = await m.eval(`[...document.querySelectorAll('.stat-fig')].filter((f) => f.scrollWidth > f.clientWidth + 1).length`);
     check(statsM === 0, 'телефон: диаграммы не шире своих карточек: ' + statsM);
+    await m.S('Emulation.setDeviceMetricsOverride', { width: 360, height: 780, deviceScaleFactor: 2, mobile: true }); await sleep(500);
+    const glab = J(await m.eval(`(() => { const out = []; document.querySelectorAll('.stat-fig').forEach((fig, fi) => { const f = fig.getBoundingClientRect(), cs = getComputedStyle(fig), L = f.left + parseFloat(cs.paddingLeft), Rr = f.right - parseFloat(cs.paddingRight); fig.querySelectorAll('.sb-plot').forEach((plot) => { const labs = [...plot.querySelectorAll('.sb-glab')].map((e) => { const r = document.createRange(); r.selectNodeContents(e); return { t: e.textContent, rs: [...r.getClientRects()] }; }); labs.forEach((a, i) => { if (a.rs.some((q) => q.left < L - 0.5 || q.right > Rr + 0.5)) out.push('«' + a.t + '» за полями карточки'); labs.slice(i + 1).forEach((b) => { if (a.rs.some((q) => b.rs.some((z) => Math.min(q.right, z.right) - Math.max(q.left, z.left) > 0.5 && Math.min(q.bottom, z.bottom) - Math.max(q.top, z.top) > 0.5))) out.push('«' + a.t + '» на «' + b.t + '»'); }); }); }); }); return JSON.stringify(out); })()`));
+    check(!glab.length, 'телефон 360: подписи групп диаграмм не налезают друг на друга и не выходят за поля карточки' + (glab.length ? ': ' + glab.join('; ') : ''));
     await m.S('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
     for (const [id, sel, n] of [['drive', '#drive .flow-card', 'l65-m-drive.png'], ['hands', '#hands .flow-card', 'l65-m-hand.png'], ['budget', '#budget .lab', 'l65-m-budget.png'], ['drive', '#drive .stat-fig', 'l65-m-stat-act.png']]) {
       await m.eval(`document.getElementById('${id}').scrollIntoView({ behavior: 'instant' }); true`); await sleep(300);

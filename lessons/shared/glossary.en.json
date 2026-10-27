@@ -1750,5 +1750,41 @@
   "t": "Motion token",
   "d": "A learned code for a frame of whole-body motion in SONIC: 64 numbers that the tracker can execute. A VLA model that output tokens instead of explicit poses of all the joints succeeded on loco-manipulation tasks in 68% of attempts on average versus 27%: a compact space is easier to learn, and small errors in whole-body poses turn into large tracking errors.",
   "a": "(?:universal )?motion tokens?"
+ },
+ {
+  "id": "sustained-torque",
+  "t": "Sustained (continuous) torque",
+  "d": "The torque an actuator can hold for a long time without overheating, as opposed to the peak torque, which it gives only for seconds. For the Berkeley Humanoid actuators it's 42–47% of the peak, for Nadia's actuators from a quarter to a third. The peak is needed to climb a step, the sustained torque to walk for an hour; the G1's motors in TWIST overheated after 5–10 minutes of continuous operation, especially during squats, because they worked near the peak for a long time.",
+  "a": "sustained torques?|continuous torques?"
+ },
+ {
+  "id": "torque-density",
+  "t": "Torque density",
+  "d": "An actuator's peak torque per kilogram of its mass, in N·m/kg. Unitree quotes a peak torque density of 189 N·m/kg for the H1. The larger the robot, the more torque its knees need and the heavier its actuators, and heavy actuators demand more torque in turn, so torque density decides how big a robot can be built.",
+  "a": "torque densit(?:y|ies)"
+ },
+ {
+  "id": "cycloidal-drive",
+  "t": "Cycloidal drive",
+  "d": "A gearbox in which an eccentric spins a disc with a wavy edge inside a ring of rollers, so the load is shared by many contact points at once. It gives a large gear ratio in a small volume and withstands impacts: on such actuators the Nadia humanoid hits a punching bag, Digit 5 walks, and Berkeley Humanoid Lite printed its own on a desktop 3D printer.",
+  "a": "cycloidal (?:drives?|gearbox(?:es)?|gears?|gearing|reducers?|actuators?)"
+ },
+ {
+  "id": "ball-screw",
+  "t": "Ball screw",
+  "d": "A linear transmission: the screw rotates, and a nut with balls travels along it and turns the joint through a rod, the way a muscle pulls on a bone. On such a screw, the knee actuator of the RH5 humanoid develops up to 5,845 N, and an actuator placed near the knee can drive the ankle through a crank-slider mechanism, so the heavy part of the leg moves closer to the torso. A more complex relative is the planetary roller screw from lesson 0.2.",
+  "a": "ball(?: |-)screws?"
+ },
+ {
+  "id": "remote-actuation",
+  "t": "Remote (tendon-driven) actuation",
+  "d": "A hand layout in which the motors sit in the forearm or in the base of the hand, and tendons run from them to the finger joints, as in a human hand. The fingers come out light and strong (RUKA held 6.0 kg versus 3.6 for Allegro, which has its motors in the fingers), but the motors' mass moves behind the wrist, and the tendons rub, stretch and need re-tensioning. The opposite layout is a motor with a gearbox in every joint, as in the Allegro Hand.",
+  "a": "remote(?: tendon-driven)? actuation"
+ },
+ {
+  "id": "cost-of-transport",
+  "t": "Cost of transport",
+  "d": "A dimensionless measure of the energy of walking: power divided by weight and speed, that is, how much energy goes into moving a unit of weight over a unit of distance. For the biped Cassie it was measured at 0.7 (200 W at 30 kg and 1 m/s), for a human it's about 0.2, and for Asimo about 2. In the lesson's lab, Ada's walking is computed with a cost of transport of 0.7.",
+  "a": "costs? of transport"
  }
 ]

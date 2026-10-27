@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>6.5 Humanoid hardware — Modern Robotics and Physical AI</title>
+<meta name="description" content="Lesson 6.5 of the “Modern Robotics and Physical AI” course: how actuators, hands, tactile sensors, the onboard computer and the battery limit what a humanoid's policy can be taught. A quasi-direct drive versus a harmonic drive, tendons versus motors in the fingers, Digit 360, Jetson Orin and Thor, the batteries of Unitree, Figure and Atlas. Build Ada for a 5 kg box and two hours of work, and see what she runs into.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<script>
+  (function () { try { var t = localStorage.getItem('mr-theme'); if (t) document.documentElement.dataset.theme = t; else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme = 'dark'; } catch (e) {} })();
+</script>
+<style>
+/*@@CSS@@*/
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html#program" title="To the course program"><div>Modern Robotics and Physical AI<small>Lesson 6.5 · Humanoid hardware</small></div></a>
+    <nav class="toc" aria-label="Lesson sections">
+      <a href="#body">Body</a>
+      <a href="#drive">Actuator</a>
+      <a href="#gears">Gearboxes</a>
+      <a href="#hands">Hands</a>
+      <a href="#touch">Touch</a>
+      <a href="#compute">Computer</a>
+      <a href="#power">Power</a>
+      <a href="#budget">Budget</a>
+      <a href="#today">Today</a>
+      <a href="#quiz">Quiz</a>
+      <a href="#finale">Takeaways</a>
+    </nav>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Toggle theme">◐</button>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main>
+
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="kicker"><span class="num">6.5</span> Part 6 · Humanoid robots</div>
+    <h1>Humanoid hardware: <span class="amp">actuators, hands, tactile sensors and onboard computers decide what a policy can be taught</span></h1>
+    <p class="lead">In lesson 6.4, Ada carried a cup on commands from the upper-level model while the whole-body controller kept her balance. From there, everything came down to the body itself: in TWIST, the G1 robot's motors overheated after 5–10 minutes of continuous operation, HumanPlus couldn't stand on one leg because its ankle has a single degree of freedom, and Figure 02's top hardware failure point at the BMW plant turned out to be the forearm. A policy gets the body that was built for it: the actuators decide what torque a joint holds at peak and what it holds hour after hour, the hand decides how many fingers and joints can be moved independently, the tactile sensors decide what the policy learns about the object, the onboard computer decides which model can compute its answer in time, and the battery decides how long all of this runs. In this lesson, we'll go through each part using primary sources from 2018–2026, see where an actuator loses its transparency and where the impact comes from, compare a tendon-driven hand with a hand that has motors in its fingers, and then build Ada for the task “carry a 5 kg box for two hours” and see how one replacement pulls in the next.</p>
+    <div class="hero-meta"><span>≈ 50 minutes</span><span>a lab, 2 diagrams, charts and a quiz</span><span id="heroMis">missions with a goal</span></div>
+    <div class="hero-list">
+      <div><b>JOINT ACTUATOR</b>See on the diagram what happens to the motor, the gearbox and the link at gear ratios of 6:1 and 100:1: where the impact on touching the floor comes from and why, through a large gearbox, the motor current no longer shows the force at the foot</div>
+      <div><b>HAND</b>Compare a tendon-driven hand, with its motors in the forearm, and a hand with a motor in every finger joint: what gets lighter and what gets heavier</div>
+      <div><b>BUDGET</b>Build Ada from actuators, hands, a computer and a battery for a 5 kg box and two hours of work, and find what she runs into: actuator torque, mass, power or time</div>
+      <div><b>FROM THE DOCUMENTATION</b>Look at the numbers for the Berkeley Humanoid actuators, the Shadow, Allegro, Inspire and Sharpa hands, the Jetson computers and the Unitree, Figure and Atlas batteries</div>
+    </div>
+    <p style="margin-top:28px"><a class="btn primary" href="#body">Start the lesson ↓</a></p>
+  </div>
+</section>
+
+<section class="recall-sec" id="recall" aria-label="Warm-up on the previous lesson">
+  <div class="wrap"><div class="card recall" data-recall></div></div>
+  <script type="application/json" id="recallData">{"n": "6.4", "title": "Loco-manipulation", "href": "6-4-lokomanipulyatsiya.html", "q": [
+ {"q": "Why isn't a vision-language model that responds a few times a second given a humanoid's legs directly?", "o": ["It can't output joint angles", "A torso on legs is unstable: the deviation grows faster than a new command arrives, so balance is kept by a whole-body controller that sees the body 50 times a second", "A humanoid's legs can only be driven by classical controllers"], "a": 1, "e": "In Lab 1, the Ada whose model handed her a whole-body plan at 5 Hz didn't get the cup there in a single one of 20 runs and coped only at 50 Hz, while the Ada with the whole-body controller placed the cup in 19–20 runs out of 20 even at 2 Hz.", "sec": "split", "secTitle": "Ada carries a cup: the model drives the body itself or sets goals for the controller"},
+ {"q": "What does whole-body teleoperation record in HumanPlus and TWIST2, and why is that convenient for an autonomous policy?", "o": ["The operator's joint angles, to replay them on the robot later", "Commands to the whole-body controller: the autonomous policy learns to output the same commands to the same controller, and the recordings become its data right away", "Only images from the robot's cameras"], "a": 1, "e": "In TWIST2, during data collection the commands come from the operator with retargeting, and during operation from Diffusion Policy, with one and the same tracker beneath them. From 50 demonstrations, the robot pushed a box to a mark with its foot in 6 attempts out of 7.", "sec": "teleop", "secTitle": "Whole-body teleoperation records the lower level's commands"},
+ {"q": "The step policy from Lab 2 reproduces the recordings precisely, yet it falls or runs into the shelf. Why?", "o": ["The network is too small for such a task", "Calm recordings contain no deviations and no corrections of them: a small error takes Ada into states the policy has never seen, where the error grows, and more recordings of the same kind don't help", "There are too few recordings for 50 pairs a second"], "a": 1, "e": "From 20 recordings, the step policy placed the cup in 6 tests out of 20, from 40 in 5, while the command policy on top of the whole-body controller placed it in 20 out of 20. Recordings with pushes raised the step policy to 20 out of 20, but then it copied the whole-body controller, which is there anyway.", "sec": "bc", "secTitle": "What to learn from recordings: targets for the legs or commands for the controller"}
+]}</script>
+</section>
+
+<section class="section alt" id="body">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">1</span> Body</div>
+      <h2>The body sets the limits: what the hardware decides in a humanoid</h2>
+      <p>A policy gets its body ready-made and controls only what's in it. In lesson 6.4, this showed up three times. The G1 robot's motors in TWIST overheated after 5–10 minutes of continuous operation, especially during squats, and limited how long recordings could last. HumanPlus couldn't stand on one leg and shake the other, because its robot's ankle has one degree of freedom. And in TWIST2, folding towels was limited by the reliability of the motors. In November 2025, Figure summed up Figure 02's work at the BMW plant: in more than 1,250 hours of runtime, the top hardware failure point was the forearm, which the company calls “a challenging subsystem due to its tight packaging, dexterity requirements (three degrees of freedom), and thermal constraints”. None of these limits can be fixed by training.</p>
+      <p class="ada-note"><svg class="ada-ico" viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="10" width="48" height="42" rx="18" fill="#f4efe6" stroke="#3d3c38" stroke-width="3"/><rect x="15" y="19" width="34" height="22" rx="10" fill="#1f2430"/><ellipse cx="25" cy="30" rx="4" ry="5.5" fill="#eb6834"/><ellipse cx="39" cy="30" rx="4" ry="5.5" fill="#eb6834"/></svg><span>Ada is the course's home humanoid; since lesson 6.1, she has legs instead of a wheeled base. More about her and her home in <a href="0-1-dve-paradigmy.html#ada">lesson 0.1</a>.</span></p>
+      <p>What in a humanoid's body decides what a policy can be taught? In lesson 0.2, we went through the actuators and sensors of Ada on her wheeled base: a joint as one degree of freedom, the gearbox and its price, six ways to move a joint, encoders, the IMU, the depth camera and the GelSight tactile sensor. Here we come back to the same parts but ask different questions: what torque a joint holds at peak and what it can hold for an hour, how many of a hand's joints are controlled independently, what the policy learns about contact, which model can compute its answer on board in time, and how long all of this runs on a battery. Berkeley Humanoid, the research humanoid from the University of California, Berkeley, was built around exactly these questions: the authors write that traditional full-size humanoids are often heavier than a person of the same size, so handling one takes at least two or three people with the help of gantries, and that experimenting with high-torque actuators of about 300 N·m is dangerous; their robot weighs 16 kg, and a single operator can run the experiments. Below are the parts of Ada that we'll be choosing in the lab at the end of the lesson.</p>
+    </div>
+    <div class="card parts-card">
+      <canvas id="partsCv" width="220" height="300" role="img" aria-label="Ada from the front, with legs; labels mark the parts chosen in the lab: the leg and arm actuators, the hands, the fingertips, the computer and the battery in the torso"></canvas>
+      <ul>
+        <li><b>Leg and arm actuators</b>: a motor with a gearbox in every joint. They set the peak and sustained torque, the speed and how much the actuator yields to a push (section 2).</li>
+        <li><b>Hands</b>: the number of joints, the number of actuators and where those actuators sit, in the fingers or in the forearm (section 4).</li>
+        <li><b>Fingertips</b>: tactile sensors, which tell the policy what the camera image can't show about an object (section 5).</li>
+        <li><b>Computer</b> in the torso: which model can compute its answer on board in time, and what goes to the cloud (section 6).</li>
+        <li><b>Battery</b> in the torso: energy, mass and run time (section 7).</li>
+      </ul>
+    </div>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>Let's start with the joint. In lesson 0.2, the lab showed that a large gear ratio gives torque, but the actuator stops yielding to a push and hits harder on impact. What does this look like in a humanoid's leg, which touches the floor on every step?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="drive">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">2</span> Actuator</div>
+      <h2>The joint actuator: motor, gearbox, link and the price of the gear ratio</h2>
+      <p>A humanoid's leg touches the floor on every step, and every touch is an impact on the actuator. In lesson 0.2, we derived that the rotor inertia seen at the gearbox output grows as the square of the gear ratio, and the peak torque on impact grows as the square root of the effective inertia. The diagram below shows one and the same motor with 6:1 and 100:1 gearboxes, as in Lab 1 of lesson 0.2. Through the 100:1 gearbox, the rotor inertia at the output is 280 times larger, and on touching the floor the peak torque is 3.7 times higher. There's a second price as well. Through a small gearbox, the force at the foot reaches the motor almost undistorted, and it can be estimated from the current with an error of about ±10%, as in MIT Cheetah 3. Through a large gearbox, friction and inertia eat up that connection, and Singh et al. (2025) say so directly: many quadruped and humanoid robots use harmonic drives for their high gear ratios and zero backlash, but their low efficiency “necessitates torque sensors at the actuator output”. For the policy from lesson 6.1, which estimates foot contact from the readings of its own body, this is the difference between “I feel the floor” and “I need another sensor”.</p>
+    </div>
+    <figure class="card flow-card">
+      <canvas data-anim="drive" width="720" height="472" role="img" aria-label="Diagram of two actuators: a motor, a gearbox and a link, with a 6 to 1 gearbox and with a 100 to 1 gearbox; the link comes down and touches the floor, a bar shows the peak torque on impact, and an arrow from the foot to the motor shows whether the force reaches the motor current"></canvas>
+      <figcaption class="muted-s">Two identical motors (orange) with 6:1 and 100:1 gearboxes (purple) lower a link (blue) until it touches the floor. The red bar at the floor shows the peak torque on impact: with the 100:1 gearbox it's 3.7 times higher, because the rotor inertia at the output equals J·N² and grows as the square of the gear ratio. The arrow from the foot to the motor shows whether the force at the foot can be seen in the motor current: through 6:1 it arrives with an error of about ±10%, through 100:1 it's lost, and a force sensor is needed. The numbers and the impact model are taken from the lab in lesson 0.2. Click the diagram to pause it.</figcaption>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>That's why humanoids built for learning put the <strong>quasi-direct drives</strong> from lesson 0.2 in their legs: a large motor and a single gear stage with a ratio of 6 to 9. In Mini Cheetah (Katz, Di Carlo and Kim, MIT, 2019), such an actuator weighs 480 g, gives 17 N·m at peak and 6.9 N·m sustained, and the 9 kg robot does backflips on these actuators. Berkeley Humanoid (Liao, Zhang, Huang et al., 2024) is built on four actuators of one family with a 9:1 gearbox: from 251 g and 9.7 N·m to 1,011 g and 81.1 N·m at peak. The paper's table introduces a number that rarely appears in robot documentation but decides how long a robot runs: the <strong>sustained torque</strong> that the actuator holds without overheating. For all four actuators it's 42–47% of the peak. The peak is needed to climb a step, the sustained torque to walk for an hour. The G1's motors in TWIST overheated precisely because the squats kept them near the peak for a long time.</p>
+    </div>
+    <figure class="card stat-fig" aria-label="Chart: the peak and sustained torque of the Mini Cheetah actuator, the four Berkeley Humanoid actuators and Nadia's shoulder actuator, and the share of peak torque that an actuator holds for a long time">
+      <figcaption class="stat-h">Peak and sustained torque of actuators for humanoid legs and arms, N·m</figcaption>
+      <div class="stat-grid"><div id="actBars"></div><div id="actMeter"></div></div>
+      <p class="stat-cap">Mini Cheetah: 17 N·m at peak and 6.9 sustained at 480 g. Berkeley Humanoid (BH) actuators with a 9:1 gearbox: 5013, 9.7 and 4.59 N·m at 251 g; 8513, 45.3 and 18.9 at 756 g; 8518, 62.6 and 26.1 at 856 g; 10413, 81.1 and 34.2 at 1,011 g. The cycloidal actuator in Nadia's shoulder: 158 N·m at peak and 41 sustained. The sustained torque of the 10413 actuator is 42% of its peak. Sources: Table 2 of the Berkeley Humanoid paper, the table in Figure 4 of the Nadia paper; the Mini Cheetah numbers are from lesson 0.2.</p>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>The second number by which actuators are compared is <strong>torque density</strong>, the peak torque per kilogram of actuator. Unitree quotes a peak torque density of 189 N·m/kg for the H1, and the H1's knee gives about 360 N·m at a robot mass of 47 kg; the knee of the 35 kg G1 gives 90 N·m, and 120 in the EDU version. Both robots walk on low-inertia, high-speed permanent-magnet synchronous motors, and the G1 also has dual encoders, on the rotor and at the output, as we saw in lesson 0.2. The larger the robot, the more torque its knees need and the heavier the actuators, and heavy actuators demand torque in turn. A quasi-direct drive solves this with a large motor. How do gearboxes with a large ratio solve it, and why are there still so many of them in humanoid joints?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="gears">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">3</span> Gearboxes</div>
+      <h2>Harmonic, cycloidal and linear: other ways to get torque</h2>
+      <p>If a joint needs hundreds of newton-meters and the actuator has to be compact, a large motor isn't enough, and engineers take a gear ratio of 30–160 in a single stage. The <strong>harmonic drive</strong> from lesson 0.2 gives that with almost no backlash, and Berkeley Humanoid lists the full-size research humanoids built on it: TORO, LOLA, WALK-MAN, iCub. The authors note there that Tesla Optimus deviates from the quasi-direct drive and uses linear actuators and harmonic drives, some with load cells for force control. Gearboxes are compared, among other things, by their <strong>reflected inertia</strong>. It's the same rotor inertia at the output as in lesson 0.2: it shows how heavy the spinning part of the motor feels to the link through the gearbox, and it grows as the square of the gear ratio. Sunbeam's review (2025) collects comparative studies of three kinds of gearbox: harmonic, cycloidal and planetary gearboxes differ significantly in bidirectional efficiency, friction, backlash and reflected inertia, and raising the gear ratio N increases the static torque but also the reflected inertia (as N²) and the friction, which degrades the torque-mode bandwidth, the efficiency at mid-speeds and the stable impedance range. According to the data the review cites, cycloidal and planetary gearboxes can outperform harmonic drives in efficiency and backdrivability at comparable torque density, while harmonic drives keep their advantages in precision and compactness.</p>
+      <p>The <strong>cycloidal gearbox</strong> got a single line in lesson 0.2: it sits in the joints of industrial robots, and Digit 5 has its own cycloidal actuators in its legs. In cycloidal gearing, an eccentric spins a disc with a wavy edge inside a ring of rollers, and the load is shared by many contact points at once. Bertrand et al. from IHMC (2024) chose such actuators for the Nadia humanoid for exactly this reason: the load is distributed across many contact points, the actuator withstands high-impact forces, and the robot hits a 45 kg (100 lb) punching bag at human speed. Nadia's shoulder actuator gives 158 N·m at peak and 41 N·m sustained. Berkeley Humanoid Lite (Chi, Liao et al., 2025) printed its cycloidal gearboxes on a desktop 3D printer: cycloidal gears distribute loads over multiple teeth and accommodate the limited resolution of desktop 3D printers better than planetary gears. The robot weighs 16 kg, costs less than $5,000, and its 6512 actuator is assembled from a drone motor, a driver and a magnetic encoder for $188.</p>
+      <p><strong>Linear actuators</strong> turn the motor's rotation into motion along a straight line and turn the joint through a rod, the way a muscle pulls on a bone. In lesson 0.2, we saw the planetary roller screw in Optimus's linear actuators. A simpler option is the <strong>ball screw</strong>: the screw rotates, and a nut with balls travels along it. The RH5 humanoid from DFKI (Esser, Kumar et al., 2021) drives its hip, torso, knee and ankle with linear units made of a motor and a ball screw, and the knee actuator develops a force of up to 5,845 N and a speed of up to 140 mm/s, while the lower leg with the foot weighs 3.6 kg versus 7.65 for TORO. In a lower leg for humanoids (Jiang et al., 2026), the screw nut is embedded in the motor's rotor, there's no separate reducer, and the actuator sits near the knee and drives the ankle through a crank-slider mechanism: the authors write that the ball screw shifts the center of mass closer to the torso and reduces distal inertia, and the lower leg with the foot weighs 3.56 kg. This answers the question from lesson 6.1 about the price of legs: a heavy foot costs dearly on every step. The <strong>series elastic actuators</strong> of ANYmal from lesson 0.2 solve a different problem, precise force control through a spring, and are rare in the legs of the humanoids of 2024–2026.</p>
+      <p>Whatever gearbox sits in the knee, it gives the policy torque. A hand is built differently: it needs little torque and many joints. Where do you put two dozen motors?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="hands">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">4</span> Hands</div>
+      <h2>The dexterous hand: tendons or motors in the fingers</h2>
+      <p>A human hand has more than twenty joints, and they fit in the palm and fingers. You can't put a motor with a gearbox in every finger joint if the hand is to stay human-sized, so designers choose between two layouts. In the first, the motors sit in the forearm and pull the fingers with tendons, the way the forearm muscles move a person's fingers: this is <strong>remote actuation</strong>. In the second, the motor sits right in the joint or next to it. The Shadow Dexterous Hand follows the first layout: 24 joints, 20 of them actuated, 20 motors in the base of the hand and 40 tendons, a pair per motor, because a tendon can only pull, and the whole hand with its base weighs 4.3 kg. The Allegro Hand follows the second: 16 joints, 16 motors in the fingers with a 1:369 gearbox and 0.7 N·m of torque each, 1.08 kg. The diagram shows what happens to each of them when a finger bends.</p>
+    </div>
+    <figure class="card flow-card">
+      <canvas data-anim="hand" width="720" height="348" role="img" aria-label="Diagram of two hands: in the first the motors sit in the forearm and bend the finger with tendons, in the second a motor sits in every finger joint; the fingers bend and straighten"></canvas>
+      <figcaption class="muted-s">Two hands bend and straighten a finger with three joints. In the tendon-driven hand (like the Shadow Hand), the motors (orange) sit in the forearm and tendons (purple) run to the joints: the finger is light, but the tendon rubs against its guides and stretches, and a heavy base stays behind the wrist. In the hand with motors in the joints (like the Allegro Hand), a motor sits in every joint and heats up inside the finger, the forearm is empty, and the mass and heat gather at the end of the arm. The finger links are blue. Click the diagram to pause it.</figcaption>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>What each layout gains is shown by measurements. Zorin, Guzey et al. from NYU (2025) built the RUKA hand: 15 joints are driven by 11 motors in the forearm through tendons, the hand takes about seven hours to assemble and costs under $1,300. In their tests, RUKA held 6.0 kg versus 3.6 for Allegro and 4.0 for LEAP Hand, even though LEAP uses the same Dynamixel motors, placed in the fingers, three per finger instead of two. The authors attribute this to the tendon-driven design, which removes actuator weight from the fingers. Li et al. (2026), in their paper on the MM-Hand, list the price of the opposite choice: motors and gearboxes inside the hand increase its mass and inertia, take up volume and worsen heat dissipation and impact robustness, while moving the motors into the palm or forearm lowers the inertia of the fingers. At the same time, tendons rub, stretch and need re-tensioning: the RUKA authors calibrate every hand with a script, because tendon tension varies from build to build. Shaw, Agarwal and Pathak (2023) add the price in money: tendon-driven hands like Shadow cost over $100,000 and require constant maintenance, Allegro costs about $16,000, while their LEAP Hand with motors in the fingers is assembled in four hours for $2,000 and weighs 595 g.</p>
+    </div>
+    <figure class="card stat-fig" aria-label="Chart: the number of joints and actuators and the mass of the Shadow, Sharpa Wave, Allegro, LEAP, RUKA and Inspire hands">
+      <figcaption class="stat-h">Joints, actuators and mass of hands for humanoids (mass in kg)</figcaption>
+      <div class="stat-grid"><div id="handBars"></div><div id="handMass"></div></div>
+      <p class="stat-cap">Shadow Dexterous Hand: 24 joints, 20 motors, 4.3 kg with the base. Sharpa Wave: 22 active degrees of freedom, 22 actuation modules, 1.3 kg. Allegro Hand V4: 16 joints, 16 motors, 1.08 kg. LEAP Hand: 16 and 16, 595 g. RUKA: 15 joints, 11 motors (the mass isn't given in the paper). Inspire RH56DFX: 12 joints, 6 actuators, 540 g. Sources: the Shadow Robot, Sharpa, Wonik Robotics and Inspire pages, the LEAP Hand and RUKA papers.</p>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>What matters to the policy isn't the joints but the actuators: it can control only as many quantities as there are motors. In the Inspire RH56DFX, which sits on the H1 robots in HumanPlus and OmniH2O, six actuators drive twelve joints through linkages, and the fingers curl as a whole: the hand weighs 540 g, gives 15 N at the thumb and 10 N at the other fingers and draws 0.09 A at 24 V at rest. This is a hand for grasps, not for turning an object in the fingers. At the other extreme is the Sharpa Wave with 22 active degrees of freedom and 22 actuation modules at 1.3 kg and 20 N at the fingertip. In 2022, Tesla showed an Optimus hand with 6 actuators for 11 degrees of freedom, and 1X NEO uses low-inertia tendon actuators, as we saw in lesson 0.2. The more actuators, the more motions can be learned, but the heavier the hand and the more torque the shoulder needs to hold it on an outstretched arm: the Unitree G1's arm payload is about 2 kg, and a 4.3 kg Shadow hand on such an arm won't fit the budget. The hand gives the policy motion. What does it let the policy learn about the object?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="touch">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">5</span> Touch</div>
+      <h2>Touch: what the fingertip feels</h2>
+      <p>A camera doesn't see contact: the fingers cover the object, and the grip force doesn't show up in the image. In lesson 0.2, we went through GelSight and DIGIT, sensors in which a camera films the deformation of a gel, and Digit 360 was mentioned there too. Now let's look at it more closely. Lambeta, Wu et al. from FAIR (2024) built a fingertip in which, under a silicone pad, there's a camera with a custom hyper-fisheye lens and sensors for pressure, vibration, temperature and gas, as well as an IMU and a microphone. The authors write that the finger contains about 8.3 million taxels, or sensing points, resolves spatial features as small as 7 µm, estimates normal and shear forces with errors of 1.01 and 1.27 mN, perceives vibrations up to 10 kHz, and senses heat and even odor. Vibrations matter for textures: the camera captures 240 frames a second, while surface roughness shows up in vibrations of up to 10 kHz, which the vibration sensor picks up. The forces aren't measured directly: a trained model predicts them from the image of the gel, and 1.01 mN is that model's median error.</p>
+      <p>The most unusual part of Digit 360 is the neural network accelerator inside the finger. The authors compare it to a reflex arc: the reaction to a touch event is processed on the spot, without waiting for the data to reach the main computer and come back as a command. It's the same rate ladder from lesson 0.2, brought down to the fingertip: a fast loop next to the sensor, a slow one above it. Companies are going the same way. Figure 03 (October 2025) got fingertip sensors that detect forces as small as three grams and a camera with a wide field of view and low latency in each palm. The Sharpa Wave carries tactile arrays of 240 × 240 points on its fingers with a threshold of 0.02 N and 180 frames a second over a range of up to 30 N. The Atlas spec sheet lists “tactile fingers and palm” next to its 360° camera view. On the Shadow Hand, tactile fingertips come on two fingers as standard and on up to five to order, and the tension of each of the 40 tendons is measured separately.</p>
+      <p>What does the policy get out of this? In lesson 0.2, we saw that force as an input is still the exception: ForceVLA added a six-axis force sensor to π0 and raised success by 23%. Tactile sensors give the policy a channel the camera doesn't have, but there's almost no data from them in the datasets of Part 4, and every sensor is different. Touch is also computation: someone has to process 8.3 million points per finger. Where does this data go, and what does the robot manage to compute on board?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="compute">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">6</span> Computer</div>
+      <h2>The onboard computer: what's computed on board and what in the cloud</h2>
+      <p>The whole-body controller from lesson 6.4 outputs target angles 50 times a second, the joint controllers compute torques 1,000 times a second, and a vision-language model responds a few times a second. All of this is computed somewhere, and for that a humanoid has one or two boards in its torso. Most of the robots from lessons 6.1–6.4 run on NVIDIA Jetson modules. Unitree puts an eight-core processor in the G1, and a high-performance module such as an Orin in the EDU version; the H1 comes standard with an Intel Core i5 for the platform's functions and an i7 for the developer, with an Orin NX to order. OmniH2O mounted two 16 GB Orin NX computers on the H1's back: one processes the ZED camera at 60 Hz for odometry and the link to the Vision Pro, the other computes the policy. SONIC runs its tracker on a Jetson Orin in 1–2 ms per forward pass and its motion generator in about 12 ms, and the policy works 50 times a second. HIT in HumanPlus runs on board 25 times a second, whereas estimating the operator's pose during data recording ran on a separate RTX 4090, as did Diffusion Policy in TWIST2.</p>
+    </div>
+    <figure class="card stat-fig" aria-label="Chart: the maximum power and compute performance of the NVIDIA Jetson Orin NX, AGX Orin, Thor T4000 and T5000 modules">
+      <figcaption class="stat-h">NVIDIA Jetson modules for robots: maximum power in watts and compute by NVIDIA's metric</figcaption>
+      <div class="stat-grid"><div id="compPower"></div><div id="compTops"></div></div>
+      <p class="stat-cap">Orin NX 16 GB: up to 157 TOPS in modes from 10 to 40 W, a 69.6 × 45 mm module. AGX Orin 64 GB: up to 275 TOPS at 15–60 W, 100 × 87 mm. Thor T4000: 1,200 TFLOPS at 40–70 W. Thor T5000: 2,070 TFLOPS at 40–130 W, 128 GB of memory; NVIDIA claims that Thor has 7.5 times the performance and 3.5 times the energy efficiency of the AGX Orin. For Orin, NVIDIA quotes sparse INT8 TOPS, for Thor sparse FP4 TFLOPS: these are different metrics, and the bars of the second chart can't be compared directly. Source: the NVIDIA Jetson Orin and Jetson Thor pages, read on October 22, 2026.</p>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>The split into levels from lessons 3.7 and 6.4 is largely a split between computers. At the bottom runs what has to be on board: the joint controllers on the actuator boards and the whole-body controller on a small module, which needs only 1–2 ms per pass. Above it is the upper-level model, and there are three places where it can run. Figure writes that Helix runs entirely on board on two embedded low-power GPUs. GR00T N1, with 2.2 billion parameters, computes a chunk of 16 actions in 63.9 ms on an L40 GPU, and that's a server card, not an onboard one. Gemini Robotics keeps its main model in the cloud and leaves only the decoder on the robot, and the path from a frame to a chunk of actions takes about 250 ms, as we counted in lesson 3.7. The 130 W Thor module is designed so that such models can be computed on board, but 130 W is as much as Ada spends on walking. The upper level's latency decides how stale the frames are that the robot acts on, and the computer's power decides how long it runs. Where does that power come from?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="power">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">7</span> Power</div>
+      <h2>The battery and the power budget</h2>
+      <p>A humanoid's battery sits in the torso and feeds everything: the motors, the computer, the sensors. Manufacturers quote its capacity more often than anything else about the electrics. The Unitree G1 has a 9,000 mAh battery of 13 cells in series, which at 3.7 V per cell gives about 0.43 kWh, and the company promises about two hours of operation. The H1 has a quickly replaceable 15 Ah, 0.864 kWh battery. In July 2025, Figure described the Figure 03 battery: 2.3 kWh, five hours of run time at peak performance, 2 kW fast charging with active cooling, a battery integrated into the torso as its structural member, and a cost 78% lower than for Figure 02. In 2022, Tesla quoted the same 2.3 kWh at 52 V for Optimus. The Atlas spec sheet speaks of four hours of operation, two hours with heavy lifting and an autonomous battery swap in three minutes, and Agility in March 2025 of up to four hours for Digit and autonomous docking with a charging station. Mobile ALOHA from lesson 6.4 carries a 1.26 kWh battery weighing 14 kg, and it doubles as a counterweight.</p>
+    </div>
+    <figure class="card stat-fig" aria-label="Chart: the battery energy and the claimed run time of the Unitree G1 and H1, Mobile ALOHA, Figure 03, Optimus, Atlas and Digit humanoids">
+      <figcaption class="stat-h">Humanoid batteries: energy in kilowatt-hours and claimed run time in hours</figcaption>
+      <div class="stat-grid"><div id="battEnergy"></div><div id="battHours"></div></div>
+      <p class="stat-cap">Energy: Unitree G1 about 0.43 kWh (calculated from 9,000 mAh and 13 cells at 3.7 V), Unitree H1 0.864 kWh, Mobile ALOHA 1.26 kWh, Figure 03 2.3 kWh, Optimus 2.3 kWh per the 2022 presentation. Run time: G1 about 2 h, Figure 03 5 h at peak performance, Atlas 4 h and 2 h with heavy lifting, Digit up to 4 h; for the H1, Mobile ALOHA and Optimus the number isn't published. Sources: the Unitree G1 and H1 pages, Figure (July 17, 2025), the Atlas spec sheet (October 15, 2026), the Agility press release (March 31, 2025), the Mobile ALOHA paper, the lesson 0.2 dossier.</p>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>How much of this goes into walking, manufacturers don't say, and measurements are few. Walking is compared by the <strong>cost of transport</strong>: power divided by weight and speed, a dimensionless number that shows how much energy goes into moving a unit of weight over a unit of distance. Kashiri et al. (2018) cite a measurement on the biped Cassie: the 30 kg robot walked at 1 m/s and consumed 200 W, which gives a cost of transport of 0.7, whereas for a human it's about 0.2 and for Asimo about 2. The Duke Humanoid (Xia et al., 2024) showed that the cost of transport depends on the policy too: with a reward for using passive dynamics, the policy lowered it by 31% on the real robot.</p>
+    </div>
+    <figure class="card stat-fig" aria-label="Chart: the cost of transport of a human, the Cassie robot and the Asimo robot">
+      <figcaption class="stat-h">Cost of transport in walking</figcaption>
+      <div class="stat-grid"><div id="cotBars"></div></div>
+      <p class="stat-cap">Human about 0.2; Cassie 0.7 walking at 1 m/s (200 W at a mass of 30 kg); Asimo about 2. Source: Kashiri et al., 2018, with their references to the Cassie measurements and to Sakagami et al. (2002) for Asimo.</p>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>The peak currents of humanoid walking aren't published in the documentation, and they can be judged only from the actuators: a single Berkeley Humanoid 10413 actuator develops up to 890 W, and the ToddlerBot authors note that power supplies for full-size humanoids often exceed 2 kW and 60 V. The second half of the power budget doesn't sit in the motors. The computer, the cameras, the lidar, the actuator electronics and the hands draw power even when the robot is standing still, and the 130 W Thor comes first on that list. All these parts are linked: a bigger battery weighs more, a heavier robot costs more to carry, and on a step its mass has to be held by the knees. Let's build Ada and see what limits what.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="budget">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab</div>
+    <h2>The mass, power and compute budget: build Ada to carry the box</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>There's one task for the whole lab: Ada takes a 5 kg box from a table, carries it in front of her around the apartment at 0.5 m/s, climbs a step with it and works like this for two hours, with an upper-level model on board. Ada starts as she was in lesson 6.1: she weighs 28 kg, each leg 5 kg, and she has 8513 leg actuators and 5013 arm actuators from the Berkeley Humanoid table, Inspire hands, an Orin NX with a small policy and a battery like the G1's. You change the leg and arm actuators, the hands, the computer and the battery, and the calculation shows the mass, the required and available shoulder and knee torques, the power, the run time and the latency of the upper level.</p>
+      <p>There are two Adas on the scene: the pinned one, which you brought from the previous mission, and the current one. All the numbers for the actuators, hands, computers and batteries are taken from papers and documentation, and the link between them is a simple model, described in “Under the hood”. There's no randomness in the calculation, so the same set of parts always gives the same numbers.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <canvas id="bCv" class="bud-cv" width="640" height="400" role="img" aria-label="Two Adas from the front, pinned and current, with a box; the figures are marked with the actuators, hands, computer and battery, and under the figures are bars of mass, average power and run time with a two-hour mark"></canvas>
+        <p class="cv-note">Front view: the pinned Ada and the current Ada, each with a 5 kg box in front of her torso. The orange dots on the joints are the actuators, and their size grows with the actuator's mass; the orange circles at the hands are the hands, also by mass; the blue block in the torso is the battery, with its height by energy; the purple rectangle in the torso by the shoulders is the computer, brighter the more power it draws. A red ring on a shoulder or a knee means the actuator lacks torque. Under each figure are three bars: mass without load (gray for the frame, blue for the battery, orange for the arm actuators, yellow for the hands, purple for the legs), average power (purple for walking, blue for the computer, gray for the rest) and run time with a dashed two-hour mark.</p>
+        <div class="ctl-row">
+          <div class="ctl" id="wrapBLegs" hidden><span class="ctl-l">Leg actuators</span><div class="seg small" id="bLegs" role="group" aria-label="Leg actuators"><button type="button" data-v="8513" aria-pressed="true">8513 · 45 N·m</button><button type="button" data-v="8518" aria-pressed="false">8518 · 63 N·m</button><button type="button" data-v="10413" aria-pressed="false">10413 · 81 N·m</button></div></div>
+          <div class="ctl" id="wrapBArms" hidden><span class="ctl-l">Arm actuators</span><div class="seg small" id="bArms" role="group" aria-label="Arm actuators"><button type="button" data-v="5013" aria-pressed="true">5013 · 9.7 N·m</button><button type="button" data-v="8513" aria-pressed="false">8513 · 45 N·m</button><button type="button" data-v="8518" aria-pressed="false">8518 · 63 N·m</button><button type="button" data-v="10413" aria-pressed="false">10413 · 81 N·m</button></div></div>
+          <div class="ctl" id="wrapBHands" hidden><span class="ctl-l">Hands</span><div class="seg small" id="bHands" role="group" aria-label="Hands"><button type="button" data-v="inspire" aria-pressed="true">Inspire · 0.54 kg</button><button type="button" data-v="leap" aria-pressed="false">LEAP · 0.6 kg</button><button type="button" data-v="allegro" aria-pressed="false">Allegro · 1.08 kg</button><button type="button" data-v="sharpa" aria-pressed="false">Sharpa · 1.3 kg</button><button type="button" data-v="shadow" aria-pressed="false">Shadow · 4.3 kg</button></div></div>
+          <div class="ctl" id="wrapBComp" hidden><span class="ctl-l">Computer</span><div class="seg small" id="bComp" role="group" aria-label="Computer and where the upper-level model runs"><button type="button" data-v="nx" aria-pressed="true">Orin NX, small policy</button><button type="button" data-v="cloud" aria-pressed="false">Orin NX + VLA in the cloud</button><button type="button" data-v="thor" aria-pressed="false">Thor, VLA on board</button></div></div>
+          <div class="ctl" id="wrapBBatt" hidden><span class="ctl-l">Battery</span><div class="seg small" id="bBatt" role="group" aria-label="Battery"><button type="button" data-v="g1" aria-pressed="true">0.43 kWh · like the G1</button><button type="button" data-v="h1" aria-pressed="false">0.86 kWh · like the H1</button><button type="button" data-v="f3" aria-pressed="false">2.3 kWh · like Figure 03</button></div></div>
+          <div class="ctl" id="wrapBPin" hidden><button class="btn sm" id="bPin" type="button">Pin the current Ada as the reference</button></div>
+        </div>
+        <div class="readout" id="bOut"></div>
+      </div>
+      <div class="card guide-card"><div id="bMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: what the budget is made of</summary><div class="body">
+      <p><b>Mass.</b> Ada weighs 28 kg, as in lesson 6.1: the torso with the head and arms weighs 18 kg, and each leg 5 kg. We broke the torso down like this: the frame with the head, cameras, lidar, IMU, wiring and electronics, 10.3 kg; the battery; two arms, each with 0.6 kg of links and four actuators; two hands. A leg is 0.5 kg of links and foot plus six actuators. The actuator masses and the peak and sustained torques are taken from Table 2 of the Berkeley Humanoid paper, the hand masses from the manufacturers' pages and the LEAP Hand paper. The battery weighs 1 kg per 130 Wh: ToddlerBot's 2,000 mAh, 14.8 V battery weighs 215 g, that is, about 138 Wh/kg, and Mobile ALOHA's 1.26 kWh battery weighs 14 kg, that is, 90 Wh/kg.</p>
+      <p><b>Torques.</b> Ada takes the 5 kg box with both arms stretched out in front of her: this is the peak load for the shoulder, \(\tau = g\,(0.6 \cdot 0.18 + (m_{\text{hand}} + 2.5)\cdot 0.37)\), where 0.37 m is the arm length from lesson 6.4. Carrying the box in front of her on bent arms is the sustained load, with a lever arm of 0.30 m. On a step-up, the knee holds the weight of everything above the shin on a lever arm of 0.16 m: \(\tau = (m - 2.4)\,g \cdot 0.16\), where 2.4 kg is the shin with the foot from lesson 6.1; in walking, the average lever arm is 0.06 m. The peak is compared with the actuator's peak torque, the sustained load with its sustained torque.</p>
+      <p><b>Power.</b> Walking is computed through the cost of transport, taken as for Cassie: \(P = 0.7\, m\, g\, v\) at \(v = 0.5\) m/s, and Ada walks 60% of the time. To this are added the computer (Orin NX 25 W, Thor 130 W: the upper end of the power mode on NVIDIA's pages), the cameras, lidar and communications at 10 W, the electronics and pose holding at 2 W for each of the 20 actuators, and the hands' idle draw: Inspire 0.09 A at 24 V and Sharpa 0.75 A at 20 V per the documentation, Allegro, LEAP and Shadow 10–15 W by our assumption. Peak power is the knee and hip of the support leg on the step-up at 2 rad/s plus the idle power; the current is converted to a 48 V bus. Run time is the battery energy divided by the average power.</p>
+      <p><b>Latency.</b> For the upper level, we took anchors from the lessons: a small policy on board, 40 ms, the period of HIT from HumanPlus at 25 Hz; a VLA in the cloud, 250 ms, as for Gemini Robotics in lesson 3.7; a VLA on board, 73 ms, as for π0 in lesson 3.7. The distance covered in that time is computed at 0.5 m/s.</p>
+      <p><b>What holds for all 720 combinations.</b> A battery like the H1's instead of one like the G1's gives almost twice as much time, but never twice as much. Thor instead of an Orin NX cuts the run time by 31–44%. Shadow hands require at least 8518 actuators in the arms, while the other hands make do with 8513. A 2.3 kWh battery leaves the legs a margin at the knee in only 12 combinations out of 240, and in all of them the arms are on 5013 actuators, which don't hold the box: not a single combination with that battery completes the task. The lightest Ada that completes the task with a VLA on board weighs 36.5 kg and runs for 3.2 h. These claims are checked by the lesson's test.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px" id="budgetAfter">
+      <p>The Ada from lesson 6.1 won't lift the box: the shoulder needs 12.1 N·m at peak and 10.0 N·m sustained, and the 5013 actuator gives 9.7 and 4.59. Putting 8513 actuators in the arms fixes this and adds 4.0 kg, after which the knee on the step-up needs 54.4 N·m against 45.3 from the 8513 actuator, and the legs move to 8518. Such an Ada weighs 33.2 kg and runs for 2.7 h. Shadow hands at 4.3 kg each require 8518 actuators in the arms and 10413 in the legs, and Ada's mass grows to 43.4 kg. Thor instead of the Orin NX cuts the run time from 2.7 to 1.6 h, a battery like the H1's brings back 3.2 h at the price of 3.3 kg, and a battery like Figure 03's at 2.3 kWh would weigh 17.7 kg, and the knee would need more than any actuator in the set gives.</p>
+      <p>There are no free parameters in a humanoid's budget. The dexterity of the hand is paid for by the shoulder actuators, the computer is paid for by the battery, the battery is paid for by the knees, and the knees are paid for by the battery again. That's why every platform on the market has its own set of answers to these questions, and they come at different prices.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="today">
+  <div class="prose">
+    <div class="kicker"><span class="num">8</span> Today</div>
+    <h2>Humanoid hardware in 2026: mass production, prices and failures</h2>
+    <p>In 2026, humanoid hardware is turning from a research problem into a manufacturing one. Figure launched its own BotQ plant for up to 12,000 robots a year and redesigned Figure 03 for volume production: die casting, injection molding and stamping instead of machined parts, a 2.3 kWh battery that serves as a structural member of the torso, and wrist electronics rebuilt after the forearm failures of Figure 02. Boston Dynamics published the spec sheet of the production Atlas: 1.9 m tall, 90 kg, 56 degrees of freedom, 50 kg of payload momentarily and 30 kg sustained, four hours of operation and an autonomous battery swap in three minutes, a body with IP67 protection. Unitree sells the G1 starting at $13,500, and Berkeley Humanoid Lite showed that a walking humanoid on printed cycloidal actuators can be assembled for less than $5,000.</p>
+    <p>Actuators are splitting into two schools. Research platforms and Unitree stick with quasi-direct drives with a low gear ratio for the sake of backdrivability and force estimation from current, while Optimus, as Berkeley Humanoid describes it, uses harmonic drives and linear actuators, some of them with load cells. Agility put its own cycloidal actuators in the legs of Digit 5. In hands, the number of actuators is growing: 22 in the Sharpa Wave versus 6 in the Inspire, which sits on many research H1 robots, and tactile sensors are moving from the labs into the production hands of Figure 03, Sharpa and Atlas. Computers have split too: Orin NX at the lower level, for the whole-body controllers, and Thor at the upper level, for the vision-language models that NVIDIA proposes to run on board. What remains open are sustained load and heating, which limited TWIST and Figure 02, and energy: even the largest battery gives 4–5 hours, and robots are learning to swap it themselves or to dock for charging.</p>
+  </div>
+</section>
+
+<section class="section" id="quiz">
+  <div class="prose">
+    <div class="kicker"><span class="num">9</span> Check yourself</div>
+    <h2>Eight common misconceptions</h2>
+    <div class="quiz" id="quizBox"></div>
+    <p class="score" id="quizScore" style="margin-top:14px"></p>
+  </div>
+</section>
+
+<section class="section alt" id="finale">
+  <div class="prose">
+    <div class="kicker"><span class="num">10</span> Takeaways</div>
+    <h2>Lesson takeaways</h2>
+    <ol class="takeaways">
+      <li><span>A policy controls only the body that was built for it. The overheating of the G1's motors in TWIST, HumanPlus's ankle with one degree of freedom and Figure 02's forearm at the BMW plant can't be fixed by training.</span></li>
+      <li><span>The gear ratio is the actuator's main trade-off. The rotor inertia at the output grows as N²: through 100:1, the impact on touching the floor is 3.7 times harder than through 6:1, and the force at the foot can no longer be estimated from the current. That's why humanoids built for learning put <strong>quasi-direct drives</strong> in their legs, and harmonic and cycloidal gearboxes are taken where a lot of torque is needed in a small volume.</span></li>
+      <li><span>For an hour of work, what matters is the <strong>sustained torque</strong>, not the peak: for the Berkeley Humanoid actuators it's 42–47% of the peak, for Nadia's actuators from a quarter to a third. <strong>Torque density</strong> shows how much torque a kilogram of actuator gives: for the H1 it's 189 N·m/kg.</span></li>
+      <li><span>A hand is a choice between tendons and motors in the fingers. <strong>Remote actuation</strong> makes the fingers light and strong, as in RUKA, which held 6 kg versus 3.6 for Allegro, but the motors move into the base, and the Shadow hand weighs 4.3 kg. A policy controls as many quantities as the hand has actuators: 6 in the Inspire, 16 in the Allegro, 22 in the Sharpa Wave.</span></li>
+      <li><span>Touch gives the policy a channel the camera doesn't have. Digit 360 resolves 7 µm features, forces with an error of about 1 mN and vibrations up to 10 kHz, and processes touch with an accelerator inside the finger. Figure 03's fingertips detect forces as small as three grams.</span></li>
+      <li><span>A humanoid's budget is coupled. In the lab, the 5 kg box required 8513 actuators in the arms, their mass required 8518 actuators in the legs, Shadow hands required one more step up, Thor cut the run time by a third, and a battery twice as big gave less than twice the time, because it has to carry its own weight.</span></li>
+    </ol>
+    <h3 style="margin-top:40px">Open questions</h3>
+    <details class="card pad open-q"><summary>Who will measure walking?</summary><p>Cassie's cost of transport was measured in one preliminary experiment, and for the G1, H1, Digit and Figure the power of walking isn't published at all. The policies of lesson 6.1 learn to walk with a reward for saving energy, but without measurements on the robot it's unclear how much energy they really save and how that depends on the actuators.</p></details>
+    <details class="card pad open-q"><summary>What should a policy do with 8.3 million points of touch?</summary><p>Digit 360 and the Sharpa Wave give more tactile data than a camera, but the datasets of Part 4 contain almost no touch, and every sensor is built its own way. How do you train a policy on touch if every robot's touch is different, and which of this data is worth processing inside the finger itself?</p></details>
+    <h3 style="margin-top:34px">Paper guide</h3>
+    <p><a href="https://arxiv.org/abs/2407.21781" target="_blank" rel="noopener">Q. Liao, B. Zhang, X. Huang, X. Huang, Z. Li, K. Sreenath, “Berkeley Humanoid: A Research Platform for Learning-based Control”, 2024</a>.</p>
+    <ul class="links">
+      <li><strong>Read closely</strong><span>Section 3 on the hardware requirements for learning: simplicity for the simulator, reliability and cost, convenience of experiments. Table 1 comparing platforms by mass, price and transmission, and Table 2 with the actuators: peak and sustained torque, speed, power, rotor inertia.</span></li>
+      <li><strong>Safe to skip</strong><span>The details of training the walking policy, if you've done lesson 6.1, and the description of the EtherCAT bus.</span></li>
+      <li><strong>Question to keep in mind</strong><span>The authors gave up force sensors in the feet and an expensive IMU. What lets the policy do without them, and which of that wouldn't work on a robot with harmonic drives?</span></li>
+    </ul>
+    <p style="margin-top:18px">Other papers in this lesson: <a href="https://arxiv.org/abs/2411.02479" target="_blank" rel="noopener">Digit 360</a> (Lambeta, Wu et al., 2024), with the finger's design and the accelerator inside; <a href="https://arxiv.org/abs/2504.13165" target="_blank" rel="noopener">RUKA</a> (Zorin, Guzey et al., 2025) and <a href="https://arxiv.org/abs/2309.06440" target="_blank" rel="noopener">LEAP Hand</a> (Shaw, Agarwal, Pathak, 2023), with measurements of tendon-driven hands and hands with motors in the fingers; <a href="https://arxiv.org/abs/2604.17245" target="_blank" rel="noopener">MM-Hand</a> (Li et al., 2026), with the arguments about remote actuation; <a href="https://arxiv.org/abs/2504.17249" target="_blank" rel="noopener">Berkeley Humanoid Lite</a> (Chi, Liao et al., 2025), with printed cycloidal actuators; <a href="https://arxiv.org/abs/2409.04639" target="_blank" rel="noopener">Nadia</a> (Bertrand et al., 2024), with cycloidal actuators and impacts; <a href="https://arxiv.org/abs/2101.10591" target="_blank" rel="noopener">RH5</a> (Esser, Kumar et al., 2021), with linear actuators on a ball screw; <a href="https://arxiv.org/abs/2511.06796" target="_blank" rel="noopener">Human-Level Actuation for Humanoids</a> (Sunbeam, 2025), with a review of gearboxes; <a href="https://arxiv.org/abs/2506.16356" target="_blank" rel="noopener">Singh et al.</a> (2025), on the planetary gearboxes of quasi-direct drives; <a href="https://arxiv.org/abs/2502.00893" target="_blank" rel="noopener">ToddlerBot</a> (Shi, Wang, Song, Liu, 2025), with the power budget of a small humanoid; <a href="https://www.frontiersin.org/journals/robotics-and-ai/articles/10.3389/frobt.2018.00129/full" target="_blank" rel="noopener">Kashiri et al.</a> (2018), with the measurement of Cassie's power.</p>
+    <h3 style="margin-top:34px">Resources</h3>
+    <ul class="links">
+      <li><a href="https://berkeley-humanoid.org" target="_blank" rel="noopener">Berkeley Humanoid</a><span>A platform for learning: actuators, cost, policy transfer</span></li>
+      <li><a href="https://digit.ml" target="_blank" rel="noopener">Digit 360</a><span>An open fingertip design with touch and an accelerator</span></li>
+      <li><a href="https://www.unitree.com/g1" target="_blank" rel="noopener">Unitree G1</a><span>Specifications: motors, knee torque, battery, computer</span></li>
+      <li><a href="https://www.nvidia.com/en-us/autonomous-machines/embedded-systems/jetson-thor/" target="_blank" rel="noopener">NVIDIA Jetson Thor</a><span>An onboard computer for vision-language models</span></li>
+      <li><a href="https://www.figure.ai/news/f-03-battery-development" target="_blank" rel="noopener">Figure 03 battery</a><span>2.3 kWh, five hours, 2 kW charging, certification</span></li>
+      <li><a href="https://bostondynamics.com/products/atlas/" target="_blank" rel="noopener">Atlas</a><span>The spec sheet of the production humanoid: 56 degrees of freedom, 90 kg, 4 hours</span></li>
+      <li><a href="https://shadowrobot.com/dexterous-hand-series/" target="_blank" rel="noopener">Shadow Dexterous Hand</a><span>A tendon-driven hand: 24 joints, 20 motors, 4.3 kg</span></li>
+    </ul>
+    <div class="bridge-note"><p>We've gone through what a humanoid is made of and how the parts are linked by the budget: the actuators pay for the hands, the battery pays for the computer, the knees pay for the battery. But companies answer these questions differently: Unitree puts in quasi-direct drives and sells the G1 starting at $13,500, Optimus is built on harmonic drives and linear actuators, Atlas weighs 90 kg and carries 50 kg. To understand why the platforms are so different, you have to look at them whole: the body, the data, the policy, and what in each of them is done by a neural network and what by classical methods.</p><p class="bridge-to"><!--if:6-6-obzor-platform.html--><a href="6-6-obzor-platform.html"><!--/if-->Lesson 6.6 · A survey of humanoid platforms: how Tesla, Figure, Unitree, Agility, 1X and Boston Dynamics assemble these parts into working robots and what the neural network does in them<!--if:6-6-obzor-platform.html--></a><!--/if--></p></div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Lesson 6.5 of the “Modern Robotics and Physical AI” course. The numbers for the actuators, hands, computers and batteries are given from papers and manufacturers' documentation with dates; the link between them in the lab is the course's simple model without randomness, and its assumptions are described in “Under the hood”; the diagrams show the principle, not real dimensions.
+</footer>
+<div class="tooltip" id="tooltip" role="tooltip"></div>
+<script>
+/*@@JS@@*/
+</script>
+</body>
+</html>

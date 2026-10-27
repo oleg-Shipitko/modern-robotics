@@ -12,6 +12,10 @@
 .flow-card canvas { width: 100%; height: auto; display: block; }
 .flow-card figcaption { margin: 10px 2px 0; }
 
+/* диаграммы: до 900 px обе диаграммы фигуры встают одна под другой — во второй, узкой колонке
+   подписи групп (Shadow, Sharpa Wave, Unitree G1…) налезали друг на друга */
+@media (max-width: 900px) { .stat-grid { grid-template-columns: 1fr; gap: 18px; } }
+
 /* сцена лаборатории */
 .bud-cv { width: 100%; height: auto; aspect-ratio: 640 / 400; display: block; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); }
 .bud-table { width: 100%; border-collapse: collapse; font-size: 13.5px; line-height: 1.35; margin-top: 4px; }

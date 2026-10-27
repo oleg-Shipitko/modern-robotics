@@ -1,7 +1,7 @@
 /* =====================================================================
    ui-l65.js — урок 6.5 «Аппаратная часть гуманоида».
    0) анимированная схема `drive`: мотор → редуктор → звено при двух передаточных
-      числах (6 : 1 и 100 : 1): где растёт инерция ротора на выходе, откуда удар
+      числах (6:1 и 100:1): где растёт инерция ротора на выходе, откуда удар
       при касании пола и почему через большой редуктор силу в стопе не видно по току;
    1) анимированная схема `hand`: кисть с тросами (моторы в предплечье) против
       кисти с моторами в суставах пальцев;
@@ -51,15 +51,15 @@ const sleep0 = () => new Promise((r) => setTimeout(r, 0));
 
 /* =====================================================================
    0. Схема `drive`: мотор → редуктор → звено. Два одинаковых мотора, как в лаборатории 1 урока 0.2
-   (инерция ротора 1,2·10⁻⁴ кг·м², звено 0,09 кг·м²), с редукторами 6 : 1 и 100 : 1.
+   (инерция ротора 1,2·10⁻⁴ кг·м², звено 0,09 кг·м²), с редукторами 6:1 и 100:1.
    Цикл 4 с: звено-нога опускается и в момент 2,4 с касается пола; пик момента при ударе растёт
-   как корень из эффективной инерции J_звена + N²·J_ротора (0.2): у 100 : 1 он в 3,7 раза выше.
-   Стрелка назад от стопы к мотору — оценка силы по току: через 6 : 1 она доходит (±10 %),
-   через 100 : 1 теряется в трении и инерции — нужен датчик силы. Цвета как в 0.2: оранжевый — мотор
+   как корень из эффективной инерции J_звена + N²·J_ротора (0.2): у 100:1 он в 3,7 раза выше.
+   Стрелка назад от стопы к мотору — оценка силы по току: через 6:1 она доходит (±10%),
+   через 100:1 теряется в трении и инерции — нужен датчик силы. Цвета как в 0.2: оранжевый — мотор
    и то, что он вращает; синий — звено и измеренное; фиолетовый — редуктор; серый — пол.
    ===================================================================== */
 (() => {
-  const T = 4.0, J_R = 1.2e-4, J_L = 0.09, ROWS = [{ N: 6, name: 'редуктор 6 : 1', kind: 'квазипрямой привод' }, { N: 100, name: 'редуктор 100 : 1', kind: 'волновой редуктор' }];
+  const T = 4.0, J_R = 1.2e-4, J_L = 0.09, ROWS = [{ N: 6, name: 'редуктор 6:1', kind: 'квазипрямой привод' }, { N: 100, name: 'редуктор 100:1', kind: 'волновой редуктор' }];
   const jEff = (N) => J_L + N * N * J_R, spike = (N) => Math.sqrt(jEff(N) / jEff(6));
   /** Фаза цикла: угол звена (0 — горизонталь, растёт к полу), касание в 2,4 с, после касания — отскок и отдых. */
   function phase(u) {
@@ -68,43 +68,43 @@ const sleep0 = () => new Promise((r) => setTimeout(r, 0));
   }
   function drawRow(c, k, A, P, g, row, u, n) {
     const { x, y } = g, ph = phase(u), N = row.N, hot = ph.hit;
-    const lab = (txt, X, Y, o) => A.lab(c, k, txt, X, Y, Object.assign({ px: n ? 10 : 10.5, weight: 600, color: P.ink2, halo: false }, o || {}));
-    lab(`${row.name} · ${row.kind}`, x, y, { px: n ? 11 : 12.5, weight: 700, color: P.ink, align: 'left' });
+    const lab = (txt, X, Y, o) => A.lab(c, k, txt, X, Y, Object.assign({ px: n ? 10:10.5, weight: 600, color: P.ink2, halo: false }, o || {}));
+    lab(`${row.name} · ${row.kind}`, x, y, { px: n ? 11:12.5, weight: 700, color: P.ink, align: 'left' });
     // мотор: круг с метками, вращается в N раз быстрее звена
-    const mx = x + (n ? 26 : 50), my = y + (n ? 64 : 76), mr = n ? 17 : 24;
+    const mx = x + (n ? 26:50), my = y + (n ? 64:76), mr = n ? 17:24;
     const spin = (u < 2.4 ? ph.ang : 0.65) * N * 2.2;
     A.circle(c, mx, my, mr + 4, A.alpha(P.mot, 0.12), null); A.circle(c, mx, my, mr, P.motS, P.mot, 2);
     for (let i = 0; i < 6; i++) { const a = spin + i * Math.PI / 3; c.strokeStyle = P.mot; c.lineWidth = 2; c.beginPath(); c.moveTo(mx + Math.cos(a) * mr * 0.35, my + Math.sin(a) * mr * 0.35); c.lineTo(mx + Math.cos(a) * mr * 0.85, my + Math.sin(a) * mr * 0.85); c.stroke(); }
-    lab('мотор', mx, my + mr + (n ? 11 : 13), { color: P.mot });
+    lab('мотор', mx, my + mr + (n ? 11:13), { color: P.mot });
     // редуктор: коробка с передаточным числом
-    const gx = mx + mr + (n ? 12 : 24), gw = n ? 68 : 74, gh = n ? 40 : 50, gy = my - gh / 2;
+    const gx = mx + mr + (n ? 12:24), gw = n ? 68:74, gh = n ? 40:50, gy = my - gh / 2;
     A.rect(c, gx, gy, gw, gh, 7, A.alpha(P.spr, 0.1), P.spr, 1.6);
-    lab(`${N} : 1`, gx + gw / 2, my - 8, { px: n ? 11 : 13, weight: 700, color: P.spr });
-    lab('редуктор', gx + gw / 2, my + 10, { px: n ? 10 : 10.5, color: P.spr });
+    lab(`${N} : 1`, gx + gw / 2, my - 8, { px: n ? 11:13, weight: 700, color: P.spr });
+    lab('редуктор', gx + gw / 2, my + 10, { px: n ? 10:10.5, color: P.spr });
     // инерция ротора на выходе — под мотором и редуктором, где звено не проходит
-    lab(`J·N² на выходе ${A.fmt(N * N * J_R, N === 6 ? 4 : 1)} кг·м²`, x, my + mr + (n ? 28 : 32), { color: P.spr, align: 'left', px: n ? 10 : 10.5 });
+    lab(`J·N² на выходе ${A.fmt(N * N * J_R, N === 6 ? 4:1)} кг·м²`, x, my + mr + (n ? 28:32), { color: P.spr, align: 'left', px: n ? 10:10.5 });
     // звено: от выхода редуктора вниз к полу; стопа касается пола при ang ≈ 0,65
-    const px0 = gx + gw + (n ? 8 : 18), py0 = my, L = n ? 84 : 200, ex = px0 + Math.cos(ph.ang) * L, ey = py0 + Math.sin(ph.ang) * L;
+    const px0 = gx + gw + (n ? 8:18), py0 = my, L = n ? 84:200, ex = px0 + Math.cos(ph.ang) * L, ey = py0 + Math.sin(ph.ang) * L;
     const floorY = py0 + Math.sin(0.65) * L + 3;
-    c.fillStyle = P.grid; c.fillRect(px0 - 6, floorY, n ? 215 : 400, 5);
+    c.fillStyle = P.grid; c.fillRect(px0 - 6, floorY, n ? 215:400, 5);
     A.line(c, [[gx + gw, my], [px0, py0]], P.spr, 3);
-    A.link(c, px0, py0, ex, ey, n ? 7 : 10, P.out, P.ink2);
-    A.circle(c, px0, py0, n ? 4 : 5, P.ink2, null);
-    A.circle(c, ex, ey, n ? 5 : 7, hot ? P.bad : P.out, null);
-    lab('звено', (px0 + ex) / 2 + (n ? 10 : 16), (py0 + ey) / 2 - (n ? 11 : 14), { color: P.out });
+    A.link(c, px0, py0, ex, ey, n ? 7:10, P.out, P.ink2);
+    A.circle(c, px0, py0, n ? 4:5, P.ink2, null);
+    A.circle(c, ex, ey, n ? 5:7, hot ? P.bad : P.out, null);
+    lab('звено', (px0 + ex) / 2 + (n ? 10:16), (py0 + ey) / 2 - (n ? 11:14), { color: P.out });
     // удар: столбик пика момента за концом звена, растёт при касании и гаснет
-    const sp = spike(N), bx = px0 + (n ? 140 : 260), full = (n ? 40 : 66) * sp / spike(100);
-    const bh = full * Math.max(hot, ph.after > 0 && ph.after < 1.3 ? 1 - ph.after / 1.3 : 0);
-    if (bh > 0.5) { c.fillStyle = A.alpha(P.bad, 0.75); c.fillRect(bx - (n ? 6 : 8), floorY - 2 - bh, n ? 12 : 16, bh); }
-    lab(n ? `удар ×${A.fmt(sp, 1)}` : `удар: пик момента ×${A.fmt(sp, 1)}`, bx, floorY - 8 - (n ? 40 : 66) - (n ? 8 : 10), { color: P.bad, weight: 700 });
+    const sp = spike(N), bx = px0 + (n ? 140:260), full = (n ? 40:66) * sp / spike(100);
+    const bh = full * Math.max(hot, ph.after > 0 && ph.after < 1.3 ? 1 - ph.after / 1.3:0);
+    if (bh > 0.5) { c.fillStyle = A.alpha(P.bad, 0.75); c.fillRect(bx - (n ? 6:8), floorY - 2 - bh, n ? 12:16, bh); }
+    lab(n ? `удар ×${A.fmt(sp, 1)}` : `удар: пик момента ×${A.fmt(sp, 1)}`, bx, floorY - 8 - (n ? 40:66) - (n ? 8:10), { color: P.bad, weight: 700 });
     // ток → сила: стрелка назад от стопы к мотору поверху
-    const ty = y + (n ? 22 : 26), seen = N === 6, col = seen ? P.out : A.alpha(P.out, 0.4);
+    const ty = y + (n ? 22:26), seen = N === 6, col = seen ? P.out : A.alpha(P.out, 0.4);
     A.line(c, [[ex, ey - 8], [ex, ty], [mx, ty]], col, 1.5, seen ? [] : [4, 4]); A.arrow(c, mx, ty, mx, my - mr - 3, col, 1.5, 6);
-    lab(seen ? (n ? 'сила в стопе видна по току (±10 %)' : 'сила в стопе видна по току мотора (±10 %)') : (n ? 'по току силу не видно: нужен датчик' : 'по току силу не видно: нужен датчик силы'), (mx + px0 + L) / 2, ty - (n ? 9 : 11), { color: seen ? P.out : P.ink3 });
+    lab(seen ? (n ? 'сила в стопе видна по току (±10%)' : 'сила в стопе видна по току мотора (±10%)') : (n ? 'по току силу не видно: нужен датчик' : 'по току силу не видно: нужен датчик силы'), (mx + px0 + L) / 2, ty - (n ? 9:11), { color: seen ? P.out : P.ink3 });
   }
   function draw(c, k, t, P, A, n) {
     const u = ((t % T) + T) % T;
-    ROWS.forEach((row, i) => drawRow(c, k, A, P, { x: 14, y: (n ? 16 : 20) + i * (n ? 192 : 222) }, row, u, n));
+    ROWS.forEach((row, i) => drawRow(c, k, A, P, { x: 14, y: (n ? 16:20) + i * (n ? 192:222) }, row, u, n));
   }
   Anim.add('drive', { W: 720, H: 472, start: 0.4, draw: (c, k, t, P, A) => draw(c, k, t, P, A, false), narrowAt: 560, narrow: { W: 360, H: 404, draw: (c, k, t, P, A) => draw(c, k, t, P, A, true) } });
 })();
@@ -121,40 +121,40 @@ const sleep0 = () => new Promise((r) => setTimeout(r, 0));
   /** Палец: основание (x, y), три звена длиной l, каждое согнуто на ang (сгибается в сторону +x); возвращает суставы. */
   function finger(c, A, P, x, y, l, ang, w) {
     const pts = [[x, y]]; let a = -Math.PI / 2;
-    for (let i = 0; i < 3; i++) { a += ang * (i === 0 ? 0.7 : 1); const q = pts[pts.length - 1]; pts.push([q[0] + Math.cos(a) * l[i], q[1] + Math.sin(a) * l[i]]); }
+    for (let i = 0; i < 3; i++) { a += ang * (i === 0 ? 0.7:1); const q = pts[pts.length - 1]; pts.push([q[0] + Math.cos(a) * l[i], q[1] + Math.sin(a) * l[i]]); }
     for (let i = 0; i < 3; i++) A.link(c, pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1], w, P.out, P.ink2);
     return pts;
   }
   function panel(c, k, A, P, g, kind, u, n) {
-    const { x, y, w, h } = g, b = bend(u), lab = (txt, X, Y, o) => A.lab(c, k, txt, X, Y, Object.assign({ px: n ? 10 : 10.5, weight: 600, color: P.ink2, halo: false }, o || {}));
+    const { x, y, w, h } = g, b = bend(u), lab = (txt, X, Y, o) => A.lab(c, k, txt, X, Y, Object.assign({ px: n ? 10:10.5, weight: 600, color: P.ink2, halo: false }, o || {}));
     A.rect(c, x, y, w, h, 10, A.alpha(P.out, 0.03), A.alpha(P.out, 0.35), 1.2);
     const tendon = kind === 'tendon';
-    lab(tendon ? 'тросы: моторы в предплечье' : 'моторы в суставах пальцев', x + w / 2, y + 16, { px: n ? 11 : 12.5, weight: 700, color: P.ink });
-    lab(tendon ? (n ? 'Shadow: 20 моторов, 40 тросов, 4,3 кг' : 'как Shadow Hand: 20 моторов, 40 тросов') : (n ? 'Allegro: 16 моторов в пальцах, 1,08 кг' : 'как Allegro Hand: мотор в каждом из 16 суставов'), x + w / 2, y + 33, { px: n ? 10 : 10.5, color: P.ink3 });
+    lab(tendon ? 'тросы: моторы в предплечье' : 'моторы в суставах пальцев', x + w / 2, y + 16, { px: n ? 11:12.5, weight: 700, color: P.ink });
+    lab(tendon ? (n ? 'Shadow: 20 моторов, 40 тросов, 4,3 кг' : 'как Shadow Hand: 20 моторов, 40 тросов') : (n ? 'Allegro: 16 моторов в пальцах, 1,08 кг' : 'как Allegro Hand: мотор в каждом из 16 суставов'), x + w / 2, y + 33, { px: n ? 10:10.5, color: P.ink3 });
     if (!n) lab(tendon ? '24 сустава, 4,3 кг вместе с основанием' : '16 суставов, 1,08 кг', x + w / 2, y + 48, { px: 10.5, color: P.ink3 });
     // предплечье внизу, ладонь над ним, палец вверх; палец сгибается в сторону +x, поэтому подписи ставим с другой стороны
-    const fw = n ? 104 : 150, fh = n ? 58 : 64, fx = x + w / 2 - fw / 2 + (n ? 14 : 26), fy = y + h - fh - 12, cx = fx + fw / 2;
+    const fw = n ? 104:150, fh = n ? 58:64, fx = x + w / 2 - fw / 2 + (n ? 14:26), fy = y + h - fh - 12, cx = fx + fw / 2;
     A.rect(c, fx, fy, fw, fh, 8, A.alpha(P.ink3, 0.08), P.ink3, 1.2);
     lab('предплечье', cx, fy + fh - 9, { color: P.ink3 });
-    const pw = n ? 54 : 60, phh = n ? 34 : 44, py = fy - 8 - phh;
+    const pw = n ? 54:60, phh = n ? 34:44, py = fy - 8 - phh;
     A.rect(c, cx - pw / 2, py, pw, phh, 6, A.alpha(P.out, 0.08), P.ink2, 1.4);
     lab('ладонь', cx, py + phh - 9, { color: P.ink3 });
-    const l = n ? [40, 32, 24] : [58, 46, 34], pts = finger(c, A, P, cx, py, l, b, n ? 8 : 11);
+    const l = n ? [40, 32, 24] : [58, 46, 34], pts = finger(c, A, P, cx, py, l, b, n ? 8:11);
     if (tendon) {
-      const spoolY = fy + 16, sp = n ? 24 : 32;
-      for (let i = 0; i < 3; i++) { const sx = cx + (i - 1) * sp; A.circle(c, sx, spoolY, n ? 7 : 9, P.motS, P.mot, 1.8); const a = b * 3 + i; c.strokeStyle = P.mot; c.lineWidth = 2; c.beginPath(); c.moveTo(sx, spoolY); c.lineTo(sx + Math.cos(a) * 6, spoolY + Math.sin(a) * 6); c.stroke(); }
-      lab('моторы', cx, spoolY + (n ? 15 : 19), { color: P.mot });
+      const spoolY = fy + 16, sp = n ? 24:32;
+      for (let i = 0; i < 3; i++) { const sx = cx + (i - 1) * sp; A.circle(c, sx, spoolY, n ? 7:9, P.motS, P.mot, 1.8); const a = b * 3 + i; c.strokeStyle = P.mot; c.lineWidth = 2; c.beginPath(); c.moveTo(sx, spoolY); c.lineTo(sx + Math.cos(a) * 6, spoolY + Math.sin(a) * 6); c.stroke(); }
+      lab('моторы', cx, spoolY + (n ? 15:19), { color: P.mot });
       const tip = pts[3], mid = pts[2];
-      for (let i = 0; i < 2; i++) { const sx = cx + (i - 0.5) * sp, side = i === 0 ? -5 : 5; A.line(c, [[sx, spoolY - 8], [cx + side, py + 6], [pts[1][0] + side, pts[1][1]], [mid[0] + side, mid[1]], [tip[0], tip[1]]], P.spr, 1.6, [], -u * 30); }
+      for (let i = 0; i < 2; i++) { const sx = cx + (i - 0.5) * sp, side = i === 0 ? -5:5; A.line(c, [[sx, spoolY - 8], [cx + side, py + 6], [pts[1][0] + side, pts[1][1]], [mid[0] + side, mid[1]], [tip[0], tip[1]]], P.spr, 1.6, [], -u * 30); }
       lab('тросы', cx - pw / 2 - 6, (py + pts[1][1]) / 2, { color: P.spr, align: 'right' });
       lab('палец лёгкий', cx - pw / 2 - 6, pts[2][1] - 10, { color: P.spr, align: 'right' });
-      lab(n ? 'трос трётся и вытягивается' : 'трос трётся о направляющие и вытягивается', x + w / 2, y + (n ? 50 : 66), { color: P.spr });
+      lab(n ? 'трос трётся и вытягивается' : 'трос трётся о направляющие и вытягивается', x + w / 2, y + (n ? 50:66), { color: P.spr });
     } else {
       const heat = 0.25 + 0.5 * b / 1.08;
-      for (let i = 0; i < 3; i++) { const q = pts[i]; A.circle(c, q[0], q[1], (n ? 9 : 12) + 4 * heat, A.alpha(P.mot, 0.12 + 0.25 * heat), null); A.circle(c, q[0], q[1], n ? 7 : 10, P.motS, P.mot, 1.8); }
+      for (let i = 0; i < 3; i++) { const q = pts[i]; A.circle(c, q[0], q[1], (n ? 9:12) + 4 * heat, A.alpha(P.mot, 0.12 + 0.25 * heat), null); A.circle(c, q[0], q[1], n ? 7:10, P.motS, P.mot, 1.8); }
       lab(n ? 'мотор в суставе' : 'моторы в суставах', cx - pw / 2 - 6, pts[1][1], { color: P.mot, align: 'right' });
       lab('моторов нет', cx, fy + 22, { color: P.ink3 });
-      lab(n ? 'масса и тепло в пальцах' : 'масса и тепло собираются на конце руки', x + w / 2, y + (n ? 50 : 66), { color: P.mot });
+      lab(n ? 'масса и тепло в пальцах' : 'масса и тепло собираются на конце руки', x + w / 2, y + (n ? 50:66), { color: P.mot });
     }
   }
   function draw(c, k, t, P, A, n) {
@@ -173,7 +173,7 @@ function initStats() {
   if (el('actBars')) StatsChart.bars(el('actBars'), {
     series: [{ id: 'peak', label: 'пиковый момент, Н·м', color: 'var(--e2e)' }, { id: 'sust', label: 'длительный момент, Н·м', color: 'var(--classic)' }],
     groups: [
-      { label: 'Mini Cheetah, 0,48 кг', values: { peak: 17, sust: 6.9 } },
+      { label: 'Mini Chee\u00ADtah, 0,48 кг', values: { peak: 17, sust: 6.9 } },
       { label: 'BH 5013, 0,25 кг', values: { peak: 9.7, sust: 4.59 } },
       { label: 'BH 8513, 0,76 кг', values: { peak: 45.3, sust: 18.9 } },
       { label: 'BH 8518, 0,86 кг', values: { peak: 62.6, sust: 26.1 } },
@@ -211,7 +211,7 @@ function initStats() {
   });
   if (el('battEnergy')) StatsChart.bars(el('battEnergy'), {
     series: [{ id: 'e', label: 'энергия батареи, кВт·ч', color: 'var(--classic)' }],
-    groups: [{ label: 'Unitree G1 (расчёт)', values: { e: 0.43 } }, { label: 'Unitree H1', values: { e: 0.86 } }, { label: 'Mobile ALOHA', values: { e: 1.26 } }, { label: 'Figure 03', values: { e: 2.3 } }, { label: 'Optimus, 2022', values: { e: 2.3 } }],
+    groups: [{ label: 'Unitree G1 (расчёт)', values: { e: 0.43 } }, { label: 'Unitree H1', values: { e: 0.86 } }, { label: 'Mobile ALOHA', values: { e: 1.26 } }, { label: 'Figure 03', values: { e: 2.3 } }, { label: 'Opti\u00ADmus, 2022', values: { e: 2.3 } }],
     max: 2.5, unit: '', ticks: [0, 1.25, 2.5], digits: 2,
   });
   if (el('battHours')) StatsChart.bars(el('battHours'), {
@@ -248,8 +248,8 @@ const Budget = (() => {
   /* ---------- сцена: две Ады с частями и три полосы под каждой ---------- */
   const cv = () => $('#bCv');
   function adaCol(c, k, P, x, w, res, title, L, dim) {
-    const n = L.narrow, s = n ? 1.0 : 1.3, yb = n ? 158 : 190, lab = (t, X, Y, o) => K.label(c, k, t, X, Y, Object.assign({ px: n ? 10 : 11, weight: 600, color: P.ink2, halo: false }, o || {}));
-    lab(title, x, n ? 14 : 16, { px: n ? 11 : 12.5, weight: 700, color: P.ink });
+    const n = L.narrow, s = n ? 1.0:1.3, yb = n ? 158:190, lab = (t, X, Y, o) => K.label(c, k, t, X, Y, Object.assign({ px: n ? 10:11, weight: 600, color: P.ink2, halo: false }, o || {}));
+    lab(title, x, n ? 14:16, { px: n ? 11:12.5, weight: 700, color: P.ink });
     if (!res) { lab('нажми кнопку миссии', x, yb - 60, { color: P.ink3 }); return; }
     c.save(); if (dim) c.globalAlpha = 0.85;
     AdaBody.front(c, x, yb, s);
@@ -265,21 +265,21 @@ const Budget = (() => {
     c.restore();
     // груз: коробка перед Адой
     c.fillStyle = Anim.kit.alpha(P.warn, 0.6); c.strokeStyle = P.ink2; c.lineWidth = 1.2; c.beginPath(); c.roundRect(x - 13 * s, yb - 66 * s, 26 * s, 16 * s, 2); c.fill(); c.stroke();
-    lab(`${r1(res.mass.total)} кг`, x, yb + (n ? 12 : 14), { px: n ? 11 : 12, weight: 700, color: P.ink });
-    lab(`руки ${okTxt(res.checks.arms)} · ноги ${okTxt(res.checks.legs)} · 2 ч ${okTxt(res.checks.time)}`, x, yb + (n ? 26 : 30), { color: res.checks.all ? P.good : P.bad, weight: 700 });
+    lab(`${r1(res.mass.total)} кг`, x, yb + (n ? 12:14), { px: n ? 11:12, weight: 700, color: P.ink });
+    lab(`руки ${okTxt(res.checks.arms)} · ноги ${okTxt(res.checks.legs)} · 2 ч ${okTxt(res.checks.time)}`, x, yb + (n ? 26:30), { color: res.checks.all ? P.good : P.bad, weight: 700 });
     // полосы: масса, средняя мощность, время работы
-    const bx = x - w / 2 + (n ? 6 : 10), bw = w - (n ? 12 : 20), rows = [
+    const bx = x - w / 2 + (n ? 6:10), bw = w - (n ? 12:20), rows = [
       ['масса без груза', res.mass.total, 70, [[res.mass.frame, P.ink3], [res.mass.batt, P.cl], [res.mass.arms, P.e2e], [res.mass.hands, P.warn], [res.mass.legs, P.hy]], `${r1(res.mass.total)} кг`],
       ['средняя мощность', res.power.avg, 420, [[res.power.walkAvg, P.hy], [res.power.comp, P.cl], [res.power.idle - res.power.comp, P.ink3]], `${r0(res.power.avg)} Вт`],
       ['время работы', res.hours, 8, [[res.hours, res.checks.time ? P.good : P.bad]], `${r1(res.hours)} ч`],
     ];
     rows.forEach(([name, v, max, segs, val], i) => {
-      const y = yb + (n ? 56 : 52) + i * (n ? 46 : 50), hgt = n ? 12 : 14;
-      lab(name, bx, y - (n ? 9 : 10), { align: 'left', color: P.ink3, px: n ? 10 : 10.5 });
+      const y = yb + (n ? 56:52) + i * (n ? 46:50), hgt = n ? 12:14;
+      lab(name, bx, y - (n ? 9:10), { align: 'left', color: P.ink3, px: n ? 10:10.5 });
       c.fillStyle = P.bg; c.fillRect(bx, y, bw, hgt);
       let acc = 0; for (const [sv, col] of segs) { const wpx = Math.min(bw - acc, sv / max * bw); c.fillStyle = col; c.fillRect(bx + acc, y, Math.max(0, wpx), hgt); acc += wpx; }
-      if (i === 2) { const mx = bx + 2 / max * bw; c.strokeStyle = P.ink; c.setLineDash([3, 3]); c.lineWidth = 1.2; c.beginPath(); c.moveTo(mx, y - 3); c.lineTo(mx, y + hgt + 3); c.stroke(); c.setLineDash([]); lab('2 ч', mx, y + hgt + (n ? 9 : 10), { color: P.ink3, px: 10 }); }
-      lab(val, bx + bw, y - (n ? 9 : 10), { align: 'right', color: P.ink, weight: 700, px: n ? 10 : 11 });
+      if (i === 2) { const mx = bx + 2 / max * bw; c.strokeStyle = P.ink; c.setLineDash([3, 3]); c.lineWidth = 1.2; c.beginPath(); c.moveTo(mx, y - 3); c.lineTo(mx, y + hgt + 3); c.stroke(); c.setLineDash([]); lab('2 ч', mx, y + hgt + (n ? 9:10), { color: P.ink3, px: 10 }); }
+      lab(val, bx + bw, y - (n ? 9:10), { align: 'right', color: P.ink, weight: 700, px: n ? 10:11 });
       void v;
     });
   }
@@ -321,7 +321,7 @@ const Budget = (() => {
     { short: 'Ада 6.1', title: 'Ада из урока 6.1 берёт коробку',
       text: 'Ада весит 28 кг, как в уроке 6.1: приводы ног 8513 (45 Н·м пиком), руки на приводах 5013 (9,7 Н·м), кисти Inspire по 0,54 кг, Orin NX с малой политикой и батарея как у G1. Задача на весь урок: взять со стола коробку 5 кг, нести её перед собой по квартире, подняться на ступеньку и проработать так два часа. Посчитай бюджет.',
       onEnter: () => set(Object.assign({}, E.DEFAULT)),
-      bet: { q: 'Что подведёт Аду первым?', options: ['Батарея: двух часов не хватит', 'Руки: приводам плеча не хватит момента на коробку', 'Ничего: 5 кг для робота в 28 кг немного'], answer: (r) => (r.binding === 'arms' ? 1 : r.binding === 'time' ? 0 : 2) },
+      bet: { q: 'Что подведёт Аду первым?', options: ['Батарея: двух часов не хватит', 'Руки: приводам плеча не хватит момента на коробку', 'Ничего: 5 кг для робота в 28 кг немного'], answer: (r) => (r.binding === 'arms' ? 1 : r.binding === 'time' ? 0:2) },
       action: { label: 'Посчитать бюджет', run: async () => { set(Object.assign({}, E.DEFAULT)); return run(); } },
       criteria: [{ label: 'Бюджет посчитан', test: (r) => !!r }],
       summary: (r) => `Ада 6.1 с коробкой: ${r1(r.mass.withLoad)} кг, руки ${okTxt(r.checks.arms)}, ноги ${okTxt(r.checks.legs)}, ${r1(r.hours)} ч`,
@@ -329,7 +329,7 @@ const Budget = (() => {
     { short: 'Руки', title: 'Приводы рук под коробку',
       text: 'Поставь в руки приводы, которые держат коробку и пиком, и длительно. Рука из четырёх приводов, поэтому каждая ступень вверх добавляет массу на обе руки.',
       controls: ['arms'], onEnter: () => set({ arms: '5013' }),
-      bet: { q: 'На сколько потяжелеет Ада с приводами рук 8513 вместо 5013?', options: ['Меньше чем на килограмм', 'Примерно на 4 кг', 'Больше чем на 10 кг'], answer: (r) => { const d = r.mass.total - dm(Object.assign({}, r.cfg, { arms: '5013' })).mass.total; return d < 1 ? 0 : d > 10 ? 2 : 1; } },
+      bet: { q: 'На сколько потяжелеет Ада с приводами рук 8513 вместо 5013?', options: ['Меньше чем на килограмм', 'Примерно на 4 кг', 'Больше чем на 10 кг'], answer: (r) => { const d = r.mass.total - dm(Object.assign({}, r.cfg, { arms: '5013' })).mass.total; return d < 1 ? 0 : d > 10 ? 2:1; } },
       action: { label: 'Посчитать бюджет', run: async () => run() },
       criteria: [{ label: 'Приводы плеча держат коробку: и пик, и длительно', test: (r) => r.checks.arms }],
       summary: (r) => `руки ${r.parts.A.id}: ${r1(r.mass.total)} кг, руки ${okTxt(r.checks.arms)}, ноги ${okTxt(r.checks.legs)}`,
@@ -337,15 +337,15 @@ const Budget = (() => {
     { short: 'Ноги', title: 'Приводы ног под новую массу',
       text: 'Теперь подбери приводы ног: колено должно выдержать подъём на ступеньку с коробкой пиком и час за часом ходьбы длительно, без перегрева.',
       controls: ['arms', 'legs'], onEnter: () => set({ legs: '8513' }),
-      bet: { q: 'Хватит ли ног на приводах 8518 (63 Н·м) со ступенькой и коробкой?', options: ['Хватит и пика, и длительного момента', 'Нет, нужен 10413', 'Хватит пика, но при ходьбе моторы перегреются'], answer: (r) => { const q = dm(Object.assign({}, r.cfg, { legs: '8518' })); return q.checks.legs ? 0 : q.checks.kneePeak ? 2 : 1; } },
+      bet: { q: 'Хватит ли ног на приводах 8518 (63 Н·м) со ступенькой и коробкой?', options: ['Хватит и пика, и длительного момента', 'Нет, нужен 10413', 'Хватит пика, но при ходьбе моторы перегреются'], answer: (r) => { const q = dm(Object.assign({}, r.cfg, { legs: '8518' })); return q.checks.legs ? 0 : q.checks.kneePeak ? 2:1; } },
       action: { label: 'Посчитать бюджет', run: async () => run() },
       criteria: [{ label: 'Руки держат коробку', test: (r) => r.checks.arms }, { label: 'Ноги держат ступеньку и ходьбу', test: (r) => r.checks.legs }],
       summary: (r) => `ноги ${r.parts.L.id}: ${r1(r.mass.total)} кг, ноги ${okTxt(r.checks.legs)}, ${r1(r.hours)} ч`,
-      explain: (r) => `Приводы ${r.parts.L.id} дают колену ${r1(r.knee.peak)} Н·м пиком при нужных ${r1(r.knee.peakNeed)} на ступеньке и ${r1(r.knee.sust)} Н·м длительно при нужных ${r1(r.knee.sustNeed)} в ходьбе. Запас по длительному моменту важнее, чем по пику: моторы G1 в TWIST перегревались через 5–10 минут приседаний, потому что работали у предела долго. Ада теперь весит ${r1(r.mass.total)} кг против 28 у Ады из 6.1 и работает ${r1(r.hours)} ч: батареи по-прежнему хватает, потому что груз и лишние ${r1(r.mass.total - 28)} кг приводов добавили к ходьбе всего ${r0(r.power.walkAvg - dm(E.DEFAULT).power.walkAvg)} Вт.` },
+      explain: (r) => `Приводы ${r.parts.L.id} дают колену ${r1(r.knee.peak)} Н·м пиком при нужных ${r1(r.knee.peakNeed)} на ступеньке и ${r1(r.knee.sust)} Н·м длительно при нужных ${r1(r.knee.sustNeed)} в ходьбе. Запас по длительному моменту важнее, чем по пику: моторы G1 в TWIST перегревались через 5–10 минут непрерывной работы, особенно на приседаниях, потому что работали у предела долго. Ада теперь весит ${r1(r.mass.total)} кг против 28 у Ады из 6.1 и работает ${r1(r.hours)} ч: батареи по-прежнему хватает, потому что лишние ${r1(r.mass.total - 28)} кг приводов добавили к ходьбе всего ${r0(r.power.walkAvg - dm(E.DEFAULT).power.walkAvg)} Вт.` },
     { short: 'Кисти', title: 'Ловкие кисти: тросы или моторы в пальцах',
       text: 'Поставь Аде кисти Shadow: 20 моторов в основании тянут 24 сустава сорока тросами, 4,3 кг вместе с основанием. Пальцы у такой кисти лёгкие, а масса переезжает на конец руки целиком. Подбери приводы так, чтобы Ада снова держала коробку и ступеньку.',
       controls: ['hands', 'arms', 'legs'], onEnter: () => set({ hands: 'inspire' }),
-      bet: { q: 'Что придётся менять с кистями по 4,3 кг?', options: ['Только приводы рук', 'Приводы рук и ног', 'Ничего: тросы вынесли моторы из пальцев, и кисть лёгкая'], answer: (r) => { const q = dm(Object.assign({}, r.cfg, { hands: 'shadow' })); if (q.checks.arms && q.checks.legs) return 2; const arms = E.minAct(q.arm.peakNeed, q.arm.sustNeed); const q2 = dm(Object.assign({}, q.cfg, { arms })); return q2.checks.legs ? 0 : 1; } },
+      bet: { q: 'Что придётся менять с кистями по 4,3 кг?', options: ['Только приводы рук', 'Приводы рук и ног', 'Ничего: тросы вынесли моторы из пальцев, и кисть лёгкая'], answer: (r) => { const q = dm(Object.assign({}, r.cfg, { hands: 'shadow' })); if (q.checks.arms && q.checks.legs) return 2; const arms = E.minAct(q.arm.peakNeed, q.arm.sustNeed); const q2 = dm(Object.assign({}, q.cfg, { arms })); return q2.checks.legs ? 0:1; } },
       action: { label: 'Посчитать бюджет', run: async () => run() },
       criteria: [{ label: 'Кисти Shadow', test: (r) => r.cfg.hands === 'shadow' }, { label: 'Руки держат коробку', test: (r) => r.checks.arms }, { label: 'Ноги держат ступеньку и ходьбу', test: (r) => r.checks.legs }],
       summary: (r) => `кисти ${r.parts.H.name}, руки ${r.parts.A.id}, ноги ${r.parts.L.id}: ${r1(r.mass.total)} кг, ${r1(r.hours)} ч`,
@@ -353,7 +353,7 @@ const Budget = (() => {
     { short: 'Модель', title: 'Модель верхнего уровня на борту',
       text: 'Политике Ады нужна модель зрения и языка (урок 3.7). Вариантов три: оставить на борту малую политику на Orin NX, держать VLA в облаке или поставить Thor и считать VLA на борту. Переключи вычислитель и посчитай.',
       controls: ['hands', 'arms', 'legs', 'comp'], onEnter: () => set({ comp: 'nx' }),
-      bet: { q: 'С Thor на 130 Вт вместо Orin NX на 25 Вт время работы Ады…', options: ['почти не изменится: главное едят моторы', 'упадёт на треть или больше', 'вырастет: Thor даёт больше вычислений на ватт'], answer: (r) => { const a = dm(Object.assign({}, r.cfg, { comp: 'nx' })).hours, b = dm(Object.assign({}, r.cfg, { comp: 'thor' })).hours; return b > a ? 2 : 1 - b / a >= 0.3 ? 1 : 0; } },
+      bet: { q: 'С Thor на 130 Вт вместо Orin NX на 25 Вт время работы Ады…', options: ['почти не изменится: главное едят моторы', 'упадёт почти на треть или больше', 'вырастет: Thor даёт больше вычислений на ватт'], answer: (r) => { const a = dm(Object.assign({}, r.cfg, { comp: 'nx' })).hours, b = dm(Object.assign({}, r.cfg, { comp: 'thor' })).hours; return b > a ? 2:1 - b / a >= 0.3 ? 1:0; } },
       action: { label: 'Посчитать бюджет', run: async () => run() },
       criteria: [{ label: 'VLA работает на борту: вычислитель Thor', test: (r) => r.cfg.comp === 'thor' }],
       summary: (r) => `${r.parts.C.name}: ${r0(r.power.avg)} Вт, ${r1(r.hours)} ч, задержка ${r0(r.lat)} мс`,
@@ -361,11 +361,11 @@ const Budget = (() => {
     { short: 'Батарея', title: 'Батарея под два часа',
       text: 'Верни Аде два часа работы с VLA на борту. Батарея как у H1 хранит вдвое больше, как у Figure 03 — в пять раз больше, и каждая весит по 130 Вт·ч на килограмм.',
       controls: ['hands', 'arms', 'legs', 'comp', 'batt'], onEnter: () => set({ comp: 'thor', batt: 'g1' }),
-      bet: { q: 'Батарея 0,86 кВт·ч вместо 0,43 даст Аде…', options: ['вдвое больше времени', 'меньше чем вдвое: батарея сама себя несёт', 'больше чем вдвое'], answer: (r) => { const a = dm(Object.assign({}, r.cfg, { batt: 'g1' })).hours, b = dm(Object.assign({}, r.cfg, { batt: 'h1' })).hours, q = b / a; return q < 1.98 ? 1 : q > 2.02 ? 2 : 0; } },
+      bet: { q: 'Батарея 0,86 кВт·ч вместо 0,43 даст Аде…', options: ['вдвое больше времени', 'меньше чем вдвое: батарея сама себя несёт', 'больше чем вдвое'], answer: (r) => { const a = dm(Object.assign({}, r.cfg, { batt: 'g1' })).hours, b = dm(Object.assign({}, r.cfg, { batt: 'h1' })).hours, q = b / a; return q < 1.98 ? 1 : q > 2.02 ? 2:0; } },
       action: { label: 'Посчитать бюджет', run: async () => run() },
       criteria: [{ label: 'VLA на борту (Thor)', test: (r) => r.cfg.comp === 'thor' }, { label: 'Два часа работы', test: (r) => r.checks.time }, { label: 'Руки и ноги держат коробку и ступеньку', test: (r) => r.checks.arms && r.checks.legs }],
       summary: (r) => `батарея ${fmt(r.parts.B.wh / 1000, 2)} кВт·ч: ${r1(r.mass.total)} кг, ${r1(r.hours)} ч, ноги ${okTxt(r.checks.legs)}`,
-      explain: (r) => { const a = dm(Object.assign({}, r.cfg, { batt: 'g1' })), f = dm(Object.assign({}, r.cfg, { batt: 'f3' })); return `Батарея ${fmt(r.parts.B.wh / 1000, 2)} кВт·ч весит ${r1(r.mass.batt)} кг, и Ада работает ${r1(r.hours)} ч против ${r1(a.hours)} с батареей 0,43 кВт·ч: в ${fmt(r.hours / a.hours, 2)} раза дольше, а не в ${fmt(r.parts.B.wh / a.parts.B.wh, 1)}, потому что лишние ${r1(r.mass.batt - a.mass.batt)} кг тоже надо носить. Колену на ступеньке теперь нужно ${r1(r.knee.peakNeed)} Н·м при ${r1(r.knee.peak)} у привода ${r.parts.L.id}. Батарея как у Figure 03 на 2,3 кВт·ч весила бы ${r1(f.mass.batt)} кг: времени ${r1(f.hours)} ч, но колену понадобилось бы ${r1(f.knee.peakNeed)} Н·м${f.checks.legs ? '' : `, больше, чем даёт любой привод из набора (${r1(E.ACT['10413'].peak)} у 10413)`}. Робот с такой батареей — другого размера: Figure 03 и Atlas на 90 кг.`; } },
+      explain: (r) => { const a = dm(Object.assign({}, r.cfg, { batt: 'g1' })), f = dm(Object.assign({}, r.cfg, { batt: 'f3' })); return `Батарея ${fmt(r.parts.B.wh / 1000, 2)} кВт·ч весит ${r1(r.mass.batt)} кг, и Ада работает ${r1(r.hours)} ч против ${r1(a.hours)} с батареей 0,43 кВт·ч: в ${fmt(r.hours / a.hours, 2)} раза дольше, а не в ${fmt(r.parts.B.wh / a.parts.B.wh, 1)}, потому что лишние ${r1(r.mass.batt - a.mass.batt)} кг тоже надо носить. Колену на ступеньке теперь нужно ${r1(r.knee.peakNeed)} Н·м при ${r1(r.knee.peak)} у привода ${r.parts.L.id}. Батарея как у Figure 03 на 2,3 кВт·ч весила бы ${r1(f.mass.batt)} кг: времени ${r1(f.hours)} ч, но колену понадобилось бы ${r1(f.knee.peakNeed)} Н·м${f.checks.legs ? '' : `, больше, чем даёт любой привод из набора (${r1(E.ACT['10413'].peak)} у 10413)`}. Такую батарею носит полноразмерный Figure 03, а не робот размером с Аду.`; } },
     { short: 'Свободно', final: true, title: 'Свободный режим',
       text: 'Собери самую лёгкую Аду, которая берёт коробку 5 кг, поднимается с ней на ступеньку и работает два часа с VLA на борту. Потом проверь, что происходит с кистями Sharpa Wave на 22 степени свободы и с батареей 2,3 кВт·ч. Кнопка «Закрепить» делает текущую Аду опорной для сравнения.',
       controls: 'all',
@@ -406,9 +406,9 @@ function initParts() {
     const lx = 122;
     lead(x + 7 * s, yb - 80 * s, lx - 4, yb - 86 * s, P.hy); lab('вычислитель', lx, yb - 86 * s, P.hy);
     lead(x + 14 * s, yb - 56 * s, lx - 4, yb - 62 * s, P.cl); lab('батарея', lx, yb - 62 * s, P.cl);
-    lead(x + 28 * s + 7, yb - 56 * s, lx + 20, yb - 44 * s, P.warn); lab('кисть и', lx, yb - 44 * s, P.warn); lab('кончики пальцев', lx, yb - 38 * s, P.warn);
+    lead(x + 28 * s + 7, yb - 56 * s, lx - 4, yb - 44 * s, P.warn); lab('кисть и', lx, yb - 44 * s, P.warn); lab('кончики пальцев', lx, yb - 38 * s, P.warn);
     lead(x + 9 * s + 5, yb - 25 * s, lx - 4, yb - 22 * s, P.e2e); lab('приводы ног', lx, yb - 22 * s, P.e2e);
-    lead(x + 18 * s + 4, yb - 80 * s, x + 48 * s, yb - 98 * s, P.e2e); lab('приводы рук', x + 40 * s - 56, yb - 104 * s, P.e2e);
+    lead(x + 23 * s + 4, yb - 69 * s, lx - 4, yb - 74 * s, P.e2e); lab('приводы рук', lx, yb - 74 * s, P.e2e);
   };
   redrawOn(draw); draw();
 }
@@ -436,13 +436,13 @@ function renderQuiz(boxSel, Q, scoreSel) {
   });
 }
 const QUIZ = [
-  { q: 'Чем больше передаточное число редуктора, тем сильнее сустав. Почему гуманоиды для обучения всё же ставят в ноги приводы с малым передаточным числом?', o: ['Большие редукторы слишком дорогие', 'С ростом передаточного числа инерция ротора на выходе растёт как его квадрат: привод сильнее бьёт при касании пола, хуже уступает толчку, а силу в стопе уже не оценить по току мотора', 'Большие редукторы не работают с нейросетевыми политиками'], a: 1, e: 'Так устроены Mini Cheetah, Berkeley Humanoid и ноги Unitree. Через редуктор 100 : 1 трение и инерция съедают связь между силой на выходе и током, и производителям приходится ставить датчики момента на выход.' },
+  { q: 'Чем больше передаточное число редуктора, тем сильнее сустав. Почему гуманоиды для обучения всё же ставят в ноги приводы с малым передаточным числом?', o: ['Большие редукторы слишком дорогие', 'С ростом передаточного числа инерция ротора на выходе растёт как его квадрат: привод сильнее бьёт при касании пола, хуже уступает толчку, а силу в стопе уже не оценить по току мотора', 'Большие редукторы не работают с нейросетевыми политиками'], a: 1, e: 'Так устроены Mini Cheetah, Berkeley Humanoid и ноги Unitree. Через редуктор 100:1 трение и инерция съедают связь между силой на выходе и током, и производителям приходится ставить датчики момента на выход.' },
   { q: 'У кисти Shadow 24 сустава и 20 моторов, у Inspire 12 суставов и 6 приводов. Значит ли это, что суставов без мотора нельзя двигать?', o: ['Да, такие суставы неподвижны', 'Нет: один привод через тяги или тросы ведёт несколько суставов сразу, но тогда их углы связаны и по отдельности не задаются', 'Нет: ими управляет пружина, а не привод'], a: 1, e: 'Это недоприводные суставы: у Shadow четыре движения пальцев связаны, у Inspire шесть приводов двигают двенадцать суставов через тяги. Политика управляет только тем числом величин, сколько есть приводов.' },
   { q: 'Тросы выносят моторы из пальцев в предплечье. Почему это не делает руку гуманоида легче?', o: ['Моторы никуда не исчезают: они переезжают в основание кисти, которое всё равно висит на конце руки, а приводу плеча важна вся масса за запястьем', 'Тросы весят больше моторов', 'Тросовые кисти всегда дороже, и экономят на приводах рук'], a: 0, e: 'Кисть Shadow весит 4,3 кг вместе с основанием, где стоят 20 моторов. В лаборатории такие кисти потребовали приводов 8518 в руках и 10413 в ногах. Лёгкими становятся пальцы: у RUKA это дало больше силы при тех же моторах, что у LEAP.' },
   { q: 'Digit 360 называют тактильным датчиком. Что в нём есть кроме камеры за гелем, как у GelSight?', o: ['Только более чёткая камера', 'Датчики давления, вибрации, тепла и газа, а также нейросетевой ускоритель прямо в пальце, который обрабатывает касание на месте', 'Лазерный дальномер'], a: 1, e: 'Авторы сравнивают ускоритель в пальце с рефлекторной дугой: реакция на событие касания не ждёт, пока данные дойдут до главного вычислителя. Камера даёт 240 кадров в секунду, а вибрации текстуры слышны до 10 кГц.' },
-  { q: 'Самый мощный вычислитель на борту даёт модели больше возможностей. Почему его всё же не ставят всем гуманоидам?', o: ['Он не помещается в корпус', 'Он тратит столько же энергии, сколько ходьба: в лаборатории Thor срезал время работы Ады на треть и больше при любой конфигурации', 'Большим моделям на борту нечего делать'], a: 1, e: 'Thor потребляет до 130 Вт, Orin NX до 40 Вт, а на ходьбу Ады в среднем уходит около ста ватт. Поэтому компании делят модель между бортом и облаком или ставят вычислитель под размер робота.' },
-  { q: 'Вдвое большая батарея даст роботу вдвое больше времени работы?', o: ['Да, время растёт вместе с энергией', 'Нет, больше чем вдвое: большие батареи эффективнее', 'Нет, меньше чем вдвое: батарея тяжелее, нести её дороже, а на ступеньке её массу должны держать колени'], a: 2, e: 'В лаборатории батарея как у H1 вместо батареи как у G1 давала в 1,5–2 раза больше времени при любой конфигурации. Батарея как у Figure 03 на 2,3 кВт·ч весила бы почти 18 кг, и колену Ады не хватило бы ни одного привода из набора.' },
-  { q: 'В таблице привода написано: пик 62,6 Н·м, длительно 26,1 Н·м. Что из этого важно для часа ходьбы с грузом?', o: ['Пик: ходьба состоит из коротких усилий', 'Длительный момент: он задан нагревом мотора, и моторы, которые работают у пика долго, перегреваются, как у робота Unitree в TWIST через несколько минут приседаний', 'Оба числа равнозначны'], a: 1, e: 'У приводов Berkeley Humanoid длительный момент составляет 42–47 % пикового, у приводов Nadia — около четверти. Пик нужен для ступеньки, длительный момент — для часа ходьбы.' },
+  { q: 'Самый мощный вычислитель на борту даёт модели больше возможностей. Почему его всё же не ставят всем гуманоидам?', o: ['Он не помещается в корпус', 'Он тратит столько же энергии, сколько ходьба: в лаборатории Thor при любой конфигурации заметно сокращал время работы Ады', 'Большим моделям на борту нечего делать'], a: 1, e: 'Thor потребляет до 130 Вт, Orin NX до 40 Вт, а на ходьбу Ады в лаборатории в среднем уходит от 55 до 132 Вт в зависимости от массы. Thor вместо Orin NX сокращал время работы не меньше чем на 30% при любой конфигурации. Поэтому компании делят модель между бортом и облаком или ставят вычислитель под размер робота.' },
+  { q: 'Вдвое большая батарея даст роботу вдвое больше времени работы?', o: ['Да, время растёт вместе с энергией', 'Нет, больше чем вдвое: большие батареи эффективнее', 'Нет, меньше чем вдвое: батарея тяжелее, нести её дороже, а на ступеньке её массу должны держать колени'], a: 2, e: 'В лаборатории батарея как у H1 вместо батареи как у G1 давала почти вдвое больше времени при любой конфигурации. Батарея как у Figure 03 на 2,3 кВт·ч весила бы почти 18 кг, и колену Ады не хватило бы ни одного привода из набора.' },
+  { q: 'В таблице привода написано: пик 62,6 Н·м, длительно 26,1 Н·м. Что из этого важно для часа ходьбы с грузом?', o: ['Пик: ходьба состоит из коротких усилий', 'Длительный момент: он задан нагревом мотора, и моторы, которые работают у пика долго, перегреваются, как у робота Unitree в TWIST через несколько минут непрерывной работы, особенно на приседаниях', 'Оба числа равнозначны'], a: 1, e: 'У приводов Berkeley Humanoid длительный момент составляет 42–47% пикового, у приводов Nadia — от четверти до трети. Пик нужен для ступеньки, длительный момент — для часа ходьбы.' },
   { q: 'Облако снимает проблему бортовых вычислений: модель любого размера, а робот только исполняет. Что не так?', o: ['В облаке нельзя запускать модели зрения', 'Ответ приходит с задержкой около четверти секунды, за которую идущий робот проходит сантиметры, а контроллер тела и регуляторы суставов должны оставаться на борту и работать десятки и тысячи раз в секунду', 'Облачные модели не умеют работать с несколькими роботами'], a: 1, e: 'Так устроены Gemini Robotics из урока 3.7 с декодером на роботе и системы урока 6.4 с контроллером тела внизу. Облако подходит для редких решений, а не для равновесия.' },
 ];
 function initQuiz() { renderQuiz('#quizBox', QUIZ, '#quizScore'); }
