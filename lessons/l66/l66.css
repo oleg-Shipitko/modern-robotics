@@ -1,0 +1,106 @@
+/* ---------- урок 6.6 «Обзор гуманоидных платформ» ---------- */
+.cv-note { margin: 6px 2px 0; font-size: 13px; line-height: 1.45; color: var(--ink-3); }
+.ctl { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.ctl-l { font-size: 13.5px; font-weight: 650; color: var(--ink-3); }
+.btn[hidden] { display: none !important; }
+.guide-card .g-go { white-space: normal; text-align: left; max-width: 100%; }
+.seg.small button { padding-left: 8px; padding-right: 8px; font-size: 13px; }
+.seg.small { flex-wrap: wrap; }
+
+/* схема */
+.flow-card { margin: 18px 0 0; padding: 14px 14px 12px; }
+.flow-card canvas { width: 100%; height: auto; display: block; }
+.flow-card figcaption { margin: 10px 2px 0; }
+
+/* фото платформ: один ряд, у всех кадров 2 : 3 — робот виден целиком */
+.robot-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px 14px; margin: 22px 0 6px; max-width: 980px; }
+.robot-row .photo-fig { margin: 0; max-width: none; }
+.robot-row .photo-fig img { aspect-ratio: 2 / 3; object-fit: cover; }
+.robot-row .photo-fig figcaption { font-size: 13px; }
+.robot-row .photo-fig figcaption b { color: var(--ink); }
+@media (max-width: 560px) { .robot-row { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 10px; } .robot-row .photo-fig figcaption { font-size: 12.5px; } }
+
+/* лаборатория: сравнительная таблица */
+.lab-wide { grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr); }
+@media (max-width: 1020px) { .lab-wide { grid-template-columns: minmax(0, 1fr); } }
+.pt-axis { margin: 2px 0 10px; }
+.pt { --pt-cols: 150px repeat(3, minmax(0, 1fr)); display: grid; gap: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--surface); }
+.pt-head, .pt-row { display: grid; grid-template-columns: var(--pt-cols); }
+.pt-head > div { padding: 8px 9px 7px; font-size: 12.5px; font-weight: 700; color: var(--ink-3); background: var(--surface-2); border-bottom: 1px solid var(--line); line-height: 1.3; }
+.pt-head > div small { display: block; font-weight: 550; font-size: 11.5px; color: var(--ink-3); margin-top: 1px; }
+.pt-row { border-top: 1px solid var(--line); position: relative; }
+.pt-row:first-of-type { border-top: 0; }
+.pt-row.pt-ada { background: color-mix(in srgb, var(--hybrid) 5%, transparent); }
+.pt-name { display: grid; align-content: start; gap: 2px; text-align: left; padding: 8px 9px; border: 0; border-right: 1px solid var(--line); background: none; color: var(--ink); font: inherit; cursor: default; min-width: 0; }
+.pt-name b { font-size: 13.5px; font-weight: 700; line-height: 1.25; }
+.pt-name small { font-size: 11.5px; color: var(--ink-3); line-height: 1.25; }
+.pt.picking .pt-name { cursor: pointer; }
+.pt.picking .pt-name::before { content: ''; width: 15px; height: 15px; border-radius: 4px; border: 1.6px solid var(--line-2); background: var(--surface); margin-bottom: 4px; }
+.pt.picking .pt-name[aria-pressed="true"]::before { background: var(--ink); border-color: var(--ink); box-shadow: inset 0 0 0 2.5px var(--surface); }
+.pt.picking .pt-row:hover .pt-name { background: var(--surface-2); }
+.pt.comparing .pt-name { cursor: pointer; }
+.pt-row.pt-cmp { box-shadow: inset 3px 0 0 var(--hybrid); background: color-mix(in srgb, var(--hybrid) 7%, transparent); }
+.pt-cell { padding: 8px 9px 8px 22px; font-size: 13px; line-height: 1.38; color: var(--ink-2); border-right: 1px solid var(--line); position: relative; cursor: pointer; min-width: 0; overflow-wrap: anywhere; }
+.pt-cell:last-child { border-right: 0; }
+.pt-cell::before { content: ''; position: absolute; left: 8px; top: 13px; width: 8px; height: 8px; border-radius: 50%; background: var(--ink-3); }
+.pt-cell[data-m="nn"]::before { background: var(--e2e); }
+.pt-cell[data-m="cl"]::before { background: var(--classic); }
+.pt-cell[data-m="mix"]::before { background: linear-gradient(90deg, var(--e2e) 50%, var(--classic) 50%); }
+.pt-cell[data-m="yes"]::before { background: var(--good); }
+.pt-cell[data-m="no"]::before { background: none; border: 1.6px solid var(--ink-3); width: 6px; height: 6px; }
+.pt-cell[data-m="na"] { color: var(--ink-3); font-style: italic; }
+.pt-cell[data-m="na"]::before { background: none; border: 1.6px dashed var(--ink-3); width: 6px; height: 6px; }
+.pt-cell:hover { background: var(--surface-2); }
+.pt-cell.pt-src { background: color-mix(in srgb, var(--classic) 9%, transparent); }
+.pt-col-l { display: none; }
+/* итог проверки: верно отмечена, пропущена, лишняя */
+.pt-row.pt-ok .pt-name b::after { content: ' ✓'; color: var(--good); }
+.pt-row.pt-miss { box-shadow: inset 3px 0 0 var(--critical); }
+.pt-row.pt-miss .pt-name b::after { content: ' — пропущена'; color: var(--critical); font-weight: 650; font-size: 12px; }
+.pt-row.pt-extra { box-shadow: inset 3px 0 0 var(--critical); }
+.pt-row.pt-extra .pt-name b::after { content: ' — лишняя'; color: var(--critical); font-weight: 650; font-size: 12px; }
+.pt-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 10px 2px 0; font-size: 12.5px; color: var(--ink-2); }
+.pt-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.pt-legend i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex: none; }
+.pt-legend i.nn { background: var(--e2e); } .pt-legend i.cl { background: var(--classic); }
+.pt-legend i.mix { background: linear-gradient(90deg, var(--e2e) 50%, var(--classic) 50%); }
+.pt-legend i.yes { background: var(--good); } .pt-legend i.no { border: 1.6px solid var(--ink-3); width: 7px; height: 7px; }
+.pt-legend i.na { border: 1.6px dashed var(--ink-3); width: 7px; height: 7px; }
+.pt-legend i.i { background: var(--ink-3); }
+.pt-src-line { margin-top: 10px; padding: 9px 12px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--line); font-size: 13.5px; line-height: 1.45; color: var(--ink-2); }
+.pt-src-line a { color: inherit; }
+.pt-count { font-size: 13.5px; color: var(--ink-2); margin-top: 10px; }
+.pt-count b { color: var(--ink); }
+/* сравнение двух платформ рядом (свободный режим) */
+.pt-cmpbox { margin-top: 12px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.pt-cmpbox table { width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.38; }
+.pt-cmpbox th, .pt-cmpbox td { padding: 7px 9px; border-top: 1px solid var(--line); text-align: left; vertical-align: top; color: var(--ink-2); }
+.pt-cmpbox thead th { border-top: 0; background: var(--surface-2); color: var(--ink); font-weight: 700; }
+.pt-cmpbox tbody th { width: 26%; color: var(--ink-3); font-weight: 650; }
+.pt-cmpbox tr.pt-diff td { background: color-mix(in srgb, var(--hybrid) 8%, transparent); }
+.pt-cmpbox tr.pt-axis-row th { background: var(--surface-2); color: var(--ink-2); font-size: 12.5px; text-transform: uppercase; letter-spacing: .04em; }
+.readout { margin-top: 10px; }
+
+/* живые миссии: невыполненный критерий — «ещё нет», серым */
+.m-live .m-crit li.no i { border-color: var(--line-2); color: var(--ink-3); background: var(--surface-2); }
+.m-live .m-crit li.no i::before { content: '·'; }
+
+/* телефон: строка таблицы становится карточкой, у каждой ячейки — название колонки */
+@media (max-width: 600px) {
+  .pt { border: 0; background: none; overflow: visible; gap: 10px; }
+  .pt-head { display: none; }
+  .pt-row { display: block; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); overflow: hidden; }
+  .pt-row:first-of-type { border-top: 1px solid var(--line); }
+  .pt-name { width: 100%; border-right: 0; border-bottom: 1px solid var(--line); grid-template-columns: auto 1fr; align-items: center; column-gap: 8px; }
+  .pt-name b, .pt-name small { grid-column: 2; }
+  .pt.picking .pt-name::before { grid-row: 1 / span 2; margin: 0; }
+  .pt-cell { border-right: 0; border-top: 1px solid var(--line); }
+  .pt-cell:first-of-type { border-top: 0; }
+  .pt-col-l { display: block; font-size: 11.5px; font-weight: 700; color: var(--ink-3); font-style: normal; margin-bottom: 1px; }
+  .pt-cell::before { top: 27px; }
+  .pt-cmpbox tbody th { width: 30%; }
+}
+
+/* числа на узких столбцах диаграмм — мельче на телефоне, чтобы соседние не налезали */
+@media (max-width: 640px) { .stat-bars .sb-bar b { font-size: 10px; letter-spacing: -0.2px; } }
+.stat-grid.one-col { grid-template-columns: minmax(0, 1fr); }
