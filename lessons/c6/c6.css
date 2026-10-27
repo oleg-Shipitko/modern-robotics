@@ -1,0 +1,69 @@
+/* ---------- Проверка части 6: сцена «Смена Ады» (движки уроков 6.1–6.5) ---------- */
+.chk-cv.c6-cv { aspect-ratio: 720 / 340; cursor: pointer; }
+.chk-scene .cv-note { margin: 0 2px; font-size: 13px; line-height: 1.45; color: var(--ink-3); }
+.chk-scene .cv-legend { margin-top: 0; }
+.cv-legend i.ada { width: 13px; height: 13px; border-radius: 50%; background: #f4efe6; border: 2px solid var(--e2e); }
+.cv-legend i.ghost { width: 13px; height: 13px; border-radius: 50%; background: transparent; border: 2px solid var(--ink-3); opacity: .45; }
+.cv-legend i.ring { width: 11px; height: 11px; border-radius: 50%; background: transparent; border: 2px solid var(--c); }
+.cv-legend i.flag { width: 12px; height: 14px; border-radius: 0; background: linear-gradient(var(--c), var(--c)) 0 0 / 2px 100% no-repeat, linear-gradient(135deg, var(--c) 50%, transparent 50%) 2px 1px / 10px 8px no-repeat; }
+.cv-legend i.arrow { width: 0; height: 0; border-radius: 0; background: none; border-left: 11px solid var(--c); border-top: 6px solid transparent; border-bottom: 6px solid transparent; }
+.cv-legend i.tea { width: 12px; height: 10px; border-radius: 2px; background: color-mix(in srgb, var(--warning) 70%, transparent); border: 1.5px solid var(--ink-2); }
+.cv-legend i.slot { width: 12px; height: 10px; border-radius: 1px; background: none; border: 1.5px dashed var(--hybrid); }
+.cv-legend i.bar { width: 22px; height: 8px; border-radius: 3px; background: var(--good); }
+.cv-legend i.link { width: 18px; height: 0; border-radius: 0; background: none; border-top: 2px dashed var(--c); }
+.cv-legend i.wifi { width: 14px; height: 8px; border-radius: 2px; background: transparent; border: 1.5px solid var(--c); }
+/* система Ады: пять решений, по одному на урок */
+.c6-sys { display: grid; gap: 4px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); }
+.c6-sys-h { font-size: 12.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); }
+.c6-sys-row { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 2px 12px; align-items: baseline; font-size: 14px; line-height: 1.4; }
+.c6-sys-row > b { font-weight: 650; color: var(--ink); white-space: nowrap; }
+.c6-sys-row > span { color: var(--ink-2); }
+.c6-sys-tag { margin-left: 8px; font-style: normal; font-size: 12px; font-weight: 700; color: var(--hybrid); }
+.c6-sys-tag:empty { display: none; }
+.c6-sys-row.changed > span { color: var(--ink); }
+/* журнал смены: испытание, исход, диагноз и замена решения */
+.c6-log { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.c6-log > li { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); min-width: 0; }
+.c6-log > li.cur { border-color: var(--hybrid); box-shadow: inset 0 0 0 1px var(--hybrid); }
+.c6-th { display: flex; gap: 9px; align-items: baseline; flex-wrap: wrap; }
+.c6-th > i { flex: 0 0 18px; width: 18px; height: 18px; border-radius: 50%; display: inline-grid; place-items: center; font-style: normal; font-size: 12px; font-weight: 800; background: var(--surface-2); border: 1.5px solid var(--line-2); transform: translateY(3px); }
+.c6-log > li.wait .c6-th > i::before { content: '·'; color: var(--ink-3); }
+.c6-log > li.ok .c6-th > i { border-color: var(--good); background: var(--good-soft); color: var(--good); }
+.c6-log > li.ok .c6-th > i::before { content: '✓'; }
+.c6-log > li.no .c6-th > i { border-color: var(--critical); color: var(--critical); }
+.c6-log > li.no .c6-th > i::before { content: '✗'; }
+.c6-log > li.stale .c6-th > i { border-color: var(--line-2); background: var(--surface-2); color: var(--ink-3); }
+.c6-log > li.stale .c6-th > i::before { content: '·'; }
+.c6-name { flex: 1 1 260px; min-width: 0; padding: 0; border: 0; background: none; font: inherit; font-size: 15px; font-weight: 650; line-height: 1.4; color: var(--ink); text-align: left; cursor: pointer; }
+.c6-name:hover { text-decoration: underline; text-underline-offset: 3px; }
+.c6-tag { font-size: 12.5px; font-weight: 700; color: var(--ink-3); white-space: nowrap; }
+.c6-log > li.ok .c6-tag { color: var(--good-ink); }
+.c6-log > li.no .c6-tag { color: var(--critical); }
+.c6-log > li.stale .c6-tag { color: var(--hybrid); }
+.c6-task { margin: 0; font-size: 13px; line-height: 1.45; color: var(--ink-3); }
+.c6-res { margin: 0; font-size: 14.5px; line-height: 1.5; color: var(--ink-2); }
+.c6-res a { color: var(--ink-2); }
+.c6-stale { color: var(--hybrid); font-weight: 600; }
+.c6-diag, .c6-fix { display: grid; gap: 7px; }
+.c6-q { margin: 0; font-size: 14px; font-weight: 650; color: var(--ink); }
+.c6-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.c6-chip { padding: 6px 11px; border: 1px solid var(--line-2); border-radius: 10px; background: var(--surface); color: var(--ink); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+.c6-chip:hover:not(:disabled) { border-color: var(--ink-3); }
+.c6-chip:disabled { cursor: default; }
+.c6-chip.no { border-color: var(--critical); background: var(--critical-soft); color: var(--ink-2); }
+.c6-chip.ok { border-color: var(--good); background: var(--good-soft); color: var(--ink); }
+.c6-hint, .c6-ok { margin: 0; font-size: 14px; line-height: 1.45; color: var(--ink-2); }
+.c6-opts { display: grid; gap: 6px; }
+.c6-opt { display: grid; gap: 2px; padding: 8px 12px; border: 1px solid var(--line-2); border-radius: 10px; background: var(--surface); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.c6-opt:hover:not(:disabled) { border-color: var(--ink-3); }
+.c6-opt b { font-size: 14.5px; font-weight: 650; line-height: 1.35; }
+.c6-opt small { font-size: 12.5px; line-height: 1.35; color: var(--ink-3); }
+.c6-opt[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.c6-opt:disabled { cursor: default; opacity: .6; }
+.c6-final { display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--hybrid); border-radius: 12px; background: var(--hybrid-soft); }
+@media (max-width: 680px) {
+  .c6-sys-row { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .c6-sys-row + .c6-sys-row { margin-top: 4px; }
+  .c6-log > li { padding: 9px 10px; }
+  .c6-name { font-size: 14.5px; flex-basis: 200px; }
+}

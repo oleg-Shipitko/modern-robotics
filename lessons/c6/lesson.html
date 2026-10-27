@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Проверка части 6 — Modern Robotics и Physical AI</title>
+<meta name="description" content="Проверка по части 6 курса «Modern Robotics и Physical AI»: 24 вопроса вперемешку по урокам 6.1–6.6 о гуманоидных роботах (обучение ходьбы с подкреплением, имитация движений человека, трекер всего тела, локоманипуляция, железо и обзор платформ) и задача на живой сцене: найти по журналу смены, какие решения подвели Аду с ногами, и заменить их. В конце — балл и темы для повторения.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<script>
+  (function () { try { var t = localStorage.getItem('mr-theme'); if (t) document.documentElement.dataset.theme = t; else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme = 'dark'; } catch (e) {} })();
+</script>
+<style>
+/*@@CSS@@*/
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html#program" title="К программе курса"><div>Modern Robotics и Physical AI<small>Проверка части 6</small></div></a>
+    <nav class="toc" aria-label="Разделы страницы">
+      <a href="#tasks">Задания</a>
+      <a href="#result">Итог</a>
+    </nav>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Переключить тему">◐</button>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main>
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="kicker"><span class="num">6</span> Часть 6 · Гуманоидные роботы</div>
+    <h1>Проверка <span class="amp">части 6</span></h1>
+    <p class="lead">Квиз в конце урока проверяет урок сразу после чтения. Здесь задания по всем урокам части идут вперемешку: так видно, что держится в памяти и связываются ли темы между собой. В конце — балл по каждому уроку и ссылки на разделы, которые стоит повторить.</p>
+    <div class="hero-meta"><span>≈ 30 минут</span><span id="chkCount">вопросы и задача на сцене</span><span>можно пройти ещё раз</span></div>
+    <div class="hero-list">
+      <div><b>6.1</b>Ходьба как задача обучения с подкреплением: награда из многих слагаемых, случайные команды скорости, тысячи копий и трансформер по истории у Digit</div>
+      <div><b>6.2–6.3</b>Записи движений людей: ретаргетинг, DeepMimic и AMP, универсальный трекер, учитель и ученик, маски команд HOVER и поправка к симулятору ASAP</div>
+      <div><b>6.4</b>Локоманипуляция: модель верхнего уровня ставит цели, контроллер всего тела держит равновесие, а телеоперация всем телом записывает его команды</div>
+      <div><b>6.5–6.6</b>Приводы, кисти, осязание, вычислитель и батарея в одном бюджете; восемь платформ по четырём вопросам: управление, данные, тело и применение</div>
+    </div>
+    <p style="margin-top:28px"><a class="btn primary" href="#tasks">Начать проверку ↓</a></p>
+  </div>
+</section>
+
+<section class="section" id="tasks">
+  <div class="wrap">
+    <div class="chk-list" id="chkList"></div>
+  </div>
+</section>
+
+<section class="section alt" id="result">
+  <div class="wrap">
+    <div class="prose" style="max-width:820px">
+      <div class="kicker"><span class="num">✓</span> Итог</div>
+      <h2>Итог проверки</h2>
+      <p class="score" id="quizScore"></p>
+      <p class="chk-wait" id="chkWait"></p>
+      <div id="chkResult" hidden>
+        <div class="chk-table" id="chkTable"></div>
+        <h3 style="margin-top:28px">Что повторить</h3>
+        <ul class="links" id="chkReview"></ul>
+        <p style="margin-top:22px"><button class="btn" type="button" id="chkAgain">Пройти ещё раз</button></p>
+      </div>
+      <div class="bridge-note"><p>Ада в задаче на сцене прошла смену, но каждое её умение оплачено опытом: политика ходьбы урока 6.1 полчаса училась на 512 копиях в симуляторе, трекер SONIC — на 700 часах motion capture, а Agility учит Digit 5 на 65 тысячах часов работы Digit 4. Такой опыт набирают на настоящих роботах или на записях людей, и оба пути дороги и медленны.</p><p class="bridge-to">Урок 7.1 · Модели мира и Dreamer: как выучить, что будет после действия, и учить политику на попытках в воображении модели</p></div>
+      <p style="margin-top:18px"><a href="../index.html#program">Программа курса и даты выхода →</a></p>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  Проверка части 6 курса «Modern Robotics и Physical AI». Ответы остаются в браузере, сайт видит только анонимные суммы.
+</footer>
+<div class="tooltip" id="tooltip" role="tooltip"></div>
+<script>
+/*@@JS@@*/
+</script>
+</body>
+</html>
