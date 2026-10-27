@@ -34,7 +34,7 @@ SITE = os.environ.get('SITE', 'modernrobotics.ru')
 ORIGINS = {f'{s}://{h}' for s in ('https', 'http') for h in (SITE, 'www.' + SITE)}
 MSK = datetime.timezone(datetime.timedelta(hours=3))
 # en/… — английская версия сайта (с 15.10.2026), считается отдельно; test — проверка после выкладки
-PAGE = re.compile(r'^(test|(en/)?(index|glossariy|\d-\d{1,2}-[a-z0-9-]{1,60}|proverka-chasti-\d))$')
+PAGE = re.compile(r'^(test|(en/)?(index|glossariy|karta-idey|\d-\d{1,2}-[a-z0-9-]{1,60}|proverka-chasti-\d))$')
 EVENT = re.compile(r'^(open:(phone|desk)'
                    r'|ref:(direct|site|telegram|linkedin|google|yandex|github|vk|habr|other)'
                    r'|sec:[a-z][a-zA-Z0-9-]{0,30}'

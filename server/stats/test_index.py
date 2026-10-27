@@ -109,6 +109,7 @@ def main():
     check(post({'p': 'en/index', 'e': []}, ip='4.4.4.5')[0] == 200 and post({'p': 'en/proverka-chasti-2', 'e': []}, ip='4.4.4.6')[0] == 200, 'английские главная и проверка части принимаются')
     check(post({'p': 'en/test', 'e': ['open:desk']}, ip='4.4.4.7')[0] == 400 and post({'p': 'de/index', 'e': ['open:desk']}, ip='4.4.4.8')[0] == 400
           and post({'p': 'en/en/index', 'e': ['open:desk']}, ip='4.4.4.9')[0] == 400, 'другие префиксы и en/test — 400')
+    check(post({'p': 'karta-idey', 'e': ['open:desk']}, ip='4.4.4.10')[0] == 200 and post({'p': 'en/karta-idey', 'e': ['open:phone']}, ip='4.4.4.11')[0] == 200, 'карта идей (RU и EN) принимается')
     check(post('не json')[0] == 400, 'тело не JSON — 400')
     check(post({'p': 'index', 'e': ['open:phone']}, origin='https://evil.example')[0] == 403, 'запрос не с сайта — 403')
     code, _ = post({'p': 'index', 'e': ['open:phone', 'ref:linkedin']}, b64=True)

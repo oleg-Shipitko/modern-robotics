@@ -142,7 +142,9 @@ def analyze(data):
         for ev, n in c.items():
             if ev.startswith('ref:') and ev != 'ref:site':
                 refs[ev[4:]] += n
-    A = {'since': data['since'], 'today': data['today'], 'home': (opens(home), home['open:phone']), 'home_en': opens(en('index')), 'refs': refs, 'lessons': [], 'drops': [], 'hard': []}
+    ideas = C.get('karta-idey', collections.Counter()) + en('karta-idey')  # страница «Карта идей», с 27.10.2026
+    A = {'since': data['since'], 'today': data['today'], 'home': (opens(home), home['open:phone']), 'home_en': opens(en('index')), 'refs': refs, 'lessons': [], 'drops': [], 'hard': [],
+         'ideas': (opens(ideas), opens(en('karta-idey')))}
     for L in lessons():
         c = C.get(L['slug'], collections.Counter()) + en(L['slug'])
         o = opens(c)
@@ -246,6 +248,7 @@ def report(data, only=None):
         out += [f"    {dm(f['day'])} · {f['n']} · {RATING.get(f['r'], f['r'])} — {one_line(f['t'])}" for f in A['texts'] if f['page'] in (x['L']['slug'], 'en/' + x['L']['slug'])]
         return '\n'.join(out)
     out.append(f"Главная: открыли {times(A['home'][0])} (по-английски {A['home_en']}), с телефона {pct(A['home'][1], A['home'][0])}.")
+    out.append(f"Карта идей: открыли {times(A['ideas'][0])} (по-английски {A['ideas'][1]}).")
     out.append('Откуда пришли (главная и уроки, без переходов внутри сайта): ' + sources(A))
     out += ['', f"{'Урок':<46}{'Открыли':>8}{'Англ.':>7}{'Телефон':>9}{'До итогов':>11}{'Квиз':>7}{'Ср. балл':>12}{'≥10 мин':>9}{'Понятно':>12}"]
     for x in A['lessons']:
@@ -272,6 +275,7 @@ def note(data, demo_mode=False):
     out += [f"Обновлено {now}. Данные с {dm(A['since'])} по {dm(A['today'])}; статистика собирается с 06.10.2026. Обновить — попросить Claude «обнови статистику» "
             f"(или `python3 tools/stats.py --note`). Это анонимные суммы: одно открытие страницы — одно «открыли», уникальных читателей сайт не считает.", '',
             f"**Главная:** открыли {times(A['home'][0])}, из них по-английски {A['home_en']}; с телефона {pct(A['home'][1], A['home'][0])}.  ",
+            f"**Карта идей:** открыли {times(A['ideas'][0])}, из них по-английски {A['ideas'][1]} (страница появилась 27.10.2026).  ",
             f"**Откуда пришли** (главная и уроки, без переходов внутри сайта): {sources(A)}.", '',
             '## Уроки', '', '| Урок | Открыли | По-английски | С телефона | До итогов | Квиз | Средний балл | ≥10 минут | Понятно |', '|---|---:|---:|---:|---:|---:|---:|---:|---:|']
     for x in A['lessons']:
