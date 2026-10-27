@@ -4,7 +4,7 @@
 # не пускает), и задание launchd каждые 10 минут проверяет, наступило ли 09:00 по Москве дня выпуска.
 # Как только наступило — выкладывает сайт из снимка (tools/deploy.sh: уроки с этой датой появляются сами)
 # и показывает уведомление. Mac должен быть включён и в сети; если он спал, выкладка пройдёт после пробуждения.
-# Пост в канал автор публикует сам.
+# После выкладки задание отправляет на GitHub коммит, с которого снят снимок. Пост в канал автор публикует сам.
 #   tools/release_mac.sh arm 2026-10-10        снимок + задание по расписанию
 #   tools/release_mac.sh status                что запланировано и что в журнале
 #   tools/release_mac.sh disarm                снять задание
@@ -28,6 +28,8 @@ case "$CMD" in
     rsync -a --delete --exclude .git --exclude dist --exclude dist-release --exclude shots --exclude sources \
       --exclude node_modules --exclude __pycache__ --exclude site/lessons --exclude site/en "$SRC/" "$SNAP/"
     rm -f "$HOME_DIR/$DAY.done"
+    # после выкладки задание отправит на GitHub исходники в том состоянии, в каком снят снимок (коммит HEAD на момент arm)
+    printf 'SRC=%q\nSHA=%q\n' "$SRC" "$(cd "$SRC" && git rev-parse HEAD)" > "$HOME_DIR/push.env"
     cat > "$PLIST" <<PL
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -54,6 +56,11 @@ PL
     if bash tools/deploy.sh $DRY >> "$LOG" 2>&1; then
       if [ "$DRY" = "--dryrun" ]; then say "пробный прогон прошёл"; notify "Пробный прогон выпуска $DAY прошёл"; exit 0; fi
       date > "$DONE"; say "выпуск $DAY на сайте"; notify "Выпуск $DAY на сайте. Пора публиковать пост."
+      if [ -f "$HOME_DIR/push.env" ]; then
+        . "$HOME_DIR/push.env"
+        if git -C "$SRC" push origin "$SHA:refs/heads/main" >> "$LOG" 2>&1; then say "исходники на GitHub: $SHA"
+        else say "не удалось отправить исходники на GitHub — отправь вручную: git push origin $SHA:main"; notify "Исходники на GitHub не отправлены — см. журнал"; fi
+      fi
       launchctl bootout "gui/$(id -u)/$LABEL" >/dev/null 2>&1 || true
     else
       say "ошибка выкладки, повторю через 10 минут"; notify "Ошибка выкладки выпуска $DAY — повторю через 10 минут"
