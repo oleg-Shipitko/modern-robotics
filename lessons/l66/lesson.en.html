@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>6.6 A survey of humanoid platforms — Modern Robotics and Physical AI</title>
+<meta name="description" content="Lesson 6.6 of the “Modern Robotics and Physical AI” course: how Figure, Tesla, Boston Dynamics, Unitree, Agility, Apptronik, AgiBot and 1X build their humanoids and what in each one is done by a neural network and what by classical methods. Control levels, teleoperation, human recordings and simulation, actuators and batteries, factories, warehouses, homes and public shows, all from published sources only. In the comparison table, mark the platforms that withstand a push, keep working without a connection and last a whole shift, and compare any two side by side.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<script>
+  (function () { try { var t = localStorage.getItem('mr-theme'); if (t) document.documentElement.dataset.theme = t; else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme = 'dark'; } catch (e) {} })();
+</script>
+<style>
+/*@@CSS@@*/
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html#program" title="To the course program"><div>Modern Robotics and Physical AI<small>Lesson 6.6 · A survey of humanoid platforms</small></div></a>
+    <nav class="toc" aria-label="Lesson sections">
+      <a href="#axes">Axes</a>
+      <a href="#control">Control</a>
+      <a href="#data">Data</a>
+      <a href="#body">Body</a>
+      <a href="#work">Work</a>
+      <a href="#table">Table</a>
+      <a href="#ada">Ada</a>
+      <a href="#today">Today</a>
+      <a href="#quiz">Quiz</a>
+      <a href="#finale">Takeaways</a>
+    </nav>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Toggle theme">◐</button>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main>
+
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="kicker"><span class="num">6.6</span> Part 6 · Humanoid robots</div>
+    <h1>A survey of humanoid platforms: <span class="amp">what is trained, on what data and where each one works</span></h1>
+    <p class="lead">In lesson 6.5, we built Ada from parts and saw that everything in a humanoid's budget is linked. Companies answer these questions differently: Unitree puts in quasi-direct drives and sells the G1 starting at $13,500, Optimus is built on harmonic drives and linear actuators, and Atlas weighs 90 kg and carries 50 kg. The platforms differ even more in what their neural networks do and what people wrote, what data they learn from and where they work. You can't tell this from company videos: in every one of them a humanoid walks, picks up a box and folds a towel, but you can't see how many levels the control system has, which of them are trained and whether a person is controlling the robot. In this lesson, we'll go through eight platforms, Figure, Tesla Optimus, Boston Dynamics Atlas, Unitree, Agility Digit, Apptronik Apollo, AgiBot and 1X NEO, with the same four questions, using only what the companies themselves and the authors of papers have published. Then, in a comparison table, we'll check what a platform's design implies in a specific situation: the robot gets pushed, the connection drops, the shift turns out longer than the battery, a new task comes up.</p>
+    <div class="hero-meta"><span>≈ 55 minutes</span><span>a lab, a diagram, charts and a quiz</span><span id="heroMis">missions with a goal</span></div>
+    <div class="hero-list">
+      <div><b>THREE STACKS</b>See on the diagram how control is built in Atlas before 2025, in Atlas with a trained model on top and in Figure 03: which blocks are written by people, which are trained and which block catches a push</div>
+      <div><b>PLATFORM TABLE</b>In the table, mark the platforms that catch a push with a trained network, keep working without a connection, learn tasks from human recordings, work longer than one battery lasts and already work at customer sites</div>
+      <div><b>TWO PLATFORMS SIDE BY SIDE</b>Compare any two platforms across all the columns of the table and find where they differ and which one is closest to Ada</div>
+      <div><b>FROM THE SOURCES</b>Look at the numbers from papers and company documents: the errors of MPC and of a trained policy on Atlas, hours of data, masses, run times, prices and production volumes</div>
+    </div>
+    <p style="margin-top:28px"><a class="btn primary" href="#axes">Start the lesson ↓</a></p>
+  </div>
+</section>
+
+<section class="recall-sec" id="recall" aria-label="Warm-up on the previous lesson">
+  <div class="wrap"><div class="card recall" data-recall></div></div>
+  <script type="application/json" id="recallData">{"n": "6.5", "title": "Humanoid hardware", "href": "6-5-apparatnaya-chast.html", "q": [
+ {"q": "Why do humanoids built for learning put quasi-direct drives with a gear ratio of 6–9 in their legs rather than 100:1 gearboxes, which give more torque?", "o": ["Large gearboxes can't withstand a humanoid's loads", "The rotor inertia at the output grows as the square of the gear ratio: the actuator hits harder on touching the floor and doesn't yield to a push, and the force at the foot can no longer be estimated from the motor current, so a separate sensor is needed", "Quasi-direct drives are cheaper to manufacture"], "a": 1, "e": "On the lesson's diagram, one and the same motor with a 100:1 gearbox hits 3.7 times harder on touching the floor than with 6:1, and through the large gearbox the arrow showing the force in the motor current is lost. This is how Mini Cheetah, Berkeley Humanoid and Unitree's legs are built; Optimus, as Berkeley Humanoid describes it, went another way, with harmonic drives and linear actuators with force sensors.", "sec": "drive", "secTitle": "The joint actuator: motor, gearbox, link and the price of the gear ratio"},
+ {"q": "The Shadow hand moves its 20 motors into the base and pulls the fingers with tendons. What does this give, and what's the price?", "o": ["The whole hand becomes light, and the arm needs smaller actuators", "The fingers become light and strong, but the motors move into the base behind the wrist, the whole hand weighs 4.3 kg, and the tendons rub and need re-tensioning", "Motors in the base heat up less, so the hand works longer"], "a": 1, "e": "RUKA, with 11 motors in the forearm, held 6.0 kg versus 4.0 for LEAP Hand, which has the same Dynamixel motors in its fingers, but in the lab, 4.3 kg Shadow hands required 8518 actuators in the arms and 10413 in the legs, and Ada got 10 kg heavier.", "sec": "hands", "secTitle": "The dexterous hand: tendons or motors in the fingers"},
+ {"q": "A battery twice as big and a 130 W Thor computer: how are they linked to the leg actuators in a humanoid's budget?", "o": ["They aren't: the battery and the computer only affect the run time", "Thor eats up power comparable to walking, and the run time drops by a third; a battery twice as big gives back less than twice the time, because its mass has to be carried, and on a step the knees have to hold it", "A bigger battery always pays off: its mass speeds up the step"], "a": 1, "e": "In the lab, Thor cut the run time from 2.7 to 1.6 h, a battery like the H1's brought back 3.2 h at the price of 3.3 kg, and a 2.3 kWh battery like Figure 03's would weigh 17.7 kg, and no actuator in the set would be enough for the knee.", "sec": "budget", "secTitle": "The mass, power and compute budget: build Ada to carry the box"}
+]}</script>
+</section>
+
+<section class="section alt" id="axes">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">1</span> Axes</div>
+      <h2>How to compare humanoids: four questions for every platform</h2>
+      <p>Company videos look alike. A humanoid walks to a table, picks up a box, folds a towel, and from the footage you can't tell how its control system is built, what it was trained on or how many hours a day the robot actually works. So we'll compare the platforms not by their videos but by what the companies have published in papers, blogs, spec sheets and shareholder reports. We'll ask every platform the same four questions.</p>
+      <ul>
+        <li><strong>Control.</strong> What levels the control system has and what is trained in each. In lesson 3.7, a slow model understood the scene and the task while a fast one guided the hands; in lesson 6.4, a whole-body controller that keeps balance appeared beneath them. Here we're interested in where a neural network works and where a controller written by people does, and whether the upper-level model runs on the robot itself.</li>
+        <li><strong>Data.</strong> What each level was trained on: teleoperation (lesson 4.2), videos and motion recordings of people (lessons 4.4 and 6.2–6.3), simulation (lessons 4.5 and 6.1) or recordings of the robots themselves at work (lesson 4.6).</li>
+        <li><strong>Body.</strong> Which actuators, hands, computer and battery it has, the parts we went through in lesson 6.5.</li>
+        <li><strong>Deployment.</strong> Where the robot works: at a customer's site, at the company itself, in a lab or only at public shows, and how much it costs, if a price has been announced.</li>
+      </ul>
+      <p>There are eight platforms in this lesson: Figure 03 with the Helix model, Tesla Optimus, Atlas from Boston Dynamics, the Unitree G1 and its larger models, Digit from Agility Robotics, Apollo from Apptronik, AgiBot's robots and NEO from 1X. They were chosen so that each question gets several different answers. Not all of them have a photo below: we use only freely licensed pictures, and for Figure 03, Apollo and NEO we found none.</p>
+    </div>
+    <div class="robot-row" aria-label="Photos of the lesson's platforms">
+      <figure class="photo-fig" id="photoOptimus">
+        <img src="../assets/img/robots/optimus-2024.jpg" width="600" height="900" alt="The Tesla Optimus humanoid stands among the guests of an evening show and raises its hand" loading="lazy">
+        <figcaption><b>Optimus</b> (Tesla) at the We, Robot show on October 10, 2024. More about this show in section 5.<a class="photo-cred" href="https://commons.wikimedia.org/wiki/File:Latest_Tesla_Optimus_Humanoid_Robot.jpg" target="_blank" rel="noopener">Photo: Steve Jurvetson · CC BY 2.0 · cropped</a></figcaption>
+      </figure>
+      <figure class="photo-fig" id="photoAtlas">
+        <img src="../assets/img/robots/atlas-2026.jpg" width="600" height="900" alt="The electric Atlas humanoid on a stand in an exhibition hall, with a soccer goal behind it" loading="lazy">
+        <figcaption><b>Atlas</b> (Boston Dynamics) in the Hyundai Motorstudio Goyang exhibition hall, 2026.<a class="photo-cred" href="https://commons.wikimedia.org/wiki/File:Boston_Dynamics_Atlas_(1).jpg" target="_blank" rel="noopener">Photo: Damian B Oh · CC BY-SA 4.0 · cropped</a></figcaption>
+      </figure>
+      <figure class="photo-fig" id="photoG1">
+        <img src="../assets/img/robots/unitree-g1-expo.jpg" width="600" height="900" alt="The Unitree G1 humanoid walks across the carpet of an exhibition hall" loading="lazy">
+        <figcaption><b>Unitree G1</b> at the UAV Expo, 2024.<a class="photo-cred" href="https://commons.wikimedia.org/wiki/File:Unitree_G1.jpg" target="_blank" rel="noopener">Photo: Sayanesy · CC0 · cropped</a></figcaption>
+      </figure>
+      <figure class="photo-fig" id="photoDigit">
+        <img src="../assets/img/robots/digit-sf.jpg" width="600" height="900" alt="The Digit humanoid walks along a dirt path with the Golden Gate Bridge behind it" loading="lazy">
+        <figcaption><b>Digit</b> (Agility Robotics) walks through San Francisco with the policy of Radosavovic et al. from lesson 6.1.<a class="photo-cred" href="https://arxiv.org/abs/2402.19469" target="_blank" rel="noopener">Photo: I. Radosavovic et al. · CC BY 4.0 · cropped</a></figcaption>
+      </figure>
+      <figure class="photo-fig" id="photoX2">
+        <img src="../assets/img/robots/agibot-x2.jpg" width="600" height="900" alt="The small AgiBot X2 humanoid stands in a hall and waves" loading="lazy">
+        <figcaption><b>AgiBot X2</b> at MWC 2026; AgiBot also makes the full-size A2 and the wheeled G1 and G2.<a class="photo-cred" href="https://commons.wikimedia.org/wiki/File:AGIBOT-X2-_by_JxFile_MWC26.jpg" target="_blank" rel="noopener">Photo: JJxFile · CC BY 4.0 · cropped</a></figcaption>
+      </figure>
+    </div>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>Ada will also go into the lab's table at the end of the lesson: over lessons 6.1–6.5, she got a walking policy, a whole-body tracker, an upper-level model and hardware picked out for her, so she can be compared with the platforms using the same questions.</p>
+      <p class="ada-note"><svg class="ada-ico" viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="10" width="48" height="42" rx="18" fill="#f4efe6" stroke="#3d3c38" stroke-width="3"/><rect x="15" y="19" width="34" height="22" rx="10" fill="#1f2430"/><ellipse cx="25" cy="30" rx="4" ry="5.5" fill="#eb6834"/><ellipse cx="39" cy="30" rx="4" ry="5.5" fill="#eb6834"/></svg><span>Ada is the course's home humanoid; since lesson 6.1, she has legs instead of a wheeled base. More about her and her home in <a href="0-1-dve-paradigmy.html#ada">lesson 0.1</a>.</span></p>
+      <p>The platforms differ most in their answers to the first question. That's where we'll start: what is trained in each one's control system, and what did people write?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="control">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">2</span> Control</div>
+      <h2>Control: which levels are trained and which were written by people</h2>
+      <p>A model that understands the scene and the request responds a few times a second, and in lesson 6.4, the Ada that such a model controlled directly spilled her tea and fell. That's why every platform that has described its control system has at least two levels: at the top, a model decides what to do, and below it, a controller keeps balance and drives the joints many times a second. The platforms differ in which of the levels is trained on data and which was written and tuned by engineers.</p>
+      <p>The best-known stack written by people belonged to Atlas. Boston Dynamics itself writes that Atlas's controller is a model-predictive controller (MPC), the model predictive control from lesson 0.3: using a model of the robot, it builds a plan for the near future, executes its beginning and then recomputes the plan. The ZEST paper, released by the RAI Institute and Boston Dynamics in January 2026, describes this stack in detail: Atlas's parkour and dance routines were computed in advance from animations created by animators, and during execution they were carried out by an MPC online planner and a whole-body controller that solves an optimization problem at every step. Such a stack can be understood part by part and is predictable, but engineers prepare every new motion for it, and it supports contact only through the feet and hands, not through the knees, torso or forearms.</p>
+      <p>In the same paper, the authors compared Boston Dynamics' MPC with the ZEST policy. That policy was trained with reinforcement learning in simulation to reproduce recordings of human motion and animations, and was transferred to the robot without fine-tuning. The comparison was run in simulation on the same motions.</p>
+    </div>
+    <figure class="card stat-fig" aria-label="Chart: the motion tracking error of Boston Dynamics' MPC and of the trained ZEST policy on six Atlas motions in simulation">
+      <figcaption class="stat-h">Atlas in simulation: mean joint angle error when reproducing a motion, degrees (lower is more accurate)</figcaption>
+      <div class="stat-grid"><div id="zestBars"></div></div>
+      <p class="stat-cap">Walk: MPC 2.7°, policy 3.2°. Jog: 6.7° and 4.4°. Cartwheel: 13.6° and 5.0°. Handstand invert, roll on all fours and dance: MPC failed to execute these motions, so it has no bars, while the policy has 8.4°, 4.9° and 5.5°. The paper gives the errors in radians, from 0.047 to 0.237, and we converted them to degrees. Motions with knee, torso or forearm contact weren't included in the comparison: MPC doesn't support them. Source: Sleiman, Li et al. (RAI Institute and Boston Dynamics), ZEST, Table 2, arXiv 2602.00401, January 30, 2026.</p>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>On calm walking, the stack written by people is as good as the policy: the contacts there are clean, and the authors write directly that “for walk, MPC and RL perform nearly the same”. The difference shows up on fast motions and where the contact schedule is hard to specify by hand. Boston Dynamics replaced its stack piece by piece. First, the upper level became trained: in lesson 6.4, we looked at Atlas with the LBM model, which Boston Dynamics built together with TRI in 2025. LBM stands for <strong>Large Behavior Model</strong>: that's what TRI calls a policy trained on demonstrations for many tasks at once. It's a 450-million-parameter diffusion transformer, and it sets the poses of the hands, torso and feet through the same interface as teleoperation, and teleoperation is built on MPC. Then the lower level became trained too: in October 2026, Boston Dynamics writes that “Whole body behavior for a humanoid is always deployed on top of a whole body controller”, and that it now trains such controllers with reinforcement learning in simulation.</p>
+      <p>Figure has already gone all the way, as we discussed in lesson 3.7. In Helix 02, all three levels are trained: S2 understands the scene and language, S1 outputs targets for all the joints, and S0, a small network trained in simulation, keeps balance and replaced more than a hundred thousand lines of hand-written C++ code. The diagram shows the three stacks side by side.</p>
+    </div>
+    <figure class="card flow-card">
+      <canvas data-anim="stacks" width="720" height="392" role="img" aria-label="Diagram of three control stacks: Atlas's classical stack with motions computed in advance, MPC and a whole-body controller; Atlas with a trained LBM model on top of MPC; Figure 03 with the three trained levels of Helix 02. Dots run from block to block toward the actuators, and a push to the torso is caught by the lowest block of each stack"></canvas>
+      <figcaption class="muted-s">Three control stacks, each from the input to the actuators. Blocks trained on data are shown in orange, blocks written and tuned by people in blue, and the input and actuators in gray. Dots run from block to block; the rhythm is schematic, but the lower a block, the more often it runs, and frequencies are labeled where they have been published. In Atlas's classical stack, the motions are computed in advance, and MPC and the whole-body controller are written by people. In Atlas with LBM, the upper level is trained, while Boston Dynamics' MPC remains as the lower level. In Figure 03, all three levels of Helix 02 are trained. Once per cycle the torso is pushed, and in each stack the push is caught by the lowest block, outlined in red. Click the diagram to pause it.</figcaption>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>The other companies that have described their control came to the same split: a trained controller at the lower level and a model above it. Digit from Agility Robotics has three layers. At the top is “cognition” with language models and VLAs, in the middle are skills learned from demonstrations, and at the bottom is the whole-body controller, which the company calls the motor cortex: a small recurrent LSTM network trained purely in simulation. In Agility's experiments, this cortex got its goals from an object detector, and the sequence of steps from a state machine written by people. NEO from 1X has a small model, Redwood, at the upper level, which sets the arms, walking and pelvis pose a few times a second, and below it a controller trained with reinforcement learning in simulation. AgiBot has the GO-1 model at the upper level, which first predicts the latent actions from lesson 4.4, and from them a diffusion action expert builds the motions; about the lower level, the company wrote in 2024 that it uses model-based algorithms while also developing learning-based ones.</p>
+      <p>Three platforms are described less fully. Apollo from Apptronik gets its commands from the Gemini Robotics models of lesson 3.7, but the company doesn't disclose the algorithm of its lower level. Unitree sells the G1 with a trained walking policy, while a task model isn't included in the base version: buyers install one themselves on the developer version, and this is how HumanPlus, TWIST and SONIC from lessons 6.3–6.4 were built on the G1 and H1. Tesla wrote in 2023 that Optimus's neural network was trained “video in, controls out”, and in 2024 that this network runs on board and that “Optimus balances on its legs while the net drives the entire upper body”. Tesla doesn't say what keeps the balance, and the only thing it has described as trained with reinforcement learning in simulation is a 2025 dance.</p>
+      <p>The second question about control is where the upper level runs. Figure, Digit, NEO, Atlas and Optimus write that their models run on board, on NVIDIA Jetson modules or on Tesla's computer. Gemini Robotics, in the 2025 paper, kept the model's backbone in the cloud and only the decoder on the robot (lesson 3.7), although Google also has an on-device version, which has been run on Apollo too. If the connection drops, such a robot stays on its feet, because the lower level always runs on the robot, but it can't continue the task. Each level learns from its own data. Where does that data come from?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="data">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">3</span> Data</div>
+      <h2>Data: teleoperation, human recordings, simulation and work</h2>
+      <p>The lower level learns where falling is cheap. Balance and steps depend on the body and physics, which a simulator reproduces accurately enough, so Figure's S0, Digit's motor cortex, NEO's controller and Atlas's policies are trained with reinforcement learning in simulation, like the policies of lessons 6.1 and 6.3. The upper level needs real camera frames and real objects. Figure explains this with packages: they range “from rigid boxes to deformable bags, making it difficult to replicate in simulation”, so tasks are learned from recordings.</p>
+      <p>The main source of such recordings is still the teleoperation from lesson 4.2. Figure's package sorting is trained on recordings from its teleoperators, Agility trains Digit's skills with VR teleoperation at its own site, Boston Dynamics trained LBM with VR teleoperation on top of MPC, and 1X collects NEO recordings in its offices and in employees' homes. AgiBot built a data factory of more than 4,000 m² for this, where more than 100 identical robots recorded AgiBot World from lesson 4.3. The chart shows how many hours of recordings stand behind the platforms' models, according to their own publications.</p>
+    </div>
+    <figure class="card stat-fig" aria-label="Chart: hours of robot recordings and human recordings on which the models of Figure, AgiBot, 1X and Unitree were trained">
+      <figcaption class="stat-h">How many hours of recordings stand behind the platforms' models</figcaption>
+      <div class="stat-grid"><div id="dataBars"></div></div>
+      <p class="stat-cap">Robot recordings: Helix, about 500 h of teleoperation (Figure, February 20, 2025); AgiBot World, 2,976 h of teleoperation on more than 100 robots (Team AgiBot-World, arXiv 2503.06669); the 1X world model, 70 h of NEO recordings for fine-tuning (1X, January 12, 2026); UnifoLM-WLA-1.0, about 2,500 h of robot recordings (Unitree, September 28, 2026). Human recordings: S0 in Helix 02, more than 1,000 h of human motion transferred to the robot's joints (Figure, January 27, 2026); the 1X world model, 900 h of first-person human video; the GE-Act 2.0 dataset, 3,000 h of human video and other recordings made without a robot (AgiBot, September 10, 2026). The unit is always hours of recording, but the recordings differ: teleoperation, body motion and video. Sources: the companies' publications and the AgiBot World paper, with the dates listed.</p>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>Thousands of hours is a lot for robotics, but teleoperation recordings grow no faster than the operators work: an hour of recording costs an hour of a person's work. So companies look for sources that grow faster. The first of them is people themselves. Figure gives people wearable cameras through its Index app and pays for minutes of recordings of their everyday activities; by August 2026, the app had been downloaded more than 264,000 times, and Figure used these recordings to pre-train Helix 2.5 from lesson 3.8. In 2025, Tesla wrote that it “can now transfer a big chunk of the learning directly from human videos to the bots (1st person views for now)”. AgiBot added human video to the dataset for its GE-Act 2.0 model, and 1X trains its world model on such video.</p>
+      <p>Human recordings go into the lower level too, but there they teach something else. Atlas learns tricks from motion capture and video, and NEO a natural gait, like the trackers of lesson 6.3. Human motion teaches the body to move, while video of people working with their hands teaches the model tasks.</p>
+      <p>The second source is the robots themselves at work. Figure writes that “The larger our fleet becomes the more data we are generating for Helix”. Agility trains Digit 5 on 65,000 hours of Digit 4's operation. AgiBot collects failed attempts from the sites where its robots work, and 1X collects recordings from NEO owners' homes, though owners can opt out. This is the data flywheel from lesson 4.6. For it to spin up, a robot has to work whole shifts at a customer's site, and here a lot depends on the body.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="body">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">4</span> Body</div>
+      <h2>Body: how the platforms answered the questions of lesson 6.5</h2>
+      <p>In lesson 6.5, we saw that the actuators, hands, computer and battery are linked by one budget: the dexterity of the hand is paid for by the shoulder actuators, and the battery by the knees. The platforms in this lesson have spent this budget in different ways, and some of their choices are tied to how they're trained.</p>
+      <p>Unitree uses the low-inertia quasi-direct drives we went through in lesson 6.5. Atlas makes do with just two types of rotary actuators, in joints that rotate without limit and have no cables running through them, and Boston Dynamics explains this choice by saying that such actuators are “much easier to represent well in simulation”. For a body that is trained in simulation, this is an important requirement: the more accurately the simulator reproduces the actuators, the smaller the sim-to-real gap from lesson 5.4. Digit 5 got its own cycloidal actuators in the legs, the first Apollo linear ones, NEO low-inertia tendon drives, and Optimus, according to Tesla's 2022 presentation, harmonic drives and roller screws (lesson 0.2).</p>
+      <p>The hands differ even more. Digit has grippers instead of hands, the Unitree G1 a three-fingered hand, Atlas a four-fingered one with pressure sensors on the fingers and palm, and NEO, the new Optimus hand and the Sharpa Wave hand on Apollo 2 have more than twenty degrees of freedom. Figure 03 got a camera in each palm and tactile sensors on the fingertips. Almost everyone's computers come from NVIDIA: Jetson Orin in the first Apollos and in AgiBot's robots, Jetson Thor in Atlas, NEO and AgiBot's G2. Tesla puts its own computer in Optimus, the same one as in its cars.</p>
+      <p>None of the batteries with a published run time lasts an eight-hour shift, so a factory robot needs a way to keep working without a person. Atlas swaps its own battery, Digit docks itself to a charging station, and Figure 03 steps onto a stand and charges through coils in its feet. The charts show the platforms' masses and their run times on one battery, according to the companies' documents.</p>
+    </div>
+    <figure class="card stat-fig" aria-label="Chart: the masses of humanoids according to the companies' documentation">
+      <figcaption class="stat-h">Platform masses, kg</figcaption>
+      <div class="stat-grid"><div id="massBars"></div></div>
+      <p class="stat-cap">NEO, 30 kg; Unitree G1, 35; Digit (2023 version), 45; Figure 03, 61; AgiBot A2 Ultra, 69; Apollo, 73 (160 lb, our conversion); Atlas, 90; Digit 5, 129 (preliminary data). Optimus isn't on the chart: Tesla hasn't published the mass of its latest versions. Sources: the NEO, G1, A2 Ultra and Figure 03 pages (read on October 27, 2026), the Atlas spec sheet (Rev 10/15/2026), press releases from Agility (September 15, 2026) and Apptronik (August 23, 2023), the paper by Radosavovic et al. (arXiv 2303.03381).</p>
+    </figure>
+    <figure class="card stat-fig" aria-label="Chart: humanoid run times on one battery according to the companies' documentation">
+      <figcaption class="stat-h">Run time on one battery, h</figcaption>
+      <div class="stat-grid"><div id="runBars"></div></div>
+      <p class="stat-cap">Digit 5, 1.5 h with a 9-minute charge; AgiBot A2, from 1.5 h when walking; Unitree G1, about 2 h; Unitree H2, about 3 h; NEO, Atlas and Digit 4, 4 h; Figure 03, 5 h. Sources: the NEO, G1, H2, A2 Ultra and Figure 03 pages, the Atlas spec sheet, Agility press releases (March 31, 2025 and September 15, 2026); for Digit 4, the 424B3 prospectus of October 13, 2026.</p>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>The light robots, NEO and the G1, are made for homes and labs, while the heavy ones, Atlas and Digit 5, are designed for factory and warehouse loads. A short battery stops being an obstacle if the robot swaps it or charges itself, and that's how Atlas, Digit and Figure 03 are built. The platforms have a body and a model. Where do they work every day?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="work">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">5</span> Deployment</div>
+      <h2>Where they work: factory, warehouse, home and show</h2>
+      <p>The easiest way to judge a platform is by where it works every day and on what terms. Two terms will come in handy here. A <strong>pilot</strong> is a robot working at a customer's site on one task for a limited period: the customer checks whether it's useful before signing a contract. <strong>Robots-as-a-Service</strong> (RaaS) is a contract under which the customer doesn't buy the robot but pays for its work every month, while maintenance and updates stay with the manufacturer.</p>
+      <p>According to published data, Agility has gone the furthest. Digit has worked at a GXO warehouse since 2024 under the first RaaS contract for humanoids: it moves totes from collaborative robots onto conveyors and had moved more than 100,000 of them by November 2025, and GXO was followed by contracts with Toyota in Canada, Schaeffler and Mercado Libre. Figure 02 worked at the BMW plant in Spartanburg, Figure 03 moved on to parts sequencing there, and in 2026 Figure signed a contract with the Catalyst Brands warehouse network. Atlas completed its first deployment at the Hyundai plant in Georgia in the fall of 2025, and production work there is planned from 2028. Apollo is being tested in Mercedes-Benz production on internal logistics tasks, such as bringing parts to the line, AgiBot's G2 robots work at tablet inspection stations at the Longcheer plant, and AgiBot has agreed to deliver 100 X2 robots to a hundred stores. Almost all of this is first contracts and pilots, and Digit 4 works only behind a fence, separated from people.</p>
+      <p>Unitree works in a different market. According to the company's prospectus, its humanoids are bought mainly by universities, research institutes and technology companies, and most of the work in lessons 6.1–6.4 was done on the G1 and H1. NEO from 1X is designed for the home and sold on preorder. In April 2026, the first production NEOs went to 1X's own team, and the start of deliveries to homes hasn't been confirmed on the company's website yet. Figure writes that Figure 03 “was reimagined for home use”, but it hasn't announced a price. The announced prices are on the chart.</p>
+    </div>
+    <figure class="card stat-fig" aria-label="Chart: the announced prices of Unitree and 1X humanoids">
+      <figcaption class="stat-h">Announced humanoid prices, thousands of dollars</figcaption>
+      <div class="stat-grid"><div id="priceBars"></div></div>
+      <p class="stat-cap">Unitree R1 AIR, from $4,900; Unitree G1, from $13,500 (since November 2025, before that from $16,000); NEO, $20,000 for Early Access with priority delivery, or a subscription at $499 a month; Unitree H2, $29,900; prices exclude taxes and shipping. The prices of Figure 03, Atlas, Apollo, Optimus and Digit haven't been announced; according to Agility's prospectus filed with the SEC, Amazon agreed to buy five Digits for $1.05 million and paid a $367,500 deposit. Sources: the Unitree R1, G1 and H2 pages (read on October 27, 2026; earlier prices from web.archive.org snapshots), the 1X press release of October 28, 2025, the 424B3 prospectus of October 13, 2026.</p>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>Prices are announced by those who sell robots to researchers and for the home. Factory platforms are sold under contracts together with maintenance and training, as at Boston Dynamics, or leased, as at Agility. All of this can be seen from contracts and reports, but not from company videos, and public shows call for particular caution.</p>
+      <p>On October 10, 2024, Tesla showed Optimus at its We, Robot evening event: the robots walked among the guests, poured drinks and played rock-paper-scissors. The photo of Optimus at the start of the lesson was taken there. When a guest asked, the robot bartender answered, “Today, I am assisted by a human”, and a few days later <a href="https://www.theverge.com/2024/10/13/24269131/tesla-optimus-robots-human-controlled-cybercab-we-robot-event" target="_blank" rel="noopener">The Verge</a> and <a href="https://techcrunch.com/2024/10/14/tesla-optimus-bots-were-controlled-by-humans-during-the-we-robot-event/" target="_blank" rel="noopener">TechCrunch</a>, citing Bloomberg, wrote that employees had remotely controlled many of the robots' conversations and movements. Tesla's VP of Optimus, Milan Kovac, admitted in his <a href="https://x.com/_milankovac_/status/1846410551318257675" target="_blank" rel="noopener">post</a> that the robots were “human assisted to some extent” and added that they “walked, balanced and danced on their own for ~4 hours straight”. A show tells you about the body and how it moves, but not about what the robot can do on its own: you can see that only when the company writes who was controlling it.</p>
+      <p>Some companies write about this directly. 1X warns that unfamiliar chores are guided by a 1X operator at a scheduled time, in &#69;xpert Mode, and while the operator is active, the rings on the robot's “ears” change color. AgiBot reported that its boxing show at WAIC 2026 was run by teleoperation. Tesla marks its videos with labels like “AUTONOMOUS 20X”: the robot worked on its own, and the recording is sped up twenty times. Let's collect the answers to the four questions in one table and check what each platform's design implies in a specific situation.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="table">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab</div>
+    <h2>Comparison table of architectures: what follows from a platform's design</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>The table holds the lesson's eight platforms and Ada, and its columns are split into four axes, control, data, body and deployment, with three columns each. Each cell holds a short fact from the lesson's dossier, and the colored dot in front of it shows its mark: trained on data, written by people, both, yes, no or not published. Click a cell, and the fact's source with a date appears under the table.</p>
+      <p>Each mission puts the robot in a specific situation: it gets pushed, it loses its connection, the shift turns out longer than the battery. By clicking the platform names, mark the ones that fit according to published data, and check your marks. A platform marked “not published” counts neither for nor against, and we don't include it in the answer: the table says nothing about it.</p>
+    </div>
+    <div class="lab lab-wide">
+      <div class="card scene-card">
+        <div class="ctl-row pt-axis" id="wrapTAxis" hidden><div class="ctl"><span class="ctl-l">Axis</span><div class="seg small" id="tAxis" role="group" aria-label="Comparison axis"><button type="button" data-v="ctl" aria-pressed="true">Control</button><button type="button" data-v="data" aria-pressed="false">Data</button><button type="button" data-v="body" aria-pressed="false">Body</button><button type="button" data-v="use" aria-pressed="false">Deployment</button></div></div></div>
+        <div class="pt" id="tTable" role="table" aria-label="Comparison table of platforms: the rows are the platforms and Ada, the columns are the three columns of the selected axis"></div>
+        <div class="pt-legend" id="tLegend"></div>
+        <p class="cv-note">The rows are the lesson's eight platforms and Ada, and the columns are the three questions of the selected axis. The dot in front of a fact shows its mark, and what each mark means on this axis is explained in the table's legend. A marked row gets a checked box by its name, and after checking, missed and extra rows are outlined in red.</p>
+        <div class="pt-count" id="tCount"></div>
+        <div class="pt-src-line" id="tSrc" hidden></div>
+        <div class="pt-cmpbox" id="tCmp" hidden></div>
+      </div>
+      <div class="card guide-card"><div id="tMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: where the cells come from and how the marks are checked</summary><div class="body">
+      <p><b>Cells.</b> Each cell is a fact from the lesson's dossier (<code>sources/dossier/6.6-obzor-platform.md</code>) with a source and a date; Ada's cells come from the labs of lessons 4.4 and 6.1–6.5. If a company writes about the future, the fact goes into the cell with the note “plan”, and if it writes nothing, with the mark “not published”. We set the mark by the latest published state: Atlas's lower level is marked as trained because in October 2026 Boston Dynamics writes this about its whole-body controllers, even though in 2025 LBM ran on top of MPC.</p>
+      <p><b>Answers.</b> The answer to each mission is derived from the marks in one column rather than set by hand. A push is caught by a trained network if the “Lower level” column has the mark “trained”. Without a connection, the task continues on a platform whose upper level runs on board. Tasks are learned from human recordings by those whose “Humans” column says the recordings teach tasks rather than lower-level motions. A robot works longer than one battery without a person if it swaps its battery or charges itself. A robot works at a customer if it has a published deployment or pilot on a customer's task. The lesson's test checks that every answer matches this rule.</p>
+      <p><b>Side by side.</b> In free mode, the two marked platforms are shown under the table across all twelve columns, and the columns where the marks differ are highlighted. There's no randomness in the lab: the same marks always give the same debrief.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px" id="tableAfter">
+      <p>According to published data, a push is caught by a trained network in five of the eight platforms, and just as many will continue the task without a connection, because their upper-level model runs on board. Human recordings teach tasks in four platforms, while in the rest, human recordings teach lower-level motions or their purpose isn't described. Only Figure 03, Atlas and Digit work longer than one battery without a person, and all three already work at customers. Figure 03 fits all five situations, Atlas and Digit fit four, and Unitree and Apollo have the fewest matches, though for different reasons: Unitree sells its platform without a task model, and Apptronik doesn't disclose its lower level.</p>
+      <p>The mark “not published” appears in the table twice as often as “no”. The companies don't write about the lower level of Optimus and Apollo, about how NEO charges or about where Apollo's model runs, and you can't learn this from videos. Free mode shows something else too: Ada differs least from NEO, a home robot with a small model on board and a controller trained in simulation. What does Ada lack that the platforms have?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="ada">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">6</span> Ada</div>
+      <h2>What Ada already has of all this</h2>
+      <p>Ada has gone almost the same way as the platforms in this lesson, only in a browser and with a flat model of the body. Here's what she already has.</p>
+      <ul>
+        <li>A walking policy trained with reinforcement learning in simulation (lesson 6.1) and a whole-body tracker trained on recordings of human motion (lessons 6.2–6.3). Figure, Digit, NEO and Atlas also have a trained controller in this place.</li>
+        <li>An upper-level model that sets goals for the body controller and doesn't touch the legs directly (lesson 6.4), like Helix at Figure, LBM at Atlas and Redwood at NEO.</li>
+        <li>Operator recordings that the upper-level model learns from (lesson 6.4), and human video from which Ada on her wheeled base learned tasks at the table (lesson 4.4).</li>
+        <li>Quasi-direct drives, Inspire hands, a Thor computer on board and a battery that lasts a little over three hours, from the lab in lesson 6.5: a set close to Unitree's research humanoids.</li>
+      </ul>
+      <p>What Ada lacks shows in the columns where she has “no”. She doesn't work at a customer's site and so collects no recordings from work, which means she has no data flywheel from lesson 4.6. A person swaps her battery. Nobody has tested her for safety around people, and it's precisely because of safety that Digit 4 still works behind a fence; Part 8 is about this. Most importantly, she lacks the experience that companies pay the most for. Figure pays people for recordings of their everyday activities, Agility has accumulated tens of thousands of hours of Digit's work, AgiBot and Unitree produce thousands of robots, and Tesla is building Optimus Academy, where robots will practice their tasks. Experience is gathered either on real robots or on people, and both ways are expensive and slow.</p>
+      <p>Some companies are already trying a third way. A <strong>world model</strong> is a model that, given the current frame and an action or a request, predicts what the world will look like next. 1X trains such a model on human video and NEO recordings: it generates video a few seconds ahead, and the inverse dynamics model from lesson 4.4 turns that video into robot actions. AgiBot (Genie Envisioner) and Unitree (UnifoLM-WMA) have released world models of their own. How such models work and how a robot learns in its own imagination, we'll cover in Part 7, but first let's look at where the industry stands in 2026.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="today">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">7</span> Today</div>
+      <h2>Humanoids in 2026: thousands of robots and the first shifts at customers</h2>
+      <p>In 2025, humanoids were produced by the thousands for the first time. Chinese companies produced the most; they sell both research platforms and robots for receiving guests and for stores.</p>
+    </div>
+    <figure class="card stat-fig" aria-label="Chart: how many humanoids Unitree, AgiBot and UBTech sold or shipped in 2025">
+      <figcaption class="stat-h">Humanoids sold or shipped in 2025, units</figcaption>
+      <div class="stat-grid"><div id="unitsBars"></div></div>
+      <p class="stat-cap">Unitree, 5,215 humanoids sold (IPO prospectus, published May 25, 2026); AgiBot, 5,168 shipped according to an estimate by the analysts at Omdia, cited in AgiBot's press release of January 8, 2026; UBTech, 1,079 full-size humanoids sold (annual report for 2025, March 31, 2026). These are robots sold and shipped, not robots working at customers. Sources: the companies' documents with the dates listed.</p>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>Production keeps growing: AgiBot had produced 20,000 robots by September 2026, Figure was building one Figure 03 an hour in the spring of 2026, and Tesla wrote in its update for the third quarter of 2026 that “Optimus production began in Fremont on our high-volume lines”. But there's still little work at customers. Unitree writes plainly in its prospectus that most humanoids on the market remain at the stage of validation testing in individual scenarios, and Agility, that “Today, humanoid deployment requires robots and people to operate in segregated environments”. The models also still fail often: in its announcement of Gemini Robotics 2, Google DeepMind published the success rates of Apollo 2 on whole-body tasks and finger tasks.</p>
+    </div>
+    <figure class="card stat-fig" aria-label="Chart: the success rate of Gemini Robotics 2 on the Apollo 2 robot in whole-body tasks and finger tasks">
+      <figcaption class="stat-h">Gemini Robotics 2 on Apollo 2: success rate, %</figcaption>
+      <div class="stat-grid one-col"><div id="gr2Body"></div><div id="gr2Hand"></div></div>
+      <p class="stat-cap">Whole-body tasks with Inspire hands, average success rate over a group of tasks: picking up from a table, 68.4%; from the floor, 45.7%; from a shelf, 76.3%. Finger tasks with Sharpa Wave hands: screwing in a bulb, 36%; unscrewing it, 92%; tying a trash bag, 44%; sweeping into a dustpan, 32%; closing a ziplock bag, 40%. Source: Google DeepMind, “Gemini Robotics 2 brings whole body intelligence to robots”, July 30, 2026, chart captions.</p>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>Picking up an object succeeds more often than doing something with the fingers, and the authors themselves write that “the multi-finger dexterous manipulation remains challenging” and that their robots “have more to advance in movement speed”. By 2026, the platforms have converged in design: a whole-body controller trained in simulation at the lower level, a vision-language model on board at the upper level, data from teleoperation and human recordings, and then recordings from work. Where they differ is in what they publish. Google and NVIDIA publish papers, NVIDIA, AgiBot and Unitree also release model weights, Figure, Boston Dynamics, Agility and 1X write blog posts with numbers, and Tesla talks about Optimus in shareholder reports and employees' posts.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="quiz">
+  <div class="prose">
+    <div class="kicker"><span class="num">8</span> Check yourself</div>
+    <h2>Eight common misconceptions</h2>
+    <div class="quiz" id="quizBox"></div>
+    <p class="score" id="quizScore" style="margin-top:14px"></p>
+  </div>
+</section>
+
+<section class="section" id="finale">
+  <div class="prose">
+    <div class="kicker"><span class="num">9</span> Takeaways</div>
+    <h2>Lesson takeaways</h2>
+    <ol class="takeaways">
+      <li><span>You can't tell from a humanoid's videos how it's built. Platforms are compared by what has been published, using the same questions: control, data, body and deployment. In the lesson's table, the mark “not published” appears twice as often as “no”.</span></li>
+      <li><span>Everyone who has described their control has levels: the upper-level model understands the scene and the task, and the lower-level controller keeps balance. The lower level is trained with reinforcement learning in simulation almost everywhere: S0 at Figure, the motor cortex at Digit, the controller at NEO, and in 2026 also the controllers of Atlas, which used to keep its balance with MPC.</span></li>
+      <li><span>A stack written by people is predictable and on calm walking is as good as a trained policy, but engineers prepare every new motion for it. In ZEST, the trained policy was more accurate than MPC on the jog and the cartwheel and executed motions that MPC doesn't support. In Atlas, the <strong>large behavior model</strong> LBM first replaced the upper level of the stack.</span></li>
+      <li><span>The lower level is trained in simulation, and tasks are learned from teleoperation and, more and more often, from human recordings: Figure pays people for recordings of their everyday activities, Tesla transfers learning from first-person video, AgiBot and 1X train on human video. Human motion teaches the body to move, while video of people working with their hands teaches tasks.</span></li>
+      <li><span>Agility has gone the furthest with customers: Digit works at a GXO warehouse under a <strong>RaaS</strong> contract, Robots-as-a-Service. Figure works at the BMW plant, Atlas has completed its first deployment at Hyundai, but almost all of this is <strong>pilots</strong> and first contracts. A show tells you about the body, not about what the robot can do on its own: at We, Robot, according to Tesla itself, the Optimus robots were assisted by people.</span></li>
+      <li><span>In design, Ada is close to the platforms in this lesson, and closest to NEO, but she lacks the experience companies pay the most for: recordings from work and thousands of hours of attempts. The <strong>world models</strong> of 1X, AgiBot and Unitree are an attempt to gain such experience in the model's imagination.</span></li>
+    </ol>
+    <h3 style="margin-top:40px">Open questions</h3>
+    <details class="card pad open-q"><summary>How do you measure what a robot does on its own?</summary><p>Companies write “autonomous” and put speed labels on their videos, 1X openly has an operator do part of the work, but there's no common measure: how many times a person steps in per hour of work, on which tasks and under what conditions. How do you compare the autonomy of platforms if each one shows its own tasks under its own conditions?</p></details>
+    <details class="card pad open-q"><summary>What in the stack should stay written by people?</summary><p>The lower level is now trained almost everywhere, but Digit 4 works behind a fence, and the authors of Gemini Robotics 2 advise using such models “alongside deterministic, low-level safety guardrails”. Which part of a humanoid's control system should stay understandable and verifiable, like the MPC stack, and how do you combine it with the trained levels? That's what Part 8 is about.</p></details>
+    <h3 style="margin-top:34px">Paper guide</h3>
+    <p><a href="https://arxiv.org/abs/2602.00401" target="_blank" rel="noopener">J.-P. Sleiman, H. Li, A. Adu-Bredu, R. Deits, A. Kumar et al. (RAI Institute and Boston Dynamics), “ZEST: Zero-shot Embodied Skill Transfer for Athletic Robot Control”, 2026</a>.</p>
+    <ul class="links">
+      <li><strong>Read closely</strong><span>The introduction: how Atlas's classical stack is built, with motions computed in advance, MPC and a whole-body controller, and why every new motion requires engineers. The section comparing the policy with Boston Dynamics' MPC and Table 2: where the policy wins and where it doesn't.</span></li>
+      <li><strong>Safe to skip</strong><span>The details of adaptive sampling of motion segments and the derivation of PD controller gains for actuators with closed kinematic chains, if you've done lesson 5.4.</span></li>
+      <li><strong>Question to keep in mind</strong><span>Boston Dynamics' MPC supports contact only through the feet and hands, while the ZEST policy supports it through any part of the body. Why doesn't a trained policy need a contact sequence labeled in advance, and what does it lose compared with MPC?</span></li>
+    </ul>
+    <p style="margin-top:18px">Other works in this lesson: <a href="https://www.figure.ai/news/helix-02" target="_blank" rel="noopener">Helix 02</a> (Figure, 2026), with three trained levels; <a href="https://bostondynamics.com/blog/large-behavior-models-atlas-find-new-footing/" target="_blank" rel="noopener">Large Behavior Models and Atlas Find New Footing</a> (Boston Dynamics and TRI, 2025), with LBM on top of MPC; <a href="https://www.agilityrobotics.com/content/training-a-whole-body-control-foundation-model" target="_blank" rel="noopener">Training a Whole-Body Control Foundation Model</a> (Agility Robotics, 2025), with Digit's motor cortex; <a href="https://www.1x.tech/discover/redwood-ai" target="_blank" rel="noopener">Redwood AI</a> (1X, 2025), with NEO's upper-level model; <a href="https://arxiv.org/abs/2503.06669" target="_blank" rel="noopener">AgiBot World Colosseo</a> (Team AgiBot-World, 2025), with the GO-1 model and the data factory; <a href="https://deepmind.google/blog/gemini-robotics-2-brings-whole-body-intelligence-to-robots/" target="_blank" rel="noopener">Gemini Robotics 2</a> (Google DeepMind, 2026), with Apollo 2 and success rates; <a href="https://www.1x.tech/discover/world-model-self-learning" target="_blank" rel="noopener">1X World Model</a> (1X, 2026), with a world model trained on human video.</p>
+    <h3 style="margin-top:34px">Resources</h3>
+    <ul class="links">
+      <li><a href="https://www.figure.ai/news/introducing-index" target="_blank" rel="noopener">Figure Index</a><span>Recordings of people with a wearable camera for training Helix</span></li>
+      <li><a href="https://bostondynamics.com/blog/robot-hands-for-modern-ai-and-real-work/" target="_blank" rel="noopener">Atlas and its hands</a><span>Boston Dynamics on whole-body controllers trained in simulation and on the new hand</span></li>
+      <li><a href="https://www.agilityrobotics.com/content/agility-and-ai" target="_blank" rel="noopener">Agility and AI</a><span>Digit's three control layers: cognition, skills, controls</span></li>
+      <li><a href="https://www.unitree.com/g1" target="_blank" rel="noopener">Unitree G1</a><span>Specifications and price of a research humanoid</span></li>
+      <li><a href="https://www.1x.tech/neo" target="_blank" rel="noopener">1X NEO</a><span>A home humanoid, &#69;xpert Mode and questions about data</span></li>
+      <li><a href="https://apptronik.com/apollo/apollo-2" target="_blank" rel="noopener">Apptronik Apollo 2</a><span>A humanoid for factories with Gemini Robotics models</span></li>
+      <li><a href="https://agibot-world.com/blog/go1" target="_blank" rel="noopener">AgiBot GO-1</a><span>A model with latent actions and the AgiBot World data</span></li>
+      <li><a href="https://www.sec.gov/Archives/edgar/data/1318605/000162828026066738/exhibit9914.htm" target="_blank" rel="noopener">Tesla's Q3 2026 update</a><span>The start of Optimus production in Fremont</span></li>
+    </ul>
+    <div class="bridge-note"><p>The platforms in this lesson are built more and more alike: a trained controller at the lower level and a model on board at the upper level. They differ in experience, and Figure, Agility, AgiBot and Tesla gather it with thousands of hours of human recordings and robot work, which is expensive and slow. The world models of 1X, AgiBot and Unitree are an attempt to gain experience in the model's imagination rather than on a real robot.</p><p class="bridge-to">Lesson 7.1 · World Models and Dreamer: how to teach a model to imagine the world and learn in its own imagination</p></div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Lesson 6.6 of the “Modern Robotics and Physical AI” course. The facts about the platforms come from company materials, papers and spec sheets with dates, as of October 27, 2026; press reports are used only for the 2024 Optimus show and are marked in the text. The lab's table is a summary of the lesson's dossier without randomness; the diagram shows the principle, and the animation's rhythm is schematic.
+</footer>
+<div class="tooltip" id="tooltip" role="tooltip"></div>
+<script>
+/*@@JS@@*/
+</script>
+</body>
+</html>

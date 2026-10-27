@@ -57,8 +57,10 @@
 .pt-row.pt-ok .pt-name b::after { content: ' ✓'; color: var(--good); }
 .pt-row.pt-miss { box-shadow: inset 3px 0 0 var(--critical); }
 .pt-row.pt-miss .pt-name b::after { content: ' — пропущена'; color: var(--critical); font-weight: 650; font-size: 12px; }
+html[lang="en"] .pt-row.pt-miss .pt-name b::after { content: ' — missed'; }
 .pt-row.pt-extra { box-shadow: inset 3px 0 0 var(--critical); }
 .pt-row.pt-extra .pt-name b::after { content: ' — лишняя'; color: var(--critical); font-weight: 650; font-size: 12px; }
+html[lang="en"] .pt-row.pt-extra .pt-name b::after { content: ' — extra'; }
 .pt-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 10px 2px 0; font-size: 12.5px; color: var(--ink-2); }
 .pt-legend span { display: inline-flex; align-items: center; gap: 6px; }
 .pt-legend i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex: none; }
@@ -100,7 +102,12 @@
   .pt-cell::before { top: 27px; }
   .pt-cmpbox tbody th { width: 30%; }
 }
+/* телефон: в сравнении двух платформ длинные слова переносятся по слогам, и таблица не шире рамки;
+   если браузер не умеет переносить, таблица прокручивается внутри рамки, а не обрезается */
+@media (max-width: 600px) { .pt-cmpbox th, .pt-cmpbox td { hyphens: auto; -webkit-hyphens: auto; } .pt-cmpbox { overflow-x: auto; } }
 
 /* числа на узких столбцах диаграмм — мельче на телефоне, чтобы соседние не налезали */
 @media (max-width: 640px) { .stat-bars .sb-bar b { font-size: 10px; letter-spacing: -0.2px; } }
+/* восемь столбцов на узком телефоне (375 и 360 px): подписи групп на 1 px мельче, чтобы «Apollo» и «Atlas» не касались друг друга */
+@media (max-width: 380px) { #massBars .sb-glab, #runBars .sb-glab { font-size: 10.5px; } }
 .stat-grid.one-col { grid-template-columns: minmax(0, 1fr); }

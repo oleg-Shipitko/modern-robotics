@@ -258,8 +258,12 @@ const FRAMES = [0.5, 1.7, 3.1, 4.7, 5.4, 6.6, 7.6];
     check((await p.eval(`document.querySelectorAll('.katex-error').length`)) === 0, 'ошибок KaTeX нет');
     const links = J(await p.eval(`JSON.stringify([...document.querySelectorAll('main a[href]')].map((a) => a.getAttribute('href')).filter((h) => !h.startsWith('http') && !h.startsWith('#')))`));
     check(links.every((h) => /^[0-9a-z-]+\.html(#[a-z0-9-]+)?$/.test(h)) && links.includes('0-1-dve-paradigmy.html#ada') && !links.some((h) => /^7-1/.test(h)), 'ссылки на уроки курса: ' + [...new Set(links)].join(', '));
-    const ext = J(await p.eval(`JSON.stringify([...document.querySelectorAll('main a[href^="http"]')].map((a) => a.getAttribute('href')))`));
-    check(!ext.some((h) => /theverge|techcrunch|bloomberg|electrek|youtube\.com\/embed/.test(h)) && !(await p.eval(`!!document.querySelector('main iframe, main video')`)), 'ссылки — на первоисточники, пересказов прессы и встроенного видео нет');
+    // пресса — только в истории про We, Robot: The Verge и TechCrunch, в том же абзаце, что пост Ковача (первоисточник Tesla); встроенного видео нет
+    const ext = J(await p.eval(`JSON.stringify([...document.querySelectorAll('main a[href^="http"]')].map((a) => ({ h: a.getAttribute('href'), sec: a.closest('section').id, near: a.closest('p') ? [...a.closest('p').querySelectorAll('a[href]')].map((x) => x.getAttribute('href')) : [] })))`));
+    const PRESS = ['https://www.theverge.com/2024/10/13/24269131/tesla-optimus-robots-human-controlled-cybercab-we-robot-event', 'https://techcrunch.com/2024/10/14/tesla-optimus-bots-were-controlled-by-humans-during-the-we-robot-event/'];
+    const KOVAC = 'https://x.com/_milankovac_/status/1846410551318257675';
+    const press = ext.filter((x) => /theverge|techcrunch|bloomberg|electrek|youtube\.com\/embed/.test(x.h));
+    check(JSON.stringify(press.map((x) => x.h).sort()) === JSON.stringify(PRESS.slice().sort()) && press.every((x) => x.sec === 'work' && x.near.includes(KOVAC)) && !(await p.eval(`!!document.querySelector('main iframe, main video')`)), 'пресса — только The Verge и TechCrunch в истории про We, Robot рядом с постом Ковача, встроенного видео нет: ' + (press.map((x) => x.h.split('/')[2] + ' (' + x.sec + ')').join(', ') || 'ссылок нет'));
     check(!p.logs.length, 'консоль: ' + (p.logs.join(' | ') || 'чисто'));
     // тёмная тема
     await p.eval(`document.documentElement.dataset.theme = 'dark'; window.dispatchEvent(new Event('resize')); true`); await sleep(600);

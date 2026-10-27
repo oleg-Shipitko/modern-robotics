@@ -1786,5 +1786,29 @@
   "t": "Cost of transport",
   "d": "A dimensionless measure of the energy of walking: power divided by weight and speed, that is, how much energy goes into moving a unit of weight over a unit of distance. For the biped Cassie it was measured at 0.7 (200 W at 30 kg and 1 m/s), for a human it's about 0.2, and for Asimo about 2. In the lesson's lab, Ada's walking is computed with a cost of transport of 0.7.",
   "a": "costs? of transport"
+ },
+ {
+  "id": "large-behavior-model",
+  "t": "Large behavior model (LBM)",
+  "d": "TRI's name for a policy trained on demonstrations for many tasks at once. The LBM for Atlas, which Boston Dynamics built together with TRI in 2025, is a 450-million-parameter diffusion transformer: 30 times a second, it outputs the poses of the hands, torso and feet through the same MPC-based interface as teleoperation.",
+  "a": "(?-i:large behavior models?)|LBMs?"
+ },
+ {
+  "id": "raas",
+  "t": "Robots-as-a-Service (RaaS)",
+  "d": "A contract under which the customer doesn't buy the robot but pays for its work every month, while maintenance and updates stay with the manufacturer. Under the first such contract for humanoids, Digit has worked at a GXO warehouse since 2024.",
+  "a": "robots?-as-a-service|robots? as a service|RaaS"
+ },
+ {
+  "id": "pilot-deployment",
+  "t": "Pilot (pilot deployment)",
+  "d": "A robot working at a customer's site on one task for a limited period: the customer checks whether it's useful before signing a contract. In 2024–2026, most humanoids at customer sites work this way, for example Apollo at Mercedes-Benz.",
+  "a": "pilot deployments?|pilots?(?! collection)"
+ },
+ {
+  "id": "world-model",
+  "t": "World model",
+  "d": "A model that, given the current frame and an action or a request, predicts what the world will look like next. 1X trains such a model on human video and NEO recordings and turns the predicted video into robot actions with an inverse dynamics model. World models are covered in detail in Part 7.",
+  "a": "world models?"
  }
 ]
