@@ -16,6 +16,8 @@
 .foot-gl, .foot-pp { margin: 8px 0 0; }
 .foot-gl a, .foot-pp a { color: inherit; }
 @media (max-width: 820px) { .topbar-gl, .toc + .topbar-gl { margin-left: auto; } } /* оглавление на узких экранах скрыто — ссылка уходит вправо */
+.topbar-gl + .topbar-gl { margin-left: 0; } /* «Карта идей» сразу за «Глоссарием» */
+@media (max-width: 820px) { .topbar-gl + .topbar-gl { margin-left: 0; } }
 @media (max-width: 560px) { .topbar-gl { display: none; } }
 
 /* временная плашка (NOTICE в site/config.json) */

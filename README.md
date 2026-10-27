@@ -54,6 +54,7 @@ node tools/lesson51.js                   # tests of lesson 5.1 (tools/lessonNM.j
 node tools/check5.js                     # the part 5 check
 node tools/en_pages.js                   # English pages: console, lang, language switch, hreflang, leftover Cyrillic
 node tools/glossary_check.js             # glossary terms and hints
+node tools/ideas_map.js                  # the ideas map page: chips, lanes, links on click, filters, phone, English page
 python3 tools/i18n_extract.py l51 --check   # every Russian string in the lesson's JS has an English translation
 tools/deploy.sh --dryrun                 # what a deployment would upload
 ```
@@ -134,6 +135,7 @@ node tools/lesson51.js                   # проверки урока 5.1 (tool
 node tools/check5.js                     # проверка части 5
 node tools/en_pages.js                   # английские страницы: консоль, lang, переключатель, hreflang, остатки кириллицы
 node tools/glossary_check.js             # термины глоссария и подсказки
+node tools/ideas_map.js                  # страница «Карта идей»: чипы, дорожки, связи по клику, фильтры, телефон, английская страница
 python3 tools/i18n_extract.py l51 --check   # у каждой русской строки в JS урока есть английский перевод
 tools/deploy.sh --dryrun                 # что уйдёт на сайт при выкладке
 ```

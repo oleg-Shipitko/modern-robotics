@@ -1,0 +1,146 @@
+/* =====================================================================
+   Карта идей (karta-idey.html, assets/ideas-map.js)
+   Семь дорожек — спокойные цвета, различимые при дейтеранопии и протанопии
+   (подбор по ΔE в Lab с симуляцией Machado 2009: минимум между любой парой
+   ≈ 19 при дейтеранопии и ≈ 18 при протанопии в светлой теме, ≈ 20 и 19 в
+   тёмной). «Классика» — тёплый серо-коричневый: синий и оранжевый на сайте
+   значат «классика» и «нейросеть», красный — отказ.
+   Чипы работ: светлая заливка цвета дорожки, тонкая обводка; у невышедших
+   уроков обводка пунктиром. Выбранная работа — тёмная обводка, предки и
+   потомки — насыщеннее заливка с пометками «←» и «→» (без синего и
+   оранжевого: на сайте это «классика» и «нейросеть»). Тёмная тема — через
+   переменные.
+   ===================================================================== */
+:root {
+  --lane-classic: #927967; --lane-imitation: #927d16; --lane-language: #3e2aa4; --lane-data: #248a8c;
+  --lane-rl: #20722a; --lane-humanoids: #7d2948; --lane-world: #59689c;
+  --im-tint: 12%; --im-tint-hi: 34%; --im-tint-peek: 22%;
+}
+:root[data-theme="dark"] {
+  --lane-classic: #cabfa5; --lane-imitation: #f2bf48; --lane-language: #8377e7; --lane-data: #5fe5dd;
+  --lane-rl: #46d16e; --lane-humanoids: #ca6a8b; --lane-world: #7999c5;
+  --im-tint: 16%; --im-tint-hi: 40%; --im-tint-peek: 28%;
+}
+.lane-classic { color: var(--lane-classic); } .lane-imitation { color: var(--lane-imitation); } .lane-language { color: var(--lane-language); } .lane-data { color: var(--lane-data); }
+.lane-rl { color: var(--lane-rl); } .lane-humanoids { color: var(--lane-humanoids); } .lane-world { color: var(--lane-world); }
+
+.im-page { padding: 40px 0 70px; }
+.im-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px 18px; margin-bottom: 8px; }
+.im-head a { color: var(--ink-2); font-size: 15px; }
+.im-lead { color: var(--ink-2); font-size: 17px; line-height: 1.6; margin: 0 0 20px; max-width: 820px; }
+.im-controls { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+.im-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.im-filter-t { font-size: 14px; color: var(--ink-3); margin-right: 4px; min-width: 96px; }
+.im-filter button { font: inherit; font-size: 14px; font-weight: 600; min-width: 36px; padding: 5px 11px; border: 1px solid var(--line-2); border-radius: 999px; background: var(--surface); color: var(--ink-2); cursor: pointer; display: inline-flex; align-items: center; gap: 7px; }
+.im-filter button:hover { border-color: var(--ink-3); color: var(--ink); }
+.im-filter button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.im-filter button .dot { width: 9px; height: 9px; margin: 0; background: currentColor; flex: none; }
+.im-filter button[class*="lane-"] { color: var(--ink-2); }
+.im-filter button[class*="lane-"] .dot { color: inherit; }
+.im-filter button.lane-classic .dot { background: var(--lane-classic); } .im-filter button.lane-imitation .dot { background: var(--lane-imitation); } .im-filter button.lane-language .dot { background: var(--lane-language); }
+.im-filter button.lane-data .dot { background: var(--lane-data); } .im-filter button.lane-rl .dot { background: var(--lane-rl); }
+.im-filter button.lane-humanoids .dot { background: var(--lane-humanoids); } .im-filter button.lane-world .dot { background: var(--lane-world); }
+.im-legend { display: inline-flex; align-items: center; gap: 8px; margin: 0; font-size: 13.5px; color: var(--ink-3); }
+.im-legend .im-sw-soon { display: inline-block; width: 22px; height: 12px; border-radius: 5px; border: 1.5px dashed var(--ink-3); background: transparent; }
+
+/* ---------- Схема ---------- */
+.im-figure { margin: 0; padding: 8px 8px 6px; overflow: hidden; }
+.im-figure svg { display: block; width: 100%; height: auto; font-family: var(--font); }
+.im-axis text { font-family: var(--mono); font-size: 11.5px; fill: var(--ink-3); }
+.im-axis line { stroke: var(--line-2); }
+.im-axis line.base { stroke: var(--line-2); }
+.im-grid line { stroke: var(--line); stroke-opacity: .55; }
+.im-break { stroke: var(--ink-3); stroke-width: 1.3; fill: none; }
+.im-lane-bg { fill: var(--surface-2); }
+.im-lane-bg.odd { fill: transparent; }
+.im-lane-line { stroke: var(--line); }
+.im-lane-t text { font-size: 14px; font-weight: 700; letter-spacing: .01em; fill: color-mix(in srgb, currentColor 78%, var(--ink)); }
+.im-lane-t text.strip { font-size: 12.5px; letter-spacing: .05em; text-transform: uppercase; }
+.im-year text { font-family: var(--mono); font-size: 11.5px; fill: var(--ink-3); }
+.im-year line { stroke: var(--line-2); }
+.im-year line.ax { stroke: var(--line-2); }
+
+/* цепочки соседних работ в дорожке — видны всегда */
+.rail { fill: none; stroke: currentColor; stroke-opacity: .42; stroke-width: 1.5; transition: opacity .18s; }
+.rail.off { opacity: .22; }
+.rail.dim { opacity: .25; }
+/* связи «выросло из» — только при наведении и выборе, пунктиром цвета дорожки-источника */
+.edge { fill: none; stroke: currentColor; stroke-width: 1.3; stroke-dasharray: 4 3; opacity: 0; pointer-events: none; transition: opacity .18s; }
+.edge.on { opacity: .6; }
+.edge.on.direct { opacity: 1; stroke-width: 1.6; }
+marker path { fill: currentColor; }
+
+/* чипы */
+.node { cursor: pointer; outline: none; transition: opacity .18s; }
+.node .chip { fill: color-mix(in srgb, currentColor var(--im-tint), var(--surface)); stroke: currentColor; stroke-opacity: .7; stroke-width: 1; transition: fill .18s, stroke-width .18s; }
+.node.soon .chip { stroke-dasharray: 3.5 2.5; fill: color-mix(in srgb, currentColor 6%, var(--surface)); }
+.node .chip-t { font-size: 12.5px; font-weight: 600; fill: var(--ink); pointer-events: none; }
+.node .mk { font-size: 11px; font-weight: 700; fill: currentColor; opacity: 0; transition: opacity .18s; pointer-events: none; }
+.node .leg { stroke: currentColor; stroke-opacity: .45; stroke-width: 1; fill: none; }
+.node .leg-dot { fill: currentColor; fill-opacity: .6; }
+.node .lane-tag { font-size: 11px; font-weight: 600; fill: currentColor; }
+.node:hover .chip, .node.peek .chip { stroke-opacity: 1; fill: color-mix(in srgb, currentColor var(--im-tint-peek), var(--surface)); }
+.node.dim { opacity: .3; }
+.node.off { opacity: .32; }
+.node.anc .chip, .node.desc .chip { fill: color-mix(in srgb, currentColor var(--im-tint-hi), var(--surface)); stroke-opacity: 1; stroke-width: 1.4; }
+.node.anc .mk-l, .node.desc .mk-r { opacity: 1; }
+.node.sel .chip { stroke: var(--ink); stroke-opacity: 1; stroke-width: 2; fill: color-mix(in srgb, currentColor var(--im-tint-hi), var(--surface)); }
+.node.sel .chip-t { font-weight: 750; }
+.node:focus-visible .chip { stroke: var(--ink); stroke-opacity: 1; stroke-width: 2; }
+.node:focus-visible .chip-t { text-decoration: underline; }
+
+/* ---------- Карточка ---------- */
+.im-card { margin-top: 14px; padding: 16px 22px 16px; }
+.im-card-hint { margin: 0; color: var(--ink-3); font-size: 15px; }
+.im-card-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; margin-bottom: 8px; }
+.im-card-head h2 { font-size: 21px; margin: 0; display: inline-flex; align-items: center; gap: 9px; color: var(--ink); }
+.im-card-head h2 .dot { width: 11px; height: 11px; margin: 0; background: currentColor; flex: none; }
+.im-card-head h2 .dot[class*="lane-"] { background: currentColor; }
+.im-card .meta { color: var(--ink-3); font-size: 14.5px; }
+.im-card .im-lesson { font-weight: 650; font-size: 14.5px; }
+.im-card .im-lesson.soon { color: var(--ink-3); font-weight: 500; }
+.im-card dl { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 5px 16px; font-size: 15.5px; line-height: 1.5; }
+.im-card dt { color: var(--ink-3); font-weight: 650; font-size: 13px; letter-spacing: .04em; text-transform: uppercase; padding-top: 3px; }
+.im-card dd { margin: 0; color: var(--ink-2); }
+.im-rel { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 7px; margin-top: 9px; font-size: 14px; color: var(--ink-3); }
+.im-rel .im-rel-t { margin-right: 3px; }
+.im-rel .none { color: var(--ink-3); font-style: italic; }
+.im-chip { font: inherit; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border: 1px solid currentColor; border-radius: 999px; background: color-mix(in srgb, currentColor var(--im-tint), var(--surface)); color: var(--ink-2); cursor: pointer; }
+.im-chip[class*="lane-"] { color: var(--ink); border-color: color-mix(in srgb, currentColor 0%, transparent); }
+.im-chip.lane-classic { border-color: var(--lane-classic); background: color-mix(in srgb, var(--lane-classic) var(--im-tint), var(--surface)); }
+.im-chip.lane-imitation { border-color: var(--lane-imitation); background: color-mix(in srgb, var(--lane-imitation) var(--im-tint), var(--surface)); }
+.im-chip.lane-language { border-color: var(--lane-language); background: color-mix(in srgb, var(--lane-language) var(--im-tint), var(--surface)); }
+.im-chip.lane-data { border-color: var(--lane-data); background: color-mix(in srgb, var(--lane-data) var(--im-tint), var(--surface)); }
+.im-chip.lane-rl { border-color: var(--lane-rl); background: color-mix(in srgb, var(--lane-rl) var(--im-tint), var(--surface)); }
+.im-chip.lane-humanoids { border-color: var(--lane-humanoids); background: color-mix(in srgb, var(--lane-humanoids) var(--im-tint), var(--surface)); }
+.im-chip.lane-world { border-color: var(--lane-world); background: color-mix(in srgb, var(--lane-world) var(--im-tint), var(--surface)); }
+.im-chip .mk { font-weight: 700; color: var(--ink-3); }
+.im-chip:hover { filter: brightness(.96); }
+:root[data-theme="dark"] .im-chip:hover { filter: brightness(1.15); }
+.im-close { display: none; }
+.im-note { margin: 16px 0 0; color: var(--ink-3); font-size: 14.5px; line-height: 1.5; }
+
+/* ---------- Телефон: ось времени вертикальная, карточка — панель снизу ---------- */
+@media (max-width: 640px) {
+  .im-page { padding-top: 28px; }
+  .im-lead { font-size: 16px; }
+  .im-filter-t { min-width: 0; }
+  .im-figure { padding: 6px 4px; }
+  .node .chip-t { font-size: 13px; }
+  .im-card { position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; margin: 0; max-height: 58vh; overflow: auto; border-radius: 18px 18px 0 0; padding: 16px 18px calc(16px + env(safe-area-inset-bottom)); box-shadow: 0 -8px 30px rgba(0,0,0,.18); transform: translateY(105%); visibility: hidden; transition: transform .2s, visibility 0s .2s; }
+  .im-card.open { transform: none; visibility: visible; transition: transform .2s, visibility 0s; }
+  .im-card-head { padding-right: 34px; }
+  .im-card-hint { display: none; }
+  .im-card-head h2 { font-size: 19px; }
+  .im-card dl { grid-template-columns: 1fr; gap: 3px; font-size: 15px; }
+  .im-card dd { margin-bottom: 6px; }
+  .im-close { display: grid; position: absolute; top: 10px; right: 10px; width: 32px; height: 32px; place-items: center; border: 1px solid var(--line-2); border-radius: 50%; background: var(--surface); color: var(--ink-2); font-size: 18px; line-height: 1; cursor: pointer; }
+  body.im-sheet-open { padding-bottom: 50vh; }
+}
+@media (prefers-reduced-motion: reduce) { .edge, .rail, .node, .node .chip, .node .mk, .im-card { transition: none; } }
+
+/* на широком экране подпись фильтра — отдельной колонкой, перенесённые кнопки встают под кнопками, а не под подписью */
+@media (min-width: 641px) {
+  .im-filter { position: relative; padding-left: 104px; }
+  .im-filter-t { position: absolute; left: 0; top: 0; min-width: 0; margin: 0; padding: 5px 0; border: 1px solid transparent; }
+}

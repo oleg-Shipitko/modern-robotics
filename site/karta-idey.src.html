@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Карта идей — Modern Robotics и Physical AI</title>
+<meta name="description" content="Основные работы курса «Modern Robotics и Physical AI» на оси времени: какую проблему решала каждая, какой вклад внесла и из каких идей выросла.">
+<script>(function(){try{var t=localStorage.getItem('mr-theme');if(t)document.documentElement.dataset.theme=t;else if(matchMedia('(prefers-color-scheme: dark)').matches)document.documentElement.dataset.theme='dark';}catch(e){}})();</script>
+<link rel="stylesheet" href="assets/fonts/fonts.css">
+<link rel="canonical" href="{{SITE_URL}}/karta-idey.html">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="stylesheet" href="assets/site.css">
+<link rel="stylesheet" href="assets/ideas-map.css">
+</head>
+<body>
+<!--SPRITE-->
+<header class="nav"><div class="nav-in">
+  <a class="logo" href="index.html">Modern Robotics и Physical AI</a>
+  <nav class="nav-links" aria-label="Разделы">
+    <a href="index.html#how">Формат</a><a href="index.html#program">Программа</a><a href="index.html#who">Аудитория</a><a href="index.html#about">Об авторе</a><a href="lessons/glossariy.html">Глоссарий</a><a href="karta-idey.html" aria-current="page">Карта идей</a>
+  </nav>
+  <a class="icon-btn" href="{{REPO}}" title="Исходный код на GitHub" aria-label="Исходный код на GitHub"><svg><use href="#i-github"/></svg></a>
+  <button class="icon-btn" id="themeBtn" type="button" aria-label="Переключить тему"><svg><use href="#i-moon"/></svg></button>
+</div></header>
+
+<main class="im-page"><div class="wrap">
+  <div class="im-head"><div class="kicker">Карта идей</div><a href="index.html#program">← На главную</a></div>
+  <h1>Карта идей курса</h1>
+  <p class="im-lead">Основные работы курса на оси времени, по семи темам. У каждой работы есть проблема, которую она решала, и вклад, который от неё остался. В карточке под схемой — ссылка на урок, где работа разобрана подробно.</p>
+
+  <div class="im-controls">
+    <div class="im-filter" id="imFilter" role="group" aria-label="Часть курса"><span class="im-filter-t">Часть курса:</span></div>
+    <div class="im-filter" id="imLanes" role="group" aria-label="Тема"><span class="im-filter-t">Тема:</span></div>
+    <p class="im-legend" aria-hidden="true"><i class="im-sw-soon"></i>урок ещё не вышел</p>
+  </div>
+
+  <figure class="im-figure card" id="imFigure">
+    <svg id="imSvg" role="group" aria-label="Карта идей: работы по дорожкам тем и годам" xmlns="http://www.w3.org/2000/svg"></svg>
+  </figure>
+
+  <section class="card im-card" id="imCard" aria-live="polite">
+    <p class="im-card-hint">Нажми на работу, чтобы увидеть, какую проблему она решала, что дала и как связана с другими.</p>
+  </section>
+
+  <p class="im-note">В покое линии показывают близкие связи внутри темы: из какой соседней работы выросла эта. Нажми на работу, чтобы увидеть все её связи, в том числе между темами. Годы — по датам статей; у работ, чей урок ещё не вышел, обводка пунктиром. До 2016 года работы показаны по порядку, а не в масштабе; дальше ширина года зависит от того, сколько в нём работ.</p>
+</div></main>
+
+<footer class="foot"><div class="wrap">
+  <span>© 2026 Олег Шипитько</span><span>Тексты — CC BY-NC 4.0</span><span>Код — MIT</span><a href="lessons/glossariy.html">Глоссарий</a><a href="karta-idey.html">Карта идей</a><a href="changelog.html">Что нового</a><a href="{{REPO}}">Исходный код</a><a href="privacy.html">Политика конфиденциальности</a><a href="index.html#about">Об авторе</a>
+</div></footer>
+
+<script type="application/json" id="imData">{{IDEAS_MAP_JSON}}</script>
+<script type="application/json" id="imUi">{
+  "months": ["январь", "февраль", "март", "апрель", "май", "июнь", "июль", "август", "сентябрь", "октябрь", "ноябрь", "декабрь"],
+  "all": "все",
+  "lesson": "Урок {n} →",
+  "lessonSoon": "Урок {n} ещё не вышел",
+  "problem": "Проблема",
+  "contribution": "Вклад",
+  "from": "Выросло из",
+  "to": "Привело к",
+  "none": "в карте нет",
+  "hint": "Нажми на работу, чтобы увидеть, какую проблему она решала, что дала и как связана с другими.",
+  "close": "Закрыть карточку",
+  "node": "{title}, {org}, {year}, урок {lesson}"
+}</script>
+<script>window.MR_STATS_API = {{STATS_API_JSON}};</script>
+<script src="assets/stats.js"></script>
+<script>
+'use strict';
+/* ---------- Тема ---------- */
+(function () {
+  const btn = document.getElementById('themeBtn');
+  const sync = () => { btn.querySelector('use').setAttribute('href', document.documentElement.dataset.theme === 'dark' ? '#i-sun' : '#i-moon'); };
+  btn.addEventListener('click', () => { const t = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.theme = t; try { localStorage.setItem('mr-theme', t); } catch (e) {} sync(); });
+  sync();
+})();
+window.IM_READY = {{READY_JSON}}; // опубликованные уроки (site/config.json, PUBLISHED): ссылки «Урок N.M →» для вышедших частей
+</script>
+<script src="assets/ideas-map.js"></script>
+</body>
+</html>

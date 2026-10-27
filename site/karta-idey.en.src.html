@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ideas map — Modern Robotics and Physical AI</title>
+<meta name="description" content="The key works of the “Modern Robotics and Physical AI” course on a timeline: the problem each one solved, what it contributed and which ideas it grew out of.">
+<script>(function(){try{var t=localStorage.getItem('mr-theme');if(t)document.documentElement.dataset.theme=t;else if(matchMedia('(prefers-color-scheme: dark)').matches)document.documentElement.dataset.theme='dark';}catch(e){}})();</script>
+<link rel="stylesheet" href="assets/fonts/fonts.css">
+<link rel="canonical" href="{{SITE_URL}}/en/karta-idey.html">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="stylesheet" href="assets/site.css">
+<link rel="stylesheet" href="assets/ideas-map.css">
+</head>
+<body>
+<!--SPRITE-->
+<header class="nav"><div class="nav-in">
+  <a class="logo" href="index.html">Modern Robotics and Physical AI</a>
+  <nav class="nav-links" aria-label="Sections">
+    <a href="index.html#how">Format</a><a href="index.html#program">Program</a><a href="index.html#who">Who it is for</a><a href="index.html#about">Author</a><a href="lessons/glossariy.html">Glossary</a><a href="karta-idey.html" aria-current="page">Ideas map</a>
+  </nav>
+  <a class="icon-btn" href="{{REPO}}" title="Source code on GitHub" aria-label="Source code on GitHub"><svg><use href="#i-github"/></svg></a>
+  <button class="icon-btn" id="themeBtn" type="button" aria-label="Toggle theme"><svg><use href="#i-moon"/></svg></button>
+</div></header>
+
+<main class="im-page"><div class="wrap">
+  <div class="im-head"><div class="kicker">Ideas map</div><a href="index.html#program">← Home</a></div>
+  <h1>Ideas map of the course</h1>
+  <p class="im-lead">The key works of the course on a timeline, in seven themes. Each work has the problem it solved and the contribution it left behind. The card under the chart links to the lesson where the work is covered in detail.</p>
+
+  <div class="im-controls">
+    <div class="im-filter" id="imFilter" role="group" aria-label="Course part"><span class="im-filter-t">Course part:</span></div>
+    <div class="im-filter" id="imLanes" role="group" aria-label="Theme"><span class="im-filter-t">Theme:</span></div>
+    <p class="im-legend" aria-hidden="true"><i class="im-sw-soon"></i>lesson not out yet</p>
+  </div>
+
+  <figure class="im-figure card" id="imFigure">
+    <svg id="imSvg" role="group" aria-label="Ideas map: works by theme lanes and years" xmlns="http://www.w3.org/2000/svg"></svg>
+  </figure>
+
+  <section class="card im-card" id="imCard" aria-live="polite">
+    <p class="im-card-hint">Click a work to see which problem it solved, what it contributed and how it is connected to the others.</p>
+  </section>
+
+  <p class="im-note">At rest, the lines show close links within a theme: which neighbouring work this one grew out of. Click a work to see all its links, including those across themes. Years follow the dates of the papers; works whose lesson is not out yet have a dashed outline. Before 2016 the works are shown in order rather than to scale; after that, the width of a year depends on how many works it has. Lessons that are not translated yet open in Russian.</p>
+</div></main>
+
+<footer class="foot"><div class="wrap">
+  <span>© 2026 Oleg Shipitko</span><span>Texts — CC BY-NC 4.0</span><span>Code — MIT</span><a href="lessons/glossariy.html">Glossary</a><a href="karta-idey.html">Ideas map</a><a href="changelog.html">What's new</a><a href="{{REPO}}">Source code</a><a href="privacy.html">Privacy policy</a><a href="index.html#about">About the author</a>
+</div></footer>
+
+<script type="application/json" id="imData">{{IDEAS_MAP_JSON}}</script>
+<script type="application/json" id="imUi">{
+  "months": ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
+  "all": "all",
+  "lesson": "Lesson {n} →",
+  "lessonRu": "Lesson {n} (in Russian) →",
+  "lessonSoon": "Lesson {n} is not out yet",
+  "problem": "Problem",
+  "contribution": "Contribution",
+  "from": "Grew out of",
+  "to": "Led to",
+  "none": "none on the map",
+  "hint": "Click a work to see which problem it solved, what it contributed and how it is connected to the others.",
+  "close": "Close the card",
+  "node": "{title}, {org}, {year}, lesson {lesson}"
+}</script>
+<script>window.MR_STATS_API = {{STATS_API_JSON}};</script>
+<script src="assets/stats.js"></script>
+<script>
+'use strict';
+/* ---------- Theme ---------- */
+(function () {
+  const btn = document.getElementById('themeBtn');
+  const sync = () => { btn.querySelector('use').setAttribute('href', document.documentElement.dataset.theme === 'dark' ? '#i-sun' : '#i-moon'); };
+  btn.addEventListener('click', () => { const t = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.theme = t; try { localStorage.setItem('mr-theme', t); } catch (e) {} sync(); });
+  sync();
+})();
+window.IM_READY = {{READY_JSON}}; // lessons with an English page (site/en/lessons/): links “Lesson N.M →”
+window.IM_READY_RU = {{READY_RU_JSON}}; // published lessons that exist only in Russian so far — linked to the Russian page
+</script>
+<script src="assets/ideas-map.js"></script>
+</body>
+</html>

@@ -20,7 +20,7 @@ pub = published(cfg)
 if dist.exists():
     shutil.rmtree(dist)
 dist.mkdir(parents=True)
-for f in ['index.html', 'about.html', 'changelog.html', 'privacy.html', '404.html', 'robots.txt', 'sitemap.xml']:
+for f in ['index.html', 'about.html', 'changelog.html', 'privacy.html', 'karta-idey.html', '404.html', 'robots.txt', 'sitemap.xml']:
     shutil.copy2(site / f, dist / f)
 shutil.copytree(site / 'assets', dist / 'assets', ignore=shutil.ignore_patterns('sprite.svg.html', '.*'))
 (dist / 'lessons').mkdir()
@@ -39,6 +39,9 @@ if en_pages or en_lessons:
         shutil.copy2(f, dist / 'en' / f.name)
     for p in en_lessons:
         shutil.copy2(en / p['file'], dist / 'en' / p['file'])
+for f in ['karta-idey.html']:
+    if not (dist / f).exists():
+        raise SystemExit(f'Нет {f} в сборке: на неё ссылается шапка уроков')
 files = [x for x in dist.rglob('*') if x.is_file()]
 moment = asof().strftime('%d.%m.%Y %H:%M')
 print(f'{dist.name}/: {len(files)} файлов, {sum(x.stat().st_size for x in files) / 1e6:.1f} МБ, страниц уроков: {len(pub)}, по-английски: {len(en_lessons)} уроков и {len(en_pages)} страниц сайта (на {moment} МСК)')

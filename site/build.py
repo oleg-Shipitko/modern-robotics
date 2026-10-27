@@ -29,6 +29,28 @@ vals = {k: v for k, v in cfg.items() if isinstance(v, str)}
 vals['READY_JSON'] = json.dumps({p['n']: p['file'] for p in published}, ensure_ascii=False)
 vals['THANKS_API_JSON'] = json.dumps(cfg.get('THANKS_API', ''))
 vals['STATS_API_JSON'] = json.dumps(cfg.get('STATS_API', ''))
+# «Карта идей» (karta-idey.src.html): узлы и связи из lessons/shared/ideas-map.json попадают в страницу как есть (assets/ideas-map.js читает их
+# из <script id="imData">). Английская страница берёт структуру (годы, дорожки, уроки, связи) оттуда же, а тексты — из ideas-map.en.json по id.
+def ideas_map(lang):
+    data = json.loads((HERE.parent / 'lessons/shared/ideas-map.json').read_text(encoding='utf-8'))
+    data.pop('_comment', None)
+    if lang == 'en':
+        en_path = HERE.parent / 'lessons/shared/ideas-map.en.json'
+        en = json.loads(en_path.read_text(encoding='utf-8')) if en_path.exists() else {'lanes': [], 'nodes': []}
+        lanes_en = {l['id']: l for l in en.get('lanes', [])}
+        nodes_en = {n['id']: n for n in en.get('nodes', [])}
+        for lane in data['lanes']:
+            lane['title'] = lanes_en.get(lane['id'], {}).get('title') or lane['title']
+        missing = [n['id'] for n in data['nodes'] if n['id'] not in nodes_en]
+        for n in data['nodes']:
+            for k in ('title', 'short', 'org', 'problem', 'contribution'):
+                if k in n or k in nodes_en.get(n['id'], {}):
+                    n[k] = nodes_en.get(n['id'], {}).get(k) or n[k]
+        extra = sorted(set(nodes_en) - {n['id'] for n in data['nodes']})
+        if missing or extra:
+            print(f'ВНИМАНИЕ: ideas-map.en.json: без перевода {len(missing)} узлов ({", ".join(missing[:5])}), лишних id {len(extra)}', file=sys.stderr)
+    return json.dumps(data, ensure_ascii=False).replace('</', '<\\/')
+vals['IDEAS_MAP_JSON'] = ideas_map('ru')
 
 # «Что нового»: запись видна со своего дня (по московской дате); субботняя выкладка идёт после 09:00, так что уроки и запись о них выходят вместе
 MONTHS = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря']
@@ -65,6 +87,7 @@ vals_en['READY_RU_JSON'] = json.dumps({p['n']: '../' + p['file'] for p in publis
 vals_en['CHANGELOG_HTML'] = changelog_html([en_by_v.get(v['v'], v) for v in shown], en_date)
 vals_en['VERSION_DATE'] = en_date(shown[0]['date']) if shown else ''
 vals_en['NOTICE'] = cfg.get('NOTICE_EN', '')
+vals_en['IDEAS_MAP_JSON'] = ideas_map('en')
 
 def page_file(page):
     """Путь страницы от корня версии для адресов: главная — '', остальные — имя файла."""
@@ -107,7 +130,7 @@ def render(src, values, lang):
     if values.get('NOTICE'):  # временная плашка под шапкой
         html = re.sub(r'(<main[^>]*>)', lambda m: m.group(1) + '\n<div class="site-notice" role="status">' + values['NOTICE'] + '</div>', html, count=1)
     page = src.name.replace('.en.src.html', '.html').replace('.src.html', '.html')
-    if page in ('index.html', 'changelog.html', 'privacy.html', '404.html'):
+    if page in ('index.html', 'changelog.html', 'privacy.html', '404.html', 'karta-idey.html'):
         html = with_lang(html, page, lang)
     return html
 
@@ -146,7 +169,7 @@ for src in en_src:
     out = HERE / 'en' / src.name.replace('.en.src.html', '.html')
     out.write_text(html, encoding='utf-8')
     print(f'en/{out.name}: {len(html) // 1024} КБ')
-for page in ('index.html', 'changelog.html', 'privacy.html', '404.html'):
+for page in ('index.html', 'changelog.html', 'privacy.html', '404.html', 'karta-idey.html'):
     if page not in en_pages:
         print(f'— en/{page}: нет site/{page.replace(".html", ".en.src.html")}, английская страница не собирается')
 
@@ -160,7 +183,8 @@ log_date = shown[0]['date'] if shown else ''
 index_date = max(seo.git_date(HERE / 'index.src.html', HERE / 'config.json') or today, log_date, max((p.get('date', '') for p in published), default=''))
 # (путь от корня версии, дата, есть ли английская версия); у английской страницы та же дата, что у русской
 pages = [('', index_date, 'index.html' in en_pages), ('changelog.html', max(seo.git_date(HERE / 'changelog.src.html') or today, log_date), 'changelog.html' in en_pages),
-         ('privacy.html', seo.git_date(HERE / 'privacy.src.html') or today, 'privacy.html' in en_pages)] + \
+         ('privacy.html', seo.git_date(HERE / 'privacy.src.html') or today, 'privacy.html' in en_pages),
+         ('karta-idey.html', seo.git_date(HERE / 'karta-idey.src.html', HERE.parent / 'lessons/shared/ideas-map.json') or today, 'karta-idey.html' in en_pages)] + \
         [(p['file'], seo.page_date(p['file'], cfg, today), (HERE / 'en' / p['file']).exists()) for p in published]
 urls = ''.join(seo.sitemap_url(site_url, f, 'ru', min(d, today), en) + (seo.sitemap_url(site_url, f, 'en', min(d, today), True) if en else '') for f, d, en in pages)
 (HERE / 'sitemap.xml').write_text('<?xml version="1.0" encoding="UTF-8"?>\n'

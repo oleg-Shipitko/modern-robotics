@@ -40,7 +40,8 @@ img, svg, canvas { display: block; }
 .logo { display: flex; align-items: center; gap: 10px; font-weight: 750; color: var(--ink); text-decoration: none; letter-spacing: -0.01em; white-space: nowrap; }
 .logo svg { width: 30px; height: 30px; }
 .nav-links { display: flex; gap: 4px; margin-left: auto; }
-.nav-links a { color: var(--ink-2); text-decoration: none; padding: 6px 11px; border-radius: 999px; font-weight: 550; }
+.nav-links a { color: var(--ink-2); text-decoration: none; padding: 6px 11px; border-radius: 999px; font-weight: 550; white-space: nowrap; }
+@media (max-width: 1100px) { .nav-links { gap: 0; } .nav-links a { padding: 6px 7px; } } /* семь пунктов меню помещаются в строку до 961 px */
 .nav-links a:hover, .nav-links a[aria-current="page"] { background: var(--bg-2); color: var(--ink); }
 .icon-btn { width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--line-2); background: var(--surface); display: grid; place-items: center; cursor: pointer; color: var(--ink); text-decoration: none; }
 .icon-btn svg { width: 18px; height: 18px; }

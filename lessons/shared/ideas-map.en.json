@@ -1,0 +1,472 @@
+{
+ "_comment": "English texts of the ideas map (site/karta-idey.en.src.html): the same ids as lessons/shared/ideas-map.json; years, lanes, lessons and links are taken from the Russian file at build time (site/build.py), only title, org, problem and contribution (and short, the chip label of a long title) are translated here. Model names stay as in the papers.",
+ "lanes": [
+  {
+   "id": "classic",
+   "title": "Classical robotics"
+  },
+  {
+   "id": "imitation",
+   "title": "Imitation"
+  },
+  {
+   "id": "language",
+   "title": "Language and vision"
+  },
+  {
+   "id": "data",
+   "title": "Data"
+  },
+  {
+   "id": "rl",
+   "title": "Reinforcement learning"
+  },
+  {
+   "id": "humanoids",
+   "title": "Humanoids"
+  },
+  {
+   "id": "world",
+   "title": "World models"
+  }
+ ],
+ "nodes": [
+  {
+   "id": "dijkstra",
+   "title": "Dijkstra",
+   "org": "Mathematisch Centrum",
+   "problem": "The shortest path on a map has to be found without trying every path: even on a grid of 20 cm cells there are far too many of them.",
+   "contribution": "The algorithm expands cells in order of the distance travelled, as a wave in all directions, and remembers the shortest path to each of them, so the first path that reaches the goal is the shortest one. The standard ROS 2 navigation stack (Nav2) still searches for paths this way in its default settings."
+  },
+  {
+   "id": "kalman",
+   "title": "Kalman filter",
+   "org": "RIAS",
+   "problem": "No sensor tells exactly where the robot is: the wheel error keeps accumulating, and every range-finder measurement wanders by about 10 cm.",
+   "contribution": "The filter keeps an estimate and its uncertainty and alternates two steps: a prediction from the motion model and a correction from the measurement. It decides by itself how much to trust a measurement, from the sensor noise and its confidence in the current estimate, and for a linear model with Gaussian noise this is optimal. Today the Kalman filter estimates the position and velocity of the body of MIT’s legged robots 500–1000 times a second, and neural networks more often feed it measurements than replace it."
+  },
+  {
+   "id": "astar",
+   "title": "A*",
+   "org": "SRI",
+   "problem": "Dijkstra expands cells as a wave in all directions, including away from the goal, and spends time on cells that will not help the path.",
+   "contribution": "A* expands cells by the sum of the distance travelled and a heuristic, an estimate of the remaining distance ignoring walls. If the heuristic never overestimates the remaining distance, A* finds the shortest path and expands far fewer cells. The algorithm was created at SRI for the Shakey robot."
+  },
+  {
+   "id": "pd",
+   "title": "PD controller",
+   "org": "Takegaki and Arimoto",
+   "problem": "A motor produces torque, while policies and planners set angles: an arm that has picked up speed overshoots the target by inertia, and an arm holding a cup keeps sagging under the weight.",
+   "contribution": "The joint torque is the sum of a proportional part that pulls towards the target angle like a spring and a derivative part that damps the speed like a damper. Takegaki and Arimoto proved that with exact gravity compensation such a controller brings the arm to the target from any initial position. Almost all walking and whole-body policies output target angles, and PD controllers turn them into torques."
+  },
+  {
+   "id": "impedance",
+   "title": "Impedance control",
+   "short": "Impedance",
+   "org": "MIT",
+   "problem": "A position controller pulls the gripper to the target point at any cost: if the camera was wrong and the target ended up under the table, the arm presses on the table harder and harder.",
+   "contribution": "Hogan proposed to specify neither position nor force alone but the behaviour of the arm: the controller imitates a spring of chosen stiffness and a damper in gripper space, and the force grows with the error exactly as much as we chose. In HIL-SERL such a controller runs under the policy at 1000 Hz and limits the commanded displacement so that random actions during training do not break parts."
+  },
+  {
+   "id": "alvinn",
+   "title": "ALVINN",
+   "org": "CMU",
+   "problem": "You cannot write driving rules for every road, but you can show how to drive.",
+   "contribution": "A three-layer network takes a camera frame and a range-finder image, outputs the steering curvature and drives the NavLab van along a campus road. This is the first behavior cloning on a real vehicle: training produced a working system in half an hour where hand engineering had taken months."
+  },
+  {
+   "id": "sea",
+   "title": "Series elastic actuator (SEA)",
+   "short": "SEA",
+   "org": "MIT",
+   "problem": "An actuator with a high gear ratio gives torque, but barely yields to a push and hits hard on impact, and the force at its output is hard to measure and to set precisely.",
+   "contribution": "Pratt and Williamson placed a spring of known stiffness between the gearbox and the link: a sensor measures its compression, the force equals the stiffness times the compression, and the controller controls the force through the spring. Force control became precise and stable, and on impact the spring yields first and protects the gearbox; the price is that the force changes more slowly. Such actuators are used in the legs of ANYmal and in the joints of Baxter."
+  },
+  {
+   "id": "rrt",
+   "title": "RRT",
+   "org": "Iowa State University",
+   "problem": "For an arm, the grid is built over joint angles, and every joint multiplies the number of cells: with 100 cells per axis a seven-joint arm has 10¹⁴ of them, and a grid search like A* is impossible.",
+   "contribution": "A tree grows from the start by random samples: a random point is drawn, and a step is made towards it from the nearest tree vertex if there is no obstacle on the way. The space does not need to be covered with cells, and RRT is probabilistically complete: if a path exists, the probability of finding it tends to one. Planners of this family move the arm between key poses in PerAct."
+  },
+  {
+   "id": "mcl",
+   "title": "Particle filter",
+   "org": "CMU, University of Bonn",
+   "problem": "The Kalman filter keeps one hypothesis, a bell around one place: in a home with two identical bedrooms it would have to pick one and be confidently wrong.",
+   "contribution": "Monte Carlo localization keeps the distribution as a cloud of particles, hypotheses about the robot’s pose: the particles move with the odometry, get weights from how well the scan matches the map and are resampled by weight. The filter holds both bedrooms at once and finds the robot on the map from scratch; in the first paper the robot drove around the Smithsonian museum for 75 minutes without ever getting lost. Today such a filter, AMCL, localizes the robot by default in Nav2."
+  },
+  {
+   "id": "dagger",
+   "title": "DAgger",
+   "org": "CMU",
+   "problem": "A policy trained by cloning ends up in states the expert never visited, and there are no examples there.",
+   "contribution": "The policy drives on its own while the expert labels the correct action in the states it reached; the data accumulates and the policy is trained again. The error stops growing quadratically with the episode length."
+  },
+  {
+   "id": "rrt-star",
+   "title": "RRT*",
+   "org": "MIT",
+   "problem": "RRT finds a path, but almost surely not the shortest one: as the tree grows, its path converges to a suboptimal one.",
+   "contribution": "For a new vertex, RRT* picks the best parent among its neighbours and rewires the neighbours if the path through the new vertex is shorter for them. The neighbour radius shrinks as √(ln n / n), where n is the number of vertices: with such a radius the path converges to the shortest one, while each vertex keeps only a few neighbours."
+  },
+  {
+   "id": "transformer",
+   "title": "Transformer",
+   "org": "Google",
+   "problem": "A policy has to read inputs of different kinds and lengths: frames from several cameras, a command in words and the joint state.",
+   "contribution": "Attention links any tokens regardless of the distance between them, and the layers are the same for text, images and actions. ACT, RT-1, every VLM and π0 are built on this design."
+  },
+  {
+   "id": "ppo",
+   "title": "PPO",
+   "org": "OpenAI",
+   "problem": "A policy gradient with a large step breaks the policy, and with a small one it learns for too long.",
+   "contribution": "The clipped ratio of the new and old action probabilities keeps one update from moving far from the previous policy, and a batch of experience can be used for several epochs. The simple and stable method became the standard for learning walking and manipulation in simulation."
+  },
+  {
+   "id": "sac",
+   "title": "SAC",
+   "org": "Berkeley",
+   "problem": "PPO learns only from fresh experience and throws it away after every update, so it needs millions of steps, while on a real robot every step is expensive.",
+   "contribution": "An off-policy actor-critic: transitions accumulate in a replay buffer and are reused many times, the policy learns a distribution of actions and gets a bonus to the reward for its entropy, and the temperature of the bonus is tuned automatically to a target entropy. The quadruped Minitaur learned to walk in 160 thousand steps, about two hours in the real world without simulation."
+  },
+  {
+   "id": "world-models",
+   "title": "World Models",
+   "org": "Google Brain, NNAISENSE",
+   "problem": "An agent learns from pixels slowly, and trying actions in the real world is expensive.",
+   "contribution": "A variational autoencoder compresses the frame, a recurrent network predicts the next latent vector, and a small controller is trained inside this learned environment. A policy trained in the model’s “dream” transfers to the real game."
+  },
+  {
+   "id": "deepmimic",
+   "title": "DeepMimic",
+   "org": "Berkeley",
+   "problem": "A reward made of terms gives a gait, but not a human one: nobody knows how to write “walk like a person”.",
+   "contribution": "The policy is rewarded for staying close to a recording of human motion, and the phase of the recording is fed as input. A character in the simulator learns to walk, kick and do backflips from a single motion capture recording."
+  },
+  {
+   "id": "dactyl",
+   "title": "Dactyl",
+   "org": "OpenAI",
+   "problem": "A five-fingered hand needs millions of attempts, and they cannot be collected on a real hand.",
+   "contribution": "The policy is trained with PPO in a simulator with randomised physics and scene appearance: about a hundred years of hand experience in 50 hours of computation. On the real Shadow hand it rotates a cube, although not a single real attempt was part of training."
+  },
+  {
+   "id": "mpc-cheetah",
+   "title": "MPC Cheetah 3",
+   "org": "MIT",
+   "problem": "A controller looks only at the current error and pulls straight to the goal: if the direct path runs into a wall, it gets stuck, because it cannot first move away from the goal.",
+   "contribution": "Model predictive control (MPC) uses a model to pick the best plan over a horizon ahead, executes only the first step and plans again, so pushes and model errors are taken into account at once. In Cheetah 3 the model is simplified to a convex quadratic program: with a horizon of up to 0.5 s it is solved in under a millisecond. The same receding horizon is behind the action chunks of ACT and Diffusion Policy."
+  },
+  {
+   "id": "robonet",
+   "title": "RoboNet",
+   "org": "Berkeley, CMU, Stanford et al.",
+   "problem": "Every lab collects data on its own robot, and a model trained on it works only there.",
+   "contribution": "162 thousand trajectories from seven robots at four institutions, collected without an operator by random actions. After pre-training on RoboNet, a new robot needs only 300–400 trajectories of its own."
+  },
+  {
+   "id": "dreamer",
+   "title": "Dreamer",
+   "org": "Google, Toronto",
+   "problem": "World Models trained the controller in imagination, but the world model and the policy were trained separately and over a short horizon.",
+   "contribution": "The policy and the value function are trained by gradients through the learned latent-state dynamics on imagined trajectories of 15 steps. Later versions solve Atari, control tasks and Minecraft with one algorithm."
+  },
+  {
+   "id": "transporter",
+   "title": "Transporter",
+   "org": "Google",
+   "problem": "A policy needs dozens of demonstrations for every pick-and-place skill, and a shifted object is a new task for it.",
+   "contribution": "Manipulation is described as a transport: a map of “where to pick” over the pixels of the top-down view, while “where to place” is found by correlating a crop around the pick point with the whole scene. The fully convolutional network is equivariant to shifts, and most tasks need 10–100 demonstrations."
+  },
+  {
+   "id": "vit",
+   "title": "ViT",
+   "org": "Google",
+   "problem": "A transformer works on a sequence of tokens, while an image is a grid of pixels.",
+   "contribution": "The image is cut into 16 × 16 pixel squares, each becomes a token with a positional addition, and then an ordinary transformer runs. Pre-trained on hundreds of millions of images, it beats convolutional networks."
+  },
+  {
+   "id": "teacher",
+   "title": "Teacher and student",
+   "org": "ETH Zürich",
+   "problem": "A policy trained on random simulator worlds prepares for the worst, because it does not know which world it got.",
+   "contribution": "First the teacher is given the hidden parameters of the world: friction, contacts, terrain. Then the student with only the robot’s sensors learns to reproduce it from the history of observations, as in DAgger. ANYmal walked through mud, snow and streams although it trained only on rigid terrain."
+  },
+  {
+   "id": "clip",
+   "title": "CLIP",
+   "org": "OpenAI",
+   "problem": "Vision networks know only the classes of a labelled set, and an object cannot be specified in words.",
+   "contribution": "An image encoder and a text encoder are trained on 400 million “image — caption” pairs so that the pair matches. Any object can be specified in words, and CLIPort, PerAct and every VLM rely on this."
+  },
+  {
+   "id": "cliport",
+   "title": "CLIPort",
+   "org": "UW, NVIDIA",
+   "problem": "Transporter can pick and place, but does not understand which object it is asked to move and where.",
+   "contribution": "Two streams: the semantic “what” from CLIP and the spatial “where” from Transporter merge into pick and place maps. The robot carries out commands in words and transfers them to new colours and objects."
+  },
+  {
+   "id": "walk-minutes",
+   "title": "Walking in minutes",
+   "org": "ETH Zürich",
+   "problem": "Walking needs millions of steps, and simulation on a CPU delivers them over hours.",
+   "contribution": "Simulation and training on one GPU: 4,096 robots walk in parallel, and a walking policy is ready in four minutes for flat ground and twenty for rough terrain. Almost all humanoids are now taught to walk this way."
+  },
+  {
+   "id": "bcz",
+   "title": "BC-Z",
+   "org": "Google",
+   "problem": "A policy trained by cloning knows one task and does not understand a command in words.",
+   "contribution": "One ResNet network is trained on 25 thousand demonstrations of a hundred tasks; the command enters as a language embedding through FiLM layers, and some new commands are carried out without examples. In RT-1, BC-Z serves as the baseline; in SayCan, its policies execute the skills."
+  },
+  {
+   "id": "saycan",
+   "title": "SayCan",
+   "org": "Google",
+   "problem": "A language model knows the order of the steps in “make coffee”, but knows neither the robot nor its kitchen.",
+   "contribution": "The next skill is chosen by the product of two scores: “useful” from the language model and “feasible now” from the skill’s value function. From 551 skills it assembles plans for 101 requests in a kitchen: 84% correct plans and 74% executed."
+  },
+  {
+   "id": "inner-monologue",
+   "title": "Inner Monologue",
+   "org": "Google",
+   "problem": "SayCan learns about the kitchen only through the feasibility of skills at the next step: a failed step stays in the language model’s history as done, and the plan breaks.",
+   "contribution": "The result of every step is appended to the same prompt in words: a line from the success detector, a scene description or a person’s answer. The language model is not fine-tuned; it repeats the failed step or changes the plan by itself. In a kitchen with disturbances, SayCan did not finish a single attempt while Inner Monologue finished 75%; over all 120 trials, 60.4% against 30.8%."
+  },
+  {
+   "id": "cap",
+   "title": "Code as Policies",
+   "org": "Google",
+   "problem": "A planner like SayCan only chooses from ready-made skills, and commands with numbers and conditions (“move the cup a bit to the left”) do not fit a list of skills.",
+   "contribution": "A language model trained on code writes the policy program: from “command in a comment → code” examples it calls the robot’s perception and control functions, computes coordinates and writes the missing functions itself. On long tasks such code succeeded in 80% of cases against 64% for a natural-language planner."
+  },
+  {
+   "id": "peract",
+   "title": "PerAct",
+   "org": "UW, NVIDIA",
+   "problem": "A top-down table map gives a position and an in-plane rotation, but opening a drawer needs a gripper pose in 3D.",
+   "contribution": "The scene is assembled into a 100 × 100 × 100 voxel grid, the Perceiver transformer scores each voxel as the next key pose, and a motion planner moves the arm between poses. One model for 18 RLBench tasks with commands in words; on a real Franka, 7 tasks from 53 demonstrations."
+  },
+  {
+   "id": "rt1",
+   "title": "RT-1",
+   "org": "Google",
+   "problem": "A system made of a language model, skills and detectors breaks when any part fails, while simple policies know one task.",
+   "contribution": "One network takes six frames and the command text and outputs the action as tokens: each of 11 dimensions is split into 256 bins. Trained on 130 thousand demonstrations from 13 robots over 17 months, it performs more than 700 tasks: 97% success on familiar commands and 76% on new ones."
+  },
+  {
+   "id": "jepa",
+   "title": "JEPA",
+   "org": "Meta",
+   "problem": "To learn a representation of the world from images and video without labels, models were made to predict pixels, and they spent capacity on noise and small details that do not matter for actions.",
+   "contribution": "An encoder compresses the visible part of the image, and a predictor guesses the representations of the hidden parts not in pixels but in feature space. I-JEPA trained a ViT without labels or augmentations, V-JEPA carried the scheme over to video, and V-JEPA 2 is built on it."
+  },
+  {
+   "id": "diffusion-policy",
+   "title": "Diffusion Policy",
+   "org": "Columbia, TRI",
+   "problem": "If the demonstrations contain several ways of doing the same thing, an ordinary policy averages them and drives straight into the obstacle.",
+   "contribution": "Diffusion builds from noise not one action but a chunk of future actions conditioned on the latest observations: the initial noise picks the manoeuvre, the chunk holds it. On the real Push-T task, 95% success against 20% for LSTM-GMM."
+  },
+  {
+   "id": "act",
+   "title": "ACT",
+   "org": "Stanford",
+   "problem": "Diffusion Policy spends 10–16 network passes per chunk, while precise bimanual tasks need commands 50 times a second.",
+   "contribution": "A transformer with a conditional variational encoder outputs a chunk of 100 actions in one pass; overlapping chunks are averaged over time. Together with the $20,000 ALOHA rig, this gave fine bimanual tasks from 50 demonstrations."
+  },
+  {
+   "id": "knowno",
+   "title": "KnowNo",
+   "org": "Princeton, Google DeepMind",
+   "problem": "The request “put the bowl in the microwave” is ambiguous if there are two bowls on the table, and a language-model planner is prone to confident hallucinations: the robot must know when it does not know, and ask.",
+   "contribution": "The planner is a language model, as in SayCan, and conformal prediction over a calibration set of 400 scenarios turns its scores into a set of options: if there is more than one, the robot asks for help. The task is completed at least a 1 − ε share of the time with any language model, and help is needed 10–24% less often than with previous methods."
+  },
+  {
+   "id": "rt2",
+   "title": "RT-2",
+   "org": "Google DeepMind",
+   "problem": "RT-1 knows only the objects and words from the demonstrations, while knowledge about the world lives in VLMs that cannot act.",
+   "contribution": "Ready-made VLMs PaLI-X and PaLM-E are fine-tuned on RT-1 demonstrations together with internet data; the action is written as a string of eight number tokens. The model transfers internet knowledge to motion: it puts an object on the right digit or picks a drink “for a tired person”, although the demonstrations had none of this."
+  },
+  {
+   "id": "voxposer",
+   "title": "VoxPoser",
+   "org": "Stanford",
+   "problem": "Ready-made pick-and-place primitives cannot compose a trajectory that brings the gripper to a drawer handle and goes around a vase, and a language model cannot write the motion as text.",
+   "contribution": "GPT-4 writes code as in Code as Policies, but this code fills a 100 × 100 × 100 voxel grid with attraction and avoidance maps from the answers of vision models, while a classical planner builds the path over the maps and recomputes it 5 times a second. No part is trained for the task: on a Franka without disturbances, 88% of attempts succeeded."
+  },
+  {
+   "id": "bridge",
+   "title": "BridgeData V2",
+   "org": "Berkeley",
+   "problem": "RoboNet’s random motions give no skills, and demonstrations of one task in one room do not transfer to others.",
+   "contribution": "60 thousand trajectories on a cheap $4,000 WidowX: 13 skills in 24 environments, cameras moved every 50 recordings, tasks labelled in words. The set became the standard test for Octo, OpenVLA and Open X-Embodiment."
+  },
+  {
+   "id": "mimicgen",
+   "title": "MimicGen",
+   "org": "NVIDIA",
+   "problem": "Reinforcement learning, as in Dactyl, needs a reward and years of experience, while demonstrations are recorded by an operator and must be re-recorded for every new arrangement of objects.",
+   "contribution": "The source demonstrations are cut into segments by subtask, in a new arrangement the segments are moved together with the objects, and the simulator keeps a trajectory only if the task is completed. About 200 human demonstrations turned into more than 50 thousand for 18 tasks: on the Square task, success rose from 11.3% to 90.7%. Its successor DexMimicGen gave GR00T N1 780 thousand trajectories in 11 hours."
+  },
+  {
+   "id": "oxe",
+   "title": "Open X-Embodiment",
+   "org": "21 institutions, Google DeepMind",
+   "problem": "Most labs have their own robot and thousands of recordings, while large models are trained on one fleet of robots.",
+   "contribution": "60 datasets from 34 labs brought into a common format: more than a million trajectories from 22 robots. RT-1-X and RT-2-X trained on the mix beat models trained on one robot’s data; the dataset is open, and Octo, OpenVLA and π0 learn from it."
+  },
+  {
+   "id": "mobile-aloha",
+   "title": "Mobile ALOHA",
+   "org": "Stanford",
+   "problem": "The bimanual ALOHA stands on a table, while household tasks require driving around the kitchen and opening cabinets: teleoperation has to be done with the whole body, and recordings are expensive.",
+   "contribution": "Two ALOHA arms on a wheeled base: the operator is strapped to the base with a belt, drives the robot’s arms with the leader arms and pushes the base, while ACT outputs 14 target arm angles and two base velocities as one chunk. With 50 demonstrations per task and co-training on old ALOHA recordings, the robot called a lift in 95% of attempts, and without co-training it never succeeded."
+  },
+  {
+   "id": "ok-robot",
+   "title": "OK-Robot",
+   "org": "NYU, Meta",
+   "problem": "The command “take A and put it in B” has to be carried out in homes the robot has never been in, without collecting data there and without fine-tuning anything.",
+   "contribution": "A system of ready-made open models and classical modules without a single step of fine-tuning: OWL-ViT and Segment Anything find the objects, CLIP places them in a voxel map with 5 cm cells, A* searches the base path, AnyGrasp proposes grasp poses, and a simple state machine ties it all together. In ten unfamiliar homes 58.5% of 171 attempts succeeded, and 82.4% after clutter was removed: the networks answer “what and where”, the classics answer “how to get there”."
+  },
+  {
+   "id": "genie-cosmos",
+   "title": "Genie and Cosmos",
+   "org": "Google DeepMind, NVIDIA",
+   "problem": "Dreamer predicts the latent state of one game, while what is needed is a model that, from internet video, predicts how any scene will look after an action.",
+   "contribution": "Genie (2024) is trained on 200 thousand hours of game video without action labels: it learned latent actions by itself and creates a controllable world frame by frame from a single image. Cosmos (2025) is NVIDIA’s open family of video world models pre-trained on 20 million hours of video; they are fine-tuned for robots and used to generate data and evaluate policies."
+  },
+  {
+   "id": "umi",
+   "title": "UMI",
+   "org": "Stanford, Columbia, TRI",
+   "problem": "A robot is expensive and heavy and is not carried around other people’s flats, so data is recorded in a few labs and in the same scenes.",
+   "contribution": "A hand-held gripper with a GoPro camera: the parts cost $73, recording works anywhere, actions are stored relative to the current gripper pose, and trajectories the robot cannot reach are filtered out by its kinematics. Three people recorded 1,400 demonstrations in 30 places in 12 person-hours, and a Diffusion Policy trained on them succeeded in 71.7% of attempts in two new places, while a policy trained on data from one lab never did."
+  },
+  {
+   "id": "droid",
+   "title": "DROID",
+   "org": "Stanford, Berkeley et al.",
+   "problem": "Bridge was collected at one institution in seven toy kitchens: too little scene diversity for generalisation.",
+   "contribution": "The same Franka-on-a-cart setup replicated 18 times at 13 institutions: 76 thousand trajectories in 564 scenes and 52 buildings, 86 tasks. Adding DROID during fine-tuning makes a policy more robust to new scenes."
+  },
+  {
+   "id": "h2o",
+   "title": "H2O",
+   "org": "CMU",
+   "problem": "A humanoid has to reproduce human motion with its whole body in real time, while many human recordings are beyond the robot’s abilities.",
+   "contribution": "A privileged imitator in the simulator selects feasible motions from human recordings, then the policy learns to reproduce them from eight key points of the body. Whole-body teleoperation of a humanoid from one RGB camera, transferred to the robot without fine-tuning."
+  },
+  {
+   "id": "octo",
+   "title": "Octo",
+   "org": "Berkeley, Stanford, CMU, Google DeepMind",
+   "problem": "The best model on Open X-Embodiment, RT-2-X, is closed: it cannot be fine-tuned for your own arm with different cameras, sensors and actions.",
+   "contribution": "An open 93-million-parameter transformer with a diffusion action head, as in Diffusion Policy, trained on 800 thousand episodes from 25 Open X-Embodiment datasets. Fine-tuning on a hundred demonstrations takes about five hours on one GPU: the fine-tuned Octo completes 72% of attempts against 20% for a policy trained from scratch."
+  },
+  {
+   "id": "humanplus",
+   "title": "HumanPlus",
+   "org": "Stanford",
+   "problem": "A task with soft objects and realistic images cannot be learned in a simulator, so data must be collected on a real humanoid, and whole-body teleoperation is expensive.",
+   "contribution": "The first complete path from data collection to autonomous tasks: the whole-body tracker HST is trained with reinforcement learning in a simulator on 40 hours of human motion recordings from AMASS and transfers to the robot without fine-tuning, the operator is filmed by an ordinary $50 webcam, and the upper level HIT, an ACT without the encoder, outputs target poses to the tracker 25 times a second from 40 demonstrations. The robot put on a shoe, stood up and walked in 6 attempts out of 10."
+  },
+  {
+   "id": "openvla",
+   "title": "OpenVLA",
+   "org": "Stanford, Berkeley et al.",
+   "problem": "The weights of RT-2-X are closed, and it cannot be fine-tuned for your own arm and camera.",
+   "contribution": "An open 7-billion-parameter VLA: Llama 2 with a dual vision encoder, trained on 970 thousand episodes of Open X-Embodiment; the action is seven bin tokens. On the Bridge tests it beats RT-2-X, fine-tunes with LoRA on one GPU and runs with int4 quantization."
+  },
+  {
+   "id": "paligemma",
+   "title": "PaliGemma",
+   "org": "Google",
+   "problem": "A VLA needs a small open VLM that can be fine-tuned on robot data.",
+   "contribution": "An open 3-billion-parameter VLM: the SigLIP encoder, a projector and the Gemma 2B language model. π0 and π0.5 are built on it."
+  },
+  {
+   "id": "hil-serl",
+   "title": "HIL-SERL",
+   "org": "Berkeley",
+   "problem": "A policy trained from demonstrations is never better than the operator, and RL on a real robot was considered too slow.",
+   "contribution": "Off-policy RL right on the robot: demonstrations in the buffer, a person takes over control on mistakes, and after 1–2.5 hours of training the policy reaches almost 100% success. It runs 1.8 times faster than imitation trained on the same data."
+  },
+  {
+   "id": "pi0",
+   "title": "π0",
+   "org": "Physical Intelligence",
+   "problem": "OpenVLA outputs the action in words about six times a second, while folding laundry needs smooth commands 50 times a second.",
+   "contribution": "An action expert with 300 million parameters is added to the PaliGemma VLM; in ten flow matching steps it outputs a chunk of 50 continuous actions. The model is pre-trained on 10 thousand hours of recordings from seven robots and, after fine-tuning, folds laundry and assembles boxes."
+  },
+  {
+   "id": "helix",
+   "title": "Helix",
+   "org": "Figure",
+   "problem": "A humanoid needs 35 degrees of freedom driven 200 times a second, while a large VLM manages to look at the scene 7–9 times.",
+   "contribution": "Two systems: a 7-billion-parameter VLM compresses the scene and the command into one vector 7–9 times a second, and a fast 80-million-parameter policy drives the arms, fingers, torso and head from it 200 times a second. Both run on board as separate processes."
+  },
+  {
+   "id": "agibot",
+   "title": "AgiBot World",
+   "org": "AgiBot",
+   "problem": "DROID has a single-arm setup and no human check of recording quality, while models need a larger and cleaner set.",
+   "contribution": "More than 100 identical bimanual AgiBot G1 robots recorded 1,001,552 trajectories: 2,976 hours over 217 tasks in 106 scenes, every recording is checked by annotators, and attempts with a corrected mistake are labelled rather than discarded. The same open RDT model, pre-trained on AgiBot World, completes a larger share of the task than after Open X-Embodiment: 0.77 against 0.47 in familiar conditions."
+  },
+  {
+   "id": "groot",
+   "title": "GR00T N1",
+   "org": "NVIDIA",
+   "problem": "All that is known about Helix is what Figure wrote, and there was no open two-level model for humanoids with a paper, weights and data.",
+   "contribution": "An open 2.2-billion-parameter model: the slow system is the Eagle-2 VLM, which looks at the scene 10 times a second; the fast one is a diffusion transformer that builds a chunk of 16 actions in four flow matching steps, as in π0, for control 120 times a second. Trained on a data pyramid of robot recordings, DexMimicGen synthetic data and human videos; on a real GR-1 it completes 76.8% of attempts against 46.4% for Diffusion Policy."
+  },
+  {
+   "id": "gemini",
+   "title": "Gemini Robotics",
+   "org": "Google DeepMind",
+   "problem": "A VLM that reasons about the physical world does not fit on board the robot and answers in seconds, while the robot needs a chunk of actions within a fraction of a second.",
+   "contribution": "A vision-language-action model built on Gemini 2.0 is split in two: the backbone, a distilled version of Gemini Robotics-ER, runs in the cloud, and the action decoder runs on the robot’s onboard computer, so the path from a frame to an action chunk takes about 250 ms at an effective control rate of 50 Hz. Trained on thousands of hours of ALOHA 2 recordings; it performs half of 20 tasks in more than 80% of attempts."
+  },
+  {
+   "id": "pi05",
+   "title": "π0.5",
+   "org": "Physical Intelligence",
+   "problem": "π0 folded laundry after fine-tuning on recordings of that task, while someone else’s home has different dishes, furniture and light.",
+   "contribution": "Training on a mix of very different data: recordings of mobile robots in a hundred homes make up only 2.4% of the examples, the rest is other robots, subtasks in words, object boxes and internet data. The model predicts the next subtask itself, then the actions, and cleans kitchens and bedrooms in homes it has never seen."
+  },
+  {
+   "id": "twist",
+   "title": "TWIST",
+   "org": "Stanford",
+   "problem": "To collect data for whole-body tasks, the operator must drive all the humanoid’s joints, including the legs, not only the arms.",
+   "contribution": "Whole-body teleoperation: an OptiTrack motion capture system films the operator 120 times a second, and the tracker reproduces the human pose in every joint, including the legs. The latency was about 0.9 s, and the G1 motors overheated after 5–10 minutes; TWIST2 cut the latency to 0.1 s and collected 98 episodes in 18.5 minutes."
+  },
+  {
+   "id": "vjepa2",
+   "title": "V-JEPA 2",
+   "org": "Meta",
+   "problem": "A world model for a robot has to be trained on its recordings, and there are few of them compared with internet video.",
+   "contribution": "The encoder is pre-trained on a million hours of video without labels, then the dynamics model is fine-tuned on 62 hours of DROID recordings. Planning in latent space transfers pick-and-place tasks to a Franka arm in a new lab without fine-tuning."
+  },
+  {
+   "id": "pi07",
+   "title": "π0.7",
+   "org": "Physical Intelligence",
+   "problem": "Training on heterogeneous data averages different styles, and there was no way to steer the model while it works.",
+   "contribution": "Besides the command, the input carries context: the subtask, subgoal images, speed, a quality rating, whether there was an error. The 5-billion-parameter model inherits the skills of the π*0.6 RL specialists, assembles familiar skills into new tasks and folds laundry on a bimanual UR5e without recordings of that task: 80% success."
+  },
+  {
+   "id": "levine16",
+   "title": "End-to-end visuomotor policy",
+   "short": "End-to-end",
+   "org": "UC Berkeley",
+   "problem": "A pipeline of separate modules — pose estimation, planning, control — loses accuracy at every interface, and in a task with millimetre tolerance a centimetre of error at an interface ruins everything.",
+   "contribution": "A single convolutional network takes the camera frame and the arm state and outputs motor torques. It is trained as a whole, from pixels to actions: the network learns to imitate local controllers found by trajectory optimization (guided policy search). The robot inserted a block into a shape sorter in 96% of attempts, while the modular version with separate pose estimation never succeeded."
+  }
+ ]
+}

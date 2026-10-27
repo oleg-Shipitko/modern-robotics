@@ -441,6 +441,11 @@ def build(key):
                             '<a class="topbar-gl" href="glossariy.html">Глоссарий</a>') + '\n    <button class="theme-btn"', 1)
         html = html.replace('</footer>', ('  <p class="foot-gl"><a href="glossariy.html">Course glossary</a> — terms with definitions and links to the lessons.</p>\n' if EN else
                             '  <p class="foot-gl"><a href="glossariy.html">Глоссарий курса</a> — термины с определениями и ссылками на уроки.</p>\n') + '</footer>', 1)
+    # «Карта идей» (site/karta-idey.src.html): ссылка рядом с глоссарием в верхней панели и в подвале, на всех страницах курса
+    html = html.replace('<button class="theme-btn"', ('<a class="topbar-gl topbar-map" href="../karta-idey.html">Ideas map</a>' if EN else
+                        '<a class="topbar-gl topbar-map" href="../karta-idey.html">Карта идей</a>') + '\n    <button class="theme-btn"', 1)
+    html = html.replace('</footer>', ('  <p class="foot-gl"><a href="../karta-idey.html">Ideas map</a> — the key works of the course on a timeline: the problem each one solved and what it grew out of.</p>\n' if EN else
+                        '  <p class="foot-gl"><a href="../karta-idey.html">Карта идей</a> — основные работы курса на оси времени: какую проблему решала каждая и из чего выросла.</p>\n') + '</footer>', 1)
     # переключатель языка — рядом с кнопкой темы
     html = html.replace('<button class="theme-btn"', lang_switch(key, name) + '\n    <button class="theme-btn"', 1)
     # политика конфиденциальности — в подвале каждой страницы курса (внутри /en/ ссылка ведёт на английскую)
