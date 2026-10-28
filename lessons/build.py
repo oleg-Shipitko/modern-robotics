@@ -141,6 +141,24 @@ LESSONS = {
     'l66': ('6-6-obzor-platform.html', ['l01/lesson.css', 'shared/lab.css', 'l66/l66.css'], {
         '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'shared/ada-legs.js', 'l66/engine.js', 'shared/stats-chart.js', 'l66/ui-l66.js'],
     }),
+    'l71': ('7-1-world-models-dreamer.html', ['l01/lesson.css', 'shared/lab.css', 'l71/l71.css'], {
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'shared/ada-legs.js', 'shared/stats-chart.js', 'l71/engine.js', 'l71/ui-l71.js'],
+    }),
+    'l72': ('7-2-jepa-v-jepa-2.html', ['l01/lesson.css', 'shared/lab.css', 'l72/l72.css'], {
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'shared/ada-legs.js', 'shared/stats-chart.js', 'l71/engine.js', 'l72/engine.js', 'l72/ui-l72.js'],
+    }),
+    'l73': ('7-3-generativnye-modeli-mira.html', ['l01/lesson.css', 'shared/lab.css', 'l73/l73.css'], {
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'shared/ada-legs.js', 'shared/stats-chart.js', 'l71/engine.js', 'l73/engine.js', 'l73/ui-l73.js'],
+    }),
+    'l74': ('7-4-world-action-models.html', ['l01/lesson.css', 'shared/lab.css', 'l74/l74.css'], {
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'shared/ada-legs.js', 'shared/stats-chart.js', 'l71/engine.js', 'l74/engine.js', 'l74/ui-l74.js'],
+    }),
+    'l75': ('7-5-proverka-i-generatsiya-dannykh.html', ['l01/lesson.css', 'shared/lab.css', 'l75/l75.css'], {
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'shared/ada-legs.js', 'shared/stats-chart.js', 'l71/engine.js', 'l75/engine.js', 'l75/ui-l75.js'],
+    }),
+    'c7': ('proverka-chasti-7.html', ['l01/lesson.css', 'shared/lab.css', 'shared/check.css', 'c7/c7.css'], {
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/ada-legs.js', 'l71/engine.js', 'shared/check.js', 'c7/ui-c7.js'],
+    }),
     'l81': ('8-1-klassika-v-konture.html', ['l01/lesson.css', 'shared/lab.css', 'l81/l81.css'], {
         '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'shared/arm-core.js', 'l81/engine.js', 'l81/ui-l81.js'],
     }),
