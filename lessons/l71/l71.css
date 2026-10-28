@@ -67,7 +67,9 @@ details.lab-legend summary { cursor: pointer; color: var(--ink-2); font-weight: 
 .hl-dots button.sel { outline: 2px solid var(--ink); outline-offset: 1px; }
 .hl-pol { margin-top: 10px; font-size: 14.5px; color: var(--ink-2); line-height: 1.5; min-height: 22px; }
 .hl-pol b { color: var(--ink); font-family: var(--mono); font-size: 13.5px; }
-.hl-nights { margin-top: 10px; overflow-x: auto; }
+.hl-nights { margin-top: 10px; overflow-x: auto; max-width: 100%; }
+/* карточки лабораторий не растягиваются по содержимому: на телефоне таблица ночей прокручивается внутри своей рамки */
+.lab > .card { min-width: 0; }
 .hl-nights table { width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.35; }
 .hl-nights th, .hl-nights td { text-align: left; padding: 5px 6px; border-top: 1px solid var(--line); vertical-align: top; }
 .hl-nights thead th { border-top: 0; color: var(--ink-3); font-weight: 650; font-size: 12.5px; }

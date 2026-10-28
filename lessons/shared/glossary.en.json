@@ -1808,7 +1808,46 @@
  {
   "id": "world-model",
   "t": "World model",
-  "d": "A model that, given the current frame and an action or a request, predicts what the world will look like next. 1X trains such a model on human video and NEO recordings and turns the predicted video into robot actions with an inverse dynamics model. World models are covered in detail in Part 7.",
-  "a": "world models?"
+  "d": "A learned model that, given a state or a frame and an action, predicts what will happen next. It's learned from recordings and knows only what was in them. World models are used for planning (PlaNet, MuZero) and for training a policy on rollouts in their imagination (World Models, Dreamer); 1X trains a video world model on human video and NEO recordings.",
+  "a": "world models?",
+  "before": {
+   "d": "A model that, given the current frame and an action or a request, predicts what the world will look like next. 1X trains such a model on human video and NEO recordings and turns the predicted video into robot actions with an inverse dynamics model. World models are covered in detail in Part 7."
+  }
+ },
+ {
+  "id": "model-free",
+  "t": "Model-free RL",
+  "d": "Reinforcement learning methods that learn only from what the robot actually did and don't predict what will happen after an action: DQN, PPO, SAC. They need many real steps: on DeepMind Control, the best of them, D4PG, trained for 10⁸ steps.",
+  "a": "model-free (?:methods?|RL|reinforcement learning)"
+ },
+ {
+  "id": "imagination-rollout",
+  "t": "Imagination rollout",
+  "d": "A chain of world model predictions: at each step, the model gets its own prediction rather than a real frame, and a policy is trained on such rollouts. The model's error accumulates with the length of the rollout, so MBPO keeps rollouts short and starts them from real states.",
+  "a": "imagination rollouts?|imagined rollouts?|rollouts? in imagination|(?:the )?model's imagination|imagination of the model"
+ },
+ {
+  "id": "model-exploitation",
+  "t": "Model exploitation",
+  "d": "A loophole in the model: behavior that looks good in the imagination of a world model and fails in the real environment. The policy goes where the model is wrong in its favor, usually where there were no recordings. The controller of Ha and Schmidhuber found movements under which the monsters in imagination never fired.",
+  "a": "model exploitation|loopholes? in (?:the |a |its )?(?:world )?model"
+ },
+ {
+  "id": "latent-state",
+  "t": "Latent state",
+  "d": "What a world model keeps about the world between steps: a vector updated with each action and each new frame. In PlaNet and Dreamer, it holds the memory of a recurrent network and a random part; MuZero and TD-MPC2 don't require the frame to be reconstructable from it.",
+  "a": "latent states?"
+ },
+ {
+  "id": "rssm",
+  "t": "RSSM",
+  "d": "The world model of PlaNet and Dreamer: a latent state made of the deterministic memory of a recurrent network and a random part. At each step, the model predicts the state without a frame and corrects it using the frame, like a Kalman filter; in imagination, the rollout runs on predictions alone.",
+  "a": "RSSM|recurrent state-space models?"
+ },
+ {
+  "id": "lambda-return",
+  "t": "λ-return",
+  "d": "The target toward which Dreamer's critic pulls the value: a weighted average of estimates, in each of which the rewards for k imagined steps are summed first and then the value from the critic is added. This is how the agent looks beyond the horizon of a rollout in imagination.",
+  "a": "λ-returns?|lambda-returns?"
  }
 ]

@@ -414,7 +414,7 @@ const Dream = (() => {
     const narrow = gcv.getBoundingClientRect().width < 520, Wl = narrow ? 360 : 640, Hl = narrow ? 170 : 190;
     const { c, k } = HeroKit.fit(gcv, Wl, Hl), r = st.res, css = HeroKit.css;
     c.clearRect(0, 0, Wl, Hl);
-    const x0 = narrow ? 34 : 40, x1 = Wl - 12, y0 = 14, y1 = Hl - 26;
+    const x0 = narrow ? 34 : 40, x1 = Wl - 12, y0 = 24, y1 = Hl - 26;   // над верхней цифрой оси — место для подписи «см»
     let ym = 6; if (r) { for (let q = 0; q <= T; q++) ym = Math.max(ym, r.err[q], r.spread[q]); ym = Math.min(24, Math.ceil(ym / 2) * 2); }
     const X = (q) => x0 + (x1 - x0) * q / T, Y = (v) => y1 - (y1 - y0) * Math.min(v, ym) / ym;
     c.strokeStyle = css('--line'); c.lineWidth = 1;
@@ -422,7 +422,7 @@ const Dream = (() => {
     for (let v = 0; v <= ym; v += dy) { c.beginPath(); c.moveTo(x0, Y(v)); c.lineTo(x1, Y(v)); c.stroke(); HeroKit.label(c, k, fmt(v), x0 - 6, Y(v), { px: 10, color: css('--ink-3'), halo: false, align: 'right', mono: true }); }
     for (let q = 0; q <= T; q += 10) HeroKit.label(c, k, String(q), X(q), y1 + 11, { px: 10, color: css('--ink-3'), halo: false, mono: true });
     HeroKit.label(c, k, 'шаг', x1 - 16, y1 + 11, { px: 10, color: css('--ink-3'), halo: false, align: 'right' });
-    HeroKit.label(c, k, 'см', x0 - 6, y0 - 6, { px: 10, color: css('--ink-3'), halo: false, align: 'right' });
+    HeroKit.label(c, k, 'см', x0 - 6, y0 - 14, { px: 10, color: css('--ink-3'), halo: false, align: 'right' });
     c.strokeStyle = css('--ink-3'); c.setLineDash([3, 3]); c.beginPath(); c.moveTo(X(10), y0); c.lineTo(X(10), y1); c.stroke(); c.setLineDash([]);
     c.strokeStyle = css('--ink-3'); c.lineWidth = 1.2; c.beginPath(); c.moveTo(x0, Y(3)); c.lineTo(x1, Y(3)); c.stroke();
     HeroKit.label(c, k, '3 см', x1 - 2, Y(3) - 8, { px: 10, color: css('--ink-3'), halo: false, align: 'right' });
@@ -703,7 +703,7 @@ const HolesLab = (() => {
       ],
       summary: (r) => `τ = ${r.tau}, штраф ${r.lam}: толчок ${fmt(r.theta[0], 2)} м/с, воображение ${r.imagPct}%, стол ${r.realPct}%`,
       fail: (r) => r.spent > 0 ? '<b>В данных модели уже есть настоящие попытки.</b> Нажми «Вернуться к первому утру», чтобы искать без них.' : `<b>На столе ${r.realPct}%.</b> Толчок ${fmt(r.theta[0], 2)} м/с. ${r.lam ? 'Штраф ещё мал.' : 'Без штрафа политика в воображении не боится незнакомых скоростей.'}`,
-      explain: (r) => `При штрафе ${r.lam} политика держится там, где пять сетей согласны, то есть там, где были записи: толчок ${fmt(r.theta[0], 2)} м/с, и на столе ${r.realPct}% без единой настоящей попытки. Так защищаются MBPO и TD-MPC2. Но разброс ансамбля замечает незнакомые скорости, а не само опрокидывание: штраф лишь удерживает политику рядом с записями и платит за это временем.` },
+      explain: (r) => `При штрафе ${r.lam} политика держится там, где пять сетей согласны, то есть там, где были записи: толчок ${fmt(r.theta[0], 2)} м/с, и на столе ${r.realPct}% без единой настоящей попытки. MBPO защищается от лазеек ансамблем и короткими прогонами от настоящих состояний, а штраф за разброс ансамбля авторы TD-MPC2 предлагают для обучения только по готовым данным, как offline RL урока 5.6. Но разброс ансамбля замечает незнакомые скорости, а не само опрокидывание: штраф лишь удерживает политику рядом с записями и платит за это временем.` },
   ];
   function init() {
     const ctl = mountMissions('#hMis', missions, { reset() { H.back(); }, state: H.state }, { controls: { where: '#wrapHWhere', tau: '#wrapHTau', lam: '#wrapHLam', back: '#hBack' }, scene: '.hl-pair' });

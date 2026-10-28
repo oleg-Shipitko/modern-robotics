@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>7.1 World Models and Dreamer — Modern Robotics and Physical AI</title>
+<meta name="description" content="Lesson 7.1 of the “Modern Robotics and Physical AI” course: a world model learns from recordings, and a policy learns in the model's imagination. World Models by Ha and Schmidhuber, PlaNet, Dreamer, DreamerV2 and V3, MBPO, DayDreamer on real robots, MuZero and TD-MPC2, Dreamer 4. Draw a push and compare the model's imagination with Ada's real table, train a policy in imagination, find where the model misled it and decide where to gather a little real experience.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<script>
+  (function () { try { var t = localStorage.getItem('mr-theme'); if (t) document.documentElement.dataset.theme = t; else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme = 'dark'; } catch (e) {} })();
+</script>
+<style>
+/*@@CSS@@*/
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html#program" title="To the course program"><div>Modern Robotics and Physical AI<small>Lesson 7.1 · World Models and Dreamer</small></div></a>
+    <nav class="toc" aria-label="Lesson sections">
+      <a href="#why">Experience</a>
+      <a href="#vmc">V, M and C</a>
+      <a href="#dream">Imagination</a>
+      <a href="#cheat">Loopholes</a>
+      <a href="#holes">Policy</a>
+      <a href="#rssm">Dreamer</a>
+      <a href="#robots">Robots</a>
+      <a href="#lines">MuZero</a>
+      <a href="#today">Today</a>
+      <a href="#quiz">Quiz</a>
+      <a href="#finale">Takeaways</a>
+    </nav>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Toggle theme">◐</button>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main>
+
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="kicker"><span class="num">7.1</span> Part 7 · World models</div>
+    <h1>World Models and Dreamer: <span class="amp">how to train a policy in the imagination of a learned world model</span></h1>
+    <p class="lead">In lesson 6.6, the platforms differed in experience: Figure, Agility, AgiBot and Tesla gather it with thousands of hours of human recordings and robot work, which is expensive and slow. Ada has also paid for every skill: the walking policy of lesson 6.1 trained for half an hour on 512 copies in a simulator, and on a real robot every attempt costs minutes of a person's work nearby (lesson 5.7). If you learn from recordings what happens after an action, you can try things out in the imagination of such a model and spend real experience on training and correcting it. In 2018, Ha and Schmidhuber trained an agent to play VizDoom this way; later, PlaNet and Dreamer needed 20–200 times fewer real steps on the same tasks than the best methods that learn only from real steps, and DayDreamer taught a real four-legged robot to walk without a simulator in about an hour. But a policy that learns in imagination finds places where the model is wrong in its favor. In this lesson, Ada learns at night: while charging, she replays the day's recordings, trains a world model on them and practices a skill in its imagination, and in the morning she checks it on the real table.</p>
+    <div class="hero-meta"><span>≈ 60 minutes</span><span>2 labs, 2 diagrams, charts and a quiz</span><span id="heroMis">missions with a goal</span></div>
+    <div class="hero-list">
+      <div><b>IMAGINATION AND THE REAL TABLE</b>Draw a push of the hand on Ada's table and compare where the cup actually goes and where the model learned from the day's recordings takes it</div>
+      <div><b>A SKILL FROM IMAGINATION</b>Train the skill “push the cup to the saucer” only in the model's imagination and check it on the real table</div>
+      <div><b>WHERE TO GET EXPERIENCE</b>Decide where Ada should make a few real attempts so that the model stops promising what never happens on the table</div>
+      <div><b>FROM THE PAPERS</b>Look at the numbers of World Models, Dreamer, DreamerV3, DayDreamer and Dreamer 4: scores in imagination and in the game, environment steps, minutes on the robot</div>
+    </div>
+    <p style="margin-top:28px"><a class="btn primary" href="#why">Start the lesson ↓</a></p>
+  </div>
+</section>
+
+<section class="recall-sec" id="recall" aria-label="Warm-up on the previous lesson">
+  <div class="wrap"><div class="card recall" data-recall></div></div>
+  <script type="application/json" id="recallData">{"n": "6.6", "title": "A survey of humanoid platforms", "href": "6-6-obzor-platform.html", "q": [
+ {"q": "Why is a push to a humanoid's torso caught by the lower level and not by the model that understands the task?", "o": ["The upper-level model doesn't see the robot's body", "The upper-level model responds a few times a second, while balance has to be kept many times a second, so at Figure, Digit, NEO and Atlas it's kept by a trained whole-body controller", "The actuators absorb the push themselves, without a controller"], "a": 1, "e": "In Figure 03, the push is caught by S0, a network with 10 million parameters that sends commands to the actuators 1,000 times a second; in Digit, by the motor cortex trained in simulation; in Atlas in 2026, by a whole-body controller trained with reinforcement learning. The upper-level model decides what to do.", "sec": "control", "secTitle": "Control: which levels are trained and which were written by people"},
+ {"q": "Atlas learns stunts from motion capture and human video, and Figure pre-trains Helix 2.5 on human recordings from Index. What's the difference?", "o": ["There's none: both companies teach tasks from human recordings", "Human motion teaches the lower level to move, while recordings of people working with their hands teach the model tasks", "Atlas learns tasks from human recordings, and Figure learns only walking"], "a": 1, "e": "The ZEST policies on Atlas repeat recorded motions, like the trackers of lesson 6.3, and Atlas is taught tasks through teleoperation. Figure, Tesla, AgiBot and 1X train upper-level models on human video, because a teleoperator records one hour for every hour of their own work.", "sec": "data", "secTitle": "Data: teleoperation, human recordings, simulation and work"},
+ {"q": "A company showed humanoids serving drinks to guests. What can you tell from this?", "o": ["That the robots can do it on their own", "The body and how it moves; what the robot can do on its own you can tell only from the company's statements about who was controlling it", "That the robots' model runs in the cloud"], "a": 1, "e": "At the We, Robot show in 2024, according to a Tesla vice president, the Optimus robots were assisted by people to some extent. 1X writes openly that an operator guides NEO through unfamiliar work, and AgiBot that its boxing show was run by teleoperation.", "sec": "work", "secTitle": "Where they work: factory, warehouse, home and show"}
+]}</script>
+</section>
+
+<section class="section alt" id="why">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">1</span> Experience</div>
+      <h2>Experience is expensive: learning from attempts or from a world model</h2>
+      <p>Every skill Ada has in Parts 5 and 6 is paid for with experience. PPO in lesson 5.2 collected millions of steps, the walking policy of lesson 6.1 trained on 512 copies of Ada in a simulator, and in lesson 5.7 a person stood next to the robot and corrected it in every attempt. All the methods of these parts learn only from what the robot actually did: DQN, PPO and SAC don't try to predict what will happen after an action. These are called <strong>model-free methods</strong>.</p>
+      <p class="ada-note"><svg class="ada-ico" viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="10" width="48" height="42" rx="18" fill="#f4efe6" stroke="#3d3c38" stroke-width="3"/><rect x="15" y="19" width="34" height="22" rx="10" fill="#1f2430"/><ellipse cx="25" cy="30" rx="4" ry="5.5" fill="#eb6834"/><ellipse cx="39" cy="30" rx="4" ry="5.5" fill="#eb6834"/></svg><span>Ada is the course's home humanoid; since lesson 6.1, she has legs instead of a wheeled base. More about her and her home in <a href="0-1-dve-paradigmy.html#ada">lesson 0.1</a>.</span></p>
+      <p>Lesson 5.1 had another path too. Value iteration found the best actions for all the cells of the apartment at once, but it needed an exact model of the environment: where each action leads and what reward it gives. A robot doesn't know such a model, but the model can be learned from recordings. A <strong>world model</strong> is a learned model that, given a state or a frame and an action, predicts what will happen next. With such a model, a policy can be trained on attempts in its imagination. Step by step, the model predicts what will happen after each action, and the next step is built from its prediction rather than from a real frame; such a chain of predictions is called an <strong>imagination rollout</strong>. Real experience is then needed to train and correct the model. Reinforcement learning set up this way is called <strong>model-based RL</strong>.</p>
+      <p>A world model differs from the models people write. The physics simulator of lesson 4.5 computes the laws of mechanics that engineers put into it. The actuator model in lesson 0.2 and the delta model in lesson 6.3 were already learned from recordings, but they only corrected a simulator: the first reproduced a real actuator, the second the difference between the simulator and the robot. A world model is learned from recordings entirely, so it knows only what was in the recordings.</p>
+      <p>Ada will try to learn a new skill this way. During the day, the operator carefully moved a cup across the kitchen table with her hand, and Ada recorded how the cup moved after each push. In the evening, Ada steps onto the charging station on her own, like Digit in lessons 6.5 and 6.6, and works with the recordings while she charges.</p>
+    </div>
+    <div class="card night-card">
+      <canvas id="nightCv" width="240" height="250" role="img" aria-label="At night, Ada stands on the charging station, her face screen is dark, her eyes are closed, and a charge bar glows on the station's post"></canvas>
+      <ul>
+        <li><b>The day's recordings.</b> 60 recordings of 3 seconds each. The operator pushed the cup slowly and kept it away from the table's edge, so not a single cup tipped over or fell.</li>
+        <li><b>Night.</b> Ada trains a world model on the recordings and then practices the skill “push the cup to the saucer” only in the imagination of this model.</li>
+        <li><b>Morning.</b> The skill is checked on the real table. Only here can you see where imagination misled Ada.</li>
+      </ul>
+    </div>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>In 2018, Ha and Schmidhuber showed that an agent can be trained to play entirely in the imagination of a model learned from game frames. Let's start with their model: how is it built?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="vmc">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">2</span> World Models</div>
+      <h2>World Models: V compresses the frame, M predicts, C chooses the action</h2>
+      <p>In CarRacing, a racing game from the Gym task set, the agent sees the track from above as a 64 × 64 pixel frame and acts with steering, gas and brake. A network that outputs an action straight from such frames learns slowly: it has many weights, and the reward tells it about the quality of driving only as a whole. Ha and Schmidhuber split the agent into three parts, gave almost all the complexity to the world model and kept the controller that chooses the action tiny.</p>
+      <ul>
+        <li><strong>V</strong> compresses the frame into a vector z, in CarRacing into 32 numbers. It's a <strong>variational autoencoder</strong> (VAE): for a frame, the encoder outputs not a single point but a distribution, that is, a mean and a spread, and the decoder learns to reconstruct the frame from numbers drawn from this distribution. We met a conditional version of such a network, the CVAE, in ACT in lesson 1.7.</li>
+        <li><strong>M</strong> is an LSTM recurrent network with 256 neurons. From z, the action and its memory h, it predicts what z will be at the next step. It predicts not a single value but a mixture of Gaussians, as in lesson 1.3, so it can describe several possible futures. How much randomness to take from this mixture when sampling is set by the <strong>model temperature</strong> τ.</li>
+        <li><strong>C</strong> is a linear controller: the action is obtained by multiplying z and h by a weight matrix. It has only 867 parameters, and they're tuned by the CMA-ES evolution strategy: a population of 64 variants, each one drives the track 16 times, and the next generation is built around the best ones. This is also a population search, like ARS in lesson 6.1.</li>
+      </ul>
+      <p>V and M learn without rewards, from 10,000 runs with random actions, and only C knows about the reward. The diagram shows how the three parts work together on the real track and in the model's imagination.</p>
+    </div>
+    <figure class="card flow-card">
+      <canvas data-anim="vmc" width="720" height="380" role="img" aria-label="Diagram of the World Models agent: a game frame passes through V and becomes a vector z, M's memory and z go to the controller C, and the action returns to the game; in imagination, the next z is predicted by M, and V isn't needed"></canvas>
+      <figcaption class="muted-s">The World Models agent on the real track and in the model's imagination. Blue and solid arrows show what comes from the real game: a frame, an action, a new frame. Orange and dashed show what the model M imagines. In the real game, the frame passes through V, and the vector z and the memory h go to C. In imagination there are no frames: M itself predicts the next z from z and the action, and V isn't needed; the decoder draws the imagined frame only so that you can look at it. The two halves of the cycle alternate; the rhythm is schematic. Click the diagram to pause it.</figcaption>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>In CarRacing, the task counts as solved if the average score over 100 runs is at least 900. None of the agents on the Gym leaderboard had reached this threshold, and the authors compared their agent with them and with stripped-down versions of itself.</p>
+    </div>
+    <figure class="card stat-fig" aria-label="Chart: average CarRacing score of DQN, A3C, the Gym leaderboard leader and three variants of the World Models agent">
+      <figcaption class="stat-h">CarRacing: average score over 100 runs (solved at 900)</figcaption>
+      <div class="stat-grid"><div id="carBars"></div></div>
+      <p class="stat-cap">DQN, 343; A3C with continuous actions, 591; A3C with discrete actions, 652; the best result on the Gym leaderboard, 838. The World Models agent whose C sees only z scores 632, with an extra hidden layer in C 788, and with the memory of M 906. Source: D. Ha and J. Schmidhuber, “World Models”, Table 1, arXiv 1803.10122, March 27, 2018.</p>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>The task was solved only with the memory of M: without it, the car wobbles, because a single frame doesn't show where it's heading. In CarRacing, though, the controller learned in the real game, and M only gave it memory. In the second task, the authors went further. In VizDoom, the agent has to dodge the monsters' fireballs, and there M also predicts whether the agent will die at the next step. Then M itself becomes the environment: C learns entirely inside it, and the real game is needed only to record the runs for training V and M. The authors call this kind of training a “dream”, and we'll say “in the model's imagination”. In imagination, the agent survived about 900 steps on average, and when transferred to the real game, about 1,100, with the task considered solved at 750.</p>
+      <p>The model that the controller sees can be wrong, and a long rollout is built from its own predictions. How far ahead can you trust such a model?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="dream">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 1</div>
+    <h2>Imagination next to the real table: how far ahead you can trust the model</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>Ada's world model learns right on the page, from the day's recordings: 60 recordings of 60 steps, that is, 3 seconds each. The operator moved Ada's hand no faster than 0.33 m/s and never brought the cup closer than 7 cm to the table's edge, so the recordings contain not a single tip-over and not a single fall. The model consists of five small networks; this is an <strong>ensemble</strong>, as in lesson 1.2: the networks learn from the same recordings but with different initial randomness. From the cup's position and velocity, the hand's position and its shift per step, each network predicts where the cup will be in 0.05 s and how fast it will be moving. The networks get these numbers, not a camera frame; the frame seen by the camera on Ada's head is shown in the inset next to the scene.</p>
+      <p>Draw a path for the hand across the table with your finger or mouse so that the hand pushes the cup, and choose the hand's speed. The same push will run side by side on the real table and in the model's imagination, and the model imagines the whole path by itself: at each step it gets its own prediction rather than the real position of the cup. Under the scene, a chart shows by how many centimeters the imagined cup has moved away from the real one by each step and how much the five networks disagree with each other.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="dr-top">
+          <canvas id="dreamCv" class="dr-cv" role="img" aria-label="Top view of the table: a cup, a saucer, a sugar bowl, a milk jug and Ada's hand; the reader draws the hand's path; the cup's path on the real table is shown as a blue line, in the imagination of the five networks as orange dashes"></canvas>
+          <figure class="dr-cam"><canvas id="dreamCam" width="24" height="24" role="img" aria-label="Ada's camera frame, 24 by 24 pixels: the table from above in large pixels"></canvas><figcaption>What Ada sees: a 24 × 24 camera frame</figcaption></figure>
+        </div>
+        <p class="cv-note">Top view of the table; Ada stands at its near edge. Ada's hand is a white circle with graphite fingers, the gray dots are its path. The solid blue path is the cup on the real table, the thin orange dashes are the same cup in the imagination of each of the five networks, the thick orange dashed line is their mean. A red cross means the cup fell off the table, a brown stain means it tipped over.</p>
+        <details class="lab-legend"><summary>Legend: marks on the scene</summary>
+          <ul class="dr-legend">
+            <li><i class="lg-real"></i>cup on the real table, solid blue line</li>
+            <li><i class="lg-imag"></i>cup in the model's imagination, orange dashes</li>
+            <li><i class="lg-hand"></i>hand path, gray dots</li>
+            <li><i class="lg-saucer"></i>saucer; the green dashes show where the cup counts as on the saucer</li>
+            <li><i class="lg-sugar"></i>sugar bowl, <i class="lg-milk"></i>milk jug: the cup stops against them</li>
+            <li><i class="lg-cov"></i>coverage map: cells where the cup was moved in the recordings; red dashes mark cells without recordings</li>
+          </ul>
+        </details>
+        <div class="ctl-row">
+          <div class="ctl"><span class="ctl-l">Hand speed</span><div class="seg small" id="dSpeed" role="group" aria-label="Hand speed"><button type="button" data-v="0.2" aria-pressed="true">0.2 m/s</button><button type="button" data-v="0.33" aria-pressed="false">0.33 m/s</button><button type="button" data-v="0.45" aria-pressed="false">0.45 m/s</button><button type="button" data-v="0.6" aria-pressed="false">0.6 m/s</button></div></div>
+          <button type="button" class="btn sm ghost" id="dClear">Clear path</button>
+        </div>
+        <div class="ctl-row">
+          <div class="ctl" id="wrapDCov" hidden><label class="opt"><input type="checkbox" id="dCov"> coverage map of the recordings</label></div>
+          <div class="ctl" id="wrapDData" hidden><span class="ctl-l">Day's recordings</span><div class="seg small" id="dData" role="group" aria-label="How many of the day's recordings"><button type="button" data-v="60" aria-pressed="true">60</button><button type="button" data-v="120" aria-pressed="false">120</button></div></div>
+        </div>
+        <canvas id="dreamGraph" class="dr-graph" role="img" aria-label="Chart over the rollout steps: the red line is the distance between the imagined and the real cup, the orange dashes are the spread of the five ensemble networks, in centimeters"></canvas>
+        <p class="cv-note">Chart: horizontally, rollout steps of 0.05 s; vertically, centimeters. The red line shows how far the imagined cup (the mean of the five networks) has moved away from the real one, the orange dashes show the spread of the five networks around their mean. The gray line marks 3 cm, the vertical dashed line marks the 10th step.</p>
+        <div class="readout" id="dRead" aria-live="polite"></div>
+      </div>
+      <div class="card guide-card"><div id="dMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: the table, the recordings, the networks and the imagination rollout</summary><div class="body">
+      <p><b>The table.</b> The table is 90 × 60 cm, the cup is a disk of radius 4 cm, the hand is a disk of radius 3 cm. A step lasts 0.05 s and is computed in five substeps. The cup slides and is slowed down by the tablecloth's friction: its speed drops by \(\mu g\) per second; for the linen tablecloth \(\mu = 0.36\), varying by ±8% from attempt to attempt. The hand pushes the cup along the line connecting their centers, and the cup gets the hand's velocity along this line with a small random deviation. If the hand hits the cup faster than 0.36 m/s, the cup tips over and the tea is spilled; if the cup's center goes past the table's edge, the cup falls. The cup stops against the sugar bowl and the milk jug. These sizes and thresholds are properties of our table model, not numbers from papers.</p>
+      <p><b>The recordings.</b> In each of the 60 recordings, the cup stands at a random spot in the safe part of the table, no closer than 10 cm to the edge. The operator moves it toward random points in this part at speeds from 0.08 to 0.33 m/s, and between pushes the hand just moves near the cup; in no recording does the cup come closer than 7 cm to the table's edge. If a failure happens in a recording, the operator re-records it, so there are no failures in the data.</p>
+      <p><b>The networks.</b> A network gets eight numbers as input: where the cup is, its velocity, where the hand is relative to the cup, how close the hand is and how fast the cup is moving. The network outputs \(f\) and \(G\), and the cup's shift and the change in its velocity over a step are \(f + G\,a\), where \(a\) is the hand's shift. This is how “dynamics plus control” models are built: for a given arrangement, the response is linear in the action. Each network has two hidden layers of 32 neurons with tanh, 1,740 parameters in total; it's trained with 1,800 Adam steps on batches of 32 transitions to minimize the squared prediction error. The networks of the ensemble differ only in their initial weights and the order of transitions. A separate small failure model learns only if there are failures in the data, and the day's recordings have none, so the model considers failures impossible.</p>
+      <p><b>The rollout.</b> The model doesn't predict the hand's position: Ada knows where she moves her arm, and in imagination the hand doesn't go into objects or into the cup, just as on the table. Each network runs its own rollout from the same start, getting only its own predictions as input. The divergence on the chart is the distance between the mean of the five imagined cups and the real cup; the spread is the square root of the mean squared distance of the five cups from their mean. In this comparison, the real table has no friction spread, so that the difference comes only from the model. Everything is computed with our own math and a fixed seed, so the numbers are the same in any browser.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px" id="dreamAfter">
+      <p>On a single step, the model is off by less than a millimeter, but the rollout is built from its own predictions, and the model's error accumulates with the horizon. This is the same error compounding as in behavior cloning in lesson 1.1: each step of imagination starts where the previous error has led it. The error grows fastest where there are no recordings: at the table's edge, the model doesn't know the cup will fall, and with a push faster than Ada pushed during the day, it doesn't know the cup will tip over. Twice as many of the same careful recordings make the model a little more accurate where the recordings already were and change nothing where there are still none. The ensemble's spread grows when the cup moves faster than in the recordings, but at the table's edge the networks hardly disagree, even though there are no recordings there. And not one network notices the tip-over: all five are equally sure that the cup will keep going.</p>
+      <p>While the model is only being watched, its errors are visible to the eye. What happens if a policy is trained on such a model?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="cheat">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">3</span> Loopholes</div>
+      <h2>Loopholes in the model: what a policy that learns in imagination finds</h2>
+      <p>The model is wrong where there are few recordings, and it doesn't report this itself. While the model is only used to look ahead, this is tolerable. It's worse when a policy is trained on it: the search for the best actions comes by itself to where the model is wrong in its favor. In lesson 6.1, the policy found a loophole in the reward: it lay down and pushed off the floor with its legs, because the reward counted only forward speed. In lesson 5.6, the Q-function overestimated the value of actions that weren't in the logs, and the policy chose exactly those; we called this optimism outside the data. With a world model, the mechanism is the same: the policy goes where the model is wrong in its favor, that is, it finds a loophole in the model.</p>
+      <p>Ha and Schmidhuber described this in the section “Cheating the World Model”. In VizDoom, the controller found movements under which the monsters in the model's imagination never fired a single fireball in some of the rollouts. In imagination, the controller sees the whole internal state of M, and the authors compare this to having access to the memory of the game engine. Such a policy looks good in the model but fails in the real game, because it goes into states where the model is wrong: they are far from the data the model learned from.</p>
+      <p>The defense turned out to be the model temperature. M predicts a mixture of Gaussians, and when sampling from it, τ sets how much randomness to keep: at a low τ the model is almost deterministic, and at a high τ the uncertainty is exaggerated. This is a different concept from the temperature α in SAC from lesson 5.3: there it sets the weight of the bonus for random actions, and here it sets how much randomness there is in the model's predictions. The authors trained the controller in imagination at five different values of τ and checked each one in the real game.</p>
+    </div>
+    <figure class="card stat-fig" aria-label="Chart: how many steps the VizDoom agent survived in the model's imagination and in the real game at five model temperatures">
+      <figcaption class="stat-h">VizDoom Take Cover: how many steps the agent survived in the model's imagination and in the real game</figcaption>
+      <div class="stat-grid"><div id="tauBars"></div></div>
+      <p class="stat-cap">Averages over 100 rollouts at model temperature τ = 0.10: 2,086 steps in imagination and 193 in the real game; τ = 0.50: 2,060 and 196; τ = 1.00: 1,145 and 868; τ = 1.15: 918 and 1,092; τ = 1.30: 732 and 753. A random policy survives 210 steps in the real game, the task is solved at 750, and the best result on the Gym leaderboard is 820. The spread across rollouts is large, up to ±690 steps. Source: D. Ha and J. Schmidhuber, “World Models”, Table 2, arXiv 1803.10122, March 27, 2018.</p>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>At a low temperature, the model is sure of a single outcome, and the monsters in imagination don't shoot at all, whatever the agent does. The controller learns that there's nothing to fear, scores almost the highest possible score in imagination, and in the real game survives for less time than a random policy. With noise in the model, the loopholes close: an agent that survived a harder imagined game also plays the real one better, even though its score in imagination is lower. But the noise can't be increased forever: at the highest temperature, the imagined game becomes too hard, and the score drops again.</p>
+      <p>A year later, Janner et al. asked in their work MBPO (2019) when a model can be trusted and answered with two observations. The model's error accumulates with the rollout horizon, and a model trained on data from one policy is the more wrong, the further a new policy is from the one that collected this data. And the policy takes advantage of these errors. So MBPO trains an ensemble of seven models, takes a random one of them at each rollout step and keeps the rollouts short, starting them from real states in the replay buffer of lesson 5.3. The ensemble's spread, as in lesson 1.2, shows what the model doesn't know. The authors write that “a combination of model ensembles with short model rollouts is sufficient to prevent model exploitation.”</p>
+      <p>On the Ant task in the MuJoCo simulator, MBPO reaches in 300,000 environment steps what the model-free SAC reaches in 3 million. Long rollouts hurt, though: the authors' model was accurate enough even for rollouts of hundreds of steps, but those trained the policy worse than short ones. Let's check what a policy finds when it learns only in the imagination of the model of Ada's table.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="holes">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 2</div>
+    <h2>A policy from imagination on the real table</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>At night, Ada learns to push the cup to the saucer as fast as possible. The policy is simple: the hand goes behind the cup and pushes it toward the saucer, and a few centimeters before the saucer it brakes. The policy has two numbers, the push speed and the distance at which to start braking, and they're found by a population search, like ARS in lesson 6.1: 16 iterations, each with 6 random directions tried both ways, and each variant goes through 8 attempts. All these attempts happen in the imagination of the model from Lab 1, not on the table. The search starts from the way Ada pushed the cup during the day: 0.2 m/s.</p>
+      <p>The trained policy is checked side by side in two worlds, on the same 50 cup positions: in the model's imagination and on the real table. In imagination, a successful attempt is one in which the cup reached the saucer and the model doesn't expect a failure. On the real table, a successful attempt is one in which the cup stands on the saucer no later than 5 seconds after the start.</p>
+    </div>
+    <div class="lab lab-wide">
+      <div class="card scene-card">
+        <div class="hl-pair">
+          <figure class="hl-world"><figcaption class="hl-h"><span class="hl-tag imag">in the model's imagination</span><b id="hImagPct">—</b></figcaption><canvas id="hImagCv" class="hl-cv" role="img" aria-label="Top view of the table: the policy's attempt in the model's imagination, the cup's path as orange dashes"></canvas><div class="hl-dots" id="hImagDots" aria-label="50 attempts in the model's imagination"></div></figure>
+          <figure class="hl-world"><figcaption class="hl-h"><span class="hl-tag real">on the real table</span><b id="hRealPct">—</b></figcaption><canvas id="hRealCv" class="hl-cv" role="img" aria-label="Top view of the table: the same attempt on the real table, the cup's path as a solid blue line"></canvas><div class="hl-dots" id="hRealDots" aria-label="50 attempts on the real table"></div></figure>
+        </div>
+        <p class="cv-note">Top view of the table, the same attempt in two worlds: in the model's imagination the cup's path is orange and dashed, on the real table it's blue and solid. Under each table are 50 circles, one per attempt: green means the cup is on the saucer, red means it tipped over or fell, gray means it didn't get there within 5 seconds. Click a circle to see that attempt in both worlds.</p>
+        <div class="hl-pol" id="hPol" aria-live="polite"></div>
+        <div class="ctl-row">
+          <div class="ctl" id="wrapHWhere" hidden><span class="ctl-l">Where to send Ada for experience</span><div class="seg small" id="hWhere" role="group" aria-label="Where Ada will make 10 real attempts"><button type="button" data-v="policy" aria-pressed="true">where the policy goes</button><button type="button" data-v="records" aria-pressed="false">where most recordings are</button></div></div>
+          <div class="ctl" id="wrapHTau" hidden><span class="ctl-l">Model temperature τ</span><div class="seg small" id="hTau" role="group" aria-label="Model temperature"><button type="button" data-v="0" aria-pressed="false">0</button><button type="button" data-v="1" aria-pressed="true">1</button><button type="button" data-v="2" aria-pressed="false">2</button></div></div>
+          <div class="ctl" id="wrapHLam" hidden><span class="ctl-l">Penalty for ensemble spread</span><div class="seg small" id="hLam" role="group" aria-label="Penalty for ensemble spread"><button type="button" data-v="0" aria-pressed="true">0</button><button type="button" data-v="2" aria-pressed="false">2</button><button type="button" data-v="8" aria-pressed="false">8</button></div></div>
+          <button type="button" class="btn sm ghost" id="hBack" hidden>Back to the first morning</button>
+        </div>
+        <div class="hl-nights" id="hNights" hidden></div>
+      </div>
+      <div class="card guide-card"><div id="hMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: the policy, the search and what the model knows about failures</summary><div class="body">
+      <p><b>The policy.</b> The hand leads the cup to the saucer in a straight line. Until the hand is right behind the cup, it goes around the cup in an arc or approaches a point behind it, covering the last 2 cm no faster than the push. Standing behind the cup, the hand pushes it at speed \(v\) and shifts sideways little by little to stay behind the cup's center. At \(d\) before the saucer, the speed smoothly drops to 0.06 m/s, and very close to the saucer the hand lets go of the cup, which coasts the rest of the way. The search changes only \(v\) and \(d\).</p>
+      <p><b>The search.</b> ARS tries \(\theta \pm \nu\delta\) for 6 random directions \(\delta\), takes the 4 best and shifts \(\theta\) by \(\frac{\alpha}{4\sigma_R}\sum (R_+ - R_-)\,\delta\), where \(\sigma_R\) is the spread of the scores. The score \(R\) is the mean over 8 imagined attempts: if the cup got there in \(T\) steps, \(R = p\,(1 - T/100)\), where \(p\) is the probability that the model doesn't expect a failure; if it didn't get there, \(R\) is minus the distance to the saucer in meters. The penalty for ensemble spread subtracts from \(R\) the mean spread of the five networks per step in centimeters, multiplied by the penalty weight.</p>
+      <p><b>Imagination.</b> At each step, a random network \(k\) of the ensemble is chosen, and the next state is \(\bar s + \tau\,(s_k - \bar s)\), where \(\bar s\) is the mean prediction of the five networks. At \(\tau = 0\), the model takes the mean and has almost no doubts; at \(\tau = 1\), it takes the prediction of a random network, as MBPO does; at \(\tau = 2\), the disagreement between the networks is doubled. The failure model is a classifier: as soon as failures appear among the transitions in the data, it learns from all the transitions at once; among its features, it also sees how fast the hand is approaching the cup. As long as there are no failures in the data, the probability of a failure in imagination is zero.</p>
+      <p><b>The night.</b> Gathering experience gives 10 real attempts: either attempts of the current policy with all their failures, or 10 new careful recordings by the operator in the safe part of the table. Then the model is trained from scratch on all the data, and the search starts from the previous policy. The 50 check attempts on the table are needed only for counting and don't go into training. Everything is computed in the browser with fixed seeds.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px" id="holesAfter">
+      <p>The policy from imagination sped the push up beyond anything in the recordings, and the model promised it success: the recordings didn't contain a single example of a fast hit tipping the cup over. This is a loophole in the model of the same kind as the one found by the controller of Ha and Schmidhuber, and the same optimism outside the data as in lesson 5.6. More of the same careful recordings don't close it. What closes it is experience where the policy goes: a dozen failed attempts show the model what failures look like, and the policy from imagination backs off to speeds at which the cup doesn't tip over. This is the very cycle Ha and Schmidhuber proposed for hard tasks: gather experience, train the model, train the policy in imagination and gather experience again.</p>
+      <div class="bridge-note down"><p>A policy from imagination wins where the model is wrong, and a long rollout accumulates error with every step. The controller of Ha and Schmidhuber made do with 867 parameters and the memory of M, while hard tasks need a model in which a policy can learn for a long time and look far ahead.</p><p class="bridge-to">PlaNet and Dreamer: how to build a model in which a policy can learn for a long time, and keep the policy from exploiting it</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="rssm">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">4</span> PlaNet and Dreamer</div>
+      <h2>PlaNet and Dreamer: the latent state and learning in imagination</h2>
+      <p>A single frame doesn't show how fast a robot's link is moving, and with a model you need to look many steps ahead. In PlaNet (2018), Hafner et al. built a model in which the state of the world is stored inside the model itself and updated with every new frame. Such a state is called a <strong>latent state</strong>: it's what a world model keeps about the world between steps.</p>
+      <p>The latent state of PlaNet has two parts. The deterministic part h is the memory of a GRU recurrent network with 200 neurons: it carries what happened across many steps. The random part s is a 30-dimensional Gaussian distribution: it describes what the model is unsure of and lets it imagine several possible futures. The authors called a model made of these two parts an <strong>RSSM</strong> (recurrent state-space model). Without the random part, the PlaNet agent didn't learn at all, and a purely deterministic model, in the authors' words, “makes it easy for the planner to exploit inaccuracies”.</p>
+      <p>An RSSM step works like the Kalman filter cycle of lesson 0.4. First, the model predicts the new state from the previous state and the action before it has seen the frame, and then it corrects the prediction using the frame that has arrived; the corrected state is the belief of lesson 0.4, a distribution over what the world might be like. The authors directly call their model a non-linear Kalman filter. The difference is that here the weight of the new frame isn't derived from sensor noise: the network itself learns how much to take from the frame. The model is trained to reconstruct the frame and the reward from the latent state and to keep the prediction made without a frame close to the corrected state. In imagination there are no frames, and the rollout runs on predictions alone.</p>
+    </div>
+    <figure class="card flow-card">
+      <canvas data-anim="rssm" width="720" height="400" role="img" aria-label="Diagram of the RSSM and the three Dreamer processes: on real steps, the model predicts the state without a frame and corrects it using the frame; in imagination, it runs on predictions alone; Dreamer takes turns collecting experience, training the world model and training the actor and critic in imagination"></canvas>
+      <figcaption class="muted-s">An RSSM step and the three processes of Dreamer. In the row of steps, on real steps the model first predicts the state without a frame (orange dashes) and then corrects it using the frame that has arrived (blue arrow); after the last real frame, imagination begins, and the state is built from predictions alone. In the row of processes, the one running now is highlighted: the actor collects experience in the environment, the world model learns from the experience buffer, the actor and critic learn from rollouts in imagination. The rhythm is schematic; click the diagram to pause it.</figcaption>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>PlaNet searches for actions with the cross-entropy method, <strong>CEM</strong>, right in the latent space, like MPC in lesson 0.3. The planner draws 1,000 action sequences 12 steps long from a Gaussian distribution, runs them in the model's imagination, keeps the 100 best by the sum of predicted rewards and builds a new distribution from them. After 10 such iterations, the robot executes the first action, and at the next step the plan is built anew. Nobody draws any pictures along the way; everything is computed in the latent space. On six DeepMind Control tasks, PlaNet needed on average 200 times fewer episodes than the model-free D4PG for a similar score. But PlaNet doesn't see rewards beyond the planning horizon.</p>
+      <p>Dreamer (2019) takes the same model and trains an actor and critic in its imagination, as in lesson 5.2. Imagined rollouts 15 steps long start from real states recorded in the buffer. The critic learns to estimate the value of states (lesson 5.1) and looks beyond the rollout's horizon through the <strong>λ-return</strong>: a weighted average of estimates, in each of which the rewards for k imagined steps are summed first and then the value output by the critic is added. The actor improves by the gradient of this value, which flows back through the learned model. The model itself doesn't change meanwhile: it's trained separately, on real data.</p>
+      <p>Dreamer alternates the three processes from the diagram: it collects new experience with the actor in the environment, trains the world model on the buffer and trains the actor and critic in imagination. This is the same cycle of “gather experience, train the model, train the policy in imagination” that closed the loophole in Ada's model in Lab 2. How much experience it saves can be seen on 20 DeepMind Control tasks.</p>
+    </div>
+    <figure class="card stat-fig" aria-label="Chart: average score over 20 DeepMind Control tasks for A3C, D4PG, PlaNet and Dreamer with different numbers of environment steps">
+      <figcaption class="stat-h">DeepMind Control, 20 tasks: average score (maximum 1,000)</figcaption>
+      <div class="stat-grid"><div id="dreamerBars"></div></div>
+      <p class="stat-cap">The model-free A3C, from joint positions, and D4PG, from frames, trained for 10⁸ environment steps each, PlaNet and Dreamer, from frames, for 5 × 10⁶: A3C, 243.70; D4PG, 786.32; PlaNet, 332.97; Dreamer, 823.39. Dreamer took about 3 hours per million steps on a single V100 GPU, PlaNet with planning at every step 11 hours, and D4PG 24 hours to reach a comparable score. Source: D. Hafner, T. Lillicrap, J. Ba and M. Norouzi, “Dream to Control”, Appendix G and Section 6, arXiv 1912.01603, December 3, 2019.</p>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>Dreamer scored more than the best model-free agent while using 20 times fewer environment steps, and it also learned faster in wall-clock hours. A short imagination horizon didn't make the agent shortsighted: without the critic, the agent coped only with tasks where a quick reaction is enough, and with the critic it hardly depended on the rollout length.</p>
+      <p>DreamerV2 (2020) replaced the Gaussian distribution in the random part with 32 discrete variables of 32 values each and for the first time brought learning in imagination to human level on Atari games. Its policy had 10,000 times more imagined states than real frames, and the model relied on reconstructing frames: without this signal, the agent learned almost nothing. DreamerV3 (2023; in the journal Nature in 2025) made learning robust to the scale of rewards and observations and, with the same settings, solved more than 150 tasks in 8 different domains, from Atari to controlling robots in simulation. In the comparison from frames, the authors put it next to model-free methods.</p>
+    </div>
+    <figure class="card stat-fig" aria-label="Chart: average score over 20 Visual Control tasks for PPO, SAC, CURL, DrQ-v2 and DreamerV3 after a million steps">
+      <figcaption class="stat-h">DreamerV3, Visual Control: average score over 20 tasks after 1 million environment steps</figcaption>
+      <div class="stat-grid"><div id="v3Bars"></div></div>
+      <p class="stat-cap">Control from frames after a million steps: PPO, 206; SAC, 226; CURL, 525; DrQ-v2, 705; DreamerV3, 786. In Table 12 of the paper, the row labels “Task mean” and “Task median” are swapped; here are the means recomputed from the rows of the tasks. Source: D. Hafner, J. Pasukonis, J. Ba and T. Lillicrap, “Mastering Diverse Domains through World Models”, Table 12, arXiv 2301.04104, January 10, 2023 (journal version: Nature 640, April 2, 2025).</p>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>From frames, DreamerV3 beat both PPO from lesson 5.2 and SAC from lesson 5.3, and SAC, in the authors' words, “requires tuning, especially for its entropy scale, and struggles under high-dimensional inputs”. In Minecraft, DreamerV3 found diamonds from scratch, without human recordings, on a single GPU in 9 days, even though a diamond turned up in only 0.4% of episodes.</p>
+    </div>
+    <details class="deep"><summary>Under the hood: the RSSM formulas and the λ-return</summary><div class="body">
+      <p><b>RSSM.</b> The deterministic part is updated by a recurrent network, and the random part is predicted without a frame and corrected using the frame \(o_t\):</p>
+      <div class="formula">\[\begin{aligned} h_t &= f(h_{t-1}, s_{t-1}, a_{t-1}), \\ \hat s_t &\sim p(\hat s_t \mid h_t), \\ s_t &\sim q(s_t \mid h_t, o_t). \end{aligned}\]</div>
+      <p>In the second line, the model predicts the state without a frame; in the third, it corrects it using the frame. The model is trained on segments from the buffer: the decoder reconstructs the frame and the reward from \((h_t, s_t)\), and the Kullback–Leibler divergence between the corrected and the predicted distributions keeps the prediction close to the correction. PlaNet and Dreamer don't penalize the first 3 nats of this divergence (free nats), so that the model doesn't sacrifice frame reconstruction. In imagination there's no \(o_t\), and \(s_t\) is taken from \(p(\hat s_t \mid h_t)\).</p>
+      <p><b>λ-return.</b> Let \(V\) be the critic's value, \(\gamma\) the discount and \(H\) the imagination horizon. The \(k\)-step estimate sums the imagined rewards and the value at the end, and the λ-return mixes estimates of different lengths:</p>
+      <div class="formula">\[\begin{aligned} V_N^k(s_\tau) &= \textstyle\sum_{n=\tau}^{\tau+k-1} \gamma^{n-\tau} r_n \\ &\quad + \gamma^{k} V(s_{\tau+k}), \\ V_\lambda(s_\tau) &= (1-\lambda) \textstyle\sum_{n=1}^{H-1} \lambda^{n-1} V_N^n(s_\tau) \\ &\quad + \lambda^{H-1} V_N^H(s_\tau). \end{aligned}\]</div>
+      <p>Short estimates are biased because they rely on the critic; long ones are noisy because they rely on imagined rewards; λ balances the two. In Dreamer, \(H = 15\), \(\gamma = 0.99\), \(\lambda = 0.95\). The critic learns to approximate \(V_\lambda\), and the actor maximizes the sum of \(V_\lambda\) along the rollout.</p>
+      <p><b>CEM in PlaNet.</b></p>
+      <div class="algo">
+        <div>distribution over action sequences of \(H = 12\) steps: \(\mathcal N(\mu, \sigma^2)\)</div>
+        <div>repeat \(I = 10\) times:</div>
+        <div class="i1">draw \(J = 1000\) sequences and run each of them in the model's latent space</div>
+        <div class="i1">keep the \(K = 100\) best by the sum of predicted rewards and recompute \(\mu, \sigma\) from them</div>
+        <div>execute the first action of \(\mu\); at the next step, start over</div>
+      </div>
+    </div></details>
+  </div>
+</section>
+
+<section class="section alt" id="robots">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">5</span> DayDreamer</div>
+      <h2>DayDreamer: Dreamer on real robots without a simulator</h2>
+      <p>All the tasks discussed so far were solved in simulators and games. Ada was also taught to walk in a simulator in lesson 6.1, and the finished policy was transferred to the robot, while the sim-to-real gap was closed with randomization and an actuator model in lesson 5.4 and with a delta model in lesson 6.3. In DayDreamer (2022), Wu, Escontrela, Hafner et al. went another way: they took Dreamer without changes to the algorithm and ran it directly on four real robots, without a simulator and without demonstrations. While the robot moves, one thread trains the world model, the actor and the critic, and another one outputs actions.</p>
+      <p>The four-legged Unitree A1 started out lying on its back and had to learn to roll over, stand up and walk forward; its motors received target angles for PD controllers 20 times a second. Once A1 had learned to walk, it was knocked with a pole, and it adapted to withstand the pushes or quickly get back on its feet. In the same time, SAC learned only to roll over. People were still nearby, though: they stepped in when the robot reached the edge of the area.</p>
+    </div>
+    <div class="robot-row a1-row" aria-label="Frames of A1 from the DayDreamer paper">
+      <figure class="photo-fig" id="photoA1back">
+        <img src="../assets/img/robots/daydreamer-a1-back.jpg" width="560" height="560" alt="The four-legged Unitree A1 robot lies on its back on a soft floor and waves its legs in the air" loading="lazy">
+        <figcaption><b>Start of training.</b> A1 lies on its back with its legs in the air.<a class="photo-cred" href="https://arxiv.org/abs/2206.14176" target="_blank" rel="noopener">Photo: P. Wu, A. Escontrela, D. Hafner et al., Fig. 4 · CC BY 4.0 · cropped</a></figcaption>
+      </figure>
+      <figure class="photo-fig" id="photoA1roll">
+        <img src="../assets/img/robots/daydreamer-a1-roll.jpg" width="560" height="560" alt="The A1 robot lies on its side and rolls over onto its feet" loading="lazy">
+        <figcaption><b>Rolling over.</b> A1 rolls over from its back onto its feet.<a class="photo-cred" href="https://arxiv.org/abs/2206.14176" target="_blank" rel="noopener">Photo: P. Wu, A. Escontrela, D. Hafner et al., Fig. 4 · CC BY 4.0 · cropped</a></figcaption>
+      </figure>
+      <figure class="photo-fig" id="photoA1walk">
+        <img src="../assets/img/robots/daydreamer-a1-walk.jpg" width="560" height="560" alt="The A1 robot walks forward across the floor on four legs" loading="lazy">
+        <figcaption><b>An hour later.</b> A1 walks forward at the desired speed.<a class="photo-cred" href="https://arxiv.org/abs/2206.14176" target="_blank" rel="noopener">Photo: P. Wu, A. Escontrela, D. Hafner et al., Fig. 4 · CC BY 4.0 · cropped</a></figcaption>
+      </figure>
+    </div>
+    <figure class="card stat-fig" aria-label="Charts: after how many minutes A1 learned to roll over, stand up, walk and withstand pushes, and how many hours the four DayDreamer robots trained">
+      <figcaption class="stat-h">DayDreamer: how much training on a real robot was needed</figcaption>
+      <div class="stat-grid"><div><div class="sb-title">A1: minutes from the start of training</div><div id="a1Bars"></div></div><div><div class="sb-title">Hours of training on four robots</div><div id="hoursBars"></div></div></div>
+      <p class="stat-cap">A1 rolls over from its back after 5 minutes of training, stands up 20 minutes later, walks forward after about an hour, and in 10 minutes of fine-tuning after that learns to withstand pushes with a pole; on the first chart, the minutes are counted from the start of training, and we added up 25 and 70 ourselves. The second chart shows the hours of training of the four robots: A1, about an hour; the UR5 arm, 8 hours to 2.5 balls per minute; the XArm arm, 10 hours to 3.1 soft objects per minute, which is comparable to a human; and the wheeled Sphero, 2 hours to reach a goal given by an image. Source: P. Wu, A. Escontrela, D. Hafner, K. Goldberg and P. Abbeel, “DayDreamer”, Section 3, arXiv 2206.14176, June 28, 2022.</p>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>A1 mastered walking in an hour of its own experience, while before, as the authors write, walking “required extensive training in simulation followed by transfer to the real world”. The arms took longer to learn because they rarely received a reward: the UR5 learned almost nothing in the first two hours. Rainbow and PPO on the same tasks learned only to grab a ball and immediately drop it into the same bin. On Sphero, a small wheeled robot, Dreamer didn't beat the model-free DrQv2: learning with a world model doesn't win everywhere.</p>
+      <p>The model made mistakes here too: in an imagined rollout of the UR5, a static orange ball turned into a green one. The authors also write about the cost of hours on real hardware: over many hours of training, the robot wears out and needs people and repairs. The DayDreamer cycle is the same as in Lab 2: the robot gathers experience where the current policy takes it, the model learns from this experience, and the policy learns in the model's imagination.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="lines">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">6</span> Another line</div>
+      <h2>MuZero and TD-MPC2: a world model without reconstructing the frame</h2>
+      <p>Dreamer's models learn to reconstruct every frame. This gives a lot of learning signal but makes the model spend effort on details that aren't needed for acting. Another line of work trains the model to predict only what's needed to choose an action.</p>
+      <p>MuZero (Schrittwieser et al., DeepMind, 2019) trains a model that, from a hidden state and an action, predicts the reward, the value and which action to choose, and doesn't reconstruct the frame at all: the hidden state doesn't have to match the real state of the game. MuZero builds a search tree over this model, like AlphaZero. In Go, chess and shogi, MuZero, without knowing the rules, played at the level of AlphaZero, which was given the rules, and on Atari it beat the model-free R2D2 in most games.</p>
+      <p>TD-MPC2 (Hansen, Su and Wang, 2023) carries this approach over to continuous control. A model without a decoder predicts the next latent state, the reward and the action value, and actions are chosen by a planner that looks 3 steps ahead and adds a value estimate at the end, like the MPC of lesson 0.3, only over a learned model. With a single set of settings, TD-MPC2 solved 104 tasks in four suites, from DeepMind Control to manipulation in Meta-World, and a single agent on 80 tasks got better with the model's size.</p>
+    </div>
+    <figure class="card stat-fig" aria-label="Chart: normalized score of the multi-task TD-MPC2 agent on 80 tasks for five model sizes">
+      <figcaption class="stat-h">TD-MPC2, one agent on 80 tasks: normalized score by model size</figcaption>
+      <div class="stat-grid"><div id="tdBars"></div></div>
+      <p class="stat-cap">The model with 1 million parameters scores 16.0; with 5 million, 49.5; with 19 million, 57.1; with 48 million, 68.0; with 317 million, 70.6. The largest model trained for 33 days on a single RTX 3090 GPU. Source: N. Hansen, H. Su and X. Wang, “TD-MPC2: Scalable, Robust World Models for Continuous Control”, Table 1, arXiv 2310.16828, October 25, 2023.</p>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>The authors saw no saturation: the score grew with the model's size up to the largest one. They also note that DreamerV3 struggles with tasks of fine manipulation: lifting, picking up, stacking. But Dreamer can't do without reconstructing the frame either: without the gradients from reconstruction, DreamerV2 learns almost nothing, and DreamerV3, in the authors' words, “rests predominantly on the unsupervised objective of its world model”. Whether to reconstruct the frame or not is one of the main choices in designing a world model. What are Dreamer and its successors doing in 2025–2026?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="today">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">7</span> Today</div>
+      <h2>Today: Dreamer 4, a theory of learning in imagination and what remains open</h2>
+      <p>The journal version of DreamerV3 came out in Nature on April 2, 2025. The next step was taken by Dreamer 4 (Hafner, Yan and Lillicrap, Google DeepMind, September 2025): the agent learns only from recordings, without a single attempt in the game, like the offline RL of lesson 5.6. The world model is a transformer trained on 2,541 hours of recordings of people playing Minecraft. On a single GPU, it responds faster than the game runs, but it remembers only the last 9.6 seconds. First, the agent is trained on the recordings to imitate the players and predict the reward, and then it's improved with reinforcement learning entirely in the model's imagination.</p>
+    </div>
+    <figure class="card stat-fig" aria-label="Chart: share of successful Dreamer 4 episodes by Minecraft milestone before and after learning in imagination">
+      <figcaption class="stat-h">Dreamer 4 in Minecraft: share of episodes in which the agent reached the milestone, %</figcaption>
+      <div class="stat-grid"><div id="d4Bars"></div></div>
+      <p class="stat-cap">Before learning in imagination (the agent imitates the players using the world model) and after it: stone pickaxe, 89.4 and 90.1%; iron ore, 62.9 and 66.7%; furnace, 51.1 and 58.1%; iron ingot, 27.8 and 39.5%; iron pickaxe, 16.9 and 29.0%; diamond, 0 and 0.7%. 1,000 episodes an hour long each, starting with an empty inventory. Source: D. Hafner, W. Yan and T. Lillicrap, “Training Agents Inside of Scalable World Models”, Table 7, arXiv 2509.24527, September 29, 2025.</p>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>Learning in imagination adds more the harder the milestone, and for the first time it yields diamonds without interacting with the game, though in a very small share of episodes. The authors also show a robot: in a model trained on robot video with actions, an operator steers the imagined robot, picks up objects and flips a bowl. No agent was trained for the robot in this work.</p>
+      <p>In 2026, a theory appeared of how the model's errors turn into the policy's errors. Timor, Shwartz-Ziv, Goldblum, LeCun and Harel (Weizmann Institute, NYU, Columbia and AMI Labs, May 2026) bounded how much the expected return of a policy in imagination can differ from the real one. The error of the dynamics model enters this difference with a factor that grows with the horizon and with how much the model and the policy stretch small deviations. A systematic bias of the learned reward doesn't disappear, however many imagined rollouts you average. The bounds themselves turned out to be conservative: in a numerical check, at the median they were 65 times larger than the actual difference.</p>
+      <p>The survey “Quo Vadis, World Modeling?” (Shanghai AI Laboratory, Zhejiang University and NUS, August 2026) names the same thing as the main missing piece: errors compound over long rollouts, and what's needed is “calibrated uncertainty, not just sharper pixels”. An agent has to understand when to trust the model and when to return to the real world, or it fails silently. In the labs of this lesson, you could see this on Ada's table: the ensemble noticed unfamiliar speeds, hardly disagreed at the table's edge and didn't predict the tip-over that no network had ever seen.</p>
+      <p>The models in this lesson work with a state or with small frames. The 1X world model from lesson 6.6 is a video model with 14 billion parameters trained on hundreds of hours of human video. How a world model can avoid spending effort on every pixel, learn from video without actions and output actions itself is what lessons 7.2–7.4 are about.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="quiz">
+  <div class="prose">
+    <div class="kicker"><span class="num">8</span> Check yourself</div>
+    <h2>Eight common misconceptions</h2>
+    <div class="quiz" id="quizBox"></div>
+    <p class="score" id="quizScore" style="margin-top:14px"></p>
+  </div>
+</section>
+
+<section class="section alt" id="finale">
+  <div class="prose">
+    <div class="kicker"><span class="num">9</span> Takeaways</div>
+    <h2>Lesson takeaways</h2>
+    <ol class="takeaways">
+      <li><span><strong>Model-free methods</strong> learn only from real attempts. A <strong>world model</strong> learned from recordings lets you train a policy on rollouts in imagination and spend real experience on the model itself: PlaNet, Dreamer and MBPO made do with 10–200 times fewer real steps.</span></li>
+      <li><span>In World Models, V compresses the frame into a vector, M predicts the next one, and the tiny controller C learns to act; in VizDoom, the controller learned entirely in the model's imagination.</span></li>
+      <li><span>The model's error accumulates with the rollout horizon, and fastest where there are no recordings. More of the same recordings make the model more accurate where it was already accurate.</span></li>
+      <li><span>A policy in imagination finds loopholes in the model, places where the model is wrong in its favor, like Ada with the fast push in Lab 2. The defenses are noise in the model, an ensemble and a penalty for its spread, short rollouts from real states, and above all experience where the policy goes.</span></li>
+      <li><span>An <strong>RSSM</strong> keeps a <strong>latent state</strong> made of memory and a random part and takes the step “prediction without a frame, correction using the frame”, like a Kalman filter; Dreamer trains the actor and critic entirely in imagination and looks beyond the horizon through the <strong>λ-return</strong>, and DayDreamer taught A1 to walk in about an hour without a simulator.</span></li>
+      <li><span>MuZero and TD-MPC2 do without reconstructing the frame, and Dreamer 4 learns only from recordings. What remains open is how a model can know where it's wrong: it needs calibrated uncertainty, not sharper frames.</span></li>
+    </ol>
+    <h3 style="margin-top:40px">Open questions</h3>
+    <details class="card pad open-q"><summary>How can a model tell what it doesn't know?</summary><p>Ada's ensemble noticed unfamiliar speeds, but not the table's edge and not the tip-over, which wasn't in a single recording. How can a world model estimate the probability of an event it has never seen, and should a robot fail on purpose for this when a failure is expensive: a broken cup, a fallen robot?</p></details>
+    <details class="card pad open-q"><summary>How much real experience is needed before a model can be trusted?</summary><p>In Lab 2, a dozen real attempts closed one loophole, and then the policy crept up again to the edge of what the model had seen. How do you tell that enough experience has been gathered and that a new policy hasn't found a loophole that isn't in the data yet?</p></details>
+    <h3 style="margin-top:34px">Paper guide</h3>
+    <p><a href="https://arxiv.org/abs/1912.01603" target="_blank" rel="noopener">D. Hafner, T. Lillicrap, J. Ba and M. Norouzi, “Dream to Control: Learning Behaviors by Latent Imagination”, ICLR 2020</a>.</p>
+    <ul class="links">
+      <li><strong>Read closely</strong><span>The section on how behavior is learned in imagination: where the imagined rollouts start and how the actor, the critic and the λ-return work (equations 4–8). Figure 4, which compares imagination horizons, and the table in Appendix G.</span></li>
+      <li><strong>Safe to skip</strong><span>The comparison of three ways to learn the representation, if you're interested in the algorithm itself: frame reconstruction turned out best in the experiments. The details of discrete actions for Atari.</span></li>
+      <li><strong>Question to keep in mind</strong><span>Dreamer passes the value gradient through the learned model, while DreamerV2 on Atari switched to the policy gradient, as in lesson 5.2. Why might a gradient through the model work worse for discrete actions?</span></li>
+    </ul>
+    <p style="margin-top:18px">Other works in this lesson: <a href="https://arxiv.org/abs/1803.10122" target="_blank" rel="noopener">World Models</a> (Ha and Schmidhuber, 2018), with V, M and C and the section on loopholes in the model; <a href="https://arxiv.org/abs/1811.04551" target="_blank" rel="noopener">PlaNet</a> (Hafner et al., 2018), with the RSSM and CEM; <a href="https://arxiv.org/abs/1906.08253" target="_blank" rel="noopener">MBPO</a> (Janner et al., 2019), on when to trust a model; <a href="https://arxiv.org/abs/2010.02193" target="_blank" rel="noopener">DreamerV2</a> (2020) and <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC12003158/" target="_blank" rel="noopener">DreamerV3 in Nature</a> (2025); <a href="https://arxiv.org/abs/2206.14176" target="_blank" rel="noopener">DayDreamer</a> (Wu, Escontrela, Hafner et al., 2022), with robots without a simulator; <a href="https://arxiv.org/abs/1911.08265" target="_blank" rel="noopener">MuZero</a> (2019) and <a href="https://arxiv.org/abs/2310.16828" target="_blank" rel="noopener">TD-MPC2</a> (2023), without reconstructing the frame; <a href="https://arxiv.org/abs/2509.24527" target="_blank" rel="noopener">Dreamer 4</a> (2025), with learning only from recordings.</p>
+    <h3 style="margin-top:34px">Resources</h3>
+    <ul class="links">
+      <li><a href="https://worldmodels.github.io" target="_blank" rel="noopener">World Models in the browser</a><span>An interactive version of Ha and Schmidhuber's paper with demos</span></li>
+      <li><a href="https://danijar.com/daydreamer" target="_blank" rel="noopener">DayDreamer</a><span>Videos of A1, UR5, XArm and Sphero learning without a simulator</span></li>
+      <li><a href="https://arxiv.org/abs/2605.06732" target="_blank" rel="noopener">On Training in Imagination</a><span>A 2026 theory of how errors of the model and the reward turn into the policy's error</span></li>
+      <li><a href="https://arxiv.org/abs/2608.02713" target="_blank" rel="noopener">Quo Vadis, World Modeling?</a><span>A 2026 survey of what world models are missing</span></li>
+    </ul>
+    <div class="bridge-note"><p>The models in this lesson learn by reconstructing every frame. The VAE in World Models drew the brick pattern on the walls in Doom but lost the road markings in CarRacing, and in Video Pinball the ball takes up a single pixel, and on this game DreamerV2 loses to model-free methods. The model spends effort on details that don't help it act and misses what matters.</p><p class="bridge-to"><!--if:7-2-jepa-v-jepa-2.html--><a href="7-2-jepa-v-jepa-2.html"><!--/if-->Lesson 7.2 · JEPA and V-JEPA 2: how to predict representations instead of pixels and plan with them<!--if:7-2-jepa-v-jepa-2.html--></a><!--/if--></p></div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Lesson 7.1 of the “Modern Robotics and Physical AI” course. The numbers from papers follow the texts of the papers on arXiv and the journal version of DreamerV3, as of October 28, 2026. The table's physics, the thresholds, Ada's recordings and both labs are properties of our model, not numbers from papers; the models and the policy are trained in the browser with fixed seeds. The diagrams show the principle, and the animation's rhythm is schematic.
+</footer>
+<div class="tooltip" id="tooltip" role="tooltip"></div>
+<script>
+/*@@JS@@*/
+</script>
+</body>
+</html>

@@ -343,15 +343,18 @@ GLOSSARY_ALL = json.loads((root / 'shared/glossary.json').read_text(encoding='ut
 GLOSSARY_EN = {g['id']: g for g in json.loads((root / 'shared/glossary.en.json').read_text(encoding='utf-8'))} if EN and (root / 'shared/glossary.en.json').exists() else {}
 if EN and not GLOSSARY_EN:
     print('ВНИМАНИЕ: нет lessons/shared/glossary.en.json — в английской версии подсказок к терминам и глоссария не будет')
-def gl_lang(g):
-    """Запись глоссария на языке сборки (после подстановки 'before', чтобы определение было переведённым)."""
+def gl_lang(g, pre=False):
+    """Запись глоссария на языке сборки (после подстановки 'before', чтобы определение было переведённым).
+    pre — термин ещё не переехал в свой новый урок: у английской записи тогда берётся её 'before' (прежнее d), если есть."""
     if not EN:
         return g
     e = GLOSSARY_EN.get(g['id'])
+    if e and pre:
+        e = {**e, **e.get('before', {})}
     return {**g, 't': e['t'], 'd': e['d'], 'a': e['a']} if e else None
 # термины уроков, которые ещё не вышли на момент сборки, не показываем: ни в подсказках, ни на странице глоссария
 # термин, который переезжает в более поздний урок, до его выхода берёт поля из 'before' (урок, раздел, определение)
-GLOSSARY = [x for x in (gl_lang(g if LESSONS[g['l']][0] in PUB else {**g, **g['before']}) for g in GLOSSARY_ALL
+GLOSSARY = [x for x in (gl_lang(g) if LESSONS[g['l']][0] in PUB else gl_lang({**g, **g['before']}, True) for g in GLOSSARY_ALL
             if LESSONS[g['l']][0] in PUB or (g.get('before') and LESSONS[g['before']['l']][0] in PUB)) if x]
 SKIP_TAGS = {'a', 'h1', 'h2', 'h3', 'h4', 'button', 'label', 'code', 'pre', 'script', 'style', 'summary', 'svg', 'canvas', 'select', 'textarea', 'figcaption'}
 _gl_info = None

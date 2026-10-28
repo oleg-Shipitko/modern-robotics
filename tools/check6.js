@@ -106,7 +106,7 @@ check(C6.TRIALS.every((tr) => Bst[tr.id].ok), 'с лучшими решения�
 {
   const cfg = JSON.parse(fs.readFileSync(path.join(ROOT, 'site/config.json'), 'utf8')), has71 = (cfg.PUBLISHED || []).some((p) => p.n === '7.1' && p.file);
   const html = fs.readFileSync(path.join(ROOT, 'site/lessons/proverka-chasti-6.html'), 'utf8');
-  check(!has71 && !/href="7-1-/.test(html) && /<p class="bridge-to">Урок 7\.1 · Модели мира и Dreamer: как [^<]+<\/p>/.test(html), 'мост в часть 7: строка «Урок 7.1 · Модели мира и Dreamer: как …» без ссылки, у 7.1 в config.json файла нет');
+  check(!has71 && !/href="7-1-/.test(html) && /<p class="bridge-to">Урок 7\.1 · World Models и Dreamer: как [^<]+<\/p>/.test(html), 'мост в часть 7: строка «Урок 7.1 · World Models и Dreamer: как …» без ссылки, у 7.1 в config.json файла нет');
 }
 
 /* ---------- 2. Страница в браузере: компьютер 1440 и телефон 390 в тёмной теме ---------- */
@@ -244,7 +244,7 @@ check(C6.TRIALS.every((tr) => Bst[tr.id].ok), 'с лучшими решения�
     check((await p.eval('document.querySelectorAll("#chkTable .chk-tr").length')) === 6, 'в таблице итога шесть уроков');
     const pr = JSON.parse(await p.eval('localStorage.getItem("mr-progress") || "{}"'));
     check(pr['proverka-chasti-6'] && pr['proverka-chasti-6'].f, 'проверка отмечена пройденной в прогрессе');
-    check(await p.eval(`(() => { const b = document.querySelector('#result .bridge-note'); return !!b && !b.querySelector('a') && /^Урок 7\\.1 · Модели мира и Dreamer: как /.test(b.querySelector('.bridge-to').textContent) && !!document.querySelector('#result a[href="../index.html#program"]'); })()`), 'в конце — мост в урок 7.1 без ссылки и ссылка «Программа курса и даты выхода»');
+    check(await p.eval(`(() => { const b = document.querySelector('#result .bridge-note'); return !!b && !b.querySelector('a') && /^Урок 7\\.1 · World Models и Dreamer: как /.test(b.querySelector('.bridge-to').textContent) && !!document.querySelector('#result a[href="../index.html#program"]'); })()`), 'в конце — мост в урок 7.1 без ссылки и ссылка «Программа курса и даты выхода»');
     // вёрстка
     check((await p.eval('document.documentElement.scrollWidth')) <= vp.width, 'ширина страницы в пределах экрана');
     check(await p.eval(`(() => { const card = document.querySelector('${sc}').getBoundingClientRect(); return [...document.querySelectorAll('${sc} canvas, ${sc} .c6-sys, ${sc} .c6-log > li, ${sc} .c6-opt, ${sc} .c6-chips, ${sc} .c6-final')].every((e) => e.getBoundingClientRect().right <= card.right + 0.5); })()`), 'сцена, система, журнал и варианты замены не шире карточки');
