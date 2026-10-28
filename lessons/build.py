@@ -142,7 +142,7 @@ LESSONS = {
         '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'shared/ada-legs.js', 'l66/engine.js', 'shared/stats-chart.js', 'l66/ui-l66.js'],
     }),
     'l71': ('7-1-world-models-dreamer.html', ['l01/lesson.css', 'shared/lab.css', 'l71/l71.css'], {
-        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'shared/ada-legs.js', 'shared/stats-chart.js', 'l71/engine.js', 'l71/ui-l71.js'],
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'shared/ada-legs.js', 'shared/stats-chart.js', 'l71/engine.js', 'l71/table-draw.js', 'l71/ui-l71.js'],
     }),
     'l72': ('7-2-jepa-v-jepa-2.html', ['l01/lesson.css', 'shared/lab.css', 'l72/l72.css'], {
         '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'shared/ada-legs.js', 'shared/stats-chart.js', 'l71/engine.js', 'l72/engine.js', 'l72/ui-l72.js'],

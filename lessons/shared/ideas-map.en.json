@@ -136,7 +136,7 @@
    "title": "World Models",
    "org": "Google Brain, NNAISENSE",
    "problem": "Trying actions in the real world is slow and costly, and a policy that sees only images learns slowly.",
-   "contribution": "A neural network learned to predict what a game will show next, and a small policy was trained inside this learned dream. The policy trained in the dream also worked in the real game."
+   "contribution": "The world model compresses a game frame into a few numbers and predicts what the game will show next, and a small controller learns to act on these numbers. In VizDoom it was trained entirely in the model’s imagination and worked in the real game."
   },
   {
    "id": "deepmimic",
@@ -467,6 +467,13 @@
    "org": "UC Berkeley",
    "problem": "Separate modules for seeing, planning and control each add errors at the seams, and a precise task fails.",
    "contribution": "A single neural network turns the camera image straight into motor commands and is trained as a whole, from pixels to actions. The robot fitted a block into a toy shape sorter almost every time, while a system of separate modules never did."
+  },
+  {
+   "id": "daydreamer",
+   "title": "DayDreamer",
+   "org": "UC Berkeley",
+   "problem": "A simulator does not capture all the complexity of the real world, and model-free methods run out of hours on a real robot.",
+   "contribution": "Dreamer was run unchanged on real robots: the A1 quadruped learned to roll over, stand up and walk in about an hour, and arms learned to move objects in a few hours."
   }
  ]
 }

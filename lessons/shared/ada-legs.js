@@ -16,7 +16,10 @@
    противофазе ногам; body — другие длины звеньев (L1, L2); badJoints —
    номера суставов 0…5 с красным кольцом; badFeet — [дальняя, ближняя]:
    красная стопа. AdaBody.front(c, x, yb, s, P, dark) — вид спереди (x —
-   центр, yb — низ стоп, s — масштаб, рост 116·s). Зависит только от HeroKit.
+   центр, yb — низ стоп, s — масштаб, рост 116·s). AdaBody.charging(c, x,
+   yb, s, P, dark, o) — Ада на зарядке ночью (урок 7.1): тот же вид спереди
+   на плите зарядной станции, экран погас, глаза закрыты, полоска заряда.
+   Зависит только от HeroKit.
    ===================================================================== */
 'use strict';
 const AdaBody = (() => {
@@ -105,5 +108,31 @@ const AdaBody = (() => {
     c.fillStyle = K.eye; c.beginPath(); c.ellipse(-5, -103, 2, 3, 0, 0, 7); c.ellipse(5, -103, 2, 3, 0, 0, 7); c.fill();
     c.restore();
   }
-  return { BODY, points, side, front, colors };
+  /** Ада на зарядке ночью, вид спереди (урок 7.1 и вся часть 7): стоит на плите зарядной станции, экран погас, глаза —
+   *  две закрытые дуги, на стойке станции — полоска заряда. Рисунок тела тот же, что у front, и front не меняется.
+   *  x — центр, yb — низ плиты, s — масштаб (рост с плитой 122·s); o = { charge — доля заряда 0…1 (0,6), pulse — 0…1,
+   *  яркость верхнего деления полоски (для мерцания) }. Цвета фиксированные, как у front. */
+  function charging(c, x, yb, s, P, dark, o) {
+    o = o || {}; const K = colors(), q = Math.max(0, Math.min(1, o.charge == null ? 0.6 : o.charge)), pulse = o.pulse == null ? 1 : o.pulse;
+    c.save(); c.translate(x, yb); c.scale(s, s); c.lineJoin = 'round';
+    // плита станции и стойка с разъёмом
+    c.lineWidth = 2; c.strokeStyle = K.line;
+    c.fillStyle = K.far; c.beginPath(); c.roundRect(-30, -6, 60, 6, 3); c.fill(); c.stroke();
+    c.beginPath(); c.roundRect(24, -50, 12, 44, 4); c.fill(); c.stroke();
+    // полоска заряда на стойке: 4 деления снизу вверх
+    const n = 4, lit = Math.round(q * n);
+    for (let i = 0; i < n; i++) {
+      c.fillStyle = i < lit ? (i === lit - 1 ? `rgba(46,160,90,${0.45 + 0.55 * pulse})` : '#2ea05a') : (dark ? '#4a4944' : '#d8d2c6');
+      c.beginPath(); c.roundRect(26.5, -13 - i * 9, 7, 6, 1.5); c.fill();
+    }
+    c.restore();
+    front(c, x, yb - 6 * s, s, P, dark);
+    // поверх экрана front — погасший экран с закрытыми глазами
+    c.save(); c.translate(x, yb - 6 * s); c.scale(s, s);
+    c.beginPath(); c.roundRect(-12, -111, 24, 16, 6); c.fillStyle = '#12151c'; c.fill();
+    c.strokeStyle = 'rgba(235,104,52,0.8)'; c.lineWidth = 1.5; c.lineCap = 'round';
+    for (const ex of [-5, 5]) { c.beginPath(); c.arc(ex, -105, 2.6, 0.15 * Math.PI, 0.85 * Math.PI); c.stroke(); }
+    c.restore();
+  }
+  return { BODY, points, side, front, charging, colors };
 })();
