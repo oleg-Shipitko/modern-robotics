@@ -262,7 +262,7 @@
    "title": "JEPA",
    "org": "Meta",
    "problem": "Models that learn without labels by guessing the pixels of a hidden part of an image waste effort on noise and small details.",
-   "contribution": "Instead of the pixels of the hidden part, JEPA guesses its short description, which the model has learned itself. The model captures what is in the image without wasting effort on trifles. The same scheme was later applied to video."
+   "contribution": "JEPA predicts not the pixels of a hidden image region but its representation, learned by the model itself, so it skips details. The risk is collapse, when every image gets the same representation; a slowly updated copy of the model prevents it."
   },
   {
    "id": "diffusion-policy",
@@ -451,7 +451,7 @@
    "title": "V-JEPA 2",
    "org": "Meta",
    "problem": "A world model for a robot should learn from the robot’s recordings, but these are few compared to internet video.",
-   "contribution": "The model learns to understand video from a million hours of internet clips, then learns to predict the results of actions from a small set of robot recordings. With its predictions, an arm moves objects in an unfamiliar lab."
+   "contribution": "The model learns to understand video from a million hours of online clips, then learns the effects of actions from tens of hours of robot recordings. Given a goal picture, it picks actions and rearranges objects in unfamiliar labs."
   },
   {
    "id": "pi07",
@@ -474,6 +474,13 @@
    "org": "UC Berkeley",
    "problem": "A simulator does not capture all the complexity of the real world, and model-free methods run out of hours on a real robot.",
    "contribution": "Dreamer was run unchanged on real robots: the A1 quadruped learned to roll over, stand up and walk in about an hour, and arms learned to move objects in a few hours."
+  },
+  {
+   "id": "dino-wm",
+   "title": "DINO-WM",
+   "org": "NYU, Meta",
+   "problem": "Learning an image representation for each task takes long, and models that reconstruct the frame waste effort.",
+   "contribution": "The world model takes ready-made image representations from DINOv2 and only learns to predict them from the action. Given a goal picture it plans actions and far outperforms frame-reconstructing models in manipulation."
   }
  ]
 }

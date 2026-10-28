@@ -1,0 +1,72 @@
+/* ---------- урок 7.2 «JEPA и V-JEPA 2» ---------- */
+.cv-note { margin: 6px 2px 0; font-size: 13px; line-height: 1.45; color: var(--ink-3); }
+.ctl { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.ctl-l { font-size: 13.5px; font-weight: 650; color: var(--ink-3); }
+.btn[hidden] { display: none !important; }
+.guide-card .g-go { white-space: normal; text-align: left; max-width: 100%; }
+.seg.small button { padding-left: 8px; padding-right: 8px; font-size: 13px; }
+.seg.small { flex-wrap: wrap; }
+.m-live .m-crit li.no i { border-color: var(--line-2); color: var(--ink-3); background: var(--surface-2); }
+.m-live .m-crit li.no i::before { content: '·'; }
+details.lab-legend { margin-top: 8px; font-size: 13.5px; }
+details.lab-legend summary { cursor: pointer; color: var(--ink-2); font-weight: 600; }
+
+/* схемы */
+.flow-card { margin: 18px 0 0; padding: 14px 14px 12px; }
+.flow-card canvas { width: 100%; height: auto; display: block; }
+.flow-card figcaption { margin: 10px 2px 0; }
+
+/* лаборатория 1: кривая функции потерь и прибор «что знает модель» */
+.cl-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 2px 2px 6px; font-size: 13.5px; }
+.cl-head + .cl-cv { margin-bottom: 12px; }
+.cl-head b { font: 650 14px/1.2 var(--mono); color: var(--ink); text-align: right; }
+.cl-tag { font-weight: 650; padding: 2px 8px; border-radius: 999px; color: var(--ink); border: 1.5px solid var(--line-2); background: var(--surface-2); }
+.cl-cv { width: 100%; height: auto; display: block; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); }
+.cl-loss { aspect-ratio: 640 / 200; }
+.cl-know { aspect-ratio: 640 / 290; }
+.cl-frames { margin-top: 10px; }
+.cl-fcap { font-size: 12.5px; color: var(--ink-3); margin: 0 2px 6px; }
+.cl-frow { display: grid; grid-template-columns: repeat(6, minmax(0, 56px)); gap: 8px; }
+.cl-frow canvas { width: 100%; aspect-ratio: 1; image-rendering: pixelated; border-radius: 6px; border: 1px solid var(--line); background: #000; }
+@media (max-width: 560px) {
+  .cl-loss { aspect-ratio: 360 / 210; }
+  .cl-know { aspect-ratio: 360 / 470; }
+  .cl-frow { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 5px; }
+}
+
+/* лаборатория 2: фотография хозяйки и две Ады рядом */
+.gl-top { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 14px; align-items: center; margin-bottom: 12px; }
+.gl-photo { margin: 0; display: contents; }
+.gl-photo canvas { width: 96px; height: 96px; image-rendering: pixelated; border-radius: 8px; border: 2px solid var(--classic); background: #000; grid-row: 1 / span 2; }
+.gl-photo figcaption { font-size: 12.5px; line-height: 1.35; color: var(--ink-3); }
+.gl-note { font-size: 14px; line-height: 1.45; color: var(--ink-2); }
+.gl-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.gl-world { margin: 0; min-width: 0; }
+.gl-h { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 0 2px 6px; font-size: 13px; }
+.gl-h b { font: 700 16px/1 var(--mono); color: var(--ink); white-space: nowrap; }
+.gl-tag { font-weight: 650; padding: 2px 8px; border-radius: 999px; color: var(--ink); border: 1.5px dashed var(--e2e); background: var(--e2e-soft); }
+.gl-cv { width: 100%; height: auto; display: block; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2); }
+.gl-imag { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: center; margin-top: 8px; min-height: 52px; }
+.gl-imag .gl-icap { margin: 0; font-size: 12.5px; line-height: 1.35; color: var(--ink-3); grid-column: auto; }
+.gl-imag > .gl-icap:only-child { grid-column: 1 / -1; }
+.gl-iframe { width: 64px; height: 64px; image-rendering: pixelated; border-radius: 6px; border: 2px dashed var(--e2e); background: #000; }
+.gl-bars { width: 168px; height: auto; aspect-ratio: 200 / 64; display: block; border-radius: 6px; border: 1px solid var(--line); background: var(--surface); }
+.gl-legend { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 5px; font-size: 13px; color: var(--ink-2); }
+.gl-legend i { display: inline-block; width: 18px; height: 10px; margin-right: 8px; vertical-align: middle; border-radius: 3px; }
+.gl-legend .lg-real { height: 3px; background: var(--classic); }
+.gl-legend .lg-goal { width: 12px; height: 12px; border-radius: 50%; background: color-mix(in srgb, var(--classic) 22%, transparent); border: 1.5px solid var(--classic); }
+.gl-legend .lg-fan { height: 3px; background: linear-gradient(90deg, color-mix(in srgb, var(--e2e) 25%, transparent), var(--e2e)); }
+.gl-legend .lg-push { height: 4px; background: var(--e2e); }
+.gl-legend .lg-map { width: 14px; height: 12px; background: color-mix(in srgb, var(--e2e) 45%, transparent); }
+.gl-legend .lg-sugar { width: 12px; height: 12px; border-radius: 50%; background: #3866e0; }
+.gl-legend .lg-milk { width: 12px; height: 12px; border-radius: 50%; background: #f2f2eb; border: 1.5px solid #b3b3a8; margin-left: 4px; }
+#glFreeNote[hidden] { display: none; }
+@media (max-width: 560px) {
+  .gl-pair { grid-template-columns: 1fr; }
+  .gl-top { grid-template-columns: 72px minmax(0, 1fr); }
+  .gl-photo canvas { width: 72px; height: 72px; }
+}
+
+/* диаграммы: заголовок у каждой из двух диаграмм одной фигуры; до 900 px они встают одна под другой */
+.sb-title { font-size: 12.5px; font-weight: 700; color: var(--ink-2); margin: 0 0 10px; }
+@media (max-width: 900px) { .stat-grid { grid-template-columns: 1fr; gap: 18px; } }
