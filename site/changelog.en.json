@@ -3,7 +3,7 @@
   "versions": [
     {
       "v": "6.0",
-      "date": "2026-11-07",
+      "date": "2026-11-05",
       "title": "Part 6: humanoid robots",
       "items": [
         "Lessons 6.1 “RL-based locomotion”, 6.2 “Imitating human motion”, 6.3 “Whole-body control”, 6.4 “Loco-manipulation”, 6.5 “Humanoid hardware”, 6.6 “A survey of humanoid platforms”, and the Part 6 check with a live scene task.",
