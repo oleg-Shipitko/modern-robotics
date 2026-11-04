@@ -360,10 +360,8 @@ pre.code .cm { color: var(--muted); }
 .pchip[data-a="classic"] { --c: var(--classic); } .pchip[data-a="e2e"] { --c: var(--e2e); } .pchip[data-a="hybrid"] { --c: var(--hybrid); } .pchip[data-a="none"] { --c: var(--ink-3); }
 .pchip[aria-pressed="true"] { border-color: var(--c); color: var(--ink); background: color-mix(in srgb, var(--c) 10%, var(--surface)); }
 .pchip[aria-pressed="true"]::before { background: var(--c); border-color: var(--c); }
-.pchip.right { box-shadow: 0 0 0 3px rgba(12,163,12,.25); }
-.pchip.wrong { box-shadow: 0 0 0 3px rgba(208,59,59,.22); }
-.pchip.right::after { content: "✓"; color: var(--good-ink); font-weight: 800; margin-left: 2px; }
-.pchip.wrong::after { content: "✗"; color: var(--critical); font-weight: 800; margin-left: 2px; }
+.pchip[aria-disabled="true"] { cursor: default; }
+.prediction-result { flex-basis: 100%; color: var(--ink-2); font-size: 13.5px; line-height: 1.45; }
 
 .arena { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 .agent-panel { border: 1px solid var(--line); border-radius: 13px; background: var(--surface); overflow: hidden; display: flex; flex-direction: column; }

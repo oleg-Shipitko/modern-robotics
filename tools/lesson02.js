@@ -146,6 +146,28 @@ async function sortCards(p, M, root, ctlPath, plan, real) {
   return p.eval(`document.querySelector(${J(root + ' .c-out')}).textContent`);
 }
 
+async function dragCleanup(p, M) {
+  await M.scroll('#typesSort');
+  const result = JSON.parse(await p.eval(`JSON.stringify((() => {
+    const cards = [...document.querySelectorAll('#typesSort .c-card')];
+    const fire = (c, type, x, buttons) => c.dispatchEvent(new PointerEvent(type, {
+      bubbles: true, pointerId: 71, pointerType: 'mouse', button: 0, buttons, clientX: x, clientY: 40
+    }));
+    const a = cards[0], b = cards[1];
+    fire(a, 'pointerdown', 10, 1); fire(a, 'pointermove', 40, 1);
+    const madeForLostCapture = !!document.querySelector('.c-ghost');
+    fire(a, 'lostpointercapture', 40, 0);
+    const clearedByLostCapture = !document.querySelector('.c-ghost') && !a.classList.contains('c-dragging');
+    fire(a, 'pointerdown', 10, 1); fire(a, 'pointermove', 40, 1); fire(a, 'pointermove', 45, 0);
+    const clearedByButtons = !document.querySelector('.c-ghost') && !a.classList.contains('c-dragging');
+    fire(a, 'pointerdown', 10, 1); fire(a, 'pointermove', 40, 1); fire(b, 'pointerdown', 12, 1);
+    const clearedByNextDrag = document.querySelectorAll('.c-ghost').length === 0 && !a.classList.contains('c-dragging');
+    fire(b, 'pointercancel', 12, 0);
+    return { madeForLostCapture, clearedByLostCapture, clearedByButtons, clearedByNextDrag };
+  })())`));
+  check(Object.values(result).every(Boolean), 'перетаскивание очищается при потере pointerup: ' + JSON.stringify(result));
+}
+
 async function imu(p, M, shots) {
   console.log('IMU');
   const R = '#imuGuide';
@@ -214,6 +236,7 @@ async function act(p, M, shots) {
   await arm(p, M, true);
   await gear(p, M, true);
   console.log('Какой привод куда');
+  await dragCleanup(p, M);
   const t = await sortCards(p, M, '#typesSort', 'TypesSort', 'right', 2); check(/^8 из 8/.test(t), 'сортировка приводов: ' + t.slice(0, 40));
   await p.shotEl(out('l02-types.png'), '#typesSort', 6);
   await imu(p, M, true);

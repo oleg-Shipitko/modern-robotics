@@ -1,9 +1,10 @@
 {
-  "_comment": "What's new on the site, English version: the same versions and dates as site/changelog.json, titles and items in English. The first number of a version is the last released part, the second grows with every update between releases. An entry with a future date appears on the page on that day (Moscow time). Newest first.",
+  "_comment": "What's new on the site, English version: the same versions, dates and optional release times as site/changelog.json, titles and items in English. The first number of a version is the last released part, the second grows with every update between releases. Newest first.",
   "versions": [
     {
       "v": "6.0",
       "date": "2026-11-05",
+      "time": "09:00",
       "title": "Part 6: humanoid robots",
       "items": [
         "Lessons 6.1 “RL-based locomotion”, 6.2 “Imitating human motion”, 6.3 “Whole-body control”, 6.4 “Loco-manipulation”, 6.5 “Humanoid hardware”, 6.6 “A survey of humanoid platforms”, and the Part 6 check with a live scene task.",
@@ -12,6 +13,25 @@
         "Numbers from papers and specs are shown as bar charts.",
         "The Part 6 lessons and the Part 6 check are available in English from day one.",
         "38 new glossary terms, and the “VLM” tooltip now also appears on the words “vision-language model”."
+      ]
+    },
+    {
+      "v": "5.2",
+      "date": "2026-11-05",
+      "title": "Fixes reported by readers",
+      "items": [
+        "In Lab 0.1, the prediction is now separate from the actual outcome: selected options no longer look like robot results, and after a run the page clearly shows the reader's choice and which robots actually reached the cup.",
+        "In the 0.2 exercise, a dragged card is now cleaned up when the release event, pointer capture, or pressed-button state is lost; a stuck copy can no longer block completion.",
+        "@IvanNaum and @artembru, who reported these problems, have been added to the acknowledgements."
+      ]
+    },
+    {
+      "v": "5.1",
+      "date": "2026-11-04",
+      "title": "Ideas map: new works and a dedicated link preview",
+      "items": [
+        "The ideas map now contains 64 works: DayDreamer and DINO-WM connect learning on a real robot with testing plans inside a learned world model.",
+        "The ideas map now has its own link preview for messengers and social networks; its Russian and English pages use separate images and captions."
       ]
     },
     {

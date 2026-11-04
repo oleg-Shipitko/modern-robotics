@@ -16,7 +16,7 @@ window.Cards = (function () {
     if (typeof root === 'string') root = document.querySelector(root);
     root.innerHTML = ''; root.classList.add('c-sort');
     const pool = el('div', 'c-pool'), zones = el('div', 'c-zones'), bar = el('div', 'c-bar'), out = el('div', 'c-out');
-    const cards = {}, zoneBody = {}, locked = new Set(); let sel = null, checked = false;   // locked — верные карточки после «Переложить ошибочные»
+    const cards = {}, zoneBody = {}, locked = new Set(); let sel = null, checked = false, activeDragReset = null;   // locked — верные карточки после «Переложить ошибочные»
     pool.append(el('div', 'c-pool-h', 'Карточки'));
     const poolBody = el('div', 'c-body'); pool.append(poolBody);
     spec.targets.forEach((t) => {
@@ -54,9 +54,23 @@ window.Cards = (function () {
     function select(id) { sel = id; Object.values(cards).forEach((c) => c.classList.toggle('c-sel', c.dataset.id === id)); root.classList.toggle('c-selecting', !!id); }
     function attachDrag(c, id) {
       let start = null, drag = false, ghost = null;
-      c.addEventListener('pointerdown', (e) => { if (checked || locked.has(id) || e.button > 0) return; start = { x: e.clientX, y: e.clientY }; drag = false; try { c.setPointerCapture(e.pointerId); } catch (err) { /* синтетическое событие */ } });
+      const reset = () => {
+        if (ghost) ghost.remove();
+        ghost = null; start = null; drag = false;
+        c.classList.remove('c-dragging');
+        root.querySelectorAll('.c-over').forEach((x) => x.classList.remove('c-over'));
+        if (activeDragReset === reset) activeDragReset = null;
+      };
+      c.addEventListener('pointerdown', (e) => {
+        if (activeDragReset) activeDragReset();
+        reset();
+        if (checked || locked.has(id) || e.button > 0) return;
+        start = { x: e.clientX, y: e.clientY }; drag = false; activeDragReset = reset;
+        try { c.setPointerCapture(e.pointerId); } catch (err) { /* синтетическое событие */ }
+      });
       c.addEventListener('pointermove', (e) => {
         if (!start) return;
+        if (e.pointerType !== 'touch' && e.buttons === 0) { reset(); return; }
         if (!drag && Math.hypot(e.clientX - start.x, e.clientY - start.y) > 6) {
           drag = true; const r = c.getBoundingClientRect();
           ghost = c.cloneNode(true); ghost.classList.add('c-ghost'); ghost.style.width = r.width + 'px'; document.body.append(ghost);
@@ -73,11 +87,12 @@ window.Cards = (function () {
         if (drag) {
           const under = document.elementFromPoint(e.clientX, e.clientY), z = under && under.closest('.c-zone, .c-pool');
           if (z && root.contains(z)) place(id, z.classList.contains('c-pool') ? null : z.dataset.zone);
-          ghost.remove(); ghost = null; c.classList.remove('c-dragging'); root.querySelectorAll('.c-over').forEach((x) => x.classList.remove('c-over'));
         } else if (!checked && !locked.has(id)) select(sel === id ? null : id);
-        start = null; drag = false;
+        reset();
       };
-      c.addEventListener('pointerup', end); c.addEventListener('pointercancel', (e) => { if (ghost) { ghost.remove(); ghost = null; } c.classList.remove('c-dragging'); start = null; drag = false; });
+      c.addEventListener('pointerup', end);
+      c.addEventListener('pointercancel', reset);
+      c.addEventListener('lostpointercapture', reset);
       c.addEventListener('keydown', (e) => { if (e.key === 'Escape') select(null); });
     }
     checkBtn.addEventListener('click', () => {

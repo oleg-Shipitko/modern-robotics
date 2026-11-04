@@ -17,8 +17,18 @@ const URL0 = 'file://' + path.resolve(__dirname, '../site/lessons/0-1-dve-paradi
   await p.shotEl(out('l01-arch-vla.png'), '#arch', 6);
   // лаба 1: запустить первый эксперимент
   await p.eval('document.querySelector("#lab1").scrollIntoView({block: "start", behavior: "instant"})'); await sleep(300);
+  await p.click('.pchip[data-a="classic"]');
   await p.click('#runBtn'); await sleep(9000);
   console.log('лаба 1, статусы:', await p.eval('Array.from(document.querySelectorAll(".agent-status")).map(e => e.textContent.trim()).join(" | ")'));
+  const prediction = JSON.parse(await p.eval(`JSON.stringify({
+    marks: document.querySelectorAll('#predict .right, #predict .wrong').length,
+    text: document.querySelector('#predict .prediction-result').textContent,
+    actual: [...document.querySelectorAll('.agent-status')].map((e) => e.textContent.trim())
+  })`));
+  if (prediction.marks || !prediction.text.includes('Твой выбор: Правила.') || !prediction.text.includes('Фактически дошли: Правила, End-to-end, Гибрид.') || !prediction.actual.every((t) => t.includes('Дошла'))) {
+    throw new Error('Прогноз и фактический исход не разделены: ' + JSON.stringify(prediction));
+  }
+  console.log('прогноз отделён от исхода:', prediction.text);
   await p.shotEl(out('l01-lab1-run.png'), '#lab1Card', 6);
   const m = await B.page(URL0, { width: 390, height: 844, dpr: 2, mobile: true, light: true });
   await m.waitFor('window.__lessonReady === true', 120000);

@@ -15,7 +15,7 @@ import json, pathlib, re, shutil, sys
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parent / 'tools'))
-from published import asof, published as published_on  # noqa: E402
+from published import asof, published as published_on, release_moment  # noqa: E402
 import seo  # noqa: E402
 from i18n_extract import literals, load_dict, translate_js, CYR  # noqa: E402
 cfg = json.loads((HERE / 'config.json').read_text(encoding='utf-8'))
@@ -63,7 +63,12 @@ def en_date(d):
     return f'{dd} {MONTHS_EN[m - 1]} {y}'
 log = json.loads((HERE / 'changelog.json').read_text(encoding='utf-8'))
 moment = asof()
-shown = [v for v in log['versions'] if v['date'] <= moment.date().isoformat()]
+def changelog_visible(v):
+    if not v.get('time'):
+        return v['date'] <= moment.date().isoformat()
+    hour, minute = (int(x) for x in v['time'].split(':'))
+    return release_moment(v['date']).replace(hour=hour, minute=minute) <= moment
+shown = [v for v in log['versions'] if changelog_visible(v)]
 def esc(t):
     return t.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
 def changelog_html(versions, fmt_date):

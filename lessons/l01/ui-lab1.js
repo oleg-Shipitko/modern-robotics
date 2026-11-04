@@ -145,7 +145,7 @@ const Lab1 = (() => {
     const pr = $('#predict');
     pr.innerHTML = '';
     if (!st.free) {
-      pr.append(h('span', { class: 'q' }, 'Твой прогноз: ' + st.q.toLowerCase().replace('?', '') + '?'));
+      pr.append(h('span', { class: 'q' }, 'Твой прогноз — выбери всех, кто дойдёт до чашки:'));
       ['classic', 'e2e', 'hybrid', 'none'].forEach((a) => {
         const b = h('button', { type: 'button', class: 'pchip', 'data-a': a, 'aria-pressed': 'false' }, a === 'none' ? 'Никто' : NAMES[a]);
         b.addEventListener('click', () => {
@@ -197,7 +197,9 @@ const Lab1 = (() => {
     if (!eps) return;
     running = true; paused = false; finishedRun = false; acc = 0; lastFrame = performance.now();
     $('#explain').hidden = true;
-    $$('.pchip').forEach((c) => c.classList.remove('right', 'wrong'));
+    $$('.pchip').forEach((c) => c.removeAttribute('aria-disabled'));
+    const oldResult = $('#predict .prediction-result');
+    if (oldResult) oldResult.remove();
     updateRunBtn();
     requestAnimationFrame(loop);
   }
@@ -265,17 +267,20 @@ const Lab1 = (() => {
     const matches = AG.every((a) => actual[a] === st.expect[a]);
     const box = $('#explain');
     box.innerHTML = '';
-    // сверка прогноза
+    // Сверка прогноза показывается отдельной строкой: сами карточки роботов
+    // остаются только выбором читателя и не выглядят как фактический исход.
     let verdict = null;
     if (pred.size) {
       let right = 0;
       AG.forEach((a) => {
         const said = pred.has(a), ok = actual[a] === OK;
-        const chip = $(`.pchip[data-a="${a}"]`);
-        if (said === ok) { right++; chip.classList.add('right'); } else chip.classList.add('wrong');
+        if (said === ok) right++;
       });
-      const noneChip = $('.pchip[data-a="none"]');
-      if (pred.has('none')) noneChip.classList.add(AG.some((a) => actual[a] === OK) ? 'wrong' : 'right');
+      const list = (ids) => ids.length ? ids.map((a) => NAMES[a]).join(', ') : 'Никто';
+      const predicted = pred.has('none') ? 'Никто' : list(AG.filter((a) => pred.has(a)));
+      const reached = list(AG.filter((a) => actual[a] === OK));
+      $$('.pchip', $('#predict')).forEach((c) => c.setAttribute('aria-disabled', 'true'));
+      $('#predict').append(h('span', { class: 'prediction-result' }, `Твой выбор: ${predicted}. Фактически дошли: ${reached}.`));
       verdict = h('div', { class: 'verdict' }, h('span', { class: 'chip plain' }, `Прогноз совпал для ${right} из 3 роботов`));
     }
     box.append(h('h4', null, matches ? '🔍 Что произошло' : '🔍 Результат отличается от типичного'));
