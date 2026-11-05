@@ -2,6 +2,16 @@
   "_comment": "What's new on the site, English version: the same versions, dates and optional release times as site/changelog.json, titles and items in English. The first number of a version is the last released part, the second grows with every update between releases. Newest first.",
   "versions": [
     {
+      "v": "6.1",
+      "date": "2026-11-06",
+      "title": "Lesson 3.2 visualization fixes",
+      "items": [
+        "In the mini-VLM lab, the projector's 16 × 16 dimension now sits outside the matrix rectangle, and the arrows run through the free gaps between blocks.",
+        "In the word-space interactive, labels are arranged along the panel edges and connected to the markers' exact coordinates, keeping dense clusters readable.",
+        "Contrastive learning now has a short explanation at its first mention, with a link to the detailed treatment in lesson 2.1."
+      ]
+    },
+    {
       "v": "6.0",
       "date": "2026-11-05",
       "time": "09:00",

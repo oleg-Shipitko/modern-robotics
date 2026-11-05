@@ -64,7 +64,6 @@
  "Меняй предмет, перемешивай патчи, убирай позиции. Найди форму, для которой перестановка с позициями меняет выход сильнее всего, и подумай, почему для мяча и кубика это разные числа.": "Change the object, shuffle the patches, remove the positions. Find the shape for which shuffling with positions changes the output the most, and think about why the ball and the cube give different numbers.",
  "энкодер с нуля: всё вместе": "encoder from scratch: all together",
  "картинка → 16 патчей": "image → 16 patches",
- "проектор W": "projector W",
  "→ языковая модель": "→ language model",
  "Не обучена: нажми «Обучить мини-VLM»": "Not trained: press “Train the mini-VLM”",
  "Модель ещё не обучена, ответ случайный: нажми «Обучить мини-VLM» в карточке миссии": "Not trained yet, so the answer is random: press “Train the mini-VLM” in the mission card",
