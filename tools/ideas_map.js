@@ -52,6 +52,11 @@ function dataChecks() {
     ok(!longP.length && !longC.length, `${lang}: problem ≤ ${MAX_PROBLEM} и contribution ≤ ${MAX_SOLUTION} знаков (в среднем ${avg('problem')} и ${avg('contribution')}, самые длинные ${Math.max(...nodes.map((n) => (n.problem || '').length))} и ${Math.max(...nodes.map((n) => (n.contribution || '').length))})`
       + (longP.length || longC.length ? '; длиннее: ' + [...new Set([...longP, ...longC].map((n) => n.id))].join(', ') : ''));
   }
+  for (const name of ['og-ideas-map.png', 'og-ideas-map-en.png']) {
+    const file = path.join(ROOT, 'site/assets', name), png = fs.existsSync(file) ? fs.readFileSync(file) : null;
+    const size = png && png.length >= 24 ? [png.readUInt32BE(16), png.readUInt32BE(20)] : [0, 0];
+    ok(size[0] === 1200 && size[1] === 630, `${name}: 1200×630`);
+  }
 }
 
 // предки и потомки по JSON — чтобы сверить подсветку
@@ -146,6 +151,9 @@ async function checkWide(B, url, lang) {
   const ru = lang === 'ru';
   console.log(`${lang}: 1440 px`);
   let p = await open(B, url, 1440, 1000);
+  const social = JSON.parse(await p.eval(`JSON.stringify({title:document.querySelector('meta[property="og:title"]')?.content||'',image:document.querySelector('meta[property="og:image"]')?.content||'',width:document.querySelector('meta[property="og:image:width"]')?.content||'',height:document.querySelector('meta[property="og:image:height"]')?.content||'',card:document.querySelector('meta[name="twitter:card"]')?.content||'',twitter:document.querySelector('meta[name="twitter:image"]')?.content||''})`));
+  const preview = ru ? '/assets/og-ideas-map.png' : '/assets/og-ideas-map-en.png';
+  ok(social.title && social.image.endsWith(preview) && social.twitter.endsWith(preview) && social.width === '1200' && social.height === '630' && social.card === 'summary_large_image', `превью ссылки: ${path.basename(social.image || 'нет')}, 1200×630`);
   ok(p.logs.length === 0, 'консоль чистая' + (p.logs.length ? ': ' + p.logs.join(' | ') : ''));
   ok(await p.eval('document.documentElement.lang') === lang, `lang="${lang}"`);
   const n = await p.eval(`document.querySelectorAll('#imSvg .node').length`);

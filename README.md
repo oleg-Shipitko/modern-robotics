@@ -76,7 +76,7 @@ tools/deploy.sh --dryrun                 # what a deployment would upload
 - `tools/deploy.sh` builds everything into `dist/` and syncs it with the `modernrobotics.ru` bucket through the AWS CLI (profile `mr`, endpoint `storage.yandexcloud.net`). Flags: `--build-only`, `--dryrun`. `tools/release_mac.sh` schedules a Saturday release from a Mac.
 - The cloud is set up with `yc` by `tools/cloud-setup.sh`: site and www buckets, the DNS zone, a Let's Encrypt certificate, HTTPS and a deployment key (steps `buckets`, `dns`, `cert`, `https`, `deploy-key`, `status`).
 - The Inter and JetBrains Mono fonts are self-hosted in `site/assets/fonts/` (SIL Open Font License).
-- The link preview image `site/assets/og.png` is drawn by `node tools/og_image.js`.
+- The main link preview image `site/assets/og.png` is drawn by `node tools/og_image.js`; the RU and EN previews of the ideas map are drawn by `node tools/ideas_map_og.js`.
 - The "Say thanks" button shows a shared counter kept by a Yandex Cloud function (`server/thanks/deploy.sh`); the database holds only the number. Lessons send anonymous events, such as page opens, how far the reader got and mission results, to `server/stats/`. It stores daily sums per page and the texts of end-of-lesson feedback, with no cookies and no reader identifiers; the privacy policy on the website lists what is counted.
 
 ### Licenses
@@ -157,7 +157,7 @@ tools/deploy.sh --dryrun                 # что уйдёт на сайт пр�
 - `tools/deploy.sh` собирает всё в `dist/` и синхронизирует с бакетом `modernrobotics.ru` через AWS CLI (профиль `mr`, endpoint `storage.yandexcloud.net`). Флаги: `--build-only`, `--dryrun`. `tools/release_mac.sh` ставит субботний выпуск по расписанию с Mac.
 - Облако настраивается через `yc` скриптом `tools/cloud-setup.sh`: бакеты сайта и www, зона DNS, сертификат Let's Encrypt, HTTPS и ключ для выкладки (шаги `buckets`, `dns`, `cert`, `https`, `deploy-key`, `status`).
 - Шрифты Inter и JetBrains Mono лежат на своём сервере: `site/assets/fonts/` (SIL Open Font License).
-- Картинку превью ссылок `site/assets/og.png` рисует скрипт `node tools/og_image.js`.
+- Общую картинку превью ссылок `site/assets/og.png` рисует скрипт `node tools/og_image.js`; русское и английское превью карты идей — `node tools/ideas_map_og.js`.
 - Кнопка «Сказать спасибо» показывает общий счётчик. Его хранит функция в Yandex Cloud (`server/thanks/deploy.sh`), в базе только число. Уроки отправляют в `server/stats/` анонимные события: открытие страницы, до какого раздела дочитали, итоги миссий. Там хранятся суммы по дням и страницам и тексты отзывов в конце урока, без cookies и без идентификаторов читателей; что именно считается, перечислено в политике конфиденциальности на сайте.
 
 ### Лицензии
