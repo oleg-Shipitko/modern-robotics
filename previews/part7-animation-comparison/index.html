@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Анимации 7.3–7.5: было / стало</title>
+  <link rel="stylesheet" href="../../site/assets/fonts/fonts.css">
+  <link rel="stylesheet" href="preview.css">
+  <script>(function(){try{const t=localStorage.getItem('mr-theme');if(t)document.documentElement.dataset.theme=t;else if(matchMedia('(prefers-color-scheme:dark)').matches)document.documentElement.dataset.theme='dark'}catch(e){}})();</script>
+</head>
+<body>
+  <header class="top">
+    <div>
+      <p class="eyebrow">Часть 7 · прототипы без замены уроков</p>
+      <h1>Анимации 7.3–7.5: было / стало</h1>
+      <p class="lead">Слева — контрольный кадр текущей анимации. Справа — живой прототип, где движение показывает механизм и физический результат.</p>
+    </div>
+    <button id="themeBtn" type="button" aria-label="Переключить тему">◐</button>
+  </header>
+
+  <nav class="jump" aria-label="Уроки"><a href="#l73">7.3</a><a href="#l74">7.4</a><a href="#l75">7.5</a></nav>
+
+  <main>
+    <section id="l73">
+      <div class="section-head"><span>7.3</span><div><h2>Генеративные модели мира</h2><p>Анимация объясняет, как неразмеченные переходы превращаются в словарь; исследование смысла записей остаётся лабораторией.</p></div></div>
+      <div class="compare">
+        <figure class="version before"><b>Было</b><img src="../../shots/l73-genie-2.png" alt="Текущая блок-схема обучения Genie"><figcaption>Поток данных виден, но смысл записей словаря приходится восстанавливать по тексту.</figcaption></figure>
+        <figure class="version after"><b>Стало · прототип</b><canvas data-anim="l73-v2" role="img" aria-label="Несколько настоящих переходов поступают в модель скрытых действий, группируются в записи словаря и затем используются моделью динамики для предсказания следующего кадра"></canvas><figcaption>Коды и предсказанный кадр рассчитаны движком 7.3. Анимация показывает обучение; лаборатория по-прежнему посвящена самостоятельному исследованию записей.</figcaption></figure>
+      </div>
+    </section>
+
+    <section id="l74">
+      <div class="section-head"><span>7.4</span><div><h2>World Action Models</h2><p>Анимация сравнивает вычислительные графы; поведение трёх контуров остаётся предметом лаборатории.</p></div></div>
+      <div class="compare">
+        <figure class="version before"><b>Было</b><img src="../../shots/l74-wam.png" alt="Текущая блок-схема архитектур WAM"><figcaption>Вкладки хорошо перечисляют варианты, но не показывают, что действие меняет следующее наблюдение.</figcaption></figure>
+        <figure class="version after"><b>Стало · прототип</b><canvas data-anim="l74-v2" role="img" aria-label="Четыре вычислительных графа показывают, где находятся будущие кадры, скрытые признаки и действие во время обучения и работы"></canvas><figcaption>Конкретные кадры заменяют абстрактные подписи, но анимация не повторяет эксперимент лаборатории с успехами и траекториями.</figcaption></figure>
+      </div>
+    </section>
+
+    <section id="l75">
+      <div class="section-head"><span>7.5</span><div><h2>Проверка политик в модели мира</h2><p>Анимация раскрывает один замкнутый прогон; ранжирование и отбор чекпойнтов остаются двумя лабораториями.</p></div></div>
+      <div class="compare">
+        <figure class="version before"><b>Было</b><img src="../../shots/l75-flow.png" alt="Текущая схема проверки политики в модели мира и на роботе"><figcaption>Две полосы показывают этапы, но не саму ошибку модели мира.</figcaption></figure>
+        <figure class="version after"><b>Стало · прототип</b><canvas data-anim="l75-v2" role="img" aria-label="Одна политика исполняет одинаковые действия в модели мира и на физическом столе; предсказанный следующий кадр возвращается политике в первом контуре, настоящий кадр во втором, и результаты расходятся"></canvas><figcaption>Оба пути вычислены движком 7.5. Здесь объясняется причина расхождения; экзамен нескольких чекпойнтов не дублируется.</figcaption></figure>
+      </div>
+    </section>
+  </main>
+
+  <footer>Уроки 7.3–7.5 не изменены. После выбора прототипы можно перенести в соответствующие страницы.</footer>
+
+  <script src="../../lessons/shared/kit.js"></script>
+  <script src="../../lessons/shared/anim.js"></script>
+  <script src="../../lessons/l71/engine.js"></script>
+  <script src="../../lessons/l73/engine.js"></script>
+  <script src="../../lessons/l74/engine.js"></script>
+  <script src="../../lessons/l75/model-data.js"></script>
+  <script src="../../lessons/l75/engine.js"></script>
+  <script src="new-animations.js"></script>
+  <script>
+    document.getElementById('themeBtn').addEventListener('click',()=>{const r=document.documentElement;r.dataset.theme=r.dataset.theme==='dark'?'light':'dark';});
+    window.__previewReady=true;
+  </script>
+</body>
+</html>

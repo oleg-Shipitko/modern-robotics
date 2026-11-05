@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>7.2 JEPA and V-JEPA 2 — Modern Robotics and Physical AI</title>
+<meta name="description" content="Lesson 7.2 of the “Modern Robotics and Physical AI” course: a world model predicts representations instead of pixels. LeCun's JEPA, representation collapse and the defenses against it, I-JEPA and V-JEPA, V-JEPA 2 and planning with a goal image in V-JEPA 2-AC, DINO-WM, H-JEPA. Drive a small JEPA into collapse and defend it, then place Ada's cup according to a photo from her owner with two planners: one compares pixels, the other representations.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<script>
+  (function () { try { var t = localStorage.getItem('mr-theme'); if (t) document.documentElement.dataset.theme = t; else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme = 'dark'; } catch (e) {} })();
+</script>
+<style>
+/*@@CSS@@*/
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html#program" title="To the course program"><div>Modern Robotics and Physical AI<small>Lesson 7.2 · JEPA and V-JEPA 2</small></div></a>
+    <nav class="toc" aria-label="Lesson sections">
+      <a href="#pixels">Pixels</a>
+      <a href="#jepa">JEPA</a>
+      <a href="#collapse">Collapse</a>
+      <a href="#ijepa">I-JEPA</a>
+      <a href="#vjepa2">V-JEPA 2</a>
+      <a href="#goal">Goal</a>
+      <a href="#dino">DINO-WM</a>
+      <a href="#limits">Limits</a>
+      <a href="#today">Today</a>
+      <a href="#quiz">Quiz</a>
+      <a href="#finale">Takeaways</a>
+    </nav>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Toggle theme">◐</button>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main>
+
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="kicker"><span class="num">7.2</span> Part 7 · World models</div>
+    <h1>JEPA and V-JEPA 2: <span class="amp">how to predict representations instead of pixels and plan with them</span></h1>
+    <p class="lead">In lesson 7.1, world models learned by reconstructing every frame and spent effort on the wrong things: the VAE in World Models drew the brick pattern on the walls in Doom but lost the road markings in CarRacing, and in Video Pinball the ball takes up a single pixel, and on this game DreamerV2 loses to model-free methods. In 2022, LeCun proposed predicting not the future frame but its representation, a vector in which the encoder itself decides what to keep from the frame. This is how JEPAs work. I-JEPA and V-JEPA learned this way from images and video, and V-JEPA 2, after a million hours of video without actions and about 62 hours of robot recordings, plans with a goal image: in labs where not a single attempt was recorded for it, it picks up a cup and places it at the goal in 80% of attempts versus 15% for Octo. The idea has a price: a model that gives every frame the same representation predicts without error and knows nothing. In this lesson, Ada trains a small JEPA on her camera frames, defends it from such a collapse and places a cup according to a photo sent by her owner.</p>
+    <div class="hero-meta"><span>≈ 60 minutes</span><span>2 labs, 2 diagrams, charts and a quiz</span><span id="heroMis">missions with a goal</span></div>
+    <div class="hero-list">
+      <div><b>A DECEPTIVE CURVE</b>Train a small model on Ada's camera frames and watch the error fall almost to zero while the model stops noticing the cup</div>
+      <div><b>DEFENSES AGAINST COLLAPSE</b>Keep the model from collapsing in three ways from the papers: a moving average of the weights, a spread penalty and guessing the push</div>
+      <div><b>THE CUP FROM A PHOTO</b>Put the cup where it stands in the owner's photo with two planners: one compares pixels, the other representations</div>
+      <div><b>FROM THE PAPERS</b>Look at the numbers of I-JEPA, V-JEPA, V-JEPA 2-AC, DINO-WM and H-JEPA: pixels versus representations, success on the robot, seconds per action</div>
+    </div>
+    <p style="margin-top:28px"><a class="btn primary" href="#pixels">Start the lesson ↓</a></p>
+  </div>
+</section>
+
+<section class="recall-sec" id="recall" aria-label="Warm-up on the previous lesson">
+  <div class="wrap"><div class="card recall" data-recall></div></div>
+  <script type="application/json" id="recallData">{"n": "7.1", "title": "World Models and Dreamer", "href": "7-1-world-models-dreamer.html", "q": [
+ {"q": "The world model is off by less than a millimeter on a single step. Why can the imagined cup end up centimeters away from the real one after a dozen steps?", "o": ["The model randomly degrades over time", "The rollout is built from the model's own predictions, and the error accumulates with the horizon, fastest where there were no recordings", "The real cup moves randomly and can't be predicted"], "a": 1, "e": "In the lab, a careful push through the middle of the table diverged by 0.1 cm by step 10, while a push at 0.6 m/s tipped the real cup over as the imagined one kept going: 18 cm by step 10. Twice as many of the same recordings didn't fix this.", "sec": "dream", "secTitle": "Imagination next to the real table: how far ahead you can trust the model"},
+ {"q": "Ada's policy succeeded in 98% of attempts in the model's imagination and never on the real table. What happened?", "o": ["The model overfitted to the recordings", "The policy sped the push up beyond how Ada pushed during the day, and the model, which had never seen a tip-over, considered failure impossible", "The real table had different friction"], "a": 1, "e": "This is a loophole in the model, like the one found by the controller of Ha and Schmidhuber, at which the monsters in imagination didn't shoot. It was closed by 10 real attempts where the policy goes: failures appeared in the data, and the policy slowed the push down.", "sec": "holes", "secTitle": "A policy from imagination on the real table"},
+ {"q": "How does Dreamer train the actor and critic?", "o": ["On the robot's real steps; the world model is needed only for planning", "Entirely on rollouts in the model's imagination: the rollouts start from real states in the buffer, and the critic looks beyond the rollout's horizon through the λ-return", "By repeating the operator's demonstrations"], "a": 1, "e": "Dreamer's world model is an RSSM, and it learns separately, from real experience. DreamerV2 has 10,000 times more imagined states than real frames, and real experience is needed to train and correct the model.", "sec": "rssm", "secTitle": "PlaNet and Dreamer: the latent state and learning in imagination"}
+]}</script>
+</section>
+
+<section class="section alt" id="pixels">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">1</span> Pixels</div>
+      <h2>Predicting every pixel is impossible and unnecessary</h2>
+      <p>In lesson 7.1, Ada's world model got the cup's position as numbers, while the models that worked with frames, World Models, PlaNet and Dreamer, learned to reconstruct the frame from their latent state. The reconstruction error was their main learning signal, so the model spent effort on everything in the frame. The VAE in World Models drew the brick pattern on the walls in Doom but lost the road markings in CarRacing, and in Video Pinball the ball takes up a single pixel, and on this game DreamerV2 loses to model-free methods.</p>
+      <p class="ada-note"><svg class="ada-ico" viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="10" width="48" height="42" rx="18" fill="#f4efe6" stroke="#3d3c38" stroke-width="3"/><rect x="15" y="19" width="34" height="22" rx="10" fill="#1f2430"/><ellipse cx="25" cy="30" rx="4" ry="5.5" fill="#eb6834"/><ellipse cx="39" cy="30" rx="4" ry="5.5" fill="#eb6834"/></svg><span>Ada is the course's home humanoid; since lesson 6.1, she has legs instead of a wheeled base. More about her and her home in <a href="0-1-dve-paradigmy.html#ada">lesson 0.1</a>.</span></p>
+      <p>Ada has the same problem. Nobody tells her where the cup is: she has a camera on her head that sees the kitchen table from above. In the 16 × 16 pixel frame on which the models of this lesson learn, the cup touches 4 pixels out of 256, and the rest is taken up by the patterned tablecloth, the saucer, the sugar bowl, the milk jug and the light, which differs in the morning and in the evening. A model that reconstructs the frame spends almost all of its error on the tablecloth and the light, while the cup's position, the very thing the model is needed for, weighs least of all in this error.</p>
+      <p>In his 2022 position paper, LeCun writes that “it is essentially impossible to predict every pixel value of every future frame”: the texture of a carpet, leaves moving in the wind or ripples on a pond can't be predicted accurately. Nor is it necessary. A driver at a fork in the road cares where the car is and how fast it's going, and can ignore the trees along the road and the texture of the sidewalk.</p>
+      <p>Hence the idea: predict not the next frame but its <strong>representation</strong>. This is the name for a vector of a few numbers that an encoder outputs for a frame, and all such vectors form the <strong>representation space</strong>. If the encoder learns together with the model that predicts, it decides by itself what to keep from the image, and it can keep what's predictable and needed for the prediction rather than every pixel. How is such a model built?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="jepa">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">2</span> JEPA</div>
+      <h2>JEPA: prediction in representation space</h2>
+      <p>LeCun called such a model a <strong>JEPA</strong> (Joint-Embedding Predictive Architecture). Two encoders turn into representations what the model sees (x) and what it has to predict (y): a hidden piece of the same image or the next frame. A third network, the <strong>predictor</strong>, guesses the representation of y from the representation of x, and in a world model also from the action. The error is computed between two vectors, not between frames: in LeCun's words, the JEPA “does not actually predict y, but predicts the representation of y”. The diagram shows how this differs from a model that reconstructs pixels.</p>
+    </div>
+    <figure class="card flow-card">
+      <canvas data-anim="jepa" width="720" height="400" role="img" aria-label="Diagram: a model that reconstructs the frame compares the predicted frame with the real one over all pixels; a JEPA compares the predicted representation with the representation of the next frame computed by the target encoder"></canvas>
+      <figcaption class="muted-s">Two world models on the same frames from Ada's camera. Blue and solid arrows show what is real: camera frames and Ada's push. Orange and dashed show what the model predicts. The frame model predicts the next frame from the frame and the push, and the error is summed over all the pixels: the tablecloth pattern, the light and the cup. The JEPA predicts the representation of the next frame from the representation of the frame and the push, and the target for comparison comes from the target encoder: its weights are a moving average of the encoder's weights, and no gradient flows through it. The two halves of the cycle alternate; the rhythm is schematic. Click the diagram to pause it.</figcaption>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>In the position paper, the JEPA is the world model inside an agent. The perception module estimates what the world is like now, the world model predicts what it will become, the cost module scores the predicted states with a single number, which LeCun calls energy, and the actor looks for the sequence of actions with the lowest total energy and executes only the first action. The author himself calls this mode MPC with a receding horizon, as in <a href="0-3-kinematika-i-upravlenie.html#mpc">lesson 0.3</a>, with the difference that the world model and the cost are learned. There are no experiments in the paper: it's an architecture and arguments, and working them all out, the author writes, will probably take many years.</p>
+      <p>The idea has a price. The prediction error can be driven to zero without learning anything about the world: if both encoders output the same representation for any frame, the predictor only has to repeat it, and the error is zero on any data. This is called <strong>representation collapse</strong>. Don't confuse it with the mode collapse of <a href="6-2-imitatsiya-dvizheniy.html#amp">lesson 6.2</a>: there, the AMP policy repeats only some of the motions from the recordings, while here the encoder stops telling inputs apart.</p>
+      <p>LeCun describes two defenses. Contrastive learning, as in CLIP in <a href="2-1-transporter-i-cliport.html#words">lesson 2.1</a>, pulls together the representations of matching pairs and pushes apart non-matching ones; LeCun argues against it, because the number of non-matching pairs that have to be shown grows exponentially with the dimension of the representation. Regularized methods directly require the representations to carry information about the input. VICReg works this way: a penalty keeps the spread of each component of the representation across a batch above a threshold and doesn't let different components repeat each other. Published JEPAs for images and video defend themselves in a third way, with asymmetry. The target for the predictor is computed by the <strong>target encoder</strong>: its weights are an exponential moving average (EMA) of the ordinary encoder's weights, and no gradient flows through it; this is the stop-gradient of <a href="3-8-obobshchenie-i-rassuzhdenie.html#ki">lesson 3.8</a>. The V-JEPA authors explain why this is enough with a hypothesis: the predictor adapts faster than the encoder and stays close to optimal, so it pays for the encoder to carry as much about the frame as possible.</p>
+      <p>Does collapse really happen without a defense, and which defense works? Let's check on a small JEPA that learns from Ada's camera frames.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="collapse">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 1</div>
+    <h2>A deceptive curve: the loss falls, but the model knows nothing</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>During the day, Ada pushed the cup across the table and recorded a camera frame before and after each push: 150 recordings of 6 pushes, with the hand out of the frame. A push is defined by where and how far the cup moved. A small JEPA learns from these recordings right on the page: the encoder turns a 16 × 16 frame into a representation of 8 numbers, the predictor predicts the representation of the frame after the push from the representation and the push, and its target comes from the target encoder or from the same encoder, depending on the defense. Training takes 500 steps on batches of 32 pushes, a second or two.</p>
+      <p>The scene has two gauges that disagree. The curve shows the loss function, the prediction error the model learns from. The “what the model knows” gauge shows how much the representations of different frames differ and whether a <strong>linear probe</strong> finds the cup from them. A probe is a linear formula that guesses where the cup is on the table from the 8 numbers of the representation; it's fitted on some frames and checked on frames from other recordings. The probe hits the cup if it's off by less than 4 cm, the cup's radius.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="cl-head"><span class="cl-tag">loss function</span><b id="clLossNow">—</b></div>
+        <canvas id="clLoss" class="cl-cv cl-loss" role="img" aria-label="Chart of the loss function over training steps on a logarithmic scale: the orange line is the current training run, the pale lines are past runs"></canvas>
+        <div class="cl-head"><span class="cl-tag">what the model knows</span><b id="clKnowNow">—</b></div>
+        <canvas id="clKnow" class="cl-cv cl-know" role="img" aria-label="Representation map: a dot per frame, colored by where the cup is on the table; next to it, a top view of the table: where the cup actually is and where the linear probe looks for it"></canvas>
+        <p class="cv-note">Curve: horizontally, training steps; vertically, the loss on a logarithmic scale; the orange line is the current run, the pale ones are past runs, labeled with their defense. Representation map: each dot is one frame from other recordings, its position is given by the first two principal axes of the representations on the same scale, and its color shows where the cup stood on the table (from violet at the table's left edge to green at the right one). Top view of the table next to the map: blue dots show where the cup actually is, orange dashed rings show where the probe looks for it, a gray line shows the miss.</p>
+        <div class="ctl-row">
+          <div class="ctl"><span class="ctl-l">Defense against collapse</span><div class="seg small" id="clProt" role="group" aria-label="Defense against collapse"><button type="button" data-v="none" aria-pressed="true">none</button><button type="button" data-v="ema" aria-pressed="false">moving average</button><button type="button" data-v="var" aria-pressed="false">spread penalty</button></div></div>
+        </div>
+        <div class="ctl-row">
+          <div class="ctl" id="wrapClLight" hidden><span class="ctl-l">Lighting</span><div class="seg small" id="clLight" role="group" aria-label="Lighting in the recordings"><button type="button" data-v="same" aria-pressed="true">always the same</button><button type="button" data-v="tint" aria-pressed="false">varies by recording</button></div></div>
+          <div class="ctl" id="wrapClInv" hidden><label class="opt"><input type="checkbox" id="clInv"> guess the push from two representations</label></div>
+        </div>
+        <div class="ctl-row">
+          <div class="ctl" id="wrapClMom" hidden><span class="ctl-l">Moving average momentum</span><div class="seg small" id="clMom" role="group" aria-label="Moving average momentum"><button type="button" data-v="0.9" aria-pressed="false">0.9</button><button type="button" data-v="0.95" aria-pressed="true">0.95</button><button type="button" data-v="0.999" aria-pressed="false">0.999</button></div></div>
+          <div class="ctl" id="wrapClVr" hidden><span class="ctl-l">Penalty weight</span><div class="seg small" id="clVr" role="group" aria-label="Spread penalty weight"><button type="button" data-v="1" aria-pressed="false">1</button><button type="button" data-v="5" aria-pressed="true">5</button><button type="button" data-v="20" aria-pressed="false">20</button></div></div>
+        </div>
+        <div class="cl-frames" id="clFrames" aria-label="Frames from the recordings that the model sees"></div>
+        <div class="readout" id="clRead" aria-live="polite"></div>
+      </div>
+      <div class="card guide-card"><div id="clMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: the model, three defenses and the probe</summary><div class="body">
+      <p><b>The recordings.</b> In each recording, the cup stands at a random spot on the table, no closer than 8 cm to the edge, and Ada pushes it 6 times in random directions by 0–15 cm at 0.2 m/s; Ada doesn't make pushes after which the cup would hit the sugar bowl or the milk jug. A 16 × 16 RGB frame is taken before and after the push, while the hand is beyond the table's edge. Each pixel is normalized: the mean over the recordings is subtracted from it, and it's divided by its spread. Light that “varies by recording” means that each recording has its own brightness (from 0.6 to 1) and its own tint, from daylight to warm evening light, while within a recording the light doesn't change.</p>
+      <p><b>The model.</b> The encoder has 768 inputs, 24 neurons with tanh and 8 numbers at the output, 18,656 parameters in total. The predictor gets the representation \(z\) and the push \(a\) and outputs \(z + f(z, a)\), where \(f\) has one hidden layer of 32 neurons. The loss is the mean square of the difference between the prediction and the target, \(\|\,z + f(z, a) - \bar z'\,\|^2\), where \(\bar z'\) is the representation of the frame after the push. The optimizer is Adam with a learning rate of 0.003.</p>
+      <p><b>The defenses.</b> Without a defense, \(\bar z'\) is computed by the same encoder, and the gradient flows through both branches. With the moving average, \(\bar z'\) is computed by the target encoder, no gradient flows through it, and after each step its weights are pulled toward the encoder's weights: \(\bar\theta \leftarrow m\,\bar\theta + (1-m)\,\theta\), where \(m\) is the momentum, 0.95 by default. The spread penalty works like VICReg: for each of the 8 components of the representation, the spread \(\sigma_j\) across the batch is computed, and the loss gets the extra term</p>
+      <div class="formula">\[\lambda\Bigl(\tfrac{1}{8}\textstyle\sum_j \max(0,\, 1 - \sigma_j) + \tfrac{1}{8}\sum_{i \ne j} C_{ij}^2\Bigr),\]</div>
+      <p>where \(C\) is the covariance of the components across the batch: the first term keeps the spread from falling below one, the second keeps components from repeating each other. Guessing the push is an inverse dynamics loss, as in H-JEPA: a linear formula guesses the push \(a\) from the difference of two neighboring representations \(z' - z\), and its squared error is added to the loss with a weight of 10.</p>
+      <p><b>The gauges.</b> The spread of the representations is the spread of the representations of frames from other recordings, averaged over the 8 components. The representation map is a projection onto the two principal axes (the eigenvectors of the covariance) on the same scale for all runs. The probe is a ridge regression from the 8 numbers of the representation to the cup's position, fitted on 600 frames of the recordings and checked on 240 frames from 40 other recordings. Everything is computed in the browser with our own math and fixed seeds, so the numbers are the same in any browser.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px" id="collapseAfter">
+      <p>The loss curve by itself doesn't tell you whether a JEPA has learned the world: the lowest loss in the lab belonged to the model that gave every frame the same representation. The target encoder with a moving average and the spread penalty kept the model from collapsing, and the probe found the cup. The fourth mission showed slow-feature collapse. This is what the H-JEPA authors call the case when the encoder holds on to what hardly changes during a recording, such as the light: “slow” refers to what the encoder holds on to, not to the collapse itself. So keeping up the spread isn't enough: the representations have to change together with what matters for action, and guessing the push demands exactly that. We repeated the experiments with six seeds: the model without a defense collapsed every time, both defenses held it every time, and on the recordings with different light, the probe was off by 22–27 cm without guessing the push and by 5–13 cm with it.</p>
+      <p>This is a toy model on a single table. How do the same defenses work on real images and video?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="ijepa">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">3</span> I-JEPA and V-JEPA</div>
+      <h2>I-JEPA and V-JEPA: representations instead of pixels as the target</h2>
+      <p>The first published JEPAs solved a problem without actions: teaching an image encoder useful representations from unlabeled data. I-JEPA (Assran et al., Meta, 2023) cuts an image into patches, like ViT in <a href="3-2-vision-language-modeli.html#patches">lesson 3.2</a>, takes one large context block and predicts from it the representations of four other blocks of the same image. The target for the predictor comes from the target encoder with a moving average of the weights, and the authors write that it proved essential for training with ViTs. MAE, which masks some of the patches and reconstructs their pixels, is built in a similar way; the difference is that I-JEPA predicts in representation space and draws nothing. A ViT-H/14 trained with the I-JEPA method on 16 A100 GPUs in under 72 hours, which, the authors write, is over 10 times more efficient than the same ViT trained with MAE.</p>
+      <p>V-JEPA (Bardes, Garrido et al., Meta, 2024) carries the same idea over to video: from the visible part of a clip, predict the representations of hidden blocks that are hidden in all frames of the clip at once. It learns from two million videos, and its quality is checked without touching the encoder: only a small probe is trained on top of it for each task. The main experiment for us is the same in both papers: the same model was trained to predict either the pixels of the hidden blocks or their representations.</p>
+    </div>
+    <figure class="card stat-fig" aria-label="Chart: accuracy of a frozen encoder when the training target is pixels or representations, for I-JEPA and V-JEPA">
+      <figcaption class="stat-h">Training target: pixels or representations (classification accuracy, %)</figcaption>
+      <div class="stat-grid"><div id="targetBars"></div></div>
+      <p class="stat-cap">The encoder is frozen, and only a probe is trained on top of it. I-JEPA, ImageNet with 1% of the labels, ViT-L/16: target “pixels”, 40.7 (800 training epochs); target “representations”, 66.9 (500 epochs). V-JEPA, ViT-L/16, 90,000 iterations: Kinetics-400, 68.6 and 73.7; Something-Something v2, 66.0 and 66.2; ImageNet, 73.3 and 74.8. Sources: M. Assran et al., “Self-Supervised Learning from Images with a Joint-Embedding Predictive Architecture”, Table 7, arXiv 2301.08243, April 13, 2023; A. Bardes, Q. Garrido et al., “Revisiting Feature Prediction for Learning Visual Representations from Video”, Table 1, arXiv 2404.08471, February 15, 2024.</p>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>With the target in representation space, the encoder is better in every comparison, although on video the difference is at times within a point and a half, while for images it's huge. The I-JEPA authors write that with pixels as the target, the representations become noticeably less semantic, and V-JEPA reaches its results roughly twice as fast in training time as large models that predict pixels. If a separately trained decoder draws what the I-JEPA predictor knows, you can see that it conveys the pose of an object's parts and discards fine details and the background.</p>
+      <p>But neither I-JEPA nor V-JEPA models actions. V-JEPA fills in gaps inside a clip rather than predicting what will happen after a robot moves its arm. A world model for a robot has to take an action as input.</p>
+      <div class="bridge-note down"><p>I-JEPA and V-JEPA train an encoder on images and video without labels and without actions: the model knows what the world looks like but not what will happen after the arm moves.</p><p class="bridge-to">V-JEPA 2-AC: how to plan with a goal image in representation space</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="vjepa2">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">4</span> V-JEPA 2</div>
+      <h2>V-JEPA 2 and V-JEPA 2-AC: a world model with actions on top of video</h2>
+      <p>V-JEPA 2 (Assran, Bardes et al., Meta, June 2025) combines two kinds of data. There's a lot of video on the internet, but it has no actions, and robot recordings with actions are scarce. So training goes in two stages. First, the encoder learns like V-JEPA, only on much more data: over a million hours of video and a million images, and the encoder itself is a ViT-g with a billion parameters. The authors went from V-JEPA to V-JEPA 2 step by step, measuring at each step the average accuracy of the frozen encoder on six image and video classification tasks.</p>
+    </div>
+    <figure class="card stat-fig" aria-label="Chart: average accuracy of the encoder on six tasks after each scaling step from V-JEPA to V-JEPA 2">
+      <figcaption class="stat-h">From V-JEPA to V-JEPA 2: average accuracy on six tasks, %</figcaption>
+      <div class="stat-grid"><div id="scaleBars"></div></div>
+      <p class="stat-cap">V-JEPA on ViT-L, 84.2; more data (from 2 to 22 million videos), 85.2; a larger model (from 300 million to 1 billion parameters), 86.7; longer training (from 90,000 to 252,000 iterations), 87.5; higher resolution (from 256 to 384 pixels and from 16 to 64 frames), 88.2. Tasks: SSv2, Diving-48, Jester, Kinetics, COIN and ImageNet. Source: M. Assran, A. Bardes et al., “V-JEPA 2: Self-Supervised Video Models Enable Understanding, Prediction and Planning”, Figure 3, arXiv 2506.09985, June 11, 2025.</p>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>Then the encoder is frozen, and a world model with actions, V-JEPA 2-AC (action-conditioned), is trained on top of it. Its predictor is a transformer with 300 million parameters. From the representations of past frames, the gripper's position and the action, it predicts the representation of the next frame, and the action is the gripper's shift between neighboring frames. It's trained on about 62 hours of video from the DROID dataset (<a href="4-3-datasety-robotov.html#droid">lesson 4.3</a>): short recordings of a Franka arm without rewards, without a task description and without a mark of whether the attempt succeeded, and the 23,000 recordings include both successful and failed attempts. The predictor is trained to predict the next step from the real representation (teacher-forcing) and one more step ahead from its own prediction: this way, the error accumulates less in a rollout, as in <!--if:7-1-world-models-dreamer.html--><a href="7-1-world-models-dreamer.html#dream"><!--/if-->lesson 7.1<!--if:7-1-world-models-dreamer.html--></a><!--/if-->.</p>
+      <p>The robot is given the task with a <strong>goal image</strong>: a picture of what the scene should look like at the end. From the current frame and an action, the predictor imagines the representation of a future frame, and the planner compares it with the representation of the goal image; this is the distance to the goal in representation space, which the paper calls energy. Actions are searched for by CEM, the cross-entropy method of <!--if:7-1-world-models-dreamer.html--><a href="7-1-world-models-dreamer.html#rssm"><!--/if-->lesson 7.1<!--if:7-1-world-models-dreamer.html--></a><!--/if-->: 800 candidates, 10 iterations, at each iteration the 10 best candidates define a new distribution, and the plan looks one action ahead. The robot executes the first action, takes a new frame and plans again; this is MPC. The diagram shows that not a single frame is drawn in this loop.</p>
+    </div>
+    <figure class="card flow-card">
+      <canvas data-anim="vjac" width="720" height="400" role="img" aria-label="Diagram of the V-JEPA 2-AC loop: the current frame and the goal image pass through the frozen encoder, the predictor imagines representations for candidate actions, the planner compares them with the goal's representation, the robot executes the first action and takes a new frame"></canvas>
+      <figcaption class="muted-s">The V-JEPA 2-AC planning loop. Blue and solid arrows show what is real: the camera frame, the goal image, the arm's action. Orange and dashed show what the predictor imagines: the representations after each candidate action. The encoder is frozen; the candidates are scored by their distance to the goal's representation, CEM narrows their distribution over a few iterations, the robot executes the first action, and the loop repeats with a new frame. There are no pixels inside the loop. The rhythm is schematic; click the diagram to pause it.</figcaption>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>It was tested in two labs that aren't in DROID, on Franka arms with Robotiq grippers. Not a single recording was made in these labs. The tasks are to reach a point, to grasp a cup or a box, to carry an object without dropping it, and to pick it up and place it elsewhere. For pick-and-place, the model is shown three subgoal images: the object grasped, the object near the goal, the object in place. The comparison was with Octo from <a href="3-5-otkrytye-vla.html#octo">lesson 3.5</a>, fine-tuned on demonstrations from all of DROID with goal images.</p>
+    </div>
+    <figure class="card stat-fig" aria-label="Chart: share of successful attempts of Octo and V-JEPA 2-AC in seven tasks, average over two labs">
+      <figcaption class="stat-h">Octo and V-JEPA 2-AC on a Franka arm without recordings from these labs: successful attempts, %</figcaption>
+      <div class="stat-grid"><div id="octoBars"></div></div>
+      <p class="stat-cap">Average over two labs, 10 attempts per task in each. Reach: Octo, 100; V-JEPA 2-AC, 100. Grasp a cup: 15 and 65; grasp a box: 0 and 25; carry a cup: 15 and 75; carry a box: 70 and 75; pick and place a cup: 15 and 80; pick and place a box: 10 and 65. Source: M. Assran, A. Bardes et al., “V-JEPA 2”, Table 2, arXiv 2506.09985, June 11, 2025.</p>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>Both models reach the point, and the difference shows where the arm has to interact with an object. V-JEPA 2-AC grasps the cup by putting a finger inside it and squeezing the rim, and with an imprecise action it misses the rim; the box needs precise finger opening. The authors also compared the model with Cosmos, a generative video model with 7 billion parameters, fine-tuned on the same DROID recordings. The planner was the same, CEM with a horizon of one action, and the distance to the goal for Cosmos was computed in its own latent space. Generative video models are covered in <!--if:7-3-generativnye-modeli-mira.html--><a href="7-3-generativnye-modeli-mira.html"><!--/if-->lesson 7.3<!--if:7-3-generativnye-modeli-mira.html--></a><!--/if-->.</p>
+    </div>
+    <figure class="card stat-fig" aria-label="Charts: share of successful attempts of Cosmos and V-JEPA 2-AC in five tasks in the second lab, and time per action">
+      <figcaption class="stat-h">Cosmos and V-JEPA 2-AC in the second lab</figcaption>
+      <div class="stat-grid"><div><div class="sb-title">Successful attempts, %</div><div id="cosmosBars"></div></div><div><div class="sb-title">Seconds per action</div><div id="timeBars"></div></div></div>
+      <p class="stat-cap">Reach: Cosmos, 80; V-JEPA 2-AC, 100. Grasp a cup: 0 and 60; grasp a box: 20 and 20; pick and place a cup: 0 and 80; pick and place a box: 0 and 50. CEM with 10 iterations and a horizon of one action on a single RTX 4090 GPU: Cosmos with 80 candidates takes 4 minutes (240 seconds) per action, V-JEPA 2-AC with 800 candidates takes 16 seconds. Source: M. Assran, A. Bardes et al., “V-JEPA 2”, Table 3, arXiv 2506.09985, June 11, 2025.</p>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>Cosmos draws future frames and spends 4 minutes on one action, so a single pick-and-place takes it over an hour. V-JEPA 2-AC goes through ten times as many candidates in 16 seconds and does no worse on any skill. Could Ada plan the same way, and is the distance in representation space really better than the distance in pixels? The papers have no direct comparison of the two distances with the same model, so let's check for ourselves.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="goal">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 2</div>
+    <h2>A fan of imagined futures: planning with a goal image</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>Ada's owner sent her a photo: “put the cup like this”. Two Adas side by side place the cup according to this photo and plan like V-JEPA 2-AC. The first has a frame model: from a frame and a push, it draws the frame after the push, and the distance to the goal is the mean squared difference between the pixels of this frame and of the photo. The second has a representation model: from the representation of a frame and a push, it predicts the representation of the frame after the push, and the distance to the goal is the squared difference from the representation of the photo. Both models were trained in advance in Node on the same recordings of Ada: 600 recordings of 6 pushes in daylight, 8,000 training steps. The representation model is trained like the JEPA in Lab 1, with a moving average and guessing the push.</p>
+      <p>The planner's action is a push: where and how far to move the cup, no further than 15 cm. How the hand gets behind the cup and pushes it is decided by a simple controller, just as the arm controller of V-JEPA 2-AC executes the gripper's shift. CEM tries 64 pushes, builds a new distribution from the 8 best and repeats this 5 times; Ada executes on the real table the push the distribution has converged to, takes a new frame and plans again, up to 6 pushes. The fan on the table shows the CEM candidates: the brighter the line, the closer the imagined result is to the goal by the planner's estimate.</p>
+    </div>
+    <div class="lab lab-wide">
+      <div class="card scene-card">
+        <div class="gl-top">
+          <figure class="gl-photo"><canvas id="glPhoto" width="16" height="16" role="img" aria-label="The owner's photo: a 16 by 16 camera frame with the cup where it should be placed"></canvas><figcaption id="glPhotoCap">The owner's photo: the 16 × 16 frame both Adas plan with</figcaption></figure>
+          <div class="gl-note" id="glScen"></div>
+        </div>
+        <div class="gl-pair">
+          <figure class="gl-world"><figcaption class="gl-h"><span class="gl-tag pix">frame model</span><b id="glPixD">—</b></figcaption><canvas id="glPix" class="gl-cv" role="img" aria-label="Top view of the table: Ada with the frame model, a fan of candidate pushes and the cup's path"></canvas><div class="gl-imag" id="glPixImag"></div></figure>
+          <figure class="gl-world"><figcaption class="gl-h"><span class="gl-tag rep">representation model</span><b id="glRepD">—</b></figcaption><canvas id="glRep" class="gl-cv" role="img" aria-label="Top view of the table: Ada with the representation model, a fan of candidate pushes and the cup's path"></canvas><div class="gl-imag" id="glRepImag"></div></figure>
+        </div>
+        <p class="cv-note">Top view of the table, two identical tables: the label above each table names Ada's model. The frame model computes the distance to the goal in pixels, the representation model in representations. The red cup and the solid blue path show the real table. The pale blue circle shows where the cup stands in the photo, and the green dashes around it mark 2 cm, the accuracy we require. The orange lines of the fan go from the cup to where a candidate push will move it; the brighter the line, the closer the imagined result is to the goal, the thick lines are the best candidates of the iteration, and the arrow is the push Ada will execute. Above each table is the distance from the real cup to the goal.</p>
+        <details class="lab-legend"><summary>Legend: marks on the scene</summary>
+          <ul class="gl-legend">
+            <li><i class="lg-real"></i>the cup's path on the real table, solid blue line</li>
+            <li><i class="lg-goal"></i>where the cup is in the photo; the green dashes mark 2 cm around it</li>
+            <li><i class="lg-fan"></i>CEM candidates: where the push will move the cup; the brightness is closeness to the goal by the model's estimate</li>
+            <li><i class="lg-push"></i>the push Ada executes</li>
+            <li><i class="lg-map"></i>distance map: where Ada can move the cup with one push and how close that spot is to the goal by the model's estimate; the ring marks the closest</li>
+            <li><i class="lg-sugar"></i>sugar bowl, <i class="lg-milk"></i>milk jug: the cup stops against them</li>
+          </ul>
+        </details>
+        <div class="ctl-row">
+          <div class="ctl" id="wrapGlMap" hidden><label class="opt"><input type="checkbox" id="glMap"> map of the distance to the goal</label></div>
+          <div class="ctl" id="wrapGlLight" hidden><span class="ctl-l">Photo taken</span><div class="seg small" id="glLight" role="group" aria-label="In what light the photo was taken"><button type="button" data-v="day" aria-pressed="true">by day, like now</button><button type="button" data-v="morning" aria-pressed="false">morning</button></div></div>
+        </div>
+        <div class="ctl-row">
+          <div class="ctl" id="wrapGlPop" hidden><span class="ctl-l">Candidates</span><div class="seg small" id="glPop" role="group" aria-label="Candidates per iteration"><button type="button" data-v="16" aria-pressed="false">16</button><button type="button" data-v="64" aria-pressed="true">64</button><button type="button" data-v="256" aria-pressed="false">256</button></div></div>
+          <div class="ctl" id="wrapGlIt" hidden><span class="ctl-l">Iterations</span><div class="seg small" id="glIt" role="group" aria-label="CEM iterations"><button type="button" data-v="2" aria-pressed="false">2</button><button type="button" data-v="5" aria-pressed="true">5</button><button type="button" data-v="10" aria-pressed="false">10</button></div></div>
+          <div class="ctl" id="wrapGlHor" hidden><span class="ctl-l">Horizon</span><div class="seg small" id="glHor" role="group" aria-label="How many pushes ahead the plan looks"><button type="button" data-v="1" aria-pressed="true">1 push</button><button type="button" data-v="2" aria-pressed="false">2 pushes</button></div></div>
+        </div>
+        <p class="cv-note" id="glFreeNote" hidden>In free mode, click the table to have the owner photograph the cup at that spot; each attempt starts from the same cup position.</p>
+        <div class="readout" id="glRead" aria-live="polite"></div>
+      </div>
+      <div class="card guide-card"><div id="glMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: two models, eight bits per weight and CEM over pushes</summary><div class="body">
+      <p><b>The recordings.</b> 600 recordings in daylight: in each, the cup stands at a random spot and Ada pushes it 6 times in random directions by 0–15 cm; 16 × 16 frames are taken before and after the push. The pixels are normalized over the recordings, as in Lab 1.</p>
+      <p><b>The frame model.</b> An encoder (768 inputs, 48 neurons with tanh, 16 numbers of the latent state \(h\)), a step \(h' = h + f(h, a)\) with one hidden layer of 32 neurons and a decoder \(h \to\) frame (48 neurons, 768 outputs). It's trained to reconstruct the frame before the push and to predict the frame after the push; the error is the mean square over the normalized pixels. The distance to the goal is \(\frac{1}{768}\sum_i (\hat x_i - g_i)^2\) over the pixels of the imagined frame \(\hat x\) and the photo \(g\).</p>
+      <p><b>The representation model.</b> An encoder (768 inputs, 48 neurons, 8 numbers) and a predictor \(z' = z + f(z, a)\), as in Lab 1; the target encoder is a moving average with a momentum of 0.98, and guessing the push has a weight of 5. The distance to the goal is \(\|\hat z - z_g\|^2\), where \(z_g\) is the representation of the photo; L2, as Terver et al. recommend.</p>
+      <p><b>Eight bits.</b> Both models were trained in Node (tools/l72-train.js, about two minutes on a single thread), and the lesson embeds eight-bit weights: each layer output has its own scale, with the largest weight magnitude mapped to 127. All the numbers on the page are computed with these weights, identically in Node and in the browser.</p>
+      <p><b>CEM.</b> A push is two numbers \((\Delta x, \Delta y)\), first drawn from a normal distribution with mean 0 and a spread of 8 cm. At each iteration, candidates are drawn, each is clipped to 15 cm, the model imagines the result, the candidates are sorted by distance to the goal, and the mean and spread are recomputed from the best ones. Ada executes the mean of the last iteration. With a plan two pushes ahead, a candidate is four numbers, the distance is computed after the second imagined push, and the first push is executed.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px" id="goalAfter">
+      <p>A single scene can turn out well or badly by chance, so we ran both Adas on 30 random goals near the cup and on 30 goals at the other end of the table, always with a clear path, without the sugar bowl or the milk jug in the way, and the near goals also with a morning photo.</p>
+    </div>
+    <figure class="card stat-fig" aria-label="Chart: in how many of 30 attempts each Ada placed the cup within 2 cm when the goal is near, far, and when the photo was taken in the morning">
+      <figcaption class="stat-h">Our model, not a paper: in how many of 30 attempts the cup ended up within 2 cm</figcaption>
+      <div class="stat-grid"><div id="surveyBars"></div></div>
+      <p class="stat-cap" id="surveyCap">Up to 6 pushes, CEM with 64 candidates and 5 iterations; the positions of the cup and the goal are random and the same for both Adas. Goal near, 6–14 cm away: frame model, 24; representation model, 28; median distances to the goal, 1.2 and 0.9 cm. Goal far, 28–40 cm away: 6 and 20, medians 30.3 and 1.1 cm. Goal near, photo taken in the morning: 6 and 0, medians 3.6 and 29.2 cm. Computed in Node with the same embedded models as on the page (L72.lab2Survey); the lesson's test recomputes these numbers.</p>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>Near the goal, both Adas succeed almost always. When the goal is further than one push, the representation model gets there in two cases out of three, and the frame model rarely: the pixel difference doesn't tell which way to push until the imagined cup covers the spot in the photo. With the morning photo, the representation model never got there, while the frame model more often brought the cup within a few centimeters, though it too rarely got within 2 cm. The conclusion is more modest than the slogan “representations beat pixels”: distance in representations leads to a far goal better, but only as long as the encoder has seen similar frames. That's why V-JEPA 2 trains its encoder on a million hours of video. And can you skip training the encoder altogether and take a ready-made one?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="dino">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">5</span> DINO-WM</div>
+      <h2>DINO-WM: a world model on ready-made representations</h2>
+      <p>The V-JEPA 2 encoder was trained on a million hours of video. Zhou, Pan, LeCun and Pinto in DINO-WM (NYU and Meta, November 2024) showed the same trick with no encoder training at all. The representations of each patch of the frame are taken from the ready-made DINOv2 model, trained on large image datasets, and the model is left unchanged; only a predictor of the next representations from the action is trained. The decoder is trained separately and is needed only so that the imagination can be looked at: if its error is let into the predictor's training, success on the Push-T task drops from 0.92 to 0.80. DINO-WM plans the same way as V-JEPA 2-AC: CEM over actions and the distance to the goal image in representation space. The model was compared with world models trained on the same recordings without rewards: IRIS and DreamerV3 reconstruct the frame, and TD-MPC2 learns its latent state through a reward, which isn't available here.</p>
+    </div>
+    <figure class="card stat-fig" aria-label="Chart: share of successful attempts of IRIS, DreamerV3, TD-MPC2 and DINO-WM in four tasks in simulation">
+      <figcaption class="stat-h">DINO-WM and world models trained on the same recordings without rewards: successful attempts, %</figcaption>
+      <div class="stat-grid"><div id="dinoBars"></div></div>
+      <p class="stat-cap">50 “start and goal” pairs in each task; the paper gives fractions of one. Maze: IRIS, 74; DreamerV3, 100; TD-MPC2, 0; DINO-WM, 98. Wall: 4, 100, 0, 96; Reach: 18, 64, 0, 92; Push-T: 32, 30, 0, 90. Source: G. Zhou, H. Pan, Y. LeCun and L. Pinto, “DINO-WM: World Models on Pre-trained Visual Features enable Zero-shot Planning”, Table 1, arXiv 2411.04983, November 7, 2024.</p>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>In simple environments, where a point has to be brought to the goal, DINO-WM is on par with DreamerV3, and in manipulation, where an object has to be pushed into the right pose, it's far ahead. TD-MPC2 without a reward doesn't learn a useful latent state at all. The authors also checked which representations to take. If you take from DINOv2 one common vector for the whole frame instead of the representations of each patch, success on Wall drops from 0.96 to 0.58: the common vector loses where things are. And the generative model AVDC draws plausible frames, but, as the authors note, large changes that physics doesn't allow can happen in them within a single step. Models that draw the future, and their errors, are covered in <!--if:7-3-generativnye-modeli-mira.html--><a href="7-3-generativnye-modeli-mira.html"><!--/if-->lesson 7.3<!--if:7-3-generativnye-modeli-mira.html--></a><!--/if-->.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="limits">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">6</span> Limits</div>
+      <h2>Where it breaks: the camera, the long horizon and the planner's settings</h2>
+      <p>The V-JEPA 2 authors themselves list where the model falls short. The first issue is the camera. The predictor gets the action in the robot's axes but sees the scene through a single uncalibrated camera and has to infer by itself where these axes point, even though the robot's base is often out of the frame. The authors manually tried several camera positions and kept the one at which all the experiments worked. When the camera was moved around the robot, the error in the inferred axes turned out to be an almost linear function of the camera angle.</p>
+      <p>The second is the long horizon. A rollout in representation space accumulates error, like the rollouts of <!--if:7-1-world-models-dreamer.html--><a href="7-1-world-models-dreamer.html#dream"><!--/if-->lesson 7.1<!--if:7-1-world-models-dreamer.html--></a><!--/if-->, and the number of options grows exponentially with the number of steps. So the planner looks one action ahead, and pick-and-place needs three subgoal images. The third is the goal images themselves: it's more natural for a person to state a task in words than to photograph the result. And there are the 16 seconds per action.</p>
+      <p>What determines the success of such planning was checked systematically by Terver, Yang, Ponce, Bardes and LeCun (Meta, Inria and NYU; TMLR journal, 2026) on DINO-WM, V-JEPA 2-AC and their own variants. A beautiful rollout doesn't mean a good plan: the public V-JEPA 2-AC checkpoint draws the future through a decoder no worse than the corrected model but plans much worse. CEM with the squared L2 distance turned out best, while gradient descent over actions gets stuck in local minima where the plan can't be greedy, for example when the arm has to go around a wall. Success is very sensitive to the planner's settings, the number of candidates, the number of best ones and the initial distribution, even with the same model. Near the goal, small shifts barely change the distance in representation space, and without data on the arm's position, that is, without proprioception, the arm oscillates near the goal. The representations of the image model DINO turned out better than the V-JEPA video encoders, and scaling up the encoder and the predictor gave nothing in simulation. The authors also found a bug in the V-JEPA 2-AC code: the loss on the two-step rollout was computed incorrectly.</p>
+      <p>There's also a limitation of the scheme itself. The predictor is deterministic and trained on the squared error, so it outputs the mean over all possible futures, just as the regression in <a href="1-3-multimodalnost-deystviy.html">lesson 1.3</a> averaged the detours. As long as the environment is almost deterministic and the plan is rebuilt after every step, this is tolerable, and for random environments the authors suggest latent variables, as in LeCun's work, or diffusion in representation space.</p>
+    </div>
+    <details class="deep"><summary>Under the hood: why the rollout error grows exponentially</summary><div class="body">
+      <p>Suppose the predictor is off by at most \(\delta\) on a single step and stretches distances between representations by at most a factor of \(\Lambda\): \(\|P(z, a) - P(z', a)\| \le \Lambda \|z - z'\|\). In a rollout, each step starts from the previous prediction, so the error after \(H\) steps is made up of new errors and stretched old ones:</p>
+      <div class="formula">\[\begin{aligned} \varepsilon_H &\le \Lambda\, \varepsilon_{H-1} + \delta \\ &\le \delta\,\bigl(1 + \Lambda + \dots + \Lambda^{H-1}\bigr) = \delta\, \frac{\Lambda^H - 1}{\Lambda - 1}. \end{aligned}\]</div>
+      <p>For \(\Lambda > 1\), the error grows exponentially with the horizon; for \(\Lambda = 1\), linearly, as \(H\delta\); and for \(\Lambda < 1\), it levels off around \(\delta/(1-\Lambda)\). This bound is from the work of Terver et al. (2026). It explains why the predictor is trained on a rollout over its own predictions: this way, during training it sees representations with the kind of error it will meet in a rollout.</p>
+    </div></details>
+  </div>
+</section>
+
+<section class="section" id="today">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">7</span> Today</div>
+      <h2>Today: V-JEPA 2.1, LeJEPA, H-JEPA and LeCun's company</h2>
+      <p>V-JEPA 2.1 (Mur-Labadia et al., Meta and the University of Zaragoza, March 2026) fixes a weak spot of V-JEPA 2: its representations of individual patches are noisy, because the loss is computed only on hidden patches, and the visible patches aren't required to store what's in them. The new version adds a loss on the visible patches and on intermediate layers of the encoder, and the dense representations get better: depth and scene segmentation are recovered from them more accurately. On a Franka arm, the authors compared both models using the same protocol as V-JEPA 2-AC.</p>
+    </div>
+    <figure class="card stat-fig" aria-label="Chart: share of successful attempts of V-JEPA 2 and V-JEPA 2.1 on a Franka arm when planning one and eight actions ahead">
+      <figcaption class="stat-h">V-JEPA 2 and V-JEPA 2.1 on a Franka arm: successful attempts, %</figcaption>
+      <div class="stat-grid"><div id="v21Bars"></div></div>
+      <p class="stat-cap">10 tasks per skill, a single A100 GPU. V-JEPA 2, planning one action ahead (800 candidates, 10 iterations, 3 s per action): reach, 100; grasp, 60; pick and place, 80. V-JEPA 2.1 with the same settings: 100, 70 and 80. V-JEPA 2.1 planning eight actions ahead (300 candidates, 15 iterations, 14 s): 100, 80 and 80. In the V-JEPA 2 paper, the same settings took 16 s on an RTX 4090; the authors don't say where the difference comes from. Source: L. Mur-Labadia et al., “V-JEPA 2.1: Unlocking Dense Features in Video Self-Supervised Learning”, Table 6, arXiv 2603.14482, March 15, 2026.</p>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>Grasping became more precise, and a long plan helps the new model, although for V-JEPA 2, according to the authors, it lowered success. The authors attribute the remaining failures to “poor planning over gripper actions, as opposed to failures in spatial understanding”: the gripper closes too early or opens slightly on the way.</p>
+      <p>LeJEPA (Balestriero and LeCun, November 2025) removes the heuristics from the defense against collapse: the moving average, the stop-gradient and the schedules. The authors distinguish complete collapse, when all inputs get almost the same representation, from dimensional collapse, when the representations lie in a low-dimensional subspace. Their penalty, SIGReg, projects the representations onto random directions and compares the distribution of each projection with a normal one; the method has a single hyperparameter, the penalty weight. With the simplest check, of only the mean and the spread, this penalty turns into VICReg. A ViT-H/14 encoder trained with this recipe reaches 79% on ImageNet when only a linear layer is trained on top.</p>
+      <p>H-JEPA (Zhang, Terver et al.; NYU, Advanced Machine Intelligence, INRIA and Brown; October 2026) builds a hierarchy of several JEPAs, as LeCun proposed in 2022. Each level has its own representation space and a time step twice as coarse as the level below. The top level plans coarsely, and its predictions become subgoals for the level below. Each level is protected from collapse by the SIGReg penalty. Without it, the authors write, the effective rank of the representations drops to between 1 and 14 out of a possible 384, and planning becomes worse than doing nothing.</p>
+    </div>
+    <figure class="card stat-fig" aria-label="Chart: share of successful attempts of a flat model and of H-JEPA hierarchies of two, three and four levels in four environments">
+      <figcaption class="stat-h">H-JEPA and a flat world model in simulation: successful attempts, %</figcaption>
+      <div class="stat-grid"><div id="hjepaBars"></div></div>
+      <p class="stat-cap">Means over three seeds. Visual AntMaze: flat model, 18.0; hierarchy of 2 levels, 39.3; of 3, 73.3; of 4, 63.3. FourRoom with distractor objects: 40.7; 81.3; 96.0; 80.0. OGBench Cube: 32.0; 47.3; 60.0; 55.3. Push-T: 40.0; 45.3; 17.3; 0.7. Source: W. Zhang, B. Terver et al., “H-JEPA: End-to-End Learning of Hierarchical World Models for Visual Planning”, Tables 1 and 9, arXiv 2610.06805, October 5, 2026.</p>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>In the maze, the hierarchy wins the most: far from the goal, the distance to the goal in the lowest level's space is almost constant and tells the planner nothing, while in the spaces of the higher levels it grows smoothly along the corridors. On Push-T, the hierarchy loses: episodes there are short, and the higher levels don't get enough transitions to learn from. On real DROID recordings, the authors tested the model only offline, without a robot in a closed loop, and ran into the slow-feature collapse of Lab 1 there: without the inverse dynamics loss, the model kept the background and threw away the arm.</p>
+      <p>What happened to the line of work itself? On November 19, 2025, LeCun wrote on Threads that he was creating a startup to continue the Advanced Machine Intelligence (AMI) research program he had pursued with colleagues at FAIR, at NYU and beyond; its goal is systems that “understand the physical world, have persistent memory, can reason, and can plan complex action sequences”. In the H-JEPA paper, all five authors, including LeCun, are listed under the organization Advanced Machine Intelligence.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="quiz">
+  <div class="prose">
+    <div class="kicker"><span class="num">8</span> Check yourself</div>
+    <h2>Eight common misconceptions</h2>
+    <div class="quiz" id="quizBox"></div>
+    <p class="score" id="quizScore" style="margin-top:14px"></p>
+  </div>
+</section>
+
+<section class="section" id="finale">
+  <div class="prose">
+    <div class="kicker"><span class="num">9</span> Takeaways</div>
+    <h2>Lesson takeaways</h2>
+    <ol class="takeaways">
+      <li><span>A model that reconstructs the frame spends effort on everything in it, including details that can't be predicted and aren't needed. A <strong>JEPA</strong> predicts the <strong>representation</strong> of the next frame, and the encoder itself decides what to keep from the frame.</span></li>
+      <li><span>The price of the idea is <strong>representation collapse</strong>: if every frame gets the same representation, the prediction error is zero, and the loss curve looks perfect. The defenses are a <strong>target encoder</strong> with a moving average of the weights and a stop-gradient, a spread penalty, as in VICReg and SIGReg, and, against slow-feature collapse, when the encoder holds on to what doesn't change, guessing the action from two neighboring representations.</span></li>
+      <li><span>I-JEPA and V-JEPA, with the target in representation space, train an encoder better and faster than with the target in pixels. V-JEPA 2 trains its encoder on a million hours of video without actions, and V-JEPA 2-AC adds a predictor with actions trained on about 62 hours of DROID recordings without rewards.</span></li>
+      <li><span>V-JEPA 2-AC plans with a <strong>goal image</strong>: CEM tries actions, the predictor imagines their consequences, and the distance to the goal is computed between representations. This way, a Franka arm picked up and placed a cup in labs where not a single attempt had been recorded, in 80% of cases versus 15% for Octo, and spent 16 seconds per action versus 4 minutes for the generative Cosmos.</span></li>
+      <li><span>On Ada's table, the distance in representations brought the cup to a goal at the other end of the table, where the pixel difference gave no direction, and near the goal both models succeeded. With a photo taken in unfamiliar light, the representation model missed by more than the frame model: a representation is only as useful as the frames the encoder learned from are diverse.</span></li>
+      <li><span>Limitations from the papers: sensitivity to the camera position, error that accumulates over a long horizon, and the need for goal images and for tuned planner settings. DINO-WM gets by with the ready-made representations of DINOv2, and H-JEPA builds a hierarchy of JEPAs for long tasks.</span></li>
+    </ol>
+    <h3 style="margin-top:40px">Open questions</h3>
+    <details class="card pad open-q"><summary>What should the encoder throw away, and what should it keep?</summary><p>A JEPA encoder keeps what can be predicted. But what doesn't change during a recording, like the light in Lab 1, is predictable too, and the model can hold on to it instead of the cup. How can you tell the encoder what matters for actions without labeling the data, and is guessing the action enough for this?</p></details>
+    <details class="card pad open-q"><summary>How do you set a task without a photo?</summary><p>V-JEPA 2-AC and Ada get the goal as a picture, while a person would rather say “put the cup on the saucer”. How do you turn words into a goal in representation space, and could you then plan many steps ahead instead of following three subgoals photographed in advance?</p></details>
+    <h3 style="margin-top:34px">Paper guide</h3>
+    <p><a href="https://arxiv.org/abs/2506.09985" target="_blank" rel="noopener">M. Assran, A. Bardes et al., “V-JEPA 2: Self-Supervised Video Models Enable Understanding, Prediction and Planning”, Meta, 2025</a>.</p>
+    <ul class="links">
+      <li><strong>Read closely</strong><span>The section on V-JEPA 2-AC: what data the predictor learns from, its two losses (prediction from the real representation and the two-step rollout) and the energy equation for planning. Figure 7 with the MPC diagram, Tables 2 and 3, and the subsection on limitations.</span></li>
+      <li><strong>Safe to skip</strong><span>The sections on video understanding and on answering questions after connecting a language model, if you're interested in the robot, and the details of progressive resolution in pretraining.</span></li>
+      <li><strong>Question to keep in mind</strong><span>The planner looks one action ahead, and the authors call the tasks “relatively greedy”. What task on Ada's table can't be solved greedily, one push at a time, and what would a long horizon give then?</span></li>
+    </ul>
+    <p style="margin-top:18px">Other works in this lesson: <a href="https://openreview.net/forum?id=BZ5a1r-kVsf" target="_blank" rel="noopener">A Path Towards Autonomous Machine Intelligence</a> (LeCun, 2022), the position paper with the JEPA and the agent architecture; <a href="https://arxiv.org/abs/2301.08243" target="_blank" rel="noopener">I-JEPA</a> (2023) and <a href="https://arxiv.org/abs/2404.08471" target="_blank" rel="noopener">V-JEPA</a> (2024), with representations instead of pixels as the target; <a href="https://arxiv.org/abs/2411.04983" target="_blank" rel="noopener">DINO-WM</a> (2024), a world model on ready-made representations; <a href="https://arxiv.org/abs/2512.24497" target="_blank" rel="noopener">What Drives Success in Physical Planning with JEPA-WMs</a> (2025–2026), on what determines the success of planning; <a href="https://arxiv.org/abs/2603.14482" target="_blank" rel="noopener">V-JEPA 2.1</a> (2026), <a href="https://arxiv.org/abs/2511.08544" target="_blank" rel="noopener">LeJEPA</a> (2025) and <a href="https://arxiv.org/abs/2610.06805" target="_blank" rel="noopener">H-JEPA</a> (2026).</p>
+    <h3 style="margin-top:34px">Resources</h3>
+    <ul class="links">
+      <li><a href="https://ai.meta.com/blog/v-jepa-2-world-model-benchmarks/" target="_blank" rel="noopener">V-JEPA 2 on the Meta blog</a><span>How the model plans with a goal image, videos of Franka arms and new tests of physical understanding (June 11, 2025)</span></li>
+      <li><a href="https://github.com/facebookresearch/vjepa2" target="_blank" rel="noopener">V-JEPA 2 code and weights</a><span>Encoders and the action-conditioned world model, open for research and commercial use</span></li>
+      <li><a href="https://dino-wm.github.io" target="_blank" rel="noopener">DINO-WM</a><span>The project page with videos of planning in simulation</span></li>
+      <li><a href="https://github.com/facebookresearch/jepa-wms" target="_blank" rel="noopener">JEPA-WMs</a><span>Code, data and checkpoints of the work on what determines the success of planning</span></li>
+    </ul>
+    <div class="bridge-note"><p>V-JEPA 2-AC plans with representations and draws no frames, so its future can't be seen: only a separate decoder turns representations into a picture. And the predictor with actions learns from robot recordings, about 62 hours of DROID, while almost all the video on the internet was shot without actions.</p><p class="bridge-to"><!--if:7-3-generativnye-modeli-mira.html--><a href="7-3-generativnye-modeli-mira.html"><!--/if-->Lesson 7.3 · Generative world models: how to learn, from video without actions, a controllable world that you can see and act in<!--if:7-3-generativnye-modeli-mira.html--></a><!--/if--></p></div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Lesson 7.2 of the “Modern Robotics and Physical AI” course. The numbers from papers follow the texts of the papers on arXiv, LeCun's position paper (version 0.9.2) and the Meta blog, as of October 28, 2026. The table, Ada's recordings and both labs are properties of our model, not numbers from papers; the small JEPA of Lab 1 is trained in the browser, the models of Lab 2 were trained in advance in Node, and planning is computed in the browser; fixed seeds are used everywhere. The diagrams show the principle, and the animation's rhythm is schematic.
+</footer>
+<div class="tooltip" id="tooltip" role="tooltip"></div>
+<script>
+/*@@JS@@*/
+</script>
+</body>
+</html>

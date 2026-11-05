@@ -1,0 +1,100 @@
+:root{--wam:#8b5cf6;--idm:#e9a23b}
+.section > .wrap > .prose,
+.section > .wrap > .stat-fig { max-width:820px; margin-left:0; margin-right:0 }
+.section#quiz > .prose,
+.section#finale > .prose { max-width:720px; margin-left:auto; margin-right:auto }
+.flow-card{margin:22px 0;padding:14px}
+.flow-card figcaption,.stat-cap{font-size:13px;line-height:1.5;color:var(--ink-3);margin:10px 2px 0}
+.guide-card .g-go{white-space:normal;text-align:left;max-width:100%}
+.arch-tabs{display:flex;gap:7px;flex-wrap:wrap;margin:0 0 10px}
+.arch-tabs button{font-size:13px}
+.term-timeline{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:18px 0 22px}
+.term-timeline .card{padding:15px;border-top:4px solid var(--wam)}
+.term-timeline b,.term-timeline span{display:block}
+.term-timeline span{margin-top:6px;color:var(--ink-2);font-size:13.5px;line-height:1.5}
+.class-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:18px 0}
+.class-card{padding:15px}
+.class-card b{display:block;margin-bottom:5px}
+.class-card p{margin:0;color:var(--ink-2);font-size:14px;line-height:1.5}
+.lab-intro{margin:0 0 18px;max-width:820px}
+.compare-scene{padding:14px;min-width:0}
+.compare-head,.cal-head{display:flex;justify-content:space-between;gap:12px;align-items:baseline;margin-bottom:9px}
+.compare-head b,.cal-head b{font-size:15px}
+.compare-head span,.cal-head span{font:12px var(--mono);color:var(--ink-3)}
+#compareCv,#interveneCv{display:block;width:100%;height:auto;border-radius:11px;background:var(--surface-2)}
+.lab-controls{display:grid;gap:12px;margin-top:13px}
+.ctl{display:grid;gap:6px}
+.ctl-l{font-size:12px;font-weight:800;letter-spacing:.055em;text-transform:uppercase;color:var(--ink-3)}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{border:1px solid var(--line-2);background:var(--surface);color:var(--ink-2);border-radius:9px;padding:8px 11px;font:600 13px/1.2 var(--sans);cursor:pointer}
+.seg button[aria-pressed="true"]{border-color:var(--ink);background:var(--ink);color:var(--surface)}
+.readout{padding:10px 12px;border-radius:10px;background:var(--surface-2);font-size:13.5px;line-height:1.45;color:var(--ink-2);min-height:42px}
+.model-key{display:flex;gap:12px;flex-wrap:wrap;margin:10px 0 0;font-size:12px;color:var(--ink-3)}
+.model-key span{display:inline-flex;align-items:center;gap:5px}
+.model-key i{width:18px;height:3px;border-radius:2px;background:var(--classic)}
+.model-key .imag i{height:0;border-top:2px dashed var(--e2e);background:none}
+.model-key .fail i{background:var(--critical)}
+.compare-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:10px}
+.compare-metrics>div{min-width:0;padding:9px 10px;border:1px solid var(--line);border-radius:9px;background:var(--surface-2)}
+.compare-metrics b,.compare-metrics span{display:block}
+.compare-metrics b{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.compare-metrics span{margin-top:3px;font:11px/1.35 var(--mono);color:var(--ink-3)}
+.compare-metrics .ok{border-color:var(--good)}
+.compare-metrics .no{border-color:var(--critical)}
+.deep .body p{max-width:780px}
+.stat-grid.two{grid-template-columns:1fr 1fr}
+.infer-compare{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:18px 0}
+.infer-card{padding:15px;border-left:4px solid var(--classic)}
+.infer-card.video{border-color:var(--e2e)}
+.infer-card b{display:block;margin-bottom:4px}
+.infer-card p{margin:0;color:var(--ink-2);font-size:14px}
+.cal-scene{padding:14px;min-width:0}
+.cal-rows{display:grid;gap:8px}
+.cal-row{display:grid;grid-template-columns:132px 1fr;gap:11px;align-items:center;padding:9px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2)}
+.cal-row.revealed.ok{border-color:var(--good);background:var(--good-soft)}
+.cal-row.revealed.no{border-color:var(--critical);background:var(--critical-soft)}
+canvas.cal-thumb{display:block;width:128px;height:52px;border-radius:8px;background:var(--surface)}
+.cal-info{display:grid;gap:5px;min-width:0}
+.cal-title{display:flex;justify-content:space-between;gap:8px;font-size:12.5px}
+.cal-title b{font-size:13px}
+.prob{display:flex;gap:4px;flex-wrap:wrap}
+.prob button{border:1px solid var(--line-2);background:var(--surface);border-radius:7px;padding:5px 7px;font-size:11px;color:var(--ink-2);cursor:pointer}
+.prob button[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.cal-outcome{font-size:12px;color:var(--ink-3)}
+.range-row{display:grid;grid-template-columns:1fr auto;gap:9px;align-items:center}
+.range-row input{width:100%}
+.intervention{display:grid;gap:12px;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+.term-note{border-left:4px solid var(--wam);padding:12px 14px;background:color-mix(in srgb,var(--wam) 8%,var(--surface));border-radius:0 10px 10px 0}
+.term-note p{margin:0}
+.paper-guide{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:20px 0}
+.paper-guide .card{padding:14px}
+.paper-guide b,.paper-guide span{display:block}
+.paper-guide span{margin-top:5px;color:var(--ink-2);font-size:13px;line-height:1.45}
+.source-chip{font-size:12px;color:var(--ink-3)}
+
+.flow-card,.stat-fig{margin-left:0;margin-right:0}
+
+@media(max-width:900px){.class-grid,.infer-compare,.stat-grid.two,.term-timeline,.paper-guide{grid-template-columns:1fr}
+.compare-scene,.cal-scene{padding:11px}
+.cal-row{grid-template-columns:112px 1fr}
+canvas.cal-thumb{width:108px;height:48px}
+.arch-tabs{display:grid;grid-template-columns:1fr 1fr}
+.arch-tabs button{white-space:normal}
+.seg button{flex:1 1 auto}
+.compare-head,.cal-head{align-items:flex-start;flex-direction:column;gap:3px}
+}
+
+@media(max-width:560px){.class-grid{grid-template-columns:1fr}
+.prob button{padding:6px 8px}
+.model-key{display:grid;gap:5px}
+.lab-controls{gap:10px}
+.compare-metrics{gap:5px}
+.compare-metrics>div{padding:7px 5px}
+.compare-metrics b{font-size:10.5px}
+.compare-metrics span{font-size:9.5px}
+.cal-row{grid-template-columns:1fr}
+canvas.cal-thumb{width:100%;height:auto}
+}
+
+@media(prefers-reduced-motion:reduce){.cal-row,.seg button{transition:none!important}
+}

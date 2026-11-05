@@ -1,0 +1,112 @@
+/* ---------- урок 7.3 «Генеративные модели мира» ---------- */
+.section > .wrap > .prose,
+.section > .wrap > .stat-fig { max-width: 820px; margin-left: 0; margin-right: 0; }
+.section#quiz > .prose,
+.section#finale > .prose { max-width: 720px; margin-left: auto; margin-right: auto; }
+.cv-note { margin: 6px 2px 0; font-size: 13px; line-height: 1.45; color: var(--ink-3); }
+.ctl { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.ctl-l { font-size: 13.5px; font-weight: 650; color: var(--ink-3); }
+.btn[hidden] { display: none !important; }
+.guide-card .g-go { white-space: normal; text-align: left; max-width: 100%; }
+.seg.small { flex-wrap: wrap; }
+.seg.small button { padding-left: 8px; padding-right: 8px; font-size: 13px; }
+details.lab-legend { margin-top: 8px; font-size: 13.5px; }
+details.lab-legend summary { cursor: pointer; color: var(--ink-2); font-weight: 600; }
+
+/* Неразмеченная запись и токенизатор */
+.film { max-width: 820px; }
+.film canvas { width: 100%; height: auto; display: block; image-rendering: pixelated; border-radius: 10px; background: #151515; }
+.film-controls { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 10px; }
+.token-demo { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 18px; max-width: 820px; }
+.token-demo > div:not(.tok-arrow) { display: grid; gap: 8px; text-align: center; }
+.token-demo canvas { width: 100%; max-width: 220px; aspect-ratio: 1; justify-self: center; image-rendering: pixelated; border-radius: 9px; background: #171717; }
+.tok-arrow { font-family: var(--mono); color: var(--ink-3); max-width: 210px; text-align: center; overflow-wrap: anywhere; }
+
+/* Схема Genie и диаграммы из статей */
+.flow-card { width: min(1180px, calc(100vw - 32px)); max-width: none; margin: 18px 0 0; padding: 14px 14px 12px; }
+.flow-card canvas { display: block; width: 100%; height: auto; cursor: pointer; }
+.flow-card figcaption { margin: 10px 2px 0; }
+.chart-scroll { max-width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; }
+.physics-chart { min-width: 720px; }
+
+/* Лаборатория 1: словарь скрытых действий */
+.la-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 2px 2px 6px; font-size: 13.5px; }
+.la-head b { font: 650 14px/1.2 var(--mono); color: var(--ink); text-align: right; }
+.la-tag, .real-tag, .gl-tag { font-weight: 650; padding: 2px 8px; border-radius: 999px; color: var(--ink); }
+.la-tag { border: 1.5px solid var(--line-2); background: var(--surface-2); }
+.real-tag { border: 1.5px solid var(--classic); background: var(--classic-soft); }
+.gl-tag { border: 1.5px dashed var(--e2e); background: var(--e2e-soft); }
+.code-map { display: block; width: 100%; height: auto; aspect-ratio: 700 / 230; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.play-stage { display: grid; grid-template-columns: minmax(230px, .9fr) minmax(280px, 1.1fr); gap: 14px; align-items: start; margin-top: 14px; }
+.play-stage figure, .duo figure { margin: 0; min-width: 0; }
+.play-stage figcaption, .duo figcaption { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin: 0 2px 6px; }
+.play-stage figcaption b, .duo figcaption b { font: 650 13px/1 var(--mono); color: var(--ink-3); }
+.play-stage figure canvas { display: block; width: 100%; aspect-ratio: 1; image-rendering: pixelated; border: 2px dashed var(--e2e); border-radius: 10px; background: #171717; }
+.keys { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; margin: 12px 0; }
+.keys button { min-width: 0; min-height: 44px; padding-inline: 7px; font-family: var(--mono); font-size: 13.5px; white-space: normal; overflow-wrap: anywhere; }
+.keys button.sel { outline: 3px solid color-mix(in srgb, var(--e2e) 35%, transparent); border-color: var(--e2e); }
+.option-seg { display: inline-flex; }
+.compass-ctl { display: grid; align-content: start; gap: 7px; }
+.compass { display: grid; grid-template-columns: repeat(3, 52px); gap: 5px; }
+.compass button { min-height: 46px; border: 1px solid var(--line-2); border-radius: 9px; background: var(--surface); color: var(--ink); cursor: pointer; display: grid; place-items: center; padding: 4px; }
+.compass button:hover:not(:disabled) { border-color: var(--e2e); }
+.compass button[aria-pressed="true"] { border-color: var(--e2e); background: var(--e2e-soft); outline: 3px solid color-mix(in srgb, var(--e2e) 25%, transparent); }
+.compass button:disabled { opacity: .42; cursor: not-allowed; }
+.compass-arrow { font: 700 24px/1 var(--mono); }
+.compass button[data-dir="none"] .compass-arrow { font-size: 16px; }
+.compass small { font-size: 9px; line-height: 1; color: var(--ink-3); }
+.compass-ctl.is-disabled { opacity: .68; }
+.mini-stat { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.mini-stat div { padding: 12px; border: 1px solid var(--line); border-radius: 9px; text-align: center; }
+.mini-stat b { display: block; font-size: 24px; }
+.vocab-compare { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
+.vocab-compare div { padding: 10px 8px; border: 1px solid var(--line); border-radius: 8px; text-align: center; }
+.vocab-compare b { display: block; font: 700 18px/1.2 var(--mono); }
+.vocab-compare span { font-size: 12px; color: var(--ink-3); }
+
+/* Сравнение платформ */
+.compare { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 22px 0; }
+.compare .card { display: grid; gap: 8px; }
+.compare b { font-size: 17px; }
+.compare span { color: var(--ink-3); }
+
+/* Лаборатория 2: настоящий и воображаемый мир */
+.judge-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; overflow: auto; margin-bottom: 12px; }
+.duo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.duo canvas { width: 100%; height: auto; image-rendering: pixelated; border-radius: 10px; background: #171717; }
+.duo figure:first-child canvas { border: 2px solid var(--classic); }
+.duo figure:last-child canvas { border: 2px dashed var(--e2e); }
+.timeline { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; margin: 12px 2px; }
+.timeline input { width: 100%; }
+.timeline span { font: 650 13px/1 var(--mono); color: var(--ink-3); }
+.diagnosis { margin: 12px 0 8px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); }
+#diagTree { display: grid; gap: 8px; margin-top: 8px; }
+.diag-question, .diag-result { margin: 0; line-height: 1.45; }
+.diag-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.diag-options .btn { text-align: center; }
+.diag-trail { list-style: none; display: grid; gap: 5px; margin: 0; padding: 0; color: var(--ink-3); font-size: 12.5px; }
+.diag-trail li::before { content: '✓'; color: var(--classic); font-weight: 750; margin-right: 7px; }
+.diag-result { padding: 9px 10px; border-left: 3px solid var(--e2e); background: var(--surface); }
+.diag-reset { width: fit-content; border: 0; padding: 0; background: none; color: var(--link); font: inherit; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.diag-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+.diag-actions .btn { white-space: normal; }
+.mark-read { font: 650 13px/1.35 var(--mono); color: var(--ink-2); }
+.judge-legend { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 5px; font-size: 13px; color: var(--ink-2); }
+.judge-legend i { display: inline-block; width: 18px; height: 3px; margin-right: 8px; vertical-align: middle; border-radius: 2px; }
+.judge-legend .lg-real { background: var(--classic); }
+.judge-legend .lg-imag { background: repeating-linear-gradient(90deg, var(--e2e) 0 4px, transparent 4px 7px); }
+.judge-legend .lg-stop { height: 10px; border: 2px solid var(--critical); background: transparent; }
+.callout { border-left: 4px solid var(--critical); padding: 12px 16px; background: color-mix(in srgb, var(--critical) 7%, var(--surface)); border-radius: 0 8px 8px 0; }
+
+@media (max-width: 900px) {
+  .play-stage, .token-demo { grid-template-columns: 1fr; }
+  .tok-arrow { justify-self: center; }
+  .compare { grid-template-columns: 1fr; }
+  .mini-stat { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 560px) {
+  .duo { grid-template-columns: 1fr; }
+  .judge-head { align-items: flex-start; flex-direction: column; }
+  .diag-actions { align-items: stretch; flex-direction: column; }
+  .vocab-compare { grid-template-columns: 1fr; }
+}

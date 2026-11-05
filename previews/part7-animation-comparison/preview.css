@@ -1,0 +1,23 @@
+:root {
+  color-scheme: light;
+  --bg:#f6f5f1;--bg-2:#efede6;--surface:#fffefb;--surface-2:#f9f8f4;
+  --ink:#0b0b0b;--ink-2:#3d3c38;--ink-3:#6b6a65;--line:rgba(11,11,11,.10);--line-2:rgba(11,11,11,.16);
+  --classic:#2a78d6;--classic-soft:rgba(42,120,214,.10);--e2e:#eb6834;--e2e-soft:rgba(235,104,52,.11);
+  --hybrid:#4a3aa7;--hybrid-soft:rgba(74,58,167,.10);--good:#0ca30c;--critical:#d03b3b;
+  --shadow:0 1px 2px rgba(30,28,20,.05),0 8px 28px rgba(30,28,20,.07);
+}
+:root[data-theme="dark"] {
+  color-scheme:dark;--bg:#121211;--bg-2:#1a1a19;--surface:#1c1c1a;--surface-2:#222220;
+  --ink:#fff;--ink-2:#d6d3ca;--ink-3:#a8a49a;--line:rgba(255,255,255,.10);--line-2:rgba(255,255,255,.18);
+  --classic:#55a0f2;--classic-soft:rgba(85,160,242,.13);--e2e:#ff7a45;--e2e-soft:rgba(255,122,69,.14);
+  --hybrid:#9181ee;--hybrid-soft:rgba(145,129,238,.15);--good:#24c424;--critical:#f04b4b;
+  --shadow:none;
+}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,-apple-system,sans-serif}
+.top{max-width:1180px;margin:0 auto;padding:48px 24px 26px;display:flex;align-items:flex-start;justify-content:space-between;gap:24px}
+.eyebrow{margin:0 0 10px;color:var(--e2e);font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.08em}.top h1{font-size:clamp(32px,5vw,58px);line-height:1.02;margin:0;letter-spacing:-.035em}.lead{max-width:780px;font-size:18px;line-height:1.55;color:var(--ink-2);margin:18px 0 0}
+#themeBtn{border:1px solid var(--line-2);border-radius:50%;width:42px;height:42px;background:var(--surface);color:var(--ink);font-size:19px;cursor:pointer}.jump{position:sticky;top:12px;z-index:4;width:max-content;margin:0 auto 34px;padding:6px;display:flex;gap:4px;border:1px solid var(--line-2);border-radius:999px;background:color-mix(in srgb,var(--surface) 92%,transparent);backdrop-filter:blur(12px)}.jump a{color:var(--ink-2);text-decoration:none;font-weight:800;padding:8px 18px;border-radius:999px}.jump a:hover{background:var(--hybrid-soft);color:var(--hybrid)}
+main{max-width:1180px;margin:0 auto;padding:0 24px 64px}section{scroll-margin-top:80px;margin:0 0 72px}.section-head{display:flex;gap:16px;align-items:flex-start;margin:0 0 18px}.section-head>span{display:grid;place-items:center;min-width:50px;height:50px;border-radius:14px;background:var(--hybrid);color:#fff;font-weight:900}.section-head h2{font-size:29px;margin:0 0 5px;letter-spacing:-.02em}.section-head p{margin:0;color:var(--ink-2);line-height:1.5}
+.compare{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;align-items:start}.version{margin:0;padding:14px;border-radius:16px;background:var(--surface);border:1px solid var(--line-2);box-shadow:var(--shadow);overflow:hidden}.version>b{display:inline-flex;margin:0 0 10px;padding:6px 10px;border-radius:999px;font-size:12px;letter-spacing:.04em;text-transform:uppercase}.before>b{background:var(--bg-2);color:var(--ink-3)}.after>b{background:var(--e2e-soft);color:var(--e2e)}.version img,.version canvas{display:block;width:100%;height:auto;border-radius:11px;background:var(--surface-2);border:1px dashed var(--line-2)}.version img{object-fit:contain;aspect-ratio:760/400}.version canvas{aspect-ratio:760/400;cursor:pointer}.version canvas.paused{outline:2px solid var(--hybrid);outline-offset:2px}.version figcaption{font-size:13px;line-height:1.5;color:var(--ink-3);margin:10px 2px 0}.anim-play{margin:9px 0 0;border:1px solid var(--line-2);border-radius:9px;background:var(--surface);color:var(--ink);padding:8px 12px;font-weight:750}footer{max-width:1180px;margin:0 auto 40px;padding:24px;border-top:1px solid var(--line);color:var(--ink-3);font-size:14px}
+@media(max-width:900px){.compare{grid-template-columns:1fr}.version img{aspect-ratio:auto}.version canvas{aspect-ratio:auto}.top{padding-top:34px}.section-head h2{font-size:25px}}
+@media(max-width:520px){.top,main{padding-left:12px;padding-right:12px}.top{gap:10px}.lead{font-size:16px}.section-head{gap:10px}.section-head>span{min-width:42px;height:42px}.section-head h2{font-size:22px}.version{padding:9px}.jump{margin-bottom:26px}.jump a{padding:7px 14px}}

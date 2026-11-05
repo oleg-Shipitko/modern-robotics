@@ -1,0 +1,549 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>7.3 Generative world models — Modern Robotics and Physical AI</title>
+<meta name="description" content="How Genie discovers controls in videos without action labels, how Cosmos turns video generation into a physical-world model, and where a plausible continuation diverges from reality.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<script>(function(){try{var t=localStorage.getItem('mr-theme');if(t)document.documentElement.dataset.theme=t;else if(matchMedia('(prefers-color-scheme: dark)').matches)document.documentElement.dataset.theme='dark'}catch(e){}})();</script>
+<style>/*@@CSS@@*/</style>
+</head>
+<body>
+<header class="topbar">
+<div class="topbar-inner">
+<a class="brand" href="../index.html#program">
+<div>Modern Robotics and Physical AI<small>Lesson 7.3 · Generative world models</small>
+</div>
+</a>
+<nav class="toc" aria-label="Lesson sections">
+<a href="#video">Video</a>
+<a href="#control">Control</a>
+<a href="#tokens">Tokens</a>
+<a href="#actions">Actions</a>
+<a href="#play">Lab</a>
+<a href="#engines">Worlds</a>
+<a href="#cosmos">Cosmos</a>
+<a href="#judge">Test</a>
+<a href="#agent">Agents</a>
+<a href="#limits">Limits</a>
+<a href="#today">Today</a>
+<a href="#quiz">Quiz</a>
+<a href="#finale">Summary</a>
+</nav>
+<button class="theme-btn" id="themeBtn" type="button" aria-label="Toggle theme">◐</button>
+</div>
+<div class="progress" id="progress">
+</div>
+</header>
+<main>
+<section class="hero" id="top">
+<div class="wrap">
+<div class="kicker">
+<span class="num">7.3</span> Part 7 · World models</div>
+<h1>Generative world models: <span class="amp">turning video into an environment you can control</span>
+</h1>
+<p class="lead">Lesson 7.2 predicted compact representations without drawing the future. Another route starts with a video generator: give it past frames and an action and ask for the next frame. Most internet videos, however, contain neither robot commands nor player inputs. Genie showed how to discover a small vocabulary of latent actions from transitions alone. Cosmos brought video-model scaling to Physical AI. In the labs, Ada learns eight buttons from unlabelled kitchen clips, then checks the plausible continuation against the real table.</p>
+<div class="hero-meta">
+<span>≈ 55 minutes</span>
+<span>2 labs, a diagram, and a quiz</span>
+</div>
+<div class="hero-list">
+<div>
+<b>VIDEO WITHOUT COMMANDS</b>Identify what transitions between frames do not reveal</div>
+<div>
+<b>LATENT-ACTION CODES</b>Explore the learned vocabulary and label its buttons</div>
+<div>
+<b>PHYSICS TEST</b>Mark the first frame where the continuation diverges from the real table</div>
+<div>
+<b>GENIE AND COSMOS</b>Understand the purpose and limits of generative world models</div>
+</div>
+<p style="margin-top:28px">
+<a class="btn primary" href="#recall">Start lesson ↓</a>
+</p>
+</div>
+</section>
+<section class="recall-sec" id="recall" aria-label="Warm-up">
+<div class="wrap">
+<div class="card recall" data-recall>
+</div>
+</div>
+<script type="application/json" id="recallData">{"n":"7.2","title":"JEPA and V-JEPA 2","href":"7-2-jepa-v-jepa-2.html","q":[{"q":"A JEPA loss is almost zero. What should you check?","o":["Nothing","Whether representations differ and a probe can recover useful information","Pixel count"],"a":1,"e":"An unprotected model can map every frame to the same representation.","sec":"collapse","secTitle":"A deceptive curve: the loss falls while the model knows nothing"},{"q":"How does V-JEPA 2-AC choose an action from a goal image?","o":["It renders a video","It tests actions and compares predicted representations with the goal","It emits an action directly"],"a":1,"e":"Planning happens in representation space.","sec":"vjepa2","secTitle":"V-JEPA 2 and V-JEPA 2-AC: a world model with actions on top of video"},{"q":"When did representations fail Ada?","o":["For a distant goal","Under unseen lighting","Never"],"a":1,"e":"A representation is only as robust as its training data.","sec":"goal","secTitle":"A fan of imagined futures: planning from a goal image"}]}</script>
+</section>
+<section class="section alt" id="video">
+<div class="wrap">
+<div class="prose">
+<div class="kicker">
+<span class="num">1</span> Unlabelled recordings</div>
+<h2>The camera sees the result but not the cause</h2>
+<p>Ada's camera recorded the table every two seconds. Between frames, a person moved the cup, sometimes did nothing, and sometimes Ada turned toward the stove. Only frames remain. The push vector, the person's hand, and the command were never recorded.</p>
+<p class="ada-note">
+<svg class="ada-ico" viewBox="0 0 64 64" aria-hidden="true">
+<rect x="8" y="10" width="48" height="42" rx="18" fill="#f4efe6" stroke="#3d3c38" stroke-width="3"/>
+<rect x="15" y="19" width="34" height="22" rx="10" fill="#1f2430"/>
+<ellipse cx="25" cy="30" rx="4" ry="5.5" fill="#eb6834"/>
+<ellipse cx="39" cy="30" rx="4" ry="5.5" fill="#eb6834"/>
+</svg>
+<span>Ada is the course's household humanoid; since Lesson 6.1 she has legs instead of a wheeled base. Meet her and her home in <a href="0-1-dve-paradigmy.html#ada">Lesson 0.1</a>.</span>
+</p>
+<p>A before-and-after pair reveals change, not necessarily its cause. The cup may move right because of a push, a tilted table, or another hand. A learned “move right” button is therefore not yet a motor command for a specific robot. This is a causal problem. A video model notices correlated changes, but a recording does not say who acted or whether the result can be repeated. If a hand always appears before the cup moves, the model may use the hand as a cue without learning contact. With a recorded robot command we can ask, “what follows this action?” Without it, the weaker question remains: “what usually follows these frames?”</p>
+<p>The distinction appears under intervention. We keep the first frame fixed, change only the control signal, and compare continuations. If every branch shows the most frequent motion in the data, the model predicts video but does not provide controllable dynamics. If direction changes, a second test starts elsewhere: a button's stable effect matters more than one successful frame.</p>
+<p>Sequences labelled with observations and actions are especially expensive for Physical AI. Every command changes the real world: a robot may drop an object, strike furniture, or create a hazard, so collection needs an operator, safeguards, and scene resets. Ordinary video is easier to obtain, but it removes the exact variable needed for causal prediction. A generative world model tries to use the scale of such recordings without pretending that correlation is a known command.</p>
+<p>It helps to separate three sources of uncertainty. The camera may not see the action; one visible change may have several causes; and part of the future may be genuinely undetermined by the past, such as another person's motion. A control signal removes only the first problem. The others require a distribution of possible continuations and a check that the selected branch remains valid after a new observation.</p>
+<div class="film card pad" id="film">
+<canvas id="filmCv" width="640" height="160" role="img" aria-label="Frames from an unlabelled clip of the cup, table, and stove">
+</canvas>
+<div class="film-controls">
+<button class="btn" id="filmPrev" type="button">←</button>
+<span id="filmAt">frame 1</span>
+<button class="btn" id="filmNext" type="button">→</button>
+</div>
+</div>
+<p>Before looking for recurring causes of transitions, the long frames need a compact representation. A video tokenizer solves that problem.</p>
+</div>
+</div>
+</section>
+<section class="section" id="control">
+<div class="wrap"><div class="prose">
+<div class="kicker"><span class="num">2</span> Continuation condition</div>
+<h2>A controllable world model must distinguish an instruction from an action</h2>
+<p>An ordinary video generator continues the most likely event. An interactive environment needs more: an agent must choose what happens next. The condition may be text, a key press, a camera path, an actuator command, or a latent vector. These signals are not equivalent. “Go around the cup” expresses intent, while a velocity vector specifies immediate motion; a policy is still needed between them. We therefore call a model a <strong>generative world model</strong> when it produces an observable future and accepts an explicit condition that changes that future. Dreamer in <a href="7-1-world-models-dreamer.html">Lesson 7.1</a> is also a world model, but predicts compact state. JEPA in <a href="7-2-jepa-v-jepa-2.html">Lesson 7.2</a> predicts a representation. Here the output can be decoded back into a frame and inspected.</p>
+<p>GAIA-1 conditions driving video on history, text, and control signals; UniSim combines images, actions, and scene descriptions. This interface helps test scenarios but does not prove controllability. We must change the condition while holding the past fixed and observe reliably different consequences. Time scale matters too. A text condition may remain fixed throughout a task, while an actuator command changes many times per second. The model must know which signal specifies a long-horizon goal and which specifies the next transition. If they are mixed into one indistinguishable vector, the agent cannot tell what to correct after a deviation.</p>
+<p>GAIA-1 illustrates a hierarchy of conditions in driving: history establishes road state, text describes the scene, and speed plus curvature directly change the trajectory. UniSim states the interface even more directly: world state and action enter the model, while an observable consequence leaves as video. This interface lets a robot replace a condition without reshooting the initial scene and obtain comparable counterfactual branches.</p>
+<p>A counterfactual branch is useful only when control is locally identifiable. If every camera turn in the training data coincided with gripper motion, a model may bind the two and respond with both. A controllability test therefore changes one condition, holds the rest fixed, and repeats the experiment from different starting states. That separates a genuine control channel from an accidental dataset feature.</p>
+<p>The three approaches in Part 7 differ first in what a forecast must preserve. Dreamer retains compact state sufficient for reward and control. JEPA retains predictable features and deliberately avoids reconstructing every pixel. A generative model returns an observable frame, so a person can inspect intent and a system can create new data, but it pays in compute and in modelling details irrelevant to action.</p>
+<div class="compare">
+<div class="card pad"><b>Dreamer · state</b><span>Cheap long trajectories for policy learning; appearance need not be reconstructed.</span></div>
+<div class="card pad"><b>JEPA · representation</b><span>Planning over semantic features; unpredictable pixels may be ignored.</span></div>
+<div class="card pad"><b>Generative model · frame</b><span>The future can be inspected, labelled, and turned into data; cost and visual-error risk are higher.</span></div>
+</div>
+<p>Image quality alone cannot choose between them. A policy that evaluates thousands of candidates may benefit more from a compact representation than from video. An engineer investigating a rare failure or creating a synthetic episode needs the observable evidence of a decoded frame. One system can combine both paths: plan quickly in features and render video only for selected branches.</p>
+<div class="bridge-note down"><p>↓ Frames now need a compact carrier; otherwise long video prediction is too expensive.</p></div>
+</div></div>
+</section>
+<section class="section alt" id="tokens">
+<div class="wrap">
+<div class="prose">
+<div class="kicker">
+<span class="num">3</span> Compressed video</div>
+<h2>A video tokenizer turns frames into short records</h2>
+<p>A full frame is too long to predict at every step. In the lab model, an autoencoder compresses a 16 × 16 × 3 frame to four values, and a decoder reconstructs the image. Real systems retain a spatiotemporal grid of tokens. The tokenizer determines which tiny motions and physical events the model can represent at all. A spatial token describes an image region; a temporal token describes change over several frames. Stronger compression makes a long forecast cheaper but increases the chance of erasing an event that occupies few pixels: first contact, a thin cable, or a gripper opening. This error precedes the dynamics model, so enlarging that model cannot recover the missing signal.</p>
+<div class="token-demo card pad">
+<div>
+<canvas id="tokIn" width="192" height="192" role="img" aria-label="Input frame">
+</canvas>
+<b>frame · 768 values</b>
+</div>
+<div class="tok-arrow">→ <span id="tokNums">[—]</span> →</div>
+<div>
+<canvas id="tokOut" width="192" height="192" role="img" aria-label="Reconstructed frame">
+</canvas>
+<b>reconstruction</b>
+</div>
+</div>
+<p>Lossy compression is not just a saving. Once a tokenizer erases a thin handle or a tiny gap to the edge, the dynamics model cannot recover it. Yet compact tokens do not answer the main question: what control signal should continue the video when the recording contains no actions? A decoded frame is not the model's full knowledge either. Two nearby token sets can produce similar pictures while implying different depth or velocity. We will therefore inspect both the visible continuation and the consequence for control, not sharpness alone.</p>
+<p>The tokenizer and dynamics model are usually trained with different objectives. The first preserves reconstruction; the second predicts the next token. A detail may barely affect average image error and still determine the task outcome. Robotics therefore needs event checks—contact, object retention, and edge crossing—not pixel error alone.</p>
+<p>The right representation depends on its consumer. Landscape generation can discard the exact position of every leaf because many futures are equally plausible. Manipulation cannot lose a cup rim or the gap between fingers because those pixels determine a reachable action. The JEPA in the previous lesson deliberately ignores unpredictable detail; a generative model must decide which details to reconstruct and which to represent as multiple alternatives.</p>
+<p>DIAMOND exposes the other side of strong compression: a small visual detail may distinguish reward from danger while barely affecting reconstruction error. Tokenizers should therefore be tested beyond held-out frames. A small agent can be trained through the representation, or diagnostic tasks can probe whether variables that determine behavior survived compression.</p>
+</div>
+</div>
+</section>
+<section class="section" id="actions">
+<div class="wrap">
+<div class="prose">
+<div class="kicker">
+<span class="num">4</span> Genie</div>
+<h2>A latent-action code points to an entry in a learned vocabulary</h2>
+<p>Compressed tokens do not contain commands. In Genie 1, the latent action model receives past frames \(x_{1:t}\) and the next frame \(x_{t+1}\), identifies the change, and selects a <strong>latent-action code</strong>: an integer from 0 to 7. It is an index into a small learned vocabulary, not program code and not yet a motor command. The dynamics model receives past tokens and the vector in the selected entry, then predicts the next token.</p>
+<p>In <a href="4-4-video-lyudey.html#actions">Lesson 4.4</a>, the latent action in GR00T N1 served as a pseudo-label for training a policy. Here a discrete latent-action code plays another role: a person or agent presses it like an unknown button and plays out the world itself. If the same index repeatedly explains a character moving right, the button can be named “right” after the fact. Training separates two jobs. The latent-action model finds a small set of recurring transitions, while the dynamics model reproduces the next token from history and the selected entry. Discretization does not reveal “true” actions automatically; it forces many similar transitions to share a button. A button gains meaning only through intervention: we select it and test whether its effect persists across states.</p>
+<p>A vocabulary that is too small merges different motions and makes a button ambiguous. One that is too large splits a motion by background or location and makes the controller harder to explore. Vocabulary size trades one-step error against controllability. The lab exposes this directly: error falls as the vocabulary grows, while the number of unknown buttons rises. Unused entries are another risk. If several codes are never selected, the nominal vocabulary size overstates the available actions. We therefore inspect not only training loss but also selection frequency, effect diversity, and whether one effect persists across starting states.</p>
+<p>During training, code selection uses information unavailable at inference: the latent action model sees both history and the actual next frame. It acts like an inverse model, explaining an observed transition with one vocabulary entry. Its encoder and decoder are then discarded. At inference a person or agent supplies the index, and the dynamics model produces a next frame that has not yet been observed. The two regimes must not be conflated: the future frame is not an input during play.</p>
+<p>An entry's meaning is tested through repeated interventions. The same index is applied from different frames, the direction and magnitude of change are measured, and cases where the effect disappears or reverses are sought. The label “right” is only a shorthand for a stable effect in that domain. It does not prove that the entry contains a universal concept of direction or a command for a particular joint.</p>
+</div>
+<figure class="flow-card card">
+<canvas data-anim="genie" width="760" height="430" role="img" aria-label="Animated latent-action vocabulary training diagram: three frame pairs enter the latent action model, a vocabulary entry is selected, and the dynamics model predicts the next frame">
+</canvas>
+<figcaption>Three observed transitions follow the same route: the model compares frames, selects an entry in the learned vocabulary, and the dynamics model uses that entry to continue the scene. The diagram does not reveal entry meanings; the lab investigates them.</figcaption>
+</figure>
+<div class="prose">
+<p>The term follows the wording of the Genie paper: the authors call entries in the VQ codebook <i>codes</i>. A latent-action code is the number of one such entry. The original Genie vocabulary contains eight entries. Genie was trained on more than 30,000 hours of unlabelled platform-game video. It used a vocabulary of eight latent-action codes and created controllable 2D worlds from text, photos, or sketches. Genie had roughly 11 billion parameters, but generated about one frame per second. The key result was frame-by-frame control without ground-truth action labels, not speed or photorealism.</p>
+<p>The authors also tested whether the learned vocabulary helps a real policy. A small set of expert trajectories linked latent indices to known controls, after which behavior learned from pseudo-actions approached the fully labelled alternative. This clarifies the vocabulary's role: it reduces manual labelling but does not remove calibration examples when the output must become a command for an external agent. The vocabulary also depends on temporal stride. Between adjacent frames an index may mean a short push, while sparse sampling folds motion, contact, and stopping into one transition. Transferring a code therefore requires preserving frame rate and latent-action horizon. Otherwise the same button name hides a different duration and different dynamics.</p>
+<figure class="card stat-fig" aria-label="Chart of Genie controllability with a token-based and pixel-based latent action model">
+<figcaption class="stat-h">A pixel-based latent action model preserves controllability better</figcaption>
+<div id="genieBars">
+</div>
+<p class="stat-cap">ΔtPSNR; higher is better. Platformers: 1.33 with tokens and 1.91 with pixels; Robotics: 1.65 and 2.07. Source: Bruce et al., Genie, Table 2.</p>
+</figure>
+<p class="callout">
+<strong>Limit.</strong> A latent-action code is determined by an image change. If two real actions look identical, the model may merge them. If one action looks different across scenes, it may split it into several codes.</p>
+<div class="bridge-note down">
+<p>↓ The learned vocabulary has already turned the video model into a controllable environment. The next step is to test how long it preserves the world and whether it can move the cup to a target.</p>
+</div>
+</div>
+</div>
+</section>
+<section class="section alt" id="play">
+<div class="wrap">
+<div class="lab-badge">
+<i>🔬</i> Lab 1</div>
+<h2>Eight buttons that nobody named</h2>
+<div class="prose lab-intro" style="margin:0;max-width:820px">
+<p>The model learned only from clips. First explore and label the latent-action codes, then move the cup to the saucer using only this controller. The screen follows the work order: mission, scene, result check.</p>
+</div>
+<div class="lab">
+<div class="card scene-card play-card">
+<div class="la-head">
+<span class="la-tag">what the model discovered</span>
+<b id="codeMapRead">8 unnamed latent-action codes</b>
+</div>
+<canvas id="codeMap" class="code-map" width="700" height="230" role="img" aria-label="Effects of latent-action codes from different starting frames">
+</canvas>
+<div class="play-stage">
+<figure>
+<figcaption>
+<span class="gl-tag">model continuation</span>
+<b id="playStep">frame 0</b>
+</figcaption>
+<canvas id="playCv" width="512" height="512" role="img" aria-label="Imagined frame continuation from the world model">
+</canvas>
+</figure>
+<div>
+<p class="cv-note">Each press feeds one latent-action code into the model. The orange dashed border marks an imagined frame, not the real table.</p>
+<div class="keys" id="latentKeys">
+</div>
+<div class="ctl-row">
+<div class="ctl compass-ctl" id="wrapLabels">
+<span class="ctl-l">Direction of the selected button</span>
+<div class="compass" id="labelCompass" role="group" aria-label="Name the selected button with a direction or pause">
+</div>
+</div>
+<div class="ctl" id="wrapModel">
+<span class="ctl-l">Vocabulary size</span>
+<div class="seg small option-seg" id="modelK" role="group" aria-label="Latent-action code vocabulary size">
+<button type="button" data-v="4" aria-pressed="false">4 codes</button>
+<button type="button" data-v="8" aria-pressed="true">8 codes</button>
+<button type="button" data-v="16" aria-pressed="false">16 codes</button>
+</div>
+</div>
+</div>
+<div class="readout" id="playRead" aria-live="polite">
+</div>
+<div class="ctl-row">
+<button class="btn" id="playReset" type="button">Return to the first frame</button>
+</div>
+</div>
+</div>
+</div>
+<div class="card guide-card">
+<div id="playMis">
+</div>
+</div>
+</div>
+<details class="deep">
+<summary>Under the hood: tokenizer, vocabulary, and labels</summary>
+<div class="body">
+<p>
+<b>Recordings.</b> The teaching dataset contains 320 synthetic videos of 24 frames each: 7,680 frames at 16 × 16 pixels. Push direction and magnitude were hidden during training.
+<b>Training.</b> In Node.js, the tokenizer trained for 5,000 steps with batch size 32; the latent-action and dynamics model then trained for 8,000 steps with batch size 32. The resulting weights are embedded in the lesson. The browser does not repeat training: it runs the model, reclusters continuous latent actions into vocabularies of 4, 8, or 16 entries, and produces trajectories. The tokenizer compresses a frame to four values; dynamics continues them from history and the selected code.
+<b>Vocabulary comparison.</b> The same continuous latent action model is divided into 4, 8, or 16 entries with k-means. More entries reduce one-step error but leave more buttons to investigate.</p>
+<p>
+<b>Test.</b> The upper instrument averages cup displacement from six starting positions. Labelled frame–real-push–frame pairs connect latent-action codes to actuators; they do not remove world-model errors.</p>
+</div>
+</details>
+<div class="prose" style="margin:22px 0 0;max-width:820px">
+<p>Connecting latent-action codes to a real robot still requires examples with known actions. Genie mapped them to controls with expert trajectories. Here, labelled pairs assign an average push to each code.</p>
+<div class="mini-stat" id="pairStats">
+</div>
+<div class="vocab-compare" id="vocabStats" aria-label="One-step error for vocabularies with 4, 8, and 16 codes">
+</div>
+<p>Even after labelling, this remains a small model of one kitchen. Robots and autonomous vehicles need a common base that can be adapted to a new camera and task. A few labelled pairs establish only the relation between a latent index and an average effect in a familiar scene. They do not show that the button keeps its meaning under another camera, speed, or object mass. Calibration must therefore be followed by transfer: repeat the intervention from new states and measure not only direction but outcome spread.</p>
+<p>If one code reliably produces several distinct effects, a friendly button name cannot repair the interface. We may enlarge the vocabulary, shorten the temporal step, or add scene state to the condition. Each option changes the system: more codes are harder to explore, short steps call the model more often, and extra state requires dependable perception. For a real robot, final calibration must include reachability. A video model can propose displacement that looks identical for different bodies yet requires different joint paths and forces. A code becomes a useful command only after mapping to one robot's interface and checking constraints in a real or trusted physical loop.</p>
+</div>
+</div>
+</section>
+<section class="section" id="engines">
+<div class="wrap"><div class="prose">
+<div class="kicker"><span class="num">5</span> Model as environment</div>
+<h2>When continuation is fast enough, a model becomes an interactive environment</h2>
+<p>GameNGen demonstrated Doom with a diffusion model that renders the next frame from recent history and the player's input. DIAMOND applies a related idea to training Atari agents, while Genie 2 and Genie 3 construct broader three-dimensional scenes. In each case, the “engine” does not store hand-written level rules; it estimates the next observation from context. This changes how an environment is made but not what it must provide. A button needs a repeatable effect, an occluded object must persist after a camera turn, and error must not grow without bound. A short convincing clip tests only local continuation. An agent needs a long causally consistent process because one early mistake changes every later observation.</p>
+<p>A model used as an environment is therefore not judged by image quality alone. We need controllability, frame rate, stable episode length, scene memory, and contact consistency. If an action arrives after the real scene has already changed, the engine may be a training testbed but not a robot control loop. During training, the agent changes the frame distribution itself. At first it stays near a familiar start; later it discovers states almost absent from the videos. The generator then continues its own mistakes, and the policy may exploit them. Transfer to an independent environment is therefore not an optional demo but a test that the agent learned the task rather than one generator's artifacts.</p>
+<p>GameNGen illustrates the difference between instantaneous speed and a stable episode. It could sustain interactive Doom, yet its context covered only a few seconds. That is convincing local control for a player but insufficient memory for returning to a room or retaining a hidden object. Frame rate, response latency, and causally consistent history length must be reported separately.</p>
+<p>DIAMOND uses a model not merely for display but as a source of experience for an agent. Error becomes operational: if a projectile disappears for one frame or a reward resembles an enemy, the policy receives a wrong learning signal. Model environments should therefore be compared by agent transfer and behavior in rare states the agent itself visits, not only by clips from a held-out set.</p>
+<div class="bridge-note down"><p>↓ Physical AI adds transfer across cameras, bodies, and real dynamics to those requirements.</p></div>
+</div></div>
+</section>
+<section class="section alt" id="cosmos">
+<div class="wrap">
+<div class="prose">
+<div class="kicker">
+<span class="num">6</span> Scale</div>
+<h2>Cosmos provides a common base for physical-world models</h2>
+<p>A model of one kitchen does not automatically transfer to another home or a car. NVIDIA's Cosmos-Predict1 is a family of pretrained video continuation models for Physical AI. The platform includes video curation, tokenizers, models, and recipes for post-training on robotics and autonomous-driving data. A <strong>world foundation model</strong> is a large video model first trained on diverse data, then adapted to a particular environment, camera, and action interface. The first Cosmos report presented autoregressive and diffusion variants from 4 to 14 billion parameters.</p>
+<p>The models accept text, images, or video and continue a scene. They support data variation, scenario testing, and pretraining. Scale does not introduce physical laws automatically, however: photorealism still needs to be separated from physical fidelity. A common base is especially useful when rare real events are costly to collect: unusual weather, a near collision, or an unfamiliar kitchen layout. A generated episode becomes training data only after its conditions and events are checked. Otherwise the model multiplies its own mistake and gives the policy many attractive but incorrect examples.</p>
+<p>Adaptation also connects the base to a particular action interface. A car may expose steering and speed; a manipulator may expose joint positions or gripper displacements. The same video does not become the same command for different bodies. The base contributes visual dynamics, while robot records establish reachable transitions and actuator constraints. Cosmos separates the data workflow into finding suitable fragments, cleaning and filtering, tokenization, pretraining, and adaptation to a condition. This pipeline matters as much as model size. A rare event may disappear during clip selection, while a wrong caption can bind an action to the wrong consequence. A reproducible pipeline makes it possible to locate the stage that introduced a systematic error.</p>
+<p>Pretraining supplies a broad visual prior: which objects and motions occur in the physical world. Action-conditioned adaptation supplies controllability for one body. Scaling only the first part may let a model render more scenes without responding more accurately to a command. A foundation model should therefore be tested along two axes: condition diversity and sensitivity of the outcome to the requested action.</p>
+<div class="compare">
+<div class="card pad">
+<b>Genie 1 · 2024</b>
+<span>unlabelled game video</span>
+<span>learned code vocabulary</span>
+<span>controllable 2D worlds</span>
+</div>
+<div class="card pad">
+<b>Cosmos-Predict1 · 2025</b>
+<span>physical-world video</span>
+<span>text, image, video conditions</span>
+<span>base for adaptation</span>
+</div>
+<div class="card pad">
+<b>Genie 3 · 2025</b>
+<span>720p at 24 fps</span>
+<span>real-time control</span>
+<span>minutes of consistency</span>
+</div>
+</div>
+<p>The next test therefore compares events rather than image beauty: contact, falling, and persistence of a hidden object.</p>
+</div>
+</div>
+</section>
+<section class="section" id="judge">
+<div class="wrap">
+<div class="lab-badge">
+<i>🔬</i> Lab 2</div>
+<h2>The first incorrect frame reveals a physics violation</h2>
+<div class="prose lab-intro" style="margin:0;max-width:820px">
+<p>A sharp frame may still be physically wrong. In Physics IQ, the most realistic continuations did not show better understanding of physical events: the relationship between realism and Physics-IQ was not statistically significant.</p>
+<figure class="card stat-fig" aria-label="Physics IQ chart: physical fidelity and detectability of generated video for eight models">
+<figcaption class="stat-h">Realism and physical fidelity do not coincide</figcaption>
+<div class="chart-scroll">
+<div class="physics-chart" id="physicsBars">
+</div>
+</div>
+<p class="stat-cap">Physics-IQ is normalized so that variation between two real takes equals 100%. The second series is accuracy at identifying a generated video paired with a real one; 50% means guessing. Source: Motamed et al., Physics IQ, Table 1 and Figure 5.</p>
+</figure>
+<p>The real table executes the same pushes on the left; the model continues frames on the right. First bet on the outcome, then play and scrub the clip and mark the first incorrect frame and error type yourself. The first wrong frame is more informative than the last because every later difference may follow from one causal break. Once a cup passes through a jug, its final position says nothing about memory. A diagnosis should name the early event: missed contact, wrong fall, lost object, or geometric drift. The counterexample can then become a new test or a targeted training example.</p>
+<p>Physics IQ separates recognizable appearance from physical variation. A model may preserve texture, lighting, and smooth motion while choosing an impossible continuation. The reverse is possible too: a blurry frame may carry the correct trajectory and help an agent more. Visual realism must not stand in for an event metric, especially for contact and object permanence.</p>
+</div>
+<div class="lab lab-wide">
+<div class="card scene-card judge-scene">
+<div class="judge-head">
+<span class="la-tag">the same button presses</span>
+<div class="seg small" id="clipCases">
+<button type="button" data-case="clear" aria-pressed="true">familiar path</button>
+<button type="button" data-case="object">object</button>
+<button type="button" data-case="edge">edge</button>
+<button type="button" data-case="memory">head turn</button>
+</div>
+</div>
+<div class="duo">
+<figure>
+<figcaption>
+<span class="real-tag">real table</span>
+<b id="realState">measured</b>
+</figcaption>
+<canvas id="realCv" width="384" height="384" role="img" aria-label="Ada's real table">
+</canvas>
+</figure>
+<figure>
+<figcaption>
+<span class="gl-tag">model continuation</span>
+<b id="imagState">predicted</b>
+</figcaption>
+<canvas id="imagCv" width="384" height="384" role="img" aria-label="Frames predicted by the model">
+</canvas>
+</figure>
+</div>
+<p class="cv-note">The solid blue border marks the real table; the orange dashed border marks the video model's continuation. The slider shows the same instant in both clips.</p>
+<details class="lab-legend">
+<summary>Legend: what to compare</summary>
+<ul class="judge-legend">
+<li>
+<i class="lg-real">
+</i>real physics: contact, edge, and falling</li>
+<li>
+<i class="lg-imag">
+</i>model continuation: cup visibility and position</li>
+<li>
+<i class="lg-stop">
+</i>your mark of the first substantial divergence</li>
+</ul>
+</details>
+<div class="timeline">
+<input id="clipTime" type="range" min="0" max="8" value="0" aria-label="Clip frame">
+<span id="clipAt">1 / 1</span>
+</div>
+<div class="ctl-row">
+<button class="btn" id="clipPlay" type="button">Play clip</button>
+<div class="ctl" id="contextCtl">
+<span class="ctl-l">Available context</span>
+<div class="seg small option-seg" id="contextN" role="group" aria-label="Number of past frames available to the model">
+<button type="button" data-v="2" aria-pressed="false">2 frames</button>
+<button type="button" data-v="4" aria-pressed="false">4 frames</button>
+<button type="button" data-v="8" aria-pressed="true">8 frames</button>
+</div>
+</div>
+</div>
+<div class="diagnosis" aria-label="Selected-frame diagnosis">
+<span class="ctl-l">Selected-frame diagnosis</span>
+<div id="diagTree">
+</div>
+<div class="diag-actions">
+<button class="btn" id="clipMark" type="button" disabled>Mark this diagnosis on the frame</button>
+<span class="mark-read" id="markRead" aria-live="polite">No mark yet.</span>
+</div>
+</div>
+<div class="readout" id="judgeRead" aria-live="polite">
+</div>
+</div>
+<div class="card guide-card">
+<div id="judgeMis">
+</div>
+</div>
+</div>
+<details class="deep">
+<summary>Under the hood: real table, continuation, and annotation</summary>
+<div class="body">
+<p>
+<b>Same actions.</b> The left scene executes buttons in a simple physical world with impenetrable objects and a table edge. The right scene continues frames with a small generative model.
+<b>Reference.</b> After you submit a mark, the program compares it with the first event where the worlds diverge: contact, a fall, a lost position after a camera turn, or a distance above 9 cm. The answer remains hidden until then.
+<b>Context.</b> In free mode, the same model receives only the most recent 2, 4, or 8 frame tokens. More history helps memory but does not add a law of impenetrability or falling.</p>
+<p>
+<b>Limit.</b> These are diagnostic counterexamples, not an evaluation of Genie or Cosmos. They show why a video model must be checked against a conventional simulator and the real system.</p>
+</div>
+</details>
+<div class="prose" style="margin:22px 0 0;max-width:820px">
+<p>A video world can be a useful data generator and a poor safety guarantee. Deployment requires event-level tests for contacts, falls, object persistence, and geometry. Even after these tests, the horizon remains a problem: can an interactive world remain stable for minutes rather than a few frames? Counterexamples should be retained as regression tests. After adaptation, the model repeats the same contacts, edges, camera turns, and object occlusions. Better average quality does not pass if a known physical error returns. The lab mechanic “find the first wrong frame” thereby becomes a practical development process.</p>
+<p>Hazardous events need an independent reference. It may come from a verifiable simulator, geometric checker, or short guarded real trial. Agreement between two generative models is insufficient because both may have learned the same mistake from shared data. Structurally different evidence sources reduce the risk of a common blind spot.</p>
+</div>
+</div>
+</section>
+<section class="section alt" id="agent">
+<div class="wrap"><div class="prose">
+<div class="kicker"><span class="num">7</span> Environment for an agent</div>
+<h2>A world's value is measured by what an agent learns inside it</h2>
+<p>World-in-World uses a generative environment as an external world for agent training rather than a clip for a viewer. That is a stricter test: an inaccurate texture may not hurt a policy, while a small collision error can change its strategy completely. Visual ratings and agent reward can therefore disagree. We can test the environment by transfer. An agent first learns in the generated world and then performs the task in a conventional simulator or on a device without extra hints. Preserved success means the model conveyed useful task structure. If the policy exploited a generator artifact—such as flicker before contact—transfer fails even when the training curve looked convincing.</p>
+<p>The practical lesson is that quality depends on the consumer. An artist needs a plausible scene, a planner needs accurate relative position, and a robot needs contacts and low latency. There is no universal scalar called “world quality.” Separate reports follow from that fact. For the environment we report how actions change continuation; for the agent, transfer success; for physics, event accuracy; for deployment, latency and compute. Collapsing them into one average is dangerous because a strong appearance score may hide zero value for control.</p>
+<p>An agent test must be isolated from the model in which it learned. Otherwise a policy may exploit a repeatable artifact as a hidden cue: flicker before reward, a disappearing obstacle, or a special noise pattern near an edge. An independent simulator, another generator, or a real robot breaks this link. Success after transfer is evidence of useful structure, though not yet a safety guarantee. Training and evaluation must also remain separate. A generative world may supply diverse episodes, but final success should be counted on a fixed set of independent scenes. If one model both creates tasks and decides whether they passed, its systematic error enters both sides of the experiment and makes the estimate overly optimistic.</p>
+<p>The consumer also determines an acceptable form of uncertainty. Data generation may keep several continuations and filter them later. Control needs one command now, so it must estimate branch spread and abstain when alternatives disagree on a hazardous event. An average frame is especially harmful here because it may correspond to no real outcome at all.</p>
+<p>A policy can use a world model in three ways: train on generated episodes, select an action by searching future branches, or consume forecast features directly. Their error loops differ. The first corrupts training data, the second mis-scores candidates, and the third distorts every command's internal representation. A report must name the path; the word “uses” otherwise hides different risks.</p>
+<p>Cost is measured at the consumer level too. A fast single continuation may become expensive when a planner requests hundreds of branches, while a slow model may be acceptable for overnight data generation. Frame time, candidate count, and real command frequency should be reported together. Only then can we tell whether a model fits offline training, diagnosis, or closed-loop control. Finally, successful transfer does not prove that every internal forecast is physically correct. An agent may learn a robust strategy that ignores some environment errors. That is a strong task result but a weak basis for using the same model as a safety judge. Fitness always belongs to a particular consumer and criterion.</p>
+</div></div>
+</section>
+<section class="section" id="limits">
+<div class="wrap"><div class="prose">
+<div class="kicker"><span class="num">8</span> Method limits</div>
+<h2>Error accumulates where the data never specified a rule</h2>
+<p>A generative model interpolates patterns in its recordings. It may continue a cup motion plausibly while violating impenetrability because exact contacts are rare in the data. Outside the training cameras, speeds, and bodies another problem appears: the same pixel displacement may require a different action. A long episode amplifies both errors. The model's own inaccurate frame becomes new context, deviation grows, and a forgotten object may reappear elsewhere. A larger memory window helps retain observations but cannot create a missing law of physics. A safety filter, a conventional simulator, and real tests remain independent sources of evidence.</p>
+<p>Generative worlds are therefore best used as sources of diversity and hypotheses, not as the sole arbiter. The next lesson puts actions inside the model and closes the loop with new observations, but it does not remove the need for physical verification. A practical safety loop can combine sources. A generative model proposes a continuation, a geometric checker rejects a collision, and a real sensor confirms state after a short execution. Such a hybrid does not require treating the video model as either useless or infallible: each component owns a testable part of the decision.</p>
+<p>Design therefore begins not with the largest available video model but with a risk table. Texture drift may be acceptable for free exploration; glass grasping depends on geometry and contact; motion near a person depends on latency and predictable stopping. We then choose a future representation, checking frequency, and independent guard for the specific risk. Error accumulation can be reduced by injecting corrupted self-generated frames during training and asking the model to return to a plausible trajectory. That helps with small drift but does not invent events missing from the data. If the model never saw a thin object jam in a gripper, noise augmentation cannot replace the relevant example or a physical prior.</p>
+<p>Memory also conflicts with error persistence. A long context helps recall an occluded object, yet it may carry an early artifact through many later frames. Evaluation should therefore examine not just context length but state update: which predictions are replaced by measurements, where scene state is stored, and whether the model can revise an earlier hypothesis after contradictory evidence.</p>
+</div></div>
+</section>
+<section class="section alt" id="today">
+<div class="wrap">
+<div class="prose">
+<div class="kicker">
+<span class="num">9</span> 2025–2026</div>
+<h2>New Genie generations extend the horizon and control interface</h2>
+<p>A short clip is not enough for an environment where an agent solves a sequential task. Genie 2 moved to 3D worlds and could preserve them for roughly a minute; the published demonstrations were usually shorter.
+<strong>Genie 3.</strong>
+ The new generation reached 720p at 24 fps while preserving a world for several minutes. Its visual memory could return to content seen roughly a minute earlier. On 27 October, Google DeepMind introduced Genie 4. It added native audio, live text steering, and a Gemini loop. A language model plans and monitors a complex event while Genie renders its immediate continuation. This division combines structured reasoning with a rich sensory forecast.</p>
+<p>Limits remain: details and object permanence drift, while multi-agent interaction and spatial accuracy remain difficult. A continuous session lasts minutes rather than hours. These worlds can diversify scenarios and expose an agent's weaknesses, but they do not yet replace a verifiable simulator. Longer horizons and higher resolution do not change the course criterion: we ask which intervention the user can make, how fast the system responds, and whether the effect survives a scene change. Those properties distinguish a video-generation demo from an environment usable for training and control.</p>
+<p>A language-model loop adds higher-level planning but does not replace local dynamics. The language model can choose an event sequence and notice a described deviation; the video model produces the immediate sensory continuation. Their errors must be separated too: a wrong plan is corrected by reasoning, while a wrong contact requires physical observation. Genie's development primarily changes the available experimental interface. The early vocabulary exposed a few unknown buttons; later systems accept text events, camera motion, and richer interactive control. A broader request space also expands verification: every new condition must be shown to change the intended cause rather than merely the frame's appearance.</p>
+<p>This completes the course's move from a short prediction to an environment. The next engineering question is no longer whether a model can show a possible future, but how a policy uses that forecast to choose a command and how often it replaces the forecast with a real observation. Lesson 7.4 examines that connection between future and action.</p>
+</div>
+</div>
+</section>
+<section class="section" id="quiz">
+<div class="prose">
+<div class="kicker">
+<span class="num">10</span> Check yourself</div>
+<h2>Eight questions about video as a world model</h2>
+<div class="quiz" id="quizBox">
+</div>
+<p class="score" id="quizScore" style="margin-top:14px">
+</p>
+</div>
+</section>
+<section class="section alt" id="finale">
+<div class="prose">
+<div class="kicker">
+<span class="num">11</span> Summary</div>
+<h2>Lesson summary</h2>
+<ol class="takeaways">
+<li>
+<span>A generative world model continues video from a control signal; a video tokenizer compresses frames and dynamics predicts the next tokens.</span>
+</li>
+<li>
+<span>Genie learns latent-action codes without labels: the latent action model receives the past and next frame and selects a vocabulary entry that explains the transition. A robot command still requires labelled examples or a known action interface.</span>
+</li>
+<li>
+<span>Cosmos provides world foundation models that can be adapted to a Physical AI task and used for data variation and scenario modelling.</span>
+</li>
+<li>
+<span>A plausible frame is not a physically correct state. Contacts, edges, geometry, and hidden objects require separate evaluation.</span>
+</li>
+<li>
+<span>Genie 2–4 extended the horizon and control interface of interactive worlds, while long-horizon causal consistency remains limited.</span>
+</li>
+</ol>
+<details class="card pad open-q"><summary>Open question: when does a latent button become an action?</summary><p>It needs a transfer test: the same vocabulary entry should have a predictable effect across states and then map to a known command for a particular body. A match in one clip is not enough.</p></details>
+<details class="card pad open-q"><summary>Open question: can a long generated episode be trusted?</summary><p>Only after independent tests of memory, contacts, and geometry. As an episode grows, finding the first causal break matters more than judging the final frame.</p></details>
+<p>The engineering conclusion is an interface contract. A model should declare its available conditions, temporal step, memory length, treatment of uncertainty, and events checked elsewhere. It can then be integrated into training or diagnosis without treating video realism as a promise of correct physics. This contract also defines the responsibility of the next system. A generative model proposes an observable consequence but does not decide whether risk is acceptable or which command a robot can execute. A policy must ground the forecast in actuators, revise its decision after a new frame, and reject branches that violate constraints. Moving from controllable video to such a policy turns a world model from an environment into part of the action loop.</p>
+<h3 style="margin-top:34px">Paper guide</h3>
+<p>
+<a href="https://arxiv.org/abs/2402.15391" target="_blank" rel="noopener">Bruce et al., “Genie: Generative Interactive Environments,” 2024</a>.</p>
+<ul class="links">
+<li>
+<strong>Read closely</strong>
+<span>Sections 2.1–2.2 and Figures 4 and 7: latent-action model, VQ codebook, and integer action index.</span>
+</li>
+<li>
+<strong>Check the numbers</strong>
+<span>Section 3 and the appendix: 11B parameters, eight latent actions, data, and controllability.</span>
+</li>
+<li>
+<strong>Ask</strong>
+<span>When does a latent-action code discovered in video correspond to an agent action rather than a convenient visual change?</span>
+</li>
+</ul>
+<h3 style="margin-top:34px">Resources</h3>
+<ul class="links">
+<li>
+<a href="https://deepmind.google/research/publications/60474/" target="_blank" rel="noopener">Genie 1</a>
+<span>Paper and examples</span>
+</li>
+<li>
+<a href="https://arxiv.org/abs/2501.03575" target="_blank" rel="noopener">Cosmos-Predict1</a>
+<span>NVIDIA technical report</span>
+</li>
+<li>
+<a href="https://deepmind.google/blog/genie-3-a-new-frontier-for-world-models/" target="_blank" rel="noopener">Genie 3</a>
+<span>Capabilities and limitations</span>
+</li>
+<li>
+<a href="https://deepmind.google/blog/genie-4-a-new-generation-of-world-simulation/" target="_blank" rel="noopener">Genie 4</a>
+<span>Announcement, 27 October 2026</span>
+</li>
+</ul>
+<div class="bridge-note">
+<p>Here the video model continues the world while a separate agent selects a latent-action code. A real robot adds another translation from video to actuators: in <a href="6-6-obzor-platform.html#ada">Lesson 6.6</a>, launching the 1X World Model took 11 seconds on several GPUs, after which a separate inverse dynamics model translated video into actions. Two models introduce two independent errors and too much latency for a closed loop.</p>
+<p class="bridge-to">
+<!--if:7-4-world-action-models.html-->
+<a href="7-4-world-action-models.html">
+<!--/if-->Lesson 7.4 · World Action Models: jointly predicting futures and actions<!--if:7-4-world-action-models.html-->
+</a>
+<!--/if-->
+</p>
+</div>
+</div>
+</section>
+</main>
+<footer>Lesson 7.3 of Modern Robotics and Physical AI. Sources checked 29 October 2026. Teaching weights were pretrained in Node.js on 320 synthetic videos of 24 frames and embedded in the page; the browser runs inference. Ada's recordings and lab results are course experiments, not Genie or Cosmos results.</footer>
+<div class="tooltip" id="tooltip" role="tooltip">
+</div>
+<script>/*@@JS@@*/</script>
+</body>
+</html>

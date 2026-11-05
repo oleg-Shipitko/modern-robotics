@@ -98,9 +98,55 @@ function dataChecks() {
   const pc = [...(/### 3б\.[\s\S]*?```js\n([\s\S]*?)```/.exec(INTEG)[1]).matchAll(/sec: '([a-z0-9]+)', st: '([^']+)'/g)];
   check(recall.n === '7.2' && recall.q.length === 3 && recall.q.every((q) => h2of(SRC, q.sec) === q.secTitle && q.o.length === 3 && !/\d/.test(q.o.join(' '))) && pc.length >= 3 && pc.every((m) => h2of(SRC, m[1]) === m[2]), `INTEGRATION.md: разминка для 7.3 (${recall.q.length} вопроса) и вопросы проверки части 7 (${pc.length}) ссылаются на разделы урока с их настоящими заголовками`);
   const gl = J(/## 4\.[\s\S]*?```json\n([\s\S]*?)```/.exec(INTEG)[1]);
-  const glAll = J(fs.readFileSync(path.join(ROOT, 'lessons/shared/glossary.json'), 'utf8')), ids = new Set(glAll.map((g) => g.id));
-  const glMatch = gl.map((g) => ({ id: g.id, n: (sp(SRC.slice(SRC.indexOf('<main>'))).replace(/<[^>]+>/g, ' ').match(new RegExp('(?<![\\wа-яё-])(?:' + g.a + ')(?![\\wа-яё-])', 'gi')) || []).length }));
-  check(gl.length >= 3 && gl.length <= 6 && gl.every((g) => g.l === 'l72' && h2of(SRC, g.sec) && g.t && g.en && g.d.length > 60 && !ids.has(g.id)) && glMatch.every((m) => m.n > 0), `глоссарий: ${gl.length} новых терминов, их нет в glossary.json, разделы существуют, шаблоны находят термины в тексте: ` + glMatch.map((m) => `${m.id} ×${m.n}`).join(', '));
+  // термины в общем глоссарии и где сборка поставит подсказку: тот же разбор, что glossarize в lessons/build.py
+  // (первое упоминание в абзацах и списках разделов class="section", без заголовков, ссылок, подписей и строки моста),
+  // все термины считаются опубликованными; английская версия — с формами из glossary.en.json
+  const glAll = J(fs.readFileSync(path.join(ROOT, 'lessons/shared/glossary.json'), 'utf8')), byId = new Map(glAll.map((g) => [g.id, g]));
+  const glEn = new Map(J(fs.readFileSync(path.join(ROOT, 'lessons/shared/glossary.en.json'), 'utf8')).map((g) => [g.id, g]));
+  const inGl = gl.filter((g) => { const x = byId.get(g.id); return x && x.l === 'l72' && x.sec === g.sec && x.a === g.a && x.t === g.t && h2of(SRC, g.sec); });
+  const SKIPT = new Set(['a', 'h1', 'h2', 'h3', 'h4', 'button', 'label', 'code', 'pre', 'script', 'style', 'summary', 'svg', 'canvas', 'select', 'textarea', 'figcaption']);
+  const glFirst = (page, key, terms) => {
+    const a = page.indexOf('<main>'), b = page.indexOf('</main>'), hits = {}; if (a < 0 || b < 0) return hits;
+    const W = '[\\p{L}\\p{N}_-]';
+    const pats = terms.filter((g) => (!g.only || g.only.includes(key)) && !(g.except || []).includes(key)).sort((u, v) => v.a.length - u.a.length)
+      .map((g) => [g, new RegExp(`(?<!${W})(?:` + g.a.replace(/\\w/g, '[\\p{L}\\p{N}_]').replace(/ /g, '(?:\\s|&nbsp;)+') + `)(?!${W})`, 'giu')]);
+    let secOk = false, sec = null, prose = 0, skip = 0, katex = 0, bto = false;
+    for (const part of page.slice(a, b).split(/(<[^>]+>)/)) {
+      if (part.startsWith('<')) {
+        const m = /^<(\/?)([a-zA-Z0-9]+)/.exec(part); if (!m) continue;
+        const close = m[1] === '/', tag = m[2].toLowerCase();
+        if (tag === 'section') { secOk = !close && part.includes('class="section'); if (!close) sec = (/id="([^"]+)"/.exec(part) || [])[1]; }
+        else if (katex) katex += close && tag === 'span' ? -1 : tag === 'span' && !part.endsWith('/>') ? 1 : 0;
+        else if (tag === 'span' && !close && part.includes('katex')) katex = 1;
+        else if (tag === 'p' && (close ? bto : part.includes('bridge-to'))) { bto = !close; skip += close ? -1 : 1; }
+        else if (tag === 'p' || tag === 'li') prose += close ? -1 : 1;
+        else if (SKIPT.has(tag)) skip += close ? -1 : 1;
+        continue;
+      }
+      if (!(secOk && prose > 0 && skip === 0 && katex === 0) || !part.trim()) continue;
+      const spans = [];
+      for (const [g, rx] of pats) {
+        if (g.id in hits) continue;
+        for (const m of part.matchAll(rx)) { const x = m.index, y = x + m[0].length; if (spans.every(([u, v]) => y <= u || x >= v)) { spans.push([x, y]); hits[g.id] = sec; break; } }
+      }
+    }
+    return hits;
+  };
+  const enTerms = glAll.filter((g) => glEn.has(g.id)).map((g) => ({ ...g, a: glEn.get(g.id).a }));
+  const SRC_EN = fs.existsSync(path.join(ROOT, 'lessons/l72/lesson.en.html')) ? fs.readFileSync(path.join(ROOT, 'lessons/l72/lesson.en.html'), 'utf8') : null;
+  const hRu = glFirst(SRC, 'l72', glAll), hEn = SRC_EN ? glFirst(SRC_EN, 'l72', enTerms) : null;
+  const wrongRu = gl.filter((g) => hRu[g.id] !== g.sec).map((g) => `${g.id}: ${hRu[g.id] || 'нет'}`);
+  const wrongEn = hEn ? gl.filter((g) => !glEn.has(g.id) || hEn[g.id] !== g.sec).map((g) => `${g.id}: ${hEn[g.id] || 'нет'}`) : [];
+  // в уроках частей 0–6 и их проверках термины 7.2 не срабатывают
+  const early = fs.readdirSync(path.join(ROOT, 'lessons')).filter((k) => /^[lc][0-6]/.test(k));
+  const elsewhere = [];
+  for (const k of early) for (const [file, terms] of [['lesson.html', glAll], ['lesson.en.html', enTerms]]) {
+    const f = path.join(ROOT, 'lessons', k, file); if (!fs.existsSync(f)) continue;
+    const h = glFirst(fs.readFileSync(f, 'utf8'), k, terms); for (const g of gl) if (h[g.id]) elsewhere.push(`${k}/${file}: ${g.id}`);
+  }
+  check(gl.length >= 3 && gl.length <= 6 && inGl.length === gl.length && gl.every((g) => g.l === 'l72' && g.t && g.en && g.d.length > 60) && !wrongRu.length && !wrongEn.length && !elsewhere.length,
+    `глоссарий: ${inGl.length} из ${gl.length} терминов урока есть в glossary.json (урок, раздел, шаблон как в INTEGRATION.md); подсказка встаёт в своём разделе` + (hEn ? ' в обеих версиях' : '') + ': ' + gl.map((g) => `${g.id} → ${hRu[g.id] || '—'}`).join(', ') + '; в уроках частей 0–6 не срабатывают'
+    + (wrongRu.length ? ' | не тот раздел (ru): ' + wrongRu.join(', ') : '') + (wrongEn.length ? ' | не тот раздел (en): ' + wrongEn.join(', ') : '') + (elsewhere.length ? ' | срабатывают в: ' + elsewhere.join(', ') : ''));
   // числа диаграмм в подписях
   const caps = [...SRC.matchAll(/<p class="stat-cap"[^>]*>([\s\S]*?)<\/p>/g)].map((m) => sp(m[1]).replace(/<[^>]+>/g, ''));
   const need = [['40,7', '66,9', '68,6', '73,7', '66,0', '66,2', '73,3', '74,8'], ['84,2', '85,2', '86,7', '87,5', '88,2'], ['100', '15 и 65', '0 и 25', '15 и 75', '70 и 75', '15 и 80', '10 и 65'], ['80', '0 и 60', '20 и 20', '0 и 80', '0 и 50', '240 секунд', '16 с'], ['24', '28', '6 и 20', '6 и 0'], ['74', '100', '98', '4, 100, 0, 96', '18, 64, 0, 92', '32, 30, 0, 90'], ['дотянуться — 100, взять — 60, переставить — 80', '100, 70 и 80', '100, 80 и 80'], ['18,0', '39,3', '73,3', '63,3', '40,7; 81,3; 96,0; 80,0', '32,0; 47,3; 60,0; 55,3', '40,0; 45,3; 17,3; 0,7']];

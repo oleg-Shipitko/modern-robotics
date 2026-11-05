@@ -154,7 +154,7 @@ LESSONS = {
         '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'shared/ada-legs.js', 'shared/stats-chart.js', 'l71/engine.js', 'l71/table-draw.js', 'l74/engine.js', 'l74/ui-l74.js'],
     }),
     'l75': ('7-5-proverka-i-generatsiya-dannykh.html', ['l01/lesson.css', 'shared/lab.css', 'l75/l75.css'], {
-        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'shared/ada-legs.js', 'shared/stats-chart.js', 'l71/engine.js', 'l71/table-draw.js', 'l75/engine.js', 'l75/ui-l75.js'],
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'shared/ada-legs.js', 'shared/stats-chart.js', 'l71/engine.js', 'l71/table-draw.js', 'l75/model-data.js', 'l75/engine.js', 'l75/ui-l75.js'],
     }),
     'c7': ('proverka-chasti-7.html', ['l01/lesson.css', 'shared/lab.css', 'shared/check.css', 'c7/c7.css'], {
         '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/ada-legs.js', 'l71/engine.js', 'l71/table-draw.js', 'shared/check.js', 'c7/ui-c7.js'],

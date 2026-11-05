@@ -1849,5 +1849,83 @@
   "t": "λ-return",
   "d": "The target toward which Dreamer's critic pulls the value: a weighted average of estimates, in each of which the rewards for k imagined steps are summed first and then the value from the critic is added. This is how the agent looks beyond the horizon of a rollout in imagination.",
   "a": "λ-returns?|lambda-returns?"
+ },
+ {
+  "id": "jepa",
+  "t": "JEPA",
+  "d": "A model that predicts not the next frame or a hidden piece of an image but its representation: two encoders turn the inputs into vectors, and a predictor guesses one from the other. The error is computed between representations, so the encoder doesn't have to keep what can't be predicted. I-JEPA, V-JEPA and V-JEPA 2 are built this way.",
+  "a": "JEPAs?"
+ },
+ {
+  "id": "representation",
+  "t": "Representation",
+  "d": "A vector of a few numbers that an encoder outputs for a frame or a piece of an image; all such vectors form the representation space. A JEPA predicts representations, and the V-JEPA 2-AC planner compares the representation of an imagined future with the representation of the goal image.",
+  "a": "representation spaces?|spaces? of representations|representations? of (?:a |the |each |every )?frames?"
+ },
+ {
+  "id": "representation-collapse",
+  "t": "Representation collapse",
+  "d": "A degenerate solution of a JEPA: the encoder gives every input the same representation, and the prediction error is zero although the model knows nothing. There's also slow-feature collapse: the encoder tells inputs apart only by what doesn't change during a recording, such as the light; “slow” refers to what it holds on to, not to the collapse itself. Not to be confused with mode collapse in AMP (lesson 6.2).",
+  "a": "representation collapse|collapse of (?:the )?representations"
+ },
+ {
+  "id": "target-encoder",
+  "t": "Target encoder",
+  "d": "A copy of the encoder that provides the target for a JEPA predictor. Its weights are an exponential moving average (EMA) of the encoder's weights, and no gradient flows through it; this asymmetry protects I-JEPA, V-JEPA and V-JEPA 2 from representation collapse.",
+  "a": "target[ -]encoders?"
+ },
+ {
+  "id": "predictor",
+  "t": "Predictor",
+  "d": "The JEPA network that, from the representation of what the model sees, and in a world model also from the action, predicts the representation of what has to be guessed: a hidden piece of an image or the next frame. The predictor of V-JEPA 2-AC, with 300 million parameters, learned from DROID recordings on top of a frozen encoder.",
+  "a": "predictors?"
+ },
+ {
+  "id": "goal-image",
+  "t": "Goal image",
+  "d": "A picture of what the scene should look like at the end. The V-JEPA 2-AC and DINO-WM planners search for actions after which the imagined representation is closest to the representation of the goal image; for long tasks, several subgoal images are shown.",
+  "a": "(?<!a\\s)goal images?"
+ },
+ {
+  "id": "video-tokenizer",
+  "t": "Video tokenizer",
+  "d": "An autoencoder that compresses several video frames into a short grid of discrete or continuous tokens and reconstructs the video. A generative world model learns on these tokens; dynamics cannot restore a small detail discarded by compression.",
+  "a": "video tokenizers?"
+ },
+ {
+  "id": "latent-action",
+  "t": "Latent-action code",
+  "d": "An integer index into one entry of a small learned vocabulary of possible frame transitions. In Genie a person chooses an integer from 0 to 7, the model retrieves the corresponding vector from a VQ codebook, and dynamics continues the video. It is neither program code nor yet an actuator command for a particular robot.",
+  "a": "latent[- ]action codes?|latent actions?|latent codes?"
+ },
+ {
+  "id": "world-foundation-model",
+  "t": "World foundation model",
+  "d": "A large model pretrained to continue diverse videos and intended for adaptation to a particular environment, camera, and action interface. Cosmos uses the term for a general base model for Physical AI.",
+  "a": "world foundation models?"
+ },
+ {
+  "id": "world-action-model",
+  "t": "World Action Model",
+  "d": "A robot policy that learns to predict not only an action but also how the world will change, and uses that prediction to choose the action. The future may be a frame, latent representation, feature, or object pose; runtime video generation is optional.",
+  "a": "world action models?|(?-i:WAMs?)"
+ },
+ {
+  "id": "brier-score",
+  "t": "Brier score",
+  "d": "The mean squared difference between a stated event probability and its binary outcome. Zero means exact probabilities; a confident error is penalized more heavily than a cautious forecast.",
+  "a": "Brier scores?"
+ },
+ {
+  "id": "policy-testing",
+  "t": "Policy testing",
+  "d": "Testing a policy in a closed loop: its action changes the next observation, then the policy continues from the state it created. The outcome is compared with real trials from the same starting states. This is distinct from computing a value function, which reinforcement learning also calls policy evaluation.",
+  "a": "policy tests?|policy testing|testing (?:a |the )?polic(?:y|ies)"
+ },
+ {
+  "id": "mmrv",
+  "t": "Mean Maximum Rank Violation",
+  "d": "A rank-agreement metric. For every policy, find the largest real performance gap to a policy placed on the wrong side of it by the model, then average those gaps. Zero means there are no consequential rank reversals; lower is better.",
+  "a": "MMRV|mean maximum rank violations?"
  }
 ]
