@@ -1927,5 +1927,77 @@
   "t": "Mean Maximum Rank Violation",
   "d": "A rank-agreement metric. For every policy, find the largest real performance gap to a policy placed on the wrong side of it by the model, then average those gaps. Zero means there are no consequential rank reversals; lower is better.",
   "a": "MMRV|mean maximum rank violations?"
+ },
+ {
+  "id": "test-matrix",
+  "t": "Test matrix",
+  "d": "A pre-registered set of evaluation tasks and conditions: lighting, objects, initial states, trial counts, and a success rule for every cell. An aggregate success rate is meaningful only together with the matrix weights.",
+  "a": "test matrices|test matrix"
+ },
+ {
+  "id": "paired-test",
+  "t": "Paired evaluation",
+  "d": "A comparison of two policy versions from the same initial states. Each pair shows whether outcomes matched or only one version succeeded, reducing confounding by start difficulty.",
+  "a": "paired evaluations?|paired tests?"
+ },
+ {
+  "id": "confidence-interval",
+  "t": "Confidence interval",
+  "d": "A range of values compatible with the observations under a chosen statistical procedure. In this lesson, if a 95% interval for the difference between two policies includes zero, the data do not yet determine the sign of the difference.",
+  "a": "confidence intervals?"
+ },
+ {
+  "id": "release-gate",
+  "t": "Release gate",
+  "d": "A mandatory condition a candidate must satisfy before release. The metric threshold, conditions, and test size are specified in advance; multiple gates are joined by logical AND, so a safety failure cannot be offset by higher average success.",
+  "a": "release gates?"
+ },
+ {
+  "id": "holdout-set",
+  "t": "Holdout set",
+  "d": "Evaluation scenarios that are not used to choose a checkpoint, threshold, or other development decision. The set is opened near release and refreshed over time because repeatedly viewed scenarios begin to influence the system.",
+  "a": "holdout sets?"
+ },
+ {
+  "id": "benchmark",
+  "t": "Benchmark",
+  "d": "A reproducible comparison contract: tasks, environment and robot embodiment, allowed data, evaluation split, metric, run protocol, and version. Scores are comparable only under compatible contracts.",
+  "a": "benchmarks?"
+ },
+ {
+  "id": "test-split",
+  "t": "Data split",
+  "d": "A rule separating training from evaluation and defining the novelty axis: new episodes, objects, scenes, or tasks. Different splits support different generalization claims.",
+  "a": "data splits?|evaluation splits?"
+ },
+ {
+  "id": "leaderboard",
+  "t": "Leaderboard",
+  "d": "A table of model results within one benchmark version and compatible protocol. Its ranking does not automatically transfer to another suite, robot, or product.",
+  "a": "leaderboards?"
+ },
+ {
+  "id": "real-time-system",
+  "t": "Real-time system",
+  "d": "A system whose correctness depends on both the result and when it arrives: computation must finish before a specified deadline. This is a scheduling and failure-response requirement, not a synonym for low average latency.",
+  "a": "real-time systems?"
+ },
+ {
+  "id": "deadline",
+  "t": "Deadline",
+  "d": "The last acceptable completion time for an operation. A late result may degrade quality, be discarded, or count as a system failure, depending on the contract of that control loop.",
+  "a": "deadlines?"
+ },
+ {
+  "id": "jitter",
+  "t": "Jitter",
+  "d": "Variation in the actual execution time of a periodic task relative to its schedule. High jitter makes control timing unpredictable even when average latency is acceptable.",
+  "a": "jitter"
+ },
+ {
+  "id": "watchdog",
+  "t": "Watchdog timer",
+  "d": "An independent timer that checks whether another process updates its state on time. If no fresh command arrives, it triggers a predefined safe response.",
+  "a": "watchdogs?|watchdog timers?"
  }
 ]

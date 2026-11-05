@@ -1,6 +1,7 @@
 // Урок 8.3 «Надёжность»: лаборатории дают обещанные в тексте исходы, миссии проходятся через интерфейс,
 // числа в разборах и текстах совпадают с движком, схемы движутся, консоль чиста, телефон без горизонтальной прокрутки.
-// Снимки — shots/l83-*.png. Урок собирается на дату выпуска: MR_ASOF=2026-12-26 python3 lessons/build.py l83.
+// Снимки — shots/l83-*.png. Дата выпуска части 8 пока не записана в site/config.json;
+// мост в ещё не написанный 8.4 остаётся текстом без ссылки.
 // node tools/lesson83.js — проверка в headless Chrome (компьютер 1280, телефон 390, тёмная тема).
 const path = require('path');
 const fs = require('fs');
@@ -62,7 +63,7 @@ const allEq = (arr, v) => !!arr && arr.length > 0 && arr.every((x) => x === Stri
     check(/^10 миссий с целью$/.test(hero), 'число миссий в шапке: ' + hero);
     check((await p.eval(`document.querySelectorAll('#recall .rc-q').length`)) === 3, 'разминка по уроку 8.2: три вопроса');
     check(await p.eval(`!document.querySelector('a[href^="8-4"]')`), 'ссылки на ещё не написанный урок 8.4 нет');
-    const bridge = await text(p, '#finale .bridge');
+    const bridge = await text(p, '#finale .bridge-note');
     check(/8\.4/.test(bridge) && /92% успеха/.test(bridge), 'в итогах — абзац-мост в 8.4 «Оценка качества»');
     check((await p.eval(`L83.CFG.SEED`)) === 25 && (await p.eval(`L83.CFG.DAY_SEED`)) === 1005 && (await p.eval(`L83.CFG.RUN_SEED`)) === 85, 'зёрна лабораторий: 25, 1005, 85');
     check((await p.eval(`JSON.stringify(L83.orders({ p: 0.95, n: 8, d: 0.9, R: 2 }).cnt)`)) === JSON.stringify(retry), 'браузер считает заказы так же, как Node');
@@ -178,8 +179,8 @@ const allEq = (arr, v) => !!arr && arr.length > 0 && arr.every((x) => x === Stri
     // ---------- тексты совпадают с расчётом ----------
     const fin = await dataN(p, '#finale .takeaways');
     check(allEq(fin.base, base.good) && allEq(fin.retry, retry.good) && allEq(fin.sensS, s5.spoiled), 'итоги урока называют числа лабораторий');
-    const lead = await text(p, '.hero .lead');
-    check(['95%', 'две чашки из трёх', '37%', '97%', '10–24%', '300 удачных'].every((x) => lead.includes(x)), 'шапка: числа цепочки, Sentinel, KnowNo и правила трёх');
+    const lessonText = await text(p, 'main');
+    check(['95%', 'две чашки из трёх', '37%', '97%', '10–24%', '300 удачных'].every((x) => lessonText.includes(x)), 'текст урока: числа цепочки, Sentinel, KnowNo и правила трёх');
     const plain = sp(fs.readFileSync(path.resolve(__dirname, '../lessons/l83/lesson.html'), 'utf8')).replace(/<[^>]+>/g, '').replace(/\s+/g, ' ');
     check(['18% больше отказов', '44%', '93%', '7%', '14 секунд', '49 тысяч', '79 задачах', '10,3%', '21,4%', '64% случаев', 'примерно на 20%', 'примерно в 80%', '76% попыток', '74% при цели 75%', '41%', '58% шагов', '72%', '87% случаев против 62%', '67% просьб против 81%', '86%', '400', '4 часов', '13 часов', '200 секунд', '95% поездок'].every((x) => plain.includes(x)), 'числа статей в тексте — из досье');
     check(E.ipow(0.99, 100) > 0.36 && E.ipow(0.99, 100) < 0.37 && E.ipow(0.9999, 100) >= 0.99 && E.upperBound(100) < 0.03, 'числа выкладок: 0,99¹⁰⁰ ≈ 37%, 0,9999¹⁰⁰ ≥ 99%, 100 из 100 — выше 97%');

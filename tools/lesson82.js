@@ -1,6 +1,7 @@
 // Урок 8.2 «Безопасность»: лаборатории дают обещанные в тексте исходы, миссии проходятся через интерфейс,
 // числа в разборах и текстах совпадают с движком, схемы движутся, консоль чиста, телефон без горизонтальной прокрутки.
-// Снимки — shots/l82-*.png. Урок собирается на дату выпуска: MR_ASOF=2026-12-26 python3 lessons/build.py l82.
+// Снимки — shots/l82-*.png. Пока дата выпуска части 8 не записана в site/config.json,
+// мост в 8.3 остаётся текстом; после назначения даты сборка сама вернёт ссылку из условного блока.
 // node tools/lesson82.js          — проверка в headless Chrome (компьютер 1280, телефон 390, тёмная тема);
 // node tools/lesson82.js --seeds  — проверка в Node: выводы лабораторий на зёрнах 1–10 и диапазоны из «Под капотом».
 const path = require('path');
@@ -116,7 +117,7 @@ const pct = (v) => Math.round(v * 100);
     check(/^14 миссий с целью$/.test(hero), 'число миссий в шапке: ' + hero);
     check((await p.eval(`document.querySelectorAll('#recall .rc-q').length`)) === 3, 'разминка по уроку 8.1: три вопроса');
     const bridge = await text(p, '#finale .bridge-note');
-    check(/8\.3/.test(bridge) && (await p.eval(`!!document.querySelector('#finale .bridge-note a[href="8-3-nadezhnost.html"]')`)), 'в итогах — мост в 8.3 со ссылкой на урок');
+    check(/8\.3/.test(bridge) && (await p.eval(`!document.querySelector('#finale .bridge-note a') || !!document.querySelector('#finale .bridge-note a[href="8-3-nadezhnost.html"]')`)), 'в итогах — мост в 8.3; ссылка появляется после назначения даты выпуска');
     check((await p.eval(`L82.CFG.SEED`)) === 1 && (await p.eval(`L82.CFG.NTRIP`)) === 100 && (await p.eval(`L82.CFG.ALPHA`)) === 2 && (await p.eval(`L82.CFG.MARGIN`)) === 5, 'зерно 1, серия из 100 поездок, α = 2, запас 5 см');
     const pl = await p.eval(`L82.pLeft(-2)`); check(pl > 0.2 && pl < 0.3 && (await text(p, '#duel details.deep')).includes('примерно 3 раза из 4'), `учитель: при сдвиге 2 см объезжает справа с вероятностью ${r2(1 - pl, 2)}`);
     await p.eval(`document.querySelector('.topbar').style.visibility = 'hidden'; true`);
@@ -240,7 +241,8 @@ const pct = (v) => Math.round(v * 100);
     const fin = await text(p, '#finale .takeaways');
     check([`в ${X.nofK} поездках из 100`, `тратили ${r2(A[0.25].t, 2)} с вместо ${r2(X.filT, 2)}`, `${A[0.25].s} поездок не доехали`, `касаний снова ${A[16].k}`, `касаний ${X.e10m5}`, `задела ${X.bf} раз`, `${X.bk[1]} поездка из 100`].every((x) => fin.includes(x)) && bridge.includes(`${X.bk[1]} поездка из 100`), 'итоги и мост называют числа лабораторий');
     const lead = await text(p, '.hero .lead');
-    check(lead.includes('0,4 мс') && lead.includes('BeagleBone Black'), 'шапка: Segway и 0,4 мс из статьи Ames и соавторов');
+    const whyText = await text(p, '#why');
+    check(whyText.includes('0,4 мс') && whyText.includes('BeagleBone Black'), 'раздел безопасности: Segway и 0,4 мс из статьи Ames и соавторов');
     // ---------- квиз, глоссарий, формулы, консоль ----------
     await p.eval(`document.querySelectorAll('#quizBox .q-card').forEach((c) => c.querySelector('.q-opt').click()); true`);
     const quiz = await p.eval(`document.getElementById('quizBox').textContent`).then(sp);

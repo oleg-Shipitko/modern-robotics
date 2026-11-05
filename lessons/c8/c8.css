@@ -1,0 +1,28 @@
+/* Итоговая задача части 8: восемь инженерных решений и одно решение о выпуске. */
+.c8-scene { display: grid; gap: 14px; }
+.c8-board { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.c8-gate { padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.c8-gate > div:first-child { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+.c8-gate b { font: 750 13px/1 var(--mono); color: var(--hybrid); }
+.c8-gate span { min-width: 0; font-size: 13px; line-height: 1.35; font-weight: 650; }
+.c8-picks { display: flex; gap: 5px; flex-wrap: wrap; }
+.c8-picks button { flex: 1 1 150px; min-width: 0; padding: 7px 9px; border: 1px solid var(--line-2); border-radius: 9px; background: var(--surface-2); color: var(--ink); font: inherit; font-size: 12.5px; line-height: 1.3; cursor: pointer; }
+.c8-picks button:hover:not(:disabled) { border-color: var(--ink-3); }
+.c8-picks button[aria-pressed="true"] { border-color: var(--hybrid); box-shadow: inset 0 0 0 1px var(--hybrid); background: var(--hybrid-soft); }
+.c8-picks button:disabled { cursor: default; opacity: .72; }
+.c8-cv { aspect-ratio: 760 / 350; }
+.c8-readout { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.c8-metric { min-width: 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface-2); }
+.c8-metric span { display: block; color: var(--ink-3); font-size: 11.5px; line-height: 1.3; }
+.c8-metric b { display: block; margin-top: 3px; font: 750 18px/1.2 var(--mono); color: var(--ink); }
+.c8-metric.good b { color: var(--good-ink); }
+.c8-metric.bad b { color: var(--critical); }
+.c8-note, .c8-diagnosis { margin: 0; font-size: 13px; line-height: 1.5; }
+.c8-note { color: var(--ink-3); }
+.c8-diagnosis { padding: 11px 13px; border-radius: 11px; background: var(--surface-2); color: var(--ink-2); }
+@media (max-width: 760px) {
+  .c8-board { grid-template-columns: 1fr; }
+  .c8-readout { grid-template-columns: repeat(2, 1fr); }
+  .c8-cv { aspect-ratio: 360 / 620; }
+}
+@media (max-width: 420px) { .c8-readout { grid-template-columns: 1fr; } }

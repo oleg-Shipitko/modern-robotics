@@ -1,0 +1,348 @@
+/* Урок 8.8: смена, стоимость успешной задачи и портфель процессов. */
+.econ-flow {
+  margin: 18px 0 0;
+  padding: 14px;
+}
+
+.econ-flow canvas,
+.lab-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.econ-flow figcaption {
+  margin: 12px 4px 2px;
+}
+
+.lab-canvas {
+  margin-top: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface-2);
+}
+
+.scene-toolbar {
+  padding: 11px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: var(--surface-2);
+}
+
+.scene-toolbar > span {
+  display: block;
+  margin: 0 0 8px;
+  color: var(--ink-3);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.scene-result {
+  min-height: 42px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+
+.scene-result.good {
+  border-color: var(--good);
+  background: var(--good-soft);
+  color: var(--ink);
+}
+
+.scene-result.bad {
+  border-color: var(--critical);
+  background: var(--critical-soft);
+  color: var(--ink);
+}
+
+.visual-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px 16px;
+  align-items: center;
+  box-sizing: border-box;
+  padding-inline: 4px;
+  margin-top: 10px;
+  color: var(--ink-3);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.visual-legend span {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.visual-legend i {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  box-sizing: border-box;
+  font-style: normal;
+  font-weight: 850;
+}
+
+.visual-legend .box,
+.visual-legend .frame {
+  width: 15px;
+  height: 13px;
+  border-radius: 4px;
+}
+
+.visual-legend .box.cost,
+.visual-legend .box.robot {
+  border: 2px solid var(--hybrid);
+  background: var(--hybrid-soft);
+}
+
+.visual-legend .box.human {
+  border: 2px solid var(--classic);
+  background: var(--classic-soft);
+}
+
+.visual-legend .box.success {
+  border: 2px solid var(--good);
+  background: var(--good-soft);
+}
+
+.visual-legend .box.failure {
+  border: 2px solid var(--critical);
+  background: var(--critical-soft);
+}
+
+.visual-legend .box.help {
+  border: 2px solid var(--e2e);
+  background: var(--e2e-soft);
+}
+
+.visual-legend .box.idle {
+  border: 1px solid var(--line-2);
+  background: var(--surface-2);
+}
+
+.visual-legend .dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+}
+
+.visual-legend .dot.success,
+.visual-legend .mark.pass {
+  background: var(--good);
+  color: var(--good);
+}
+
+.visual-legend .dot.unused,
+.visual-legend .dot.pending {
+  border: 2px solid var(--line-2);
+  background: var(--surface-2);
+}
+
+.visual-legend .dot.robot,
+.visual-legend .mark.stop {
+  background: var(--critical);
+  color: var(--critical);
+}
+
+.visual-legend .mark.help {
+  color: var(--e2e);
+}
+
+.visual-legend .bar {
+  width: 20px;
+  height: 7px;
+  border: 1px solid var(--hybrid);
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--hybrid-soft), var(--classic-soft), var(--e2e-soft));
+}
+
+.visual-legend .line {
+  width: 19px;
+  height: 0;
+  border-top: 2px dashed var(--classic);
+}
+
+.visual-legend .frame.selected {
+  border: 2px solid var(--e2e);
+  background: var(--e2e-soft);
+}
+
+.visual-legend .mark {
+  width: 15px;
+  height: 15px;
+  background: transparent;
+}
+
+.case-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.case-row button {
+  min-height: 58px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.case-row b,
+.case-row small {
+  display: block;
+}
+
+.case-row b {
+  font-size: 12px;
+}
+
+.case-row small {
+  margin-top: 3px;
+  color: var(--ink-3);
+  font-size: 9.5px;
+  line-height: 1.2;
+}
+
+.case-row button[aria-pressed=true] {
+  border-color: var(--hybrid);
+  box-shadow: inset 0 0 0 1px var(--hybrid);
+  background: var(--hybrid-soft);
+}
+
+.econ-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 9px;
+}
+
+.econ-metrics div {
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+
+.econ-metrics span {
+  display: block;
+  color: var(--ink-3);
+  font-size: 10px;
+}
+
+.econ-metrics b {
+  font: 750 15px/1.25 var(--mono);
+}
+
+.calc-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.calc-controls label {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 7px 9px;
+  align-items: center;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink-2);
+  font-size: 11px;
+}
+
+.calc-controls output {
+  font: 750 11px/1 var(--mono);
+  color: var(--ink);
+}
+
+.calc-controls input {
+  grid-column: 1 / -1;
+  width: 100%;
+  accent-color: var(--hybrid);
+}
+
+.portfolio {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.portfolio button {
+  min-height: 68px;
+  padding: 9px;
+  text-align: left;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.portfolio button b,
+.portfolio button span {
+  display: block;
+}
+
+.portfolio button b {
+  font-size: 12px;
+}
+
+.portfolio button span {
+  margin-top: 4px;
+  color: var(--ink-3);
+  font-size: 9.5px;
+  line-height: 1.25;
+}
+
+.portfolio button[aria-pressed=true] {
+  border-color: var(--e2e);
+  box-shadow: inset 0 0 0 1px var(--e2e);
+  background: var(--e2e-soft);
+}
+
+@media (max-width: 850px) {
+  .case-row,
+  .portfolio {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .econ-metrics,
+  .calc-controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .econ-flow {
+    padding: 10px;
+  }
+}
+
+@media (max-width: 430px) {
+  .econ-metrics,
+  .calc-controls,
+  .case-row,
+  .portfolio {
+    grid-template-columns: 1fr;
+  }
+
+  .visual-legend {
+    gap: 7px 12px;
+    font-size: 10px;
+  }
+}

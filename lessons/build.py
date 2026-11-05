@@ -168,6 +168,24 @@ LESSONS = {
     'l83': ('8-3-nadezhnost.html', ['l01/lesson.css', 'shared/lab.css', 'l83/l83.css'], {
         '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'l83/engine.js', 'l83/ui-l83.js'],
     }),
+    'l84': ('8-4-kontrol-kachestva.html', ['l01/lesson.css', 'shared/lab.css', 'l84/l84.css'], {
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'l84/engine.js', 'l84/ui-l84.js'],
+    }),
+    'l85': ('8-5-benchmarki.html', ['l01/lesson.css', 'shared/lab.css', 'l85/l85.css'], {
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'l85/engine.js', 'l85/ui-l85.js'],
+    }),
+    'l86': ('8-6-zaderzhki-realnoe-vremya.html', ['l01/lesson.css', 'shared/lab.css', 'l86/l86.css'], {
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'l86/engine.js', 'l86/ui-l86.js'],
+    }),
+    'l87': ('8-7-rynok-kompanii-strategii.html', ['l01/lesson.css', 'shared/lab.css', 'l87/l87.css'], {
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'l87/engine.js', 'l87/ui-l87.js'],
+    }),
+    'l88': ('8-8-ekonomika-vnedreniya.html', ['l01/lesson.css', 'shared/lab.css', 'l88/l88.css'], {
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'l88/engine.js', 'l88/ui-l88.js'],
+    }),
+    'c8': ('proverka-chasti-8.html', ['l01/lesson.css', 'shared/lab.css', 'shared/check.css', 'c8/c8.css'], {
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'l88/engine.js', 'shared/check.js', 'c8/ui-c8.js'],
+    }),
     # глоссарий: все термины из shared/glossary.json, без отзыва и «спасибо»
     'gl': ('glossariy.html', ['l01/lesson.css', 'gl/gl.css'], {
         '/*@@JS@@*/': ['l01/ui-core.js', 'gl/ui-gl.js'],
