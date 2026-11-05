@@ -35,7 +35,7 @@ check(balanced.base === 80 && balanced.cand === 77 && balanced.rows[3].base === 
 check(stress.base === 63 && stress.cand === 53, 'стресс-тест: 63 → 53');
 check(c40.lo < 0 && c40.hi > 0 && c120.lo > 0, '40 пар недостаточно, 120 пар дают интервал выше нуля');
 check(u40.diff > .1, 'разные старты на 40 попытках дают случайный разрыв больше 10 п.п.');
-check(!E.release('fast', Object.keys(E.GATES)).pass && E.release('stable', Object.keys(E.GATES)).pass, 'полный договор останавливает A и пропускает B');
+check(!E.release('fast', Object.keys(E.GATES)).pass && E.release('stable', Object.keys(E.GATES)).pass, 'полный набор критериев останавливает A и пропускает B');
 
 (async () => {
   const B = await launch({ w: 1300, h: 1000 });
@@ -78,14 +78,14 @@ check(!E.release('fast', Object.keys(E.GATES)).pass && E.release('stable', Objec
 
     console.log('лаборатория 3');
     r = await viaUI(p, '#rMis', 0);
-    check(r.ok && r.out.includes('Договор пропустил кандидата'), 'миссия 1: одно среднее пропускает A — ' + r.out.slice(0, 100));
+    check(r.ok && r.out.includes('Один критерий пропустил кандидата'), 'миссия 1: одно среднее пропускает A — ' + r.out.slice(0, 100));
     await next(p, '#rMis');
     await p.eval(`document.querySelectorAll('#rGates input').forEach((x)=>{if(!x.checked){x.checked=true;x.dispatchEvent(new Event('change',{bubbles:true}));}});true`);
     r = await viaUI(p, '#rMis');
-    check(r.ok && r.out.includes('2 опасных действия') && r.out.includes('435 мс'), 'миссия 2: полный договор останавливает A — ' + r.out.slice(0, 110));
+    check(r.ok && r.out.includes('2 опасных действия') && r.out.includes('435 мс'), 'миссия 2: полный набор критериев останавливает A — ' + r.out.slice(0, 110));
     await next(p, '#rMis');
     r = await viaUI(p, '#rMis');
-    check(r.ok && r.out.includes('Кандидат B') && r.out.includes('заранее замороженного договора'), 'миссия 3: тот же договор пропускает B — ' + r.out.slice(0, 110));
+    check(r.ok && r.out.includes('Кандидат B') && r.out.includes('заранее зафиксированных критериев'), 'миссия 3: те же критерии пропускают B — ' + r.out.slice(0, 110));
     await shot(p, 'release', '#release .lab', 'l84-release.png');
 
     const stackGeo = await p.eval(`JSON.stringify({stack:document.querySelector('.qa-stack-card').getBoundingClientRect().width,text:document.querySelector('#levels .prose').getBoundingClientRect().width,layout:document.querySelector('#qaStack').dataset.layout})`).then(J);

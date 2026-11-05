@@ -12,12 +12,12 @@ function h2(l,sec){const s=fs.readFileSync(path.join(ROOT,'lessons','l'+l.replac
 
 check(E7.strategyScore('platform','factory').pass,'8.7: аппаратная платформа проходит складской сценарий');
 check(E7.strategyScore('vertical','home').pass&&E7.strategyScore('open','lab').pass,'8.7: дом и лаборатория требуют разных стратегий');
-check(E7.classify('bmw','pilot').correct&&E7.classify('gxo','repeat').correct,'8.7: лестница свидетельств сохраняет границы источников');
+check(E7.classify('bmw','pilot').correct&&E7.classify('gxo','repeat').correct,'8.7: лестница фактов сохраняет границы источников');
 check(E7.scalePlan({integration:1,data:1,service:1}).pass&&!E7.scalePlan({integration:1,data:0,service:1}).pass,'8.7: парк масштабируется только с полным контуром');
 const totes=E8.runCase('totes'),laundry=E8.runCase('laundry'),repair=E8.runCase('repair');
 check(totes.pass&&totes.eligible&&!laundry.pass,'8.8: поток и утилизация меняют стоимость задачи');
 check(!repair.eligible,'8.8: качество и безопасность останавливают ремонт до экономики');
-check(E8.portfolio(['totes','machine','laundry','repair'],480000).pass,'8.8: портфель проходит обязательные ворота и бюджет');
+check(E8.portfolio(['totes','machine','laundry','repair'],480000).pass,'8.8: портфель проходит обязательные проверки и бюджет');
 
 (async()=>{const B=await launch({w:1360,h:1000});try{
   for(const cfg of[
@@ -28,14 +28,14 @@ check(E8.portfolio(['totes','machine','laundry','repair'],480000).pass,'8.8: п�
     check(await p.eval(`document.querySelectorAll('.scene-card').length===3&&document.querySelectorAll('.guide-card').length===3`),`${cfg.id}: общий каркас scene-card + guide-card`);
     check(await p.eval(`[...document.querySelectorAll('.scene-card')].every(x=>x.querySelector('.scene-toolbar, .evidence-board'))`),`${cfg.id}: управление находится рядом со сценой`);
     check(await p.eval(`document.querySelectorAll('.visual-legend').length===4&&[...document.querySelectorAll('.visual-legend')].every(x=>x.querySelectorAll('span').length>=3)`),`${cfg.id}: у схемы и трёх лабораторий есть видимые легенды`);
-    if(cfg.id==='l87')check(await p.eval(`document.querySelectorAll('#players .company-row').length`)===5,'8.7: пять реальных предложений сравнены по ответственности и свидетельству');
+    if(cfg.id==='l87')check(await p.eval(`document.querySelectorAll('#players .company-row').length`)===5,'8.7: пять реальных предложений сравнены по ответственности и подтверждению');
     const g=J(await p.eval(`(()=>{const c=document.querySelector('canvas[data-anim="${cfg.anim}"]'),s=document.querySelector('#${cfg.section} .prose');return JSON.stringify({scroll:document.documentElement.scrollWidth,width:c.getBoundingClientRect().width,prose:s.getBoundingClientRect().width,layout:c.dataset.layout})})()`));
     check(g.scroll<=1280&&g.width>g.prose+200&&g.layout==='w',`${cfg.id}: полноширинная схема и нет горизонтальной прокрутки`);
     if(cfg.id==='l87'){
       await p.eval(`document.querySelector('#strategyCtl [data-v="platform"]').click();true`);
       check((await mission(p,'#strategyMis',0)).ok,'8.7: выбор стратегии проходит через интерфейс');
       await p.eval(`document.querySelector('#evidenceCtl [data-v="pilot"]').click();true`);
-      check((await mission(p,'#evidenceMis',1)).ok,'8.7: лестница свидетельств проходит через интерфейс');
+      check((await mission(p,'#evidenceMis',1)).ok,'8.7: лестница фактов проходит через интерфейс');
       await p.eval(`document.querySelector('#scaleCtl [value="integration"]').click();true`);
       check((await mission(p,'#scaleMis',0)).ok,'8.7: инвестиция в интеграцию проходит через интерфейс');
     }else{
@@ -85,11 +85,11 @@ check(E8.portfolio(['totes','machine','laundry','repair'],480000).pass,'8.8: п�
   check(Object.keys(per).length===8&&Object.values(per).every((n,i)=>n===(i===7?4:3)),'c8: по три вопроса на урок, сцена относится к 8.8');
   const links=J(await p8.eval('JSON.stringify(window.__c8.Q.slice(0,24).map(q=>[q.l,q.sec,q.st]))'));
   const miss=links.filter(([l,s,t])=>h2(l,s)!==t);check(!miss.length,'c8: ссылки ведут на точные разделы'+(miss.length?' — '+JSON.stringify(miss):''));
-  await p8.eval('document.querySelector("#q25 .btn.primary").click();true');check(await p8.eval('window.__c8Scene.st.ran.pass')===false,'c8: слабая конфигурация останавливается на воротах');
+  await p8.eval('document.querySelector("#q25 .btn.primary").click();true');check(await p8.eval('window.__c8Scene.st.ran.pass')===false,'c8: слабая конфигурация останавливается на проверках');
   const best={control:'layered',safety:'filter',recovery:'managed',qa:'gates',bench:'contract',runtime:'split',deploy:'product',economy:'task'};
   for(const[k,v]of Object.entries(best))await p8.eval(`document.querySelector('#q25 [data-key="${k}"][data-v="${v}"]').click();true`);
   await p8.eval('document.querySelector("#q25 .btn.primary").click();true');await p8.waitFor('window.__c8.res[24] === true',10000);
-  check(await p8.eval('window.__c8Scene.st.ran.gates')===8,'c8: полная конфигурация проходит восемь ворот');
+  check(await p8.eval('window.__c8Scene.st.ran.gates')===8,'c8: полная конфигурация проходит восемь проверок');
   await shot(p8,'q25','#q25','c8-scene-success.png');check(await p8.eval('document.documentElement.scrollWidth')<=1280&&!p8.logs.length,'c8: компьютер без переполнения и ошибок');
   const m8=await B.page(url8,{width:390,height:844,dpr:2,mobile:true,dark:true});await m8.waitFor('window.__c8Scene',30000);await sleep(220);
   check(await m8.eval('document.documentElement.scrollWidth')<=390&&await m8.eval('[...document.querySelectorAll("#q25 .c8-gate")].every(x=>x.getBoundingClientRect().right<=document.querySelector("#q25").getBoundingClientRect().right+1)'),'c8: мобильная доска помещается в карточку');

@@ -25,7 +25,7 @@
 <section class="hero" id="top"><div class="wrap">
 <div class="kicker"><span class="num">7.5</span> Part 7 · World models</div>
 <h1>World models for <span class="amp">testing policies and generating data</span></h1>
-<p class="lead">The World Action Model from Lesson 7.4 can perform a new task, but every training run leaves dozens of checkpoints. Testing each one on a robot is slow and risky. In this lesson the world model becomes a test bench: it rolls out policy actions, ranks checkpoints, and creates experience for the next training cycle. Two labs expose the boundary of the method. Without real failures the model selects a dangerous policy; if too many candidates reach the robot, the real-world budget is spread too thin.</p>
+<p class="lead">Training a new task leaves dozens of checkpoints. Testing every one on a robot is slow and risky. In this lesson, the world model becomes a test bench: it rolls out policy actions, compares candidates, and helps decide which ones should reach the real robot. In the labs, we test when this filter saves robot trials and when it fails on the dangerous candidate.</p>
 <div class="hero-meta"><span>≈ 55 minutes</span><span>2 labs, an animated diagram, 6 charts, and a quiz</span></div>
 <div class="hero-list">
 <div><b>EIGHT CHECKPOINTS</b>Compare the ranking in the world model with the ranking on the table</div>
@@ -37,12 +37,12 @@
 </div></section>
 
 <section class="recall-sec" id="recall" aria-label="Recall from the previous lesson"><div class="wrap"><div class="card recall" data-recall></div></div>
-<script type="application/json" id="recallData">{"n":"7.4","title":"World Action Models","href":"7-4-world-action-models.html","q":[{"q":"How does a WAM differ from a standalone world model?","o":["By the size of its video model","The future prediction affects learning or action selection","It must generate video on the robot"],"a":1,"e":"A WAM is a policy: there must be a testable path from predicted future to action.","sec":"term","secTitle":"World Action Model is a young term with a fuzzy boundary"},{"q":"Why did the closed-loop WAM correct a systematic actuator shortfall?","o":["It received more weights","It replaced the prediction with a fresh observation and replanned","It removed the future model"],"a":1,"e":"The open- and closed-loop variants used the same weights; only feedback differed.","sec":"three","secTitle":"One task and three control loops"},{"q":"What did the intervention in future frames show?","o":["Every kind of noise is equally harmful","Temporal order affected actions more than content noise","Video can always be disabled"],"a":1,"e":"Order carries motion structure; the visual quality of an individual frame may matter less.","sec":"trust","secTitle":"Inspect what the model expects and estimate the chance of success"}]}</script>
+<script type="application/json" id="recallData">{"n":"7.4","title":"World Action Models","href":"7-4-world-action-models.html","q":[{"q":"How does a WAM differ from a standalone world model?","o":["By the size of its video model","The future prediction affects learning or action selection","It must generate video on the robot"],"a":1,"e":"A WAM is a policy: there must be a testable path from predicted future to action.","sec":"term","secTitle":"World Action Model still has a fuzzy boundary"},{"q":"Why did the closed-loop WAM correct a systematic actuator shortfall?","o":["It received more weights","It replaced the prediction with a fresh observation and replanned","It removed the future model"],"a":1,"e":"The open- and closed-loop variants used the same weights; only feedback differed.","sec":"three","secTitle":"Three ways to control one task"},{"q":"What did the intervention in future frames show?","o":["Every kind of noise is equally harmful","Temporal order affected actions more than content noise","Video can always be disabled"],"a":1,"e":"Order carries motion structure; the visual quality of an individual frame may matter less.","sec":"trust","secTitle":"Compare the model's expectation with the real outcome"}]}</script>
 </section>
 
 <section class="section alt" id="slow"><div class="wrap"><div class="prose">
 <div class="kicker"><span class="num">1</span> Cost of testing</div>
-<h2>A new checkpoint trains faster than it can complete a full robot exam</h2>
+<h2>There are more checkpoints than the robot can test</h2>
 <p>In Lesson 7.4 we compared finished policies on a few scenes. That is not enough in a research loop. One training run saves dozens of checkpoints, and each must be tested across objects, starting poses, and homes. A weak checkpoint still occupies the rig, heats the actuators, and needs a person to reset the scene. Action error on held-out data does not solve this problem. A policy may reproduce the expert precisely in a familiar frame and fail after its own first mistake. Testing must therefore close the loop: the policy observes the consequence of its action and continues from the state it created. A real robot provides that loop, but with low throughput.</p>
 <p>A complete exam is more than one average success rate. Starting poses, objects, and lighting must be repeated, then failures must be classified. If checkpoints run in long blocks, conditions drift: actuators warm up, cloth moves, and the operator resets the cup differently. Candidates are therefore interleaved and the trial order is fixed in advance. A world model can also begin every rollout from exactly the same state. Cost grows as failures become rarer. A few trials reveal ordinary success but may miss a rare fall near the table edge. Adding homes and objects multiplies combinations. Engineers must trade breadth against rig time even though they need both. A fast preliminary filter does not remove this trade-off, but spends real time on candidates that still have a chance to ship.</p>
 <figure class="card stat-fig number-fig" aria-label="Summary of the scale of real-robot policy testing">
@@ -57,7 +57,7 @@
 
 <section class="section" id="loop"><div class="wrap"><div class="prose">
 <div class="kicker"><span class="num">2</span> Evaluation loop</div>
-<h2>The policy acts inside a learned continuation of the scene</h2>
+<h2>The policy acts inside a learned scene</h2>
 <p>We begin with a real frame. The policy emits an action chunk, the world model advances the scene, and the new imagined observation returns to the policy. After several exchanges a judge decides whether the instruction was completed. The judge may be a person, a dedicated classifier, or a VLM, but its error becomes part of the evaluation.</p>
 </div>
 <figure class="card flow-card"><canvas id="evalFlow" data-anim="evaluation" width="760" height="430" aria-label="Animated comparison of one closed-loop policy rollout in a world model and on a physical table"></canvas><figcaption>One policy starts from the same state and emits the same actions. The world-model loop returns a predicted frame, while the table returns a real one; different feedback produces different outcomes. Screening multiple checkpoints remains a lab task.</figcaption></figure>
@@ -70,7 +70,7 @@
 
 <section class="section alt" id="metrics"><div class="wrap"><div class="prose">
 <div class="kicker"><span class="num">3</span> Agreement metrics</div>
-<h2>Selection needs the right order, not bars of equal height</h2>
+<h2>Selection needs the right candidate order</h2>
 <p>Let \(R_i\) be checkpoint \(i\)'s real-world success rate and \(S_i\) its world-model score. Pearson correlation measures how closely the pairs follow a line. It is useful when scale is preserved, but can change sharply because of small gaps between similar policies. Spearman correlation first replaces values with ranks. If a model systematically underestimates every rate but orders the checkpoints correctly, ρ remains high. Yet swapping two nearly equal policies receives the same rank penalty as swapping a strong and a weak one.</p>
 <p>MMRV, Mean Maximum Rank Violation, includes the real gap. For each checkpoint it finds the most costly reversed opponent and averages these penalties. Swapping 50% and 51% costs almost nothing; swapping 20% and 70% is expensive.</p>
 <details class="deep"><summary>Under the hood: Pearson and MMRV formulas</summary><div class="body">
@@ -87,8 +87,8 @@
 
 <section class="section" id="exam"><div class="wrap">
 <div class="lab-badge"><i>🔬</i> Lab 1</div>
-<h2>Exam in the world model: do the checkpoint rankings agree?</h2>
-<div class="prose lab-intro"><p>All eight policies push a cup toward the saucer in the L71 physical world. The world model is an ensemble of small networks that predicts the next state from the current state and action. Initially it saw only cautious demonstrations with no falls. One fast checkpoint leaves this experience, and the model mistakes its short imagined path for a strong solution.</p><p>First reveal the baseline model's outcome, then change the number of autonomous rollouts and the data composition yourself. Both scenes start from the same state: the world model runs on the left and the real table on the right. A trajectory mismatch therefore cannot be explained by a different experimental setup.</p></div>
+<h2>Will the checkpoint rankings agree?</h2>
+<div class="prose lab-intro"><p>All eight policies push a cup toward the saucer in the L71 physical world. The world model is an ensemble of small networks that predicts the next state from the current state and action. So far it has seen only cautious demonstrations with no falls. That may cover familiar motion, but not necessarily the behaviour of new checkpoints.</p><p>Reveal the baseline outcome, then change the number of autonomous rollouts and the data composition. Both scenes start from the same state: the world model runs on the left and the real table on the right. Each checkpoint is defined by push speed, path offset, and release time. Contact physics produces the real ranking; it is not stored in a lookup table. One shared scene separates a model error from a setup difference. Compare the candidates and find the experience that the model was missing.</p></div>
 <div class="lab lab-wide">
 <div class="card scene-card exam-scene">
 <div class="scene-head"><div><b>Eight checkpoints</b><span id="examModelLabel">model: demonstrations only</span></div><span id="examStatus">waiting to run</span></div>
@@ -115,7 +115,7 @@
 
 <section class="section alt" id="works"><div class="wrap"><div class="prose">
 <div class="kicker"><span class="num">4</span> Published results</div>
-<h2>The best test benches preserve order, but evaluate different tasks</h2>
+<h2>Test benches preserve rankings to different degrees</h2>
 <p>WorldEval compared manipulation policies in a video model and in RoboTwin. Within that experiment the video model was much closer to the real ordering. The result cannot be transferred directly to another paper: robots, tasks, trial counts, and judges all change.</p>
 <figure class="card stat-fig number-fig"><figcaption class="stat-h">WorldEval versus RoboTwin: two metrics with opposite directions</figcaption><div class="metric-table" role="table" aria-label="Pearson and MMRV for WorldEval and RoboTwin"><div class="mt-row mt-head" role="row"><span role="columnheader">Metric</span><span role="columnheader">WorldEval</span><span role="columnheader">RoboTwin</span></div><div class="mt-row" role="row"><b role="rowheader">Pearson ↑</b><strong class="best" role="cell">0.942</strong><strong role="cell">0.411</strong></div><div class="mt-row" role="row"><b role="rowheader">MMRV ↓</b><strong class="best" role="cell">0.044</strong><strong role="cell">0.261</strong></div></div><p class="stat-cap">Pearson and MMRV do not belong on one scale: higher Pearson is better, while lower MMRV is better. The table preserves that distinction. Source: WorldEval, Table 1.</p></figure>
 <p>Veo tested eight Gemini Robotics checkpoints and preserved their overall order on standard scenes. WorldGym rolled out policies in under an hour on one GPU. These results show that a learned test bench is possible, not that one universal trust coefficient exists. 1X added a success head to a world model and used it to select checkpoints. The authors stress that autonomous policy rollouts—especially failures—are critical. Failures staged by an operator carried a human signature and did not teach the model the hard failures created by a policy. Data must come from the states of the deployed solution.</p>
@@ -129,7 +129,7 @@
 
 <section class="section" id="bias"><div class="wrap"><div class="prose">
 <div class="kicker"><span class="num">5</span> Mismatch</div>
-<h2>The model fails where the policy creates new experience</h2>
+<h2>A new policy creates unfamiliar states</h2>
 <p>A model trained on demonstrations sees clean operator trajectories. A weak policy reaches different states: side contacts, stalls near obstacles, or faster pushes. Without those transitions the model may complete a convenient grasp or forgive a collision. This creates optimistic bias. The reverse also happens. A generator deforms a small object or freezes it after a weak touch, and the judge records failure where the robot would succeed. Bias direction cannot be inferred from the model name; measure it on paired real trials.</p>
 <figure class="card stat-fig"><figcaption class="stat-h">Veo: Pearson under new conditions</figcaption><div id="veoBars"></div><p class="stat-cap">New background 0.91; small distractor 0.86; large distractor 0.77; new object 0.56. Source: Veo, Figure 9.</p></figure>
 <p>Contacts and small objects are harder than backgrounds because a few pixels can change the physical outcome. Long horizons accumulate error, and a VLM judge may be softer than a person. These errors are independent: better video does not guarantee a stricter judge. An optimistic bench overestimates weak policies most. Successful clips resemble demonstrations; failed policies leave the data and trigger more hallucinations. The model can compress gaps, reverse the order, or shift all scores upward. Real failures improve both dynamics and success-head calibration.</p>
@@ -141,7 +141,7 @@
 
 <section class="section alt" id="screen"><div class="wrap">
 <div class="lab-badge"><i>🔬</i> Lab 2</div>
-<h2>World model first, table second: who reaches the robot?</h2>
+<h2>Who should reach the real robot?</h2>
 <div class="prose lab-intro"><p>There are twenty checkpoints and a budget of real trials. The world model ranks all twenty without using the robot. You choose \(k\) candidates that move to the table, and the budget is divided among them. The scene repeats this selection 500 times with different trial outcomes.</p><p>The world-model gate is on the left; the real trajectory of the candidate that wins most often after admission is on the right. Move the boundary yourself: first find the smallest \(k\) that restores the true leader, then verify that an overly broad gate increases selection noise.</p></div>
 <div class="lab lab-wide">
 <div class="card scene-card screen-scene">
@@ -172,7 +172,7 @@
 
 <section class="section" id="data"><div class="wrap"><div class="prose">
 <div class="kicker"><span class="num">6</span> Data generation</div>
-<h2>An imagined trajectory becomes a demonstration only after filtering</h2>
+<h2>A synthetic trajectory needs a filter</h2>
 <p>In <a href="4-5-simulyatsiya.html#dreamgen">Lesson 4.5</a>, synthetic data came from a physical simulator. Here the generator is itself learned and may violate physics. It creates video for a new task, the inverse-dynamics model from <a href="4-4-video-lyudey.html#actions">Lesson 4.4</a> recovers actions, and a filter rejects clips that miss the instruction or contain implausible contact. DreamGen shows an average gain when real demonstrations are scarce. Synthetic-only data remains weaker than a mixture, and generated trajectories hurt some tasks. Generation is not a free extension of the dataset.</p>
 <figure class="card stat-fig"><figcaption class="stat-h">DreamGen: success across 24 RoboCasa tasks</figcaption><div id="dreamgenBars"></div><p class="stat-cap">Real demonstrations only: 17.44%, 32.07%, and 49.59% with 30, 100, and 300 examples per task. Adding 240,000 synthetic trajectories: 23.32%, 39.94%, and 57.61%. Synthetic only, compared with 100 real demonstrations: 20.55%. Source: DreamGen, Table 4.</p></figure>
 <p>A filter must inspect more than a pleasing final frame. It needs instruction following, object permanence, plausible contacts, and actions the robot body can execute. A failed clip may be discarded or retained as a negative example for the world model. Action labeling adds another error source. Inverse dynamics sees adjacent states, but the same object motion may come from different contacts. Replay pseudo-actions in a digital twin or a small set of real starts. A correct final frame does not make a video a demonstration if the recovered command cannot reproduce it.</p>
@@ -185,7 +185,7 @@
 
 <section class="section alt" id="rl"><div class="wrap"><div class="prose">
 <div class="kicker"><span class="num">7</span> Reinforcement learning</div>
-<h2>A policy can improve in the model—and find its loopholes</h2>
+<h2>A policy can find the model's loopholes</h2>
 <p>The Dreamer line from Lesson 7.1 extends to VLAs. A policy acts repeatedly in a world model, receives an outcome score, and updates without a new physical motion for every step. Real trajectories remain necessary to adapt the model to the current policy.</p>
 <figure class="card stat-fig"><figcaption class="stat-h">WMPO: equal budgets of real trajectories</figcaption><div id="wmpoBars"></div><p class="stat-cap">With 128 trajectories: GRPO 33.2%, DPO 37.3%, WMPO 47.1%. With 1,280: 37.1%, 42.4%, and 57.6%. Base policy: 33.6%. Source: WMPO, Table 1.</p></figure>
 <p>An optimizer explores the model more aggressively than ordinary testing. If the judge rewards an object moving closer, the policy may learn to create a convincing frame instead of physical success. If the model misses a jam, the policy repeats an action that wins only in imagination. This is classic model exploitation in high-dimensional video. A rare action may trigger a convenient generator artifact. The longer optimization runs without a real update, the farther behavior leaves the dataset. A high imagined reward after many iterations is a reason to strengthen testing, not proof of readiness.</p>
@@ -197,7 +197,7 @@
 
 <section class="section" id="today"><div class="wrap"><div class="prose">
 <div class="kicker"><span class="num">8</span> Engineering protocol</div>
-<h2>Testing starts with a domain and ends on the robot</h2>
+<h2>Testing ends on the real robot</h2>
 <p>First fix the checkpoints, starting states, and success definition. Then obtain imagined and real trials under the same conditions. Compute metrics over all candidates and classify failures by contact, object, and horizon. After selection, return new real trials to the world-model data. Keep failures as well as successes: autonomous failures reveal the states created by the policy. Operator-staged mistakes may have a different signature.</p>
 <p>Separate the comparison set from fine-tuning data. If the same real trial repairs the model and validates it, agreement becomes optimistic. Keep a closed group of starts and objects for final version testing, and add each new failure class to regression tests. Fix the temporal contract too. Action, frame, and judge decision must refer to one state version. A dropped frame or delayed command creates a false mismatch. Record observation-to-actuator latency on the rig and generation steps and hardware for the model.</p>
 <p>Each model version needs a card: data source, autonomous rollout count, failure fraction, horizon, judge, Pearson, Spearman, MMRV, and known mismatch classes. Without it, correlation numbers from different benches cannot be compared fairly. The card also records tested policy versions, the exact start list, the scene-reset rule, and confidence intervals for real success rates. That turns a chart into a reproducible contract: another engineer can rebuild the candidate set, repeat the screen, and determine whether a mismatch belongs to the world model or to the experimental setup. A version is not releasable until this contract can be replayed. Add a shift matrix for background, camera, object, contact, initial pose, and task length. An average coefficient may remain high while one critical cell fails. Hazardous contact deserves its own release threshold and independent real sample.</p>

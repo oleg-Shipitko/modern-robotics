@@ -43,7 +43,7 @@
 <span class="num">7.4</span> Part 7 · World models</div>
 <h1>World Action Models: <span class="amp">when futures and actions learn together</span>
 </h1>
-<p class="lead">In Lesson 7.3, a video model continued the world and a separate inverse dynamics model translated that continuation into robot commands. An error in the first module became the target of the second, while the long pipeline slowed the closed loop. A World Action Model learns a change in the world and an action in one system. Yet the name covers several architectures, and a beautiful imagined video does not always explain success. In this lesson, three versions of Ada solve the same novel task on the same table; then you calibrate confidence in their predictions.</p>
+<p class="lead">In Lesson 7.3, one module continued the video and another translated that continuation into commands. When the first module was wrong, the second tried to execute its error. A World Action Model learns the future and the action together. On one task, we compare three control methods and test when prediction helps the robot rather than merely producing a convincing picture.</p>
 <div class="hero-meta">
 <span>≈ 55 minutes</span>
 <span>2 labs, a diagram, charts, and a quiz</span>
@@ -69,7 +69,7 @@
 <div class="card recall" data-recall>
 </div>
 </div>
-<script type="application/json" id="recallData">{"n":"7.3","title":"Generative world models","href":"7-3-generativnye-modeli-mira.html","q":[{"q":"Why is a Genie latent-action code not yet a robot command?","o":["The code is too short","It explains an image change but is not tied to actuator interfaces; a few labeled actions are needed","Codes cannot control anything"],"a":1,"e":"A small set of labeled pairs maps codes to the buttons or commands of a particular agent.","sec":"actions","secTitle":"A latent-action code indexes an entry in a learned vocabulary"},{"q":"A model drew a plausible next frame. What follows?","o":["Its physics is correct","The frame resembles the data; contact, edges, and object permanence require separate tests","The model is safe"],"a":1,"e":"The lab let an imagined cup pass through an object and remain on a table after a fall.","sec":"judge","secTitle":"The first wrong frame exposes a physics violation"},{"q":"Why place a language model next to a video generator in a hybrid world model?","o":["Only for a text interface","To retain structure and plans while the video model renders the immediate continuation","To reduce resolution"],"a":1,"e":"Structural reasoning complements immediate frame generation.","sec":"today","secTitle":"Newer Genie generations extend horizons and control"}]}</script>
+<script type="application/json" id="recallData">{"n":"7.3","title":"Generative world models","href":"7-3-generativnye-modeli-mira.html","q":[{"q":"Why is a Genie latent-action code not yet a robot command?","o":["The code is too short","It explains an image change but is not tied to actuator interfaces; a few labeled actions are needed","Codes cannot control anything"],"a":1,"e":"A small set of labeled pairs maps codes to the buttons or commands of a particular agent.","sec":"actions","secTitle":"A latent action is an entry in a learned vocabulary"},{"q":"A model drew a plausible next frame. What follows?","o":["Its physics is correct","The frame resembles the data; contact, edges, and object permanence require separate tests","The model is safe"],"a":1,"e":"The lab let an imagined cup pass through an object and remain on a table after a fall.","sec":"judge","secTitle":"The first incorrect frame exposes the physics error"},{"q":"Why place a language model next to a video generator in a hybrid world model?","o":["Only for a text interface","To retain structure and plans while the video model renders the immediate continuation","To reduce resolution"],"a":1,"e":"Structural reasoning complements immediate frame generation.","sec":"today","secTitle":"Genie extends the horizon and control interface"}]}</script>
 </section>
 
 <section class="section alt" id="gap">
@@ -77,7 +77,7 @@
 <div class="prose">
 <div class="kicker">
 <span class="num">1</span> The gap</div>
-<h2>Two correct modules can produce one wrong action</h2>
+<h2>Correct modules can produce the wrong action</h2>
 <p>In Lesson 7.3, a video model could continue a scene but did not choose commands itself. In <a href="4-4-video-lyudey.html#actions">Lesson 4.4</a>, an inverse dynamics model translated a frame change into an action. Connect them in sequence, and the first module proposes a future while the second must execute it—even when that future is physically wrong.</p>
 <div class="formula">\[p(o_{t+1:t+H}\mid h_t,l)\;p(a_{t:t+H}\mid o_{t+1:t+H},h_t,l)\]</div>
 <p>The pipeline has two independent error channels. The video model may draw a wrong path, and inverse dynamics may translate a correct path into commands inaccurately. Both errors compound during open-loop execution because the modules do not correct one another from new observations. Suppose the first module places a path two centimetres too close to an obstacle while the second under-rotates at every step. Each error may pass its module test, yet together the cup hits the carton. Testing only video quality or only action error is insufficient; the outcome of the closed system matters.</p>
@@ -106,7 +106,7 @@
 <div class="prose">
 <div class="kicker">
 <span class="num">2</span> The term</div>
-<h2>World Action Model is a young name with a fuzzy boundary</h2>
+<h2>World Action Model still has a fuzzy boundary</h2>
 <div class="term-note">
 <p>
 <strong>World Action Model (WAM)</strong> is a robot policy that learns to predict not only an action but also how the world will change, and relies on that prediction when choosing the action.</p>
@@ -142,7 +142,7 @@
 <div class="prose">
 <div class="kicker">
 <span class="num">3</span> Classes</div>
-<h2>A future can be shown, hidden in features, or kept only for training</h2>
+<h2>Where the model keeps its prediction</h2>
 <p>The architectural difference comes down to three questions: what the model predicts, whether the action reads that prediction, and whether the future branch remains on the robot. The diagram places four computational graphs side by side: a dashed route marks an imagined future, while a solid route carries data to the actuators. A shared objective can be written as \(p(a_{t:t+H}, z_{t+1:t+H}\mid o_{\le t},l)\), where \(z\) denotes the chosen future representation. Designs differ in whether they factor this distribution into two modules, denoise both outputs jointly, or remove the \(z\) branch after training.</p>
 </div>
 <figure class="card flow-card">
@@ -184,7 +184,7 @@
 <div class="wrap">
 <div class="lab-badge">
 <i>🔬</i> Lab 1</div>
-<h2>One task and three control loops</h2>
+<h2>Three ways to control one task</h2>
 <div class="prose lab-intro">
 <p>In the robot demonstrations, the cup moved straight to the saucer. Only human video contains a detour around the sugar bowl, but it has no actuator commands. From left to right are a VLA without a future model, a trained WAM without feedback, and the same WAM with feedback. Place a bet first, then choose the video fraction or actuator error yourself and run all three loops. The two WAM loops receive the same weights, one predicted path, and identical table physics. Their difference can therefore be attributed specifically to the new observation after an action.</p>
 <p>Missions progress from a familiar case to a paired experiment. All three loops first repeat the straight path. One WAM then builds a detour from human video and executes it twice with a calibrated actuator. A systematic shortfall separates an open-loop action chunk from correction using the freshly measured cup position. The experiment changes one factor instead of comparing different models under “open” and “closed” labels.</p>
@@ -268,7 +268,7 @@
 <div class="prose">
 <div class="kicker">
 <span class="num">5</span> DreamZero</div>
-<h2>A joint model denoises future video latents and actions</h2>
+<h2>Future latents and actions are denoised together</h2>
 <p>DreamZero starts from the Wan2.1 video model and uses one diffusion network to recover two linked streams: latent future frames and an action chunk. Actions are not translated from completed video by a separate network; both outputs are formed together and may exchange information inside the model. After a chunk executes, predicted video latents do not become the next truth. Real observations take their place in the cache, and the model builds a continuation again. This closes the loop and prevents autoregressive video error from growing without bound.</p>
 <p>The cache holds a short history of observations and previously selected actions. The model need not trust its own image after the robot has already moved an object: the next forecast starts from the measured result. This replacement distinguishes feedback correction from a more attractive but open-loop clip. Joint denoising also does not mean that an action is literally read from a decoded pixel. Internal features of the two streams interact before the decoder. Visible futures help diagnose intent, but their sharpness cannot be converted directly into a success probability.</p>
 <p>Action chunking creates another trade-off. A long chunk reduces expensive model calls but executes longer without correction. A short chunk reacts sooner when an object moves but raises compute load. A result must therefore be read together with chunk length and observation-update frequency. Control can also use overlapping chunks: the model proposes a horizon, the robot executes only its prefix, and the next forecast is prepared in parallel. This reduces waiting but complicates synchronization of observations, actions, and cache. A wrong timestamp turns a good forecast into a command for a state that has already passed.</p>
@@ -300,7 +300,7 @@
 <div class="prose">
 <div class="kicker">
 <span class="num">6</span> What runtime needs</div>
-<h2>A useful training target need not remain in the control loop</h2>
+<h2>A training target need not remain at execution time</h2>
 <p>During training, Fast-WAM predicts both actions and future video. During execution, an attention mask switches off the video branch: the same action policy remains, without denoising future frames. This separates the value of prediction as a learning signal from the cost of a visible plan. The video target forces representations to retain object motion and contact consequences rather than only cues sufficient for the next command. After training, that knowledge can remain in shared layers. The auxiliary-task analogy matters: we do not claim that a disabled head keeps secretly generating frames.</p>
 <p>Fast-WAM's mask changes the available computation path rather than retraining a separate fast model. Shared layers have already been shaped by the video task; only the route to actions remains on the robot. This compares runtime cost without replacing the backbone. It also removes direct inspection of intent through a finished clip, so debugging needs saved features and offline tools.</p>
 <p>An auxiliary task is useful when the next action admits a shortcut in the data. A table-edge color, for example, may correlate with the correct motion and let a policy avoid modelling contact. Future prediction forces the representation to retain what happens to the cup after motion, making the accidental cue less sufficient. If video data repeats the same correlation, however, the auxiliary target will not break it either.</p>
@@ -337,7 +337,7 @@
 <div class="wrap">
 <div class="lab-badge">
 <i>🔬</i> Lab 2</div>
-<h2>Inspect the model's expectation and estimate success</h2>
+<h2>Compare the model's expectation with the real outcome</h2>
 <div class="prose lab-intro">
 <p>Each row shows a sequence of four future frames, not a decorative thumbnail. Before execution, assign a success probability. Then reveal outcomes and compare forecasts with the Brier score \(B=\frac{1}{N}\sum_i(p_i-y_i)^2\). Zero means exact probabilities; a confident error is penalized more than a cautious one. Calibration separates ranking from trust. A policy may score successful episodes above failures and still be overconfident. That matters on a robot because a stop threshold depends not on ordering alone but on whether a stated probability matches the observed success frequency.</p>
 <p>On a small set, Brier score is a teaching instrument rather than a precise reliability estimate. A real project groups episodes by task and shift type, builds confidence intervals, and checks rare dangerous failures separately. Average calibration must not hide a class where the system is systematically confident and wrong. A visible future tempts us to judge success from its final frame. Yet a plausible endpoint can hide a collision in the middle, while a blurry forecast can preserve the correct action order. Probabilities should therefore use the full sequence and be checked against actual execution. Calibration concerns the policy outcome, not the clip's aesthetics.</p>
@@ -408,7 +408,7 @@
 <div class="prose">
 <div class="kicker">
 <span class="num">8</span> Limits</div>
-<h2>Video pretraining does not confer automatic robustness</h2>
+<h2>Video pretraining alone does not provide robustness</h2>
 <p>A large video model knows many visual regularities, but a geometric shift in camera or initial robot pose changes the relation between pixels and actuators. Training-data diversity remains critical: the same Fast-WAM was more robust after randomized demonstrations and fell sharply when it had seen only a clean environment. Lighting and texture change appearance while often preserving task geometry. Camera and initial pose alter the coordinate relation from which an action is computed. Large-scale video pretraining may therefore help the first group while barely touching the second without robot data containing the required transformations.</p>
 </div>
 <figure class="card stat-fig" aria-label="Chart of robustness for a VLA and two World Action Models">
@@ -433,7 +433,7 @@
 <div class="prose">
 <div class="kicker">
 <span class="num">9</span> State of the field</div>
-<h2>The name stabilized faster than a common definition</h2>
+<h2>The term arrived before a common definition</h2>
 <p>By October 28, 2026, the lesson dossier had found 245 arXiv titles containing “world action model” or “world action models”; nearly all appeared after DreamZero. This makes the term a stable name for a direction, not an architectural standard. The practical question is no longer “is this definitely a WAM?” but “what future signal does the action see, when is it needed, and what does it cost?” One system shows video to a person, another passes latent features, and a third uses the future only as a loss. A shared label is not enough for comparison.</p>
 <p>For a new paper, build a short passport: inputs, future representation, connection to action, feedback rate, robot data, and code availability. It immediately shows which comparisons are fair and which claim can be reproduced. Then inspect the unit of the result. Some papers report complete task success, others stage progress, and others average camera and layout variants. Even the same percentage may denote different events. The course therefore preserves metric labels and does not extend a conclusion beyond the published test.</p>
 <p>GR00T N2 was announced on March 16, 2026 as an architecture based on DreamZero. At the source cutoff—October 28, 2026—there was no public model or weight card. This course separates an announcement from an available result. The term's rapid spread makes incomparable systems look similar. One paper predicts a full video, another predicts an object pose, and a third uses an auxiliary target without runtime generation. A title-based survey therefore needs a mechanism table: what is predicted, where actions arise, which branch runs at inference, and how feedback closes the loop.</p>
