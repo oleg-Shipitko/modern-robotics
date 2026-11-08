@@ -2,6 +2,30 @@
   "_comment": "What's new on the site, English version: the same versions, dates and optional release times as site/changelog.json, titles and items in English. The first number of a version is the last released part, the second grows with every update between releases. Newest first.",
   "versions": [
     {
+      "v": "8.0",
+      "date": "2026-11-21",
+      "time": "09:00",
+      "title": "Part 8: from prototype to product",
+      "items": [
+        "Lessons 8.1–8.8 connect learned models to classical control loops, safety filters, failure recovery, quality assurance, and real-time requirements.",
+        "Dedicated lessons examine modern Physical AI benchmarks, the strategies of real companies, and deployment economics through the cost of a successful task rather than the price of the robot.",
+        "Every topic includes live causal experiments; the Part 8 check assembles a complete system and runs it through eight engineering gates.",
+        "The Part 8 lessons and check are available in Russian and English from day one."
+      ]
+    },
+    {
+      "v": "7.0",
+      "date": "2026-11-14",
+      "time": "09:00",
+      "title": "Part 7: world models",
+      "items": [
+        "Lessons 7.1–7.5 move from World Models and Dreamer through JEPA and generative video models to World Action Models, policy evaluation, and data generation.",
+        "The labs share one kitchen-table world: a policy learns in the model's imagination, hidden actions are recovered from video, and predictions are compared with real physics from identical starts.",
+        "The Part 7 check ends with a live task: assemble a configuration that passes the threshold first in the world model and then on the real table.",
+        "The Part 7 lessons and check are available in Russian and English from day one."
+      ]
+    },
+    {
       "v": "6.3",
       "date": "2026-11-09",
       "title": "Explanations for correct answers in card-sorting tasks",
