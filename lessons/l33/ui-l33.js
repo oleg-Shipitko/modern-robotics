@@ -336,6 +336,87 @@ const LabVla = (() => {
   return { init, api, st, KINDS, SEEDS, EPOCHS, MIS: missions };
 })();
 
+/* ---------- анимированная схема дискретизации действия ---------- */
+'use strict';
+(() => {
+  const STEP = 4, EXAMPLES = [1, 2, 3, 4, 5, 6, 7], T = STEP * EXAMPLES.length;
+  const FIELDS = ['term', 'Δposx', 'Δposy', 'Δposz', 'Δrotx', 'Δroty', 'Δrotz', 'grip'];
+  const FULL_FIELDS = ['terminate', 'Δposx', 'Δposy', 'Δposz', 'Δrotx', 'Δroty', 'Δrotz', 'gripper_extension'];
+  const VALUES = ['0', '+0.57', '−0.29', '+0.89', '−0.96', '−0.21', '−0.004', '−0.92'];
+  const BINS = [0, 200, 91, 241, 5, 101, 127, 10];
+  function cards(c, k, P, A, G, tokens, pulse, active) {
+    const { rect, lab, alpha } = A;
+    FIELDS.forEach((field, i) => {
+      const col = i % 4, row = Math.floor(i / 4), x = G.x + col * (G.w + G.gap), y = G.y + row * (G.h + G.rowGap), hi = i === active;
+      rect(c, x, y, G.w, G.h, 6, hi ? alpha(P.mot, 0.11 + pulse * 0.1) : P.surf, hi ? P.mot : P.line, hi ? 2 : 1.1);
+      if (tokens) {
+        lab(c, k, String(BINS[i]), x + G.w / 2, y + G.h / 2, { px: G.tokenPx, weight: 800, color: hi ? P.mot : P.ink, mono: true, halo: false });
+      } else {
+        lab(c, k, field, x + G.w / 2, y + 12, { px: G.fieldPx, weight: 750, color: P.ink, mono: true, halo: false });
+        lab(c, k, VALUES[i], x + G.w / 2, y + G.h - 10, { px: G.valuePx, weight: 650, color: hi ? P.mot : P.ink3, mono: true, halo: false });
+      }
+    });
+  }
+  function movingDot(c, from, to, p, P, A) {
+    const q = Math.max(0, Math.min(1, p));
+    A.circle(c, from[0] + (to[0] - from[0]) * q, from[1] + (to[1] - from[1]) * q, 3.2, P.mot);
+  }
+  function drawBins(c, k, t, P, A, G) {
+    const { rect, lab, line, arrow, alpha } = A, u = ((t % T) + T) % T, step = u % STEP, active = EXAMPLES[Math.floor(u / STEP)], pulse = (1 + Math.sin(step * Math.PI)) / 2;
+    // Сначала связи в свободных коридорах между тремя шагами.
+    G.links.forEach(([from, to]) => arrow(c, from[0], from[1], to[0], to[1], alpha(P.ink3, 0.75), 2, 6));
+    if (step < 2) movingDot(c, G.links[0][0], G.links[0][1], step / 2, P, A);
+    else movingDot(c, G.links[1][0], G.links[1][1], (step - 2) / 2, P, A);
+
+    for (const p of G.panels) rect(c, p[0], p[1], p[2], p[3], 10, alpha(P.surf, 0.9), P.line, 1.2);
+
+    lab(c, k, '1 · действие робота', G.titles[0][0], G.titles[0][1], { align: 'left', px: G.titlePx, weight: 800, color: P.ink });
+    lab(c, k, 'восемь полей в фиксированном порядке', G.subs[0][0], G.subs[0][1], { align: 'left', px: G.subPx, weight: 600, color: P.ink3 });
+    cards(c, k, P, A, G.actionGrid, false, pulse, active);
+
+    lab(c, k, '2 · дискретизация', G.titles[1][0], G.titles[1][1], { align: 'left', px: G.titlePx, weight: 800, color: P.ink });
+    lab(c, k, `${FULL_FIELDS[active]} = ${VALUES[active]}`, G.subs[1][0], G.subs[1][1], { align: 'left', px: G.subPx, weight: 700, color: P.mot, mono: true });
+    rect(c, G.bar[0], G.bar[1], G.bar[2], G.bar[3], 6, P.outS, P.out, 1.3);
+    for (let i = 1; i < 16; i++) line(c, [[G.bar[0] + G.bar[2] * i / 16, G.bar[1] + 5], [G.bar[0] + G.bar[2] * i / 16, G.bar[1] + G.bar[3] - 5]], alpha(P.out, 0.32), 1);
+    const mx = G.bar[0] + G.bar[2] * BINS[active] / 255;
+    rect(c, mx - 4, G.bar[1] - 3, 8, G.bar[3] + 6, 4, alpha(P.mot, 0.72 + pulse * 0.28), P.mot, 1);
+    lab(c, k, '−1', G.bar[0], G.bar[1] + G.bar[3] + 12, { align: 'left', px: G.axisPx, weight: 650, color: P.ink3, mono: true });
+    lab(c, k, '+1', G.bar[0] + G.bar[2], G.bar[1] + G.bar[3] + 12, { align: 'right', px: G.axisPx, weight: 650, color: P.ink3, mono: true });
+    lab(c, k, `корзина ${BINS[active]} из 256`, G.binLabel[0], G.binLabel[1], { px: G.binPx, weight: 800, color: P.mot, mono: true });
+
+    lab(c, k, '3 · ответ VLM', G.titles[2][0], G.titles[2][1], { align: 'left', px: G.titlePx, weight: 800, color: P.ink });
+    lab(c, k, 'восемь токенов в том же порядке', G.subs[2][0], G.subs[2][1], { align: 'left', px: G.subPx, weight: 600, color: P.ink3 });
+    cards(c, k, P, A, G.tokenGrid, true, pulse, active);
+    lab(c, k, 'terminate уже дискретен: 0 или 1 — его не делят на корзины', G.note[0], G.note[1], { px: G.notePx, weight: 650, color: P.ink2 });
+  }
+  Anim.add('action-bins', {
+    W: 720, H: 260, start: 0.2, narrowAt: 600,
+    draw(c, k, t, P, A) {
+      drawBins(c, k, t, P, A, {
+        panels: [[10, 18, 210, 190], [255, 18, 210, 190], [500, 18, 210, 190]],
+        links: [[ [224, 113], [250, 113] ], [ [469, 113], [495, 113] ]],
+        titles: [[22, 38], [267, 38], [512, 38]], subs: [[22, 57], [267, 57], [512, 57]],
+        actionGrid: { x: 22, y: 74, w: 43, h: 44, gap: 5, rowGap: 7, fieldPx: 7.8, valuePx: 8.8 },
+        tokenGrid: { x: 512, y: 74, w: 43, h: 44, gap: 5, rowGap: 7, tokenPx: 11 },
+        bar: [270, 92, 180, 30], binLabel: [360, 161], note: [360, 236], titlePx: 11.5, subPx: 9.8, axisPx: 9, binPx: 11, notePx: 10.5,
+      });
+    },
+    narrow: {
+      W: 360, H: 500,
+      draw(c, k, t, P, A) {
+        drawBins(c, k, t, P, A, {
+          panels: [[8, 16, 344, 154], [8, 193, 344, 116], [8, 332, 344, 128]],
+          links: [[ [180, 174], [180, 189] ], [ [180, 313], [180, 328] ]],
+          titles: [[20, 36], [20, 213], [20, 352]], subs: [[20, 54], [20, 231], [20, 370]],
+          actionGrid: { x: 20, y: 68, w: 74, h: 38, gap: 8, rowGap: 7, fieldPx: 8.5, valuePx: 9.2 },
+          tokenGrid: { x: 20, y: 382, w: 74, h: 31, gap: 8, rowGap: 7, tokenPx: 10.5 },
+          bar: [36, 246, 288, 26], binLabel: [180, 294], note: [180, 484], titlePx: 11, subPx: 9.5, axisPx: 8.5, binPx: 10.5, notePx: 9.3,
+        });
+      },
+    },
+  });
+})();
+
 /* ---------- анимированная схема пути данных (бывший flow.js) ---------- */
 'use strict';
 (() => {

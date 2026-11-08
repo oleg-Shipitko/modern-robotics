@@ -2,6 +2,16 @@
   "_comment": "What's new on the site, English version: the same versions, dates and optional release times as site/changelog.json, titles and items in English. The first number of a version is the last released part, the second grows with every update between releases. Newest first.",
   "versions": [
     {
+      "v": "6.2",
+      "date": "2026-11-08",
+      "title": "Lesson 3.3: clearer models and action discretization",
+      "items": [
+        "PaLI-X-55B and PaLM-E-12B are now explained at first mention: their visual and language components, and why neither model was a control policy before RT-2.",
+        "The research question is tied to the full title of the RT-2 paper, while TPU is explained in the lesson and added to the glossary.",
+        "A new animated diagram shows continuous action fields mapping in turn to different bins from 0 to 255 and occupying the same positions in the VLM's eight output tokens."
+      ]
+    },
+    {
       "v": "6.1",
       "date": "2026-11-06",
       "title": "Lesson 3.2 visualization fixes",

@@ -68,6 +68,8 @@ async function seedRun(seed) {
   check((await p.eval(`document.querySelectorAll('#recall .rc-q').length`)) === 3, 'разминка по уроку 3.2: три вопроса');
   check(await p.eval(`!!document.querySelector('a[href="3-4-open-x-embodiment.html"]')`), 'ссылка «Дальше» на урок 3.4 на месте (сборка на 17.10)');
   check(await p.eval(`!!document.querySelector('a[href="https://robotics-transformer2.github.io"]')`), 'ссылка на страницу проекта RT-2');
+  check(await p.eval(`!document.querySelector('#vla a[href="https://arxiv.org/abs/2307.15818"]') && document.querySelector('#vla').textContent.includes('RT-2: Vision-Language-Action Models Transfer Web Knowledge to Robotic Control')`), 'статья RT-2 названа в тексте без повторной ссылки');
+  check(await p.eval(`document.querySelectorAll('[data-gl="tpu"]').length > 0`), 'TPU размечен термином глоссария');
 
   // ---------- 1. Действие словами ----------
   console.log('Действие словами');
@@ -102,8 +104,11 @@ async function seedRun(seed) {
   const t6 = await p.eval(`[...document.querySelectorAll('#rtT6 tbody tr')].map((r) => r.children[8].textContent).join(',')`);
   check(t6 === '9,42,44,52,63', 'таблица 6: средние 9, 42, 44, 52, 63 — ' + t6);
   const an = J(await p.eval(`JSON.stringify([...document.querySelectorAll('canvas[data-anim]')].map((cv) => { Anim.seek(cv, 1.0); const a = cv.toDataURL(); Anim.seek(cv, 7.5); const b = cv.toDataURL(); return { k: cv.dataset.anim, moves: a !== b }; }))`));
-  check(an.length === 1 && an.every((x) => x.moves), 'анимированная схема rt2 движется: ' + JSON.stringify(an));
-  await p.eval(`document.querySelector('canvas[data-anim]').scrollIntoView({ block: 'center', behavior: 'instant' }); Anim.seek(document.querySelector('canvas[data-anim]'), 9.5); true`); await sleep(200); await p.shotEl(out('l33-flow.png'), '.flow-card', 4);
+  check(an.length === 2 && an.some((x) => x.k === 'action-bins') && an.some((x) => x.k === 'rt2') && an.every((x) => x.moves), 'обе анимированные схемы движутся: ' + JSON.stringify(an));
+  const binFrames = await p.eval(`(() => { const cv = document.querySelector('[data-anim="action-bins"]'); return new Set([1, 5, 9, 13, 17, 21, 25].map((t) => { Anim.seek(cv, t); return cv.toDataURL(); })).size; })()`);
+  check(binFrames === 7, 'схема дискретизации показывает семь разных корзин');
+  await p.eval(`document.querySelector('[data-anim="action-bins"]').scrollIntoView({ block: 'center', behavior: 'instant' }); Anim.seek(document.querySelector('[data-anim="action-bins"]'), 3.5); true`); await sleep(200); await p.shotEl(out('l33-action-bins.png'), '.action-disc-card', 4);
+  await p.eval(`document.querySelector('[data-anim="rt2"]').scrollIntoView({ block: 'center', behavior: 'instant' }); Anim.seek(document.querySelector('[data-anim="rt2"]'), 9.5); true`); await sleep(200); await p.shotEl(out('l33-flow.png'), '#cofinetune .flow-card', 4);
 
   // ---------- 2. Лаборатория: мини-VLA ----------
   console.log('Лаборатория');
@@ -175,7 +180,8 @@ async function seedRun(seed) {
   await p.eval(`document.documentElement.dataset.theme = 'dark'; window.dispatchEvent(new Event('resize')); true`); await sleep(500);
   await p.eval(`document.getElementById('lab').scrollIntoView({ behavior: 'instant' }); true`); await sleep(300); await p.shotEl(out('l33-lab-dark.png'), '#lab .lab', 6);
   await p.eval(`document.getElementById('tokens').scrollIntoView({ behavior: 'instant' }); true`); await sleep(300); await p.shotEl(out('l33-tok-dark.png'), '#tokens .lab', 6);
-  await p.eval(`document.querySelector('canvas[data-anim]').scrollIntoView({ block: 'center', behavior: 'instant' }); Anim.seek(document.querySelector('canvas[data-anim]'), 5.5); true`); await sleep(200); await p.shotEl(out('l33-flow-dark.png'), '.flow-card', 4);
+  await p.eval(`document.querySelector('[data-anim="action-bins"]').scrollIntoView({ block: 'center', behavior: 'instant' }); Anim.seek(document.querySelector('[data-anim="action-bins"]'), 5.5); true`); await sleep(200); await p.shotEl(out('l33-action-bins-dark.png'), '.action-disc-card', 4);
+  await p.eval(`document.querySelector('[data-anim="rt2"]').scrollIntoView({ block: 'center', behavior: 'instant' }); Anim.seek(document.querySelector('[data-anim="rt2"]'), 5.5); true`); await sleep(200); await p.shotEl(out('l33-flow-dark.png'), '#cofinetune .flow-card', 4);
   check(!p.logs.length, 'консоль после тёмной темы: ' + (p.logs.join(' | ') || 'чисто'));
 
   console.log('телефон');
@@ -186,10 +192,10 @@ async function seedRun(seed) {
   await sleep(300);
   check((await m.eval('document.documentElement.scrollWidth')) <= 390, 'телефон: ширина ' + await m.eval('document.documentElement.scrollWidth'));
   const fit2 = await labsFit(m); check(!fit2.length, 'телефон: ни одна карточка .lab не шире себя: ' + JSON.stringify(fit2));
-  check((await m.eval(`document.querySelector('canvas[data-anim]').dataset.layout`)) === 'n', 'телефон: схема в узкой раскладке');
+  check(await m.eval(`[...document.querySelectorAll('canvas[data-anim]')].every((cv) => cv.dataset.layout === 'n')`), 'телефон: обе схемы в узкой раскладке');
   await m.S('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
   await sleep(300);
-  for (const [sel, n] of [['#tokens .lab', 'l33-m-tok.png'], ['.flow-card', 'l33-m-flow.png'], ['#cofinetune .rt-tables', 'l33-m-table.png'], ['#lab .lab', 'l33-m-lab.png'], ['#eSort', 'l33-m-sort.png']]) {
+  for (const [sel, n] of [['.action-disc-card', 'l33-m-action-bins.png'], ['#tokens .lab', 'l33-m-tok.png'], ['#cofinetune .flow-card', 'l33-m-flow.png'], ['#cofinetune .rt-tables', 'l33-m-table.png'], ['#lab .lab', 'l33-m-lab.png'], ['#eSort', 'l33-m-sort.png']]) {
     await m.eval(`document.querySelector('${sel}').scrollIntoView({ behavior: 'instant' }); true`); await sleep(300);
     await m.shotEl(out(n), sel, 4);
   }

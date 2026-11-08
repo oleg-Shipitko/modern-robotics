@@ -230,5 +230,12 @@
  "Только демонстрации, как RT‑1": "Demonstrations only, like RT‑1",
  "Корзина Δx не меньше 170: смещение не меньше трети диапазона": "Δx bin at least 170: a shift of at least a third of the range",
  "Цифр в данных робота нет. Команда из группы «понимание символов»: в её подгруппе с цифрами и буквами RT-2-PaLI-X справился в 93% запусков, по всей группе — в 82% (таблица 5 статьи).": "There are no digits in the robot data. This command belongs to the “symbol understanding” group: in its subgroup with digits and letters, RT-2-PaLI-X succeeded in 93% of runs, and across the whole group in 82% (Table 5 of the paper).",
- "завершение = 1: движения нет": "terminate = 1: no motion"
+ "завершение = 1: движения нет": "terminate = 1: no motion",
+ "1 · действие робота": "1 · robot action",
+ "восемь полей в фиксированном порядке": "eight fields in a fixed order",
+ "2 · дискретизация": "2 · discretization",
+ "корзина ${BINS[active]} из 256": "bin ${BINS[active]} of 256",
+ "3 · ответ VLM": "3 · VLM output",
+ "восемь токенов в том же порядке": "eight tokens in the same order",
+ "terminate уже дискретен: 0 или 1 — его не делят на корзины": "terminate is already discrete: 0 or 1, so it is not split into bins"
 }

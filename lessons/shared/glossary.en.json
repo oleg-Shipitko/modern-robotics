@@ -822,6 +822,18 @@
   "a": "RT-2"
  },
  {
+  "id": "tpu",
+  "t": "TPU (Tensor Processing Unit)",
+  "d": "A Google accelerator for the matrix and tensor computations used by neural networks. A TPU cluster combines several such accelerators; RT-2-PaLI-X-55B ran in a cloud service with multiple TPUs and was queried over the network.",
+  "a": "TPUs?|Tensor Processing Units?"
+ },
+ {
+  "id": "action-discretization",
+  "t": "Action discretization",
+  "d": "Converting a continuous action into integers: the range of each axis is split into equal bins—256 in RT-1 and RT-2—and the bin number replaces the value. This turns an action into a sequence of tokens.",
+  "a": "action discretization"
+ },
+ {
   "id": "co-fine-tuning",
   "t": "Co-fine-tuning",
   "d": "Fine-tuning a pretrained model on new data together with the original data: in RT-2, robot demonstrations in every batch alongside the VLM’s web data. It keeps the model from forgetting what it knew. In RT-2 it clearly helped the 55B model (63% vs 52%), but barely the 5B one (44% vs 42%).",
