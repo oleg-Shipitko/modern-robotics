@@ -16,6 +16,8 @@
  "Проверить": "Check",
  "Всё разложено — можно проверять": "All placed — ready to check",
  "<p><b>${score} из ${spec.items.length}.</b> ${score === spec.items.length ? 'Всё верно.' : 'Разбор ошибок:'}</p>": "<p><b>${score} of ${spec.items.length}.</b> ${score === spec.items.length ? 'All correct.' : 'Where it went wrong:'}</p>",
+ "Почему так:": "Why:",
+ "Почему остальные карточки лежат верно:": "Why the other cards are in the right place:",
  "Выбор ответа": "Multiple choice",
  "Что произойдёт": "What happens",
  "Порядок": "Ordering",

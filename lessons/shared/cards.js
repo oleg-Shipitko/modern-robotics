@@ -6,7 +6,7 @@
    ошибочные» оставляет верные карточки на месте (они закреплены), возвращает
    неверные в набор и даёт проверить снова; разбор ошибок остаётся на экране.
    Cards.sort(root, { items: [{ id, label, sub?, target, why }], targets: [{ id, label, note? }],
-                      checkLabel?, onCheck?(score, total) })
+                      checkLabel?, explainCorrect? = true, onCheck?(score, total) })
    Подходит и для «расставь по шкале»: корзины — интервалы шкалы.
    ===================================================================== */
 'use strict';
@@ -96,14 +96,17 @@ window.Cards = (function () {
       c.addEventListener('keydown', (e) => { if (e.key === 'Escape') select(null); });
     }
     checkBtn.addEventListener('click', () => {
-      checked = true; select(null); let score = 0; const wrong = [];
+      checked = true; select(null); let score = 0; const correct = [], wrong = [];
       spec.items.forEach((it) => {
-        const c = cards[it.id], z = c.parentElement.dataset.zone, ok = z === it.target; if (ok) score++; else wrong.push(it);
+        const c = cards[it.id], z = c.parentElement.dataset.zone, ok = z === it.target; if (ok) { score++; correct.push(it); } else wrong.push(it);
         c.classList.add(ok ? 'c-ok' : 'c-bad'); c.disabled = true;
       });
       const tname = (id) => (spec.targets.find((t) => t.id === id) || {}).label || '';
+      const explain = (items) => '<ul>' + items.map((it) => `<li><b>${it.label}</b> → ${tname(it.target)}. ${it.why || ''}</li>`).join('') + '</ul>';
+      const correctTitle = score === spec.items.length ? 'Почему так:' : 'Почему остальные карточки лежат верно:';
       out.innerHTML = `<p><b>${score} из ${spec.items.length}.</b> ${score === spec.items.length ? 'Всё верно.' : 'Разбор ошибок:'}</p>` +
-        (wrong.length ? '<ul>' + wrong.map((it) => `<li><b>${it.label}</b> → ${tname(it.target)}. ${it.why || ''}</li>`).join('') + '</ul>' : '') +
+        (wrong.length ? explain(wrong) : '') +
+        (spec.explainCorrect !== false && correct.some((it) => it.why) ? `<p><b>${correctTitle}</b></p>${explain(correct.filter((it) => it.why))}` : '') +
         (spec.after ? `<p>${spec.after}</p>` : '');
       redoBtn.hidden = !wrong.length;
       refresh(); if (spec.onCheck) spec.onCheck(score, spec.items.length);

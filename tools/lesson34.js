@@ -44,6 +44,7 @@ const shotSec = async (p, id, file, sel) => { await p.eval(`document.getElementB
   check((await p.eval(`document.querySelector('#fmtSort .c-body[data-zone="keep"] .c-card[data-id="frame"]') !== null`)), 'карточка «ось x в базе» через нажатия попала в «остаётся невыровненным»');
   await p.eval(`(() => { const F = window.__l34.FmtSort; F.ITEMS.forEach((it) => F.ctl.place(it.id, it.target)); F.ctl.check(); return true; })()`); await sleep(100);
   check((await p.eval(`document.querySelectorAll('#fmtSort .c-card.c-ok').length`)) === 13 && /13 из 13/.test(await p.eval(`document.querySelector('#fmtSort .c-out').textContent`)), 'все карточки на местах — 13 из 13');
+  check(await p.eval(`(() => { const F = window.__l34.FmtSort, t = document.querySelector('#fmtSort .c-out').textContent; return t.includes('Почему так:') && F.ITEMS.every((it) => t.includes(it.why)); })()`), 'верная сортировка объясняет все 13 карточек');
   await shotSec(p, 'format', 'l34-format.png', '#fmtSort');
 
   // ---------- 2. таблицы статьи ----------
@@ -143,6 +144,8 @@ const shotSec = async (p, id, file, sel) => { await p.eval(`document.getElementB
   await m.eval('window.__l34.SPEED.k = 20; true');
   await m.eval(`window.__l34.LabTables.api.open('t1').then(() => true)`, true);
   await m.eval(`window.__l34.LabMix.api.trainOwn().then(() => window.__l34.LabMix.api.trainMix()).then(() => true)`, true);
+  const mobileSort = await m.eval(`(() => { const F = window.__l34.FmtSort; F.ITEMS.forEach((it) => F.ctl.place(it.id, it.target)); F.ctl.check(); const t = document.querySelector('#fmtSort .c-out').textContent; return t.includes('Почему так:') && F.ITEMS.every((it) => t.includes(it.why)); })()`);
+  check(mobileSort, 'телефон: верная сортировка объясняет все 13 карточек');
   check((await m.eval('document.documentElement.scrollWidth')) <= 390, 'телефон: ширина ' + await m.eval('document.documentElement.scrollWidth'));
   const labs = J(await m.eval(`JSON.stringify([...document.querySelectorAll('.lab')].map((l) => ({ w: Math.round(l.getBoundingClientRect().width), pw: Math.round(l.parentElement.getBoundingClientRect().width) })))`));
   check(labs.length === 2 && labs.every((l) => l.w <= l.pw), 'ни одна .lab не шире своей карточки: ' + labs.map((l) => l.w + '/' + l.pw).join(', '));

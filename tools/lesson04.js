@@ -233,7 +233,10 @@ async function desktop() {
   await p.shotEl(out('l04-today.png'), '#today .stack-card', 6);
   const sortRes = await p.eval(`(() => { const S = window.L4_SORT, c = window.__l04.mis.sort; S.items.forEach((it, k) => c.place(it.id, k === 0 ? 'pf' : it.target)); c.check(); return document.querySelector('#methodSort .c-out').textContent; })()`);
   console.log('  сортировка (одна ошибка нарочно):', sortRes.slice(0, 260));
+  ok(sortRes.includes('Почему остальные карточки лежат верно:') && sortRes.includes('Пока измерений нет'), 'сортировка объясняет не только ошибку, но и верные карточки');
   await p.shotEl(out('l04-sort.png'), '#methodSort', 6);
+  const sortPerfect = await p.eval(`(() => { const S = window.L4_SORT, c = window.__l04.mis.sort; c.redo(); c.place(S.items[0].id, S.items[0].target); c.check(); const t = document.querySelector('#methodSort .c-out').textContent; return t.includes('Почему так:') && S.items.every((it) => t.includes(it.why)); })()`);
+  ok(sortPerfect, 'при полностью верной сортировке показаны объяснения всех карточек');
   await p.eval(`(() => { const Q = window.L4_QUIZ; document.querySelectorAll('#quizBox .q-card').forEach((c, i) => { [...c.querySelectorAll('.q-opt')].find((b) => b.textContent === Q[i].o[Q[i].a]).click(); }); })()`);
   console.log('  квиз:', await p.eval('document.querySelector("#quizScore").textContent'));
   await p.shotEl(out('l04-quiz.png'), '#quiz .quiz', 6);
@@ -286,6 +289,8 @@ async function phone() {
   await m.shotEl(out('l04-m-dims.png'), '#dims .dim-card', 4);
   await m.eval('document.querySelectorAll("#todaySeg button")[2].click()');
   await m.shotEl(out('l04-m-today.png'), '#today .stack-card', 4);
+  const sortMobile = await m.eval(`(() => { const S = window.L4_SORT, c = window.__l04.mis.sort; S.items.forEach((it) => c.place(it.id, it.target)); c.check(); const t = document.querySelector('#methodSort .c-out').textContent; return t.includes('Почему так:') && S.items.every((it) => t.includes(it.why)); })()`);
+  ok(sortMobile, 'телефон: верная сортировка показывает объяснения всех карточек');
   await m.shotEl(out('l04-m-sort.png'), '#methodSort', 4);
   await m.S('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true }); await sleep(300);
   console.log('— Схемы на телефоне');

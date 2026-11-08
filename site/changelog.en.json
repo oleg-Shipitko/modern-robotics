@@ -2,6 +2,15 @@
   "_comment": "What's new on the site, English version: the same versions, dates and optional release times as site/changelog.json, titles and items in English. The first number of a version is the last released part, the second grows with every update between releases. Newest first.",
   "versions": [
     {
+      "v": "6.3",
+      "date": "2026-11-09",
+      "title": "Explanations for correct answers in card-sorting tasks",
+      "items": [
+        "All 18 card-sorting tasks now explain correct answers as well as mistakes: every card is paired with its correct category and the reason for that choice.",
+        "A partly correct arrangement separates the mistakes from the correctly placed cards, while a fully correct arrangement explains the entire result. The improvement applies to 17 lessons in both Russian and English."
+      ]
+    },
+    {
       "v": "6.2",
       "date": "2026-11-08",
       "title": "Lesson 3.3: clearer models and action discretization",
