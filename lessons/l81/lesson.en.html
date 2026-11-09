@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>8.1 Classical methods in the control loop — Modern Robotics and Physical AI</title>
+<meta name="description" content="Lesson 8.1: decide where classical methods belong in a neural robotic system. Compare a torque policy with a target policy and impedance control, train a residual policy, and assign perception, grasp selection, path planning, and control to networks or classical methods.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<script>
+  (function () { try { var t = localStorage.getItem('mr-theme'); if (t) document.documentElement.dataset.theme = t; else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme = 'dark'; } catch (e) {} })();
+</script>
+<style>
+/*@@CSS@@*/
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html#program" title="Course outline"><div>Modern Robotics and Physical AI<small>Lesson 8.1 · Classical methods in the control loop</small></div></a>
+    <nav class="toc" aria-label="Lesson sections">
+      <a href="#why">Why</a>
+      <a href="#target">Target or torque</a>
+      <a href="#residual">Correction</a>
+      <a href="#systems">Systems</a>
+      <a href="#layers">Layers</a>
+      <a href="#today">Today</a>
+      <a href="#quiz">Quiz</a>
+      <a href="#finale">Summary</a>
+    </nav>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Toggle theme">◐</button>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main>
+
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="kicker"><span class="num">8.1</span> Part 8 · From prototype to product</div>
+    <h1>Classical methods <span class="amp">in the control loop</span></h1>
+    <p class="lead">In Lesson 7.5 we screened a policy in a world model, then confirmed the final choice on a real robot. Now we examine what executes the selected action inside the robot. The neural networks from Parts 1–7 understand the scene and the request: they find the right cup among the dishes, decide where to grasp it, and guide the arm. But their motion is imprecise, may jitter, and carries no force guarantee; their errors are rare but unpredictable. The controller from Lesson 0.3 is precise and predictable, but does not know what task to perform. This lesson combines the two: a network specifies a target, while inverse kinematics, a path planner, and an impedance controller execute it; or a network learns a single correction to a controller whose model is incomplete. Real home systems use the same division of labor. OK-Robot (2024) finds objects and selects grasps with open neural models, while classical A* plans the robot's path: in ten unfamiliar homes it completed 58.5% of pick-and-drop tasks, rising to 82.4% after decluttering. On a real arm, a network trained only as a correction to a hand-built controller inserted a block between tilted blocks in 15 of 20 trials; the controller alone succeeded in 2.</p>
+    <div class="hero-meta"><span>≈ 50 minutes</span><span>3 labs and a quiz</span><span id="heroMis">goal-driven missions</span></div>
+    <div class="hero-list">
+      <div><b>TARGET OR TORQUE</b>Train two networks on the same demonstrations: one drives Ada's arm motors directly, while the other only says where to place the gripper. Compare accuracy, jitter, and the response to a push toward the table</div>
+      <div><b>CONTROLLER CORRECTION</b>The controller does not know the pot's weight. Find how many demonstrations a residual network needs, then compare it with a network that learns arm control from scratch</div>
+      <div><b>REAL SYSTEMS</b>See how OK-Robot divides work across modules, where it fails, and how RT-Trajectory passes a path sketch to the robot</div>
+      <div><b>SYSTEM LAYERS</b>Assign perception, grasp selection, path planning, and control to a network or to classical methods, then test your design on five scenes</div>
+    </div>
+    <p style="margin-top:28px"><a class="btn primary" href="#why">Start lesson ↓</a></p>
+  </div>
+</section>
+
+<section class="recall-sec" id="recall" aria-label="Recall from Lesson 0.3">
+  <div class="wrap"><div class="card recall" data-recall></div></div>
+  <script type="application/json" id="recallData">{"n": "0.3", "title": "Kinematics and control", "href": "0-3-kinematika-i-upravlenie.html", "q": [{"q": "The arm in Lesson 0.3 holds a cup with a PD controller but no gravity compensation and sags by 12.6 cm. What removes the sag completely?", "o": ["A spring several times stiffer", "Gravity compensation: the controller adds in advance the torque that the arm model says is needed to hold its weight", "A stronger damper"], "a": 1, "e": "Higher stiffness only reduces sag: at Kp = 190 it is still 3.8 cm. Gravity compensation carries the weight itself, so the sag vanishes even with Kp no greater than 80. But if the model does not know the payload weight, the sag returns; that is where Lab 2 of Lesson 8.1 begins.", "sec": "pd", "secTitle": "Controller: spring and damper"}, {"q": "The camera is off by 4 cm, putting the target below the table. Why does the impedance-controlled arm hit the table less forcefully than the position-controlled arm?", "o": ["It moves more slowly", "It behaves like a spring of known stiffness: force grows only with the error, approximately K·Δx", "Its camera is more accurate"], "a": 1, "e": "With a 4 cm error, the position-controlled arm hit the table with 299 N; the impedance-controlled arm, with 76 N. Impedance turns target error into a force that can be calculated in advance.", "sec": "imp", "secTitle": "Impedance: how hard to push"}, {"q": "What does a neural policy on a real robot usually output?", "o": ["Motor currents, thousands of times per second", "Targets—joint angles or gripper poses—executed by a classical layer of kinematics, controllers, and MPC", "A complete trajectory for the entire task at once"], "a": 1, "e": "The closer a layer is to the motor, the faster it runs: the network responds tens of times per second, while the controller may run at a thousand. Lesson 8.1 explains why and where the boundary lies.", "sec": "stack", "secTitle": "Who executes the network's commands"}]}</script>
+</section>
+
+<section class="section alt" id="why">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">1</span> Why keep classical methods</div>
+      <h2>What the network understands—and what it cannot guarantee</h2>
+      <p>The models from Parts 1–7 do what rules cannot. RT-2 from Lesson 3.3 follows commands involving objects absent from the robot data; π0 from Lesson 3.6 emits chunks of 50 continuous actions. But these models provide no guarantees. They fail rarely, yet unpredictably: the arm may stop two centimeters short of a handle, jitter near the target, or press the gripper against the table too hard—and nobody notices. Lesson 0.1 called these silent failures.</p>
+      <p class="ada-note"><svg class="ada-ico" viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="10" width="48" height="42" rx="18" fill="#f4efe6" stroke="#3d3c38" stroke-width="3"/><rect x="15" y="19" width="34" height="22" rx="10" fill="#1f2430"/><ellipse cx="25" cy="30" rx="4" ry="5.5" fill="#eb6834"/><ellipse cx="39" cy="30" rx="4" ry="5.5" fill="#eb6834"/></svg><span>Ada is the home humanoid robot on a wheeled base used throughout the course labs. Meet her in <a href="0-1-dve-paradigmy.html#ada">Lesson 0.1</a>.</span></p>
+      <p>Classical methods have the opposite trade-off. The impedance controller from Lesson 0.3 is precise and predictable: if the camera is off by 4 cm, the arm presses the table with a force that can be calculated in advance—roughly stiffness times error. Inverse kinematics will not place the gripper beyond the arm's reach. But neither the controller nor kinematics knows where the cup is or what to do with it.</p>
+      <p>This leads to the lesson's central idea. The network decides what to do and outputs a <strong>target</strong>—a grasp point, a pose, or a path sketch. Here a target is whatever the controller pulls the arm toward: the point where the gripper should arrive, or the desired joint angles. Classical methods execute that target. They run faster than the network, use an arm model, and have a known stiffness. The diagram shows two ways to close the loop around Ada's arm.</p>
+    </div>
+    <figure class="card flow-card">
+      <canvas data-anim="loop81" width="720" height="360" role="img" aria-label="Two control loops: above, a network reads the camera and joint sensors and sends motor torques 50 times per second, producing stepwise torque; below, the network sends a target while a path planner and impedance controller compute torque 1,000 times per second, producing smooth torque"></canvas>
+      <figcaption class="muted-s">The diagram shows two ways to close the loop around Ada's arm. Orange marks learned components, blue marks classical methods, and gray marks motors and sensors. Dots on the arrows are messages: the network responds 50 times per second, while the controller responds 1,000 times per second (time is slowed down in the diagram). Beside each loop is the shoulder-joint torque. Network output is held for 20 ms and changes in steps; controller output changes smoothly. Click the diagram to pause it.</figcaption>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>Lesson 0.3 showed that almost every real robot works this way: the policy outputs targets and a controller layer computes torques. But why? A network that outputs torques directly sees the same camera and learns from the same demonstrations. What does it do worse?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="target">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 1</div>
+    <h2>One task, two networks: torque or target</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>For a fair comparison, we use two networks of the same size—two hidden layers of 32 neurons—and the same data. Ada picks up a cup or a sponge from the table. A classical controller that knows the object's exact position records the demonstrations: it guides the gripper to a point above the object, lowers it, and holds it with impedance control. There are 100 demonstrations, each with a cup or sponge at a random place on the table. Small torque noise is added while recording, like the noisy DART operator from Lesson 1.1, so that the data includes corrections from deviations.</p>
+      <p>Both networks train for the same number of steps on these demonstrations. Both see Ada's camera: a strip of 24 cells, each 2.5 cm wide, containing the height of whatever stands on the table. The <strong>torque network</strong> also sees joint angles and velocities and outputs motor torques 50 times per second. It drives the arm all the way from camera to motor—end-to-end control. The <strong>target network</strong> only names the point where the gripper should arrive, also 50 times per second. Classical methods plan a path to that point, and the impedance controller from Lesson 0.3 computes torques 1,000 times per second.</p>
+      <p>Both are tested under identical conditions: five cups, five sponges close to the table, and a downward push after the gripper has reached a cup. The gripper must stop inside the green box and press the table with no more than 20 N.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="duo" id="aDuo">
+          <figure class="pane"><figcaption class="pane-head"><b class="c-e2e">Torque network</b><span>the network sends motor torques 50 times per second</span></figcaption><canvas id="aCvL" width="600" height="460" role="img" aria-label="Side view of Ada's arm controlled by the torque network, the table, and an object"></canvas><div class="pane-stat" id="aStatL"></div></figure>
+          <figure class="pane"><figcaption class="pane-head"><b class="c-hyb">Target network and classical control</b><span>the network names a point; the controller computes torque 1,000 times per second</span></figcaption><canvas id="aCvR" width="600" height="460" role="img" aria-label="Side view of Ada's arm guided by an impedance controller to the point named by the target network"></canvas><div class="pane-stat" id="aStatR"></div></figure>
+        </div>
+        <p class="cv-note">Ada's arm and the table are shown from the side at the same scale in both panels; Ada's body is visible on the left. The orange arm in the left panel is driven by the torque network. The purple arm on the right is driven by the target network and controller. The green box marks where the gripper must stop to pick up the object. On the right, the orange cross is the point named by the target network, and the purple dashed line is the classical path. The red arrow shows the table's force on the gripper; the gray arrow shows the push. The thin trail behind the gripper shows its last second of motion. The bars below the table are Ada's camera readings: height above the table in each of 24 cells.</p>
+        <div class="a-plot"><canvas id="aPlot" width="640" height="210" role="img" aria-label="Shoulder-joint torque over a test run for both arms"></canvas></div>
+        <p class="cv-note">The chart shows shoulder-joint torque over the run, in N·m: orange is the torque network; purple is the controller beneath the target network.</p>
+        <div class="ctl-row" id="wrapATest">
+          <div class="ctl"><span class="ctl-l">Test</span><div class="seg" id="aTest" role="group" aria-label="Choose a test"><button type="button" data-v="cups" aria-pressed="true">five cups</button><button type="button" data-v="sponges" aria-pressed="false">five sponges</button><button type="button" data-v="push" aria-pressed="false">push toward table</button><button type="button" data-v="own" aria-pressed="false">custom scene</button></div></div>
+        </div>
+        <div class="ctl-row" id="wrapAOwn">
+          <div class="ctl"><span class="ctl-l">Object</span><div class="seg" id="aObj" role="group" aria-label="Choose an object"><button type="button" data-v="cup" aria-pressed="true">cup</button><button type="button" data-v="sponge" aria-pressed="false">sponge</button></div></div>
+          <label class="opt"><input type="checkbox" id="aPush"> push toward table</label>
+          <span class="muted-s">Drag the object along the table with a mouse or finger.</span>
+        </div>
+        <div class="a-board" id="aBoard" aria-label="Test summary"></div>
+        <div class="prog-line" id="aProg" hidden><i></i></div>
+        <div class="readout" id="aOut"></div>
+      </div>
+      <div class="card guide-card"><div id="aMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: the arm, demonstrations, networks, and ten seeds</summary><div class="body">
+      <p><b>Arm and table.</b> The arm comes from Lesson 0.3: 0.5 m and 0.4 m links with masses of 1.2 kg and 0.9 kg at their ends. We view it from the side, and the simulation step is 1 ms. The motors provide at most 40 N·m at the shoulder and 20 N·m at the elbow. The table is 12 cm below the shoulder and pushes back on the gripper like a stiff 6,000 N/m spring with damping. The camera sees 24 cells, each 2.5 cm wide, spanning 30 to 90 cm from the shoulder. Each cell stores the greatest object height above it plus 3 mm of noise, refreshed every 20 ms.</p>
+      <p><b>Classical methods.</b> The path is a polyline from the start to a point 8 cm above the target, then down to the target. The controller pulls the gripper toward a point 5 cm ahead of its current projection onto the path. This keeps the arm from cutting corners and slows it automatically near the target. Force and torque are computed as follows:</p>
+      <div class="formula">\[\begin{gathered} F = K\,(c - x) - D\,\dot x, \\ \tau = J^{\mathsf T}(q)\,F + g(q). \end{gathered}\]</div>
+      <p>Here \(x\) and \(\dot x\) are the gripper position and velocity; \(c\) is the point ahead on the path; \(K = 300\) N/m is stiffness; \(D = 2\sqrt{1.5\,K} \approx 42\) N·s/m is damping; \(J\) is the arm Jacobian at joint angles \(q\); and \(g(q)\) is the torque that supports the arm's weight. The network target is first clamped to the arm's reachable region and then smoothed: every network response moves it one quarter of the way from the old target to the new one.</p>
+      <p><b>Demonstrations and networks.</b> There are 100 demonstrations, each 3 s long: 60 with a cup and 40 with a sponge. The object is placed randomly 45 to 80 cm from the shoulder, while the starting position varies by 1.5 cm. Frames arrive every 20 ms, producing 15,100 input–output pairs. While recording, 1 N·m of noise is added to the expert's shoulder torque and 0.5 N·m to its elbow torque, but the noise-free target is stored. The torque network has architecture 30 → 32 → 32 → 2: it receives the camera, sines and cosines of the joint angles, and joint velocities, then outputs two torques. The target network has architecture 24 → 32 → 32 → 2: it sees only the camera and outputs two grasp-point coordinates. Both use leaky ReLU. They train with mean squared error for 2,000 Adam steps on batches of 64, with a learning rate of 0.003. Both fit the demonstrations well: on training pairs, the torque network's mean error is 0.35 N·m; the target network's is 3.5 mm horizontally and 1.2 mm vertically.</p>
+      <p><b>Identical in every browser.</b> The engine implements sine, cosine, arctangent, exponential, and logarithm from additions, multiplications, and divisions, as in Lessons 5.2–5.6. Built-in functions differ in the last bit across browsers, and training plus a long simulation amplify that difference. These implementations keep the numbers identical for everyone.</p>
+      <p id="targetSeeds"><b>Ten seeds.</b> The lab uses one seed to set the demonstrations, initial weights, and batch order. Across seeds 1–10, the target network picks up 4–5 of five cups; the torque network picks up 1–5. Median jitter across the five cups ranges from 3.0 to 20.0 mm for the torque network and 1.1 to 1.5 mm for the target network. With sponges, the target-network arm never touches the table on any seed, while the torque-network arm touches it on 9 of 10 seeds. Under a push toward the table, the torque network presses with 73–167 N; the target network's controller presses with 11–18 N. In response to the push, the controller increases shoulder torque by 27.4–27.9 N·m; the torque network increases it by only 2.2–10.6 N·m.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px" id="targetAfter">
+      <p>The target network's point is off by 0.6 cm on average. For one of the five cups, it names a point 1.7 cm away from the correct one, and the gripper stops just outside the box. Classical control executes everything else precisely: the arm jitters by 1.3 mm near the target, never touches the table beside the sponges, and after the downward push presses the gripper into the table with 16 N before returning it to the cup. The torque network misses by 3.2 cm on average and jitters by 6.3 mm near the target. It touches the table in three sponge trials, and the push makes it strike the table with 155 N without returning to the cup.</p>
+      <p>Why the difference if both networks fit the demonstrations well? A target-network error remains a point error: the controller takes the arm to that point, and contact force is bounded by stiffness times the miss distance. A torque-network error is an extra torque that acts for 20 ms until the next network response. The arm enters positions absent from the demonstrations, where the network errs more—the compounding error from Lesson 1.1, now repeated in every control frame. After the push, the arm also has a position and velocity the network has never seen. The controller responds through its spring-and-damper equation: the chart shows shoulder torque rise immediately by 27 N·m to slow the arm. The torque network raises it by only 7 N·m, and the arm falls to the table.</p>
+      <p>Here the classical controller had an exact arm model. What if that model is wrong—for example, if Ada is holding a heavy pot whose weight the model does not know?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="residual">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 2</div>
+    <h2>Residual policy: the network learns only the correction</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>In Lab 1 the controller knew everything about the arm, including the weight held by the gripper. Now Ada moves a 1.2 kg pot of soup onto a shelf, but the arm model does not know about it: gravity compensation supports only the empty arm. As in Lesson 0.3 without compensation, the arm sags. A 300 N/m spring must stretch by 3.9 cm to support the extra 11.8 N of weight, while the classical path clears the shelf edge by only 3.5 cm.</p>
+      <p>Training the entire system again would waste data: the controller already knows how to lift, carry, and lower the pot; it lacks only the pot's weight. A <strong>residual policy</strong> learns one correction: the motor command is the controller command plus the network output. Silver et al. (MIT, 2018) write this as \(\pi_\theta(s) = \pi(s) + f_\theta(s)\), where \(s\) is the state, \(\pi\) the original controller, and \(f_\theta\) the correction network with weights \(\theta\). The network's final layer starts at zero, so before training the correction changes nothing. The authors explicitly state that it should never make a good initial controller worse.</p>
+    </div>
+    <figure class="card flow-card">
+      <canvas data-anim="resid81" width="720" height="360" role="img" aria-label="Residual-policy diagram: the arm state enters both the controller and a correction network, whose torques are added; before training the correction is zero and the pot sags into the shelf edge, while after training the correction supports the weight and the pot follows the path"></canvas>
+      <figcaption class="muted-s">The diagram shows a residual policy. The block diagram makes the sum explicit: the blue controller computes torques from the arm model, the orange correction network adds its torques, and the motors receive the total. Beside it, the shelf is shown from the side. The blue dashed line is the classical path, while the pot is drawn at its true position. With a zero correction, the pot sags into the shelf edge; as the correction learns to support the weight, the pot follows the path. Click the diagram to pause it.</figcaption>
+    </figure>
+    <div class="prose lab-intro" style="margin:22px 0 0;max-width:820px">
+      <p>Both papers in this lesson train the correction with reinforcement learning. Ours learns from demonstrations, like the policies in Lesson 1.1, so training takes about one second. The demonstrations come from an operator who feels the pot's weight; in the simulation, that operator is a controller with the correct mass. A same-size <strong>network from scratch</strong> trains beside it on the same demonstrations and outputs the entire torque command. Both see joint angles and velocities and the target position on the shelf, and both respond 50 times per second. Under the correction, however, a controller still runs at 1,000 Hz. We test the networks identically by placing the pot on the shelf ten times from the same starts.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <canvas id="bCv" width="600" height="436" class="b-cv" role="img" aria-label="Side view of Ada's arm moving a pot from the table to the shelf, with the pot paths from ten tests"></canvas>
+        <p class="cv-note">Ada's arm, the table, and the shelf are shown from the side, with the pot in the gripper. The blue dashed line is the classical path to the middle target. Thin lines show the pot-handle paths in ten tests: blue for the controller alone, purple for the controller with correction, and orange for the network from scratch. A circle means the pot landed on the shelf; a red cross means it hit the edge or missed. The arm is drawn for the middle test.</p>
+        <div class="ctl-row" id="wrapBShow">
+          <div class="ctl"><span class="ctl-l">Show</span><div class="seg" id="bShow" role="group" aria-label="Choose whose tests to show"><button type="button" data-v="base" aria-pressed="true">controller</button><button type="button" data-v="res" aria-pressed="false">with correction</button><button type="button" data-v="scr" aria-pressed="false">from scratch</button></div></div>
+        </div>
+        <div class="b-curve"><canvas id="bCurve" width="640" height="270" role="img" aria-label="Number of pots placed on the shelf out of ten versus demonstration count, for the controller with correction and the network from scratch"></canvas></div>
+        <p class="cv-note">The horizontal axis is the number of demonstrations seen by the networks; the vertical axis is the number of pots placed on the shelf out of 10. The blue point is the controller without a correction, the purple line is the controller with a correction, and the orange line is the network from scratch. The outlined point marks the selected demonstration count.</p>
+        <div class="ctl-row" id="wrapBN">
+          <label class="hd-range"><span>Demonstrations</span><input id="bN" type="range" min="0" max="6" step="1" value="0"><output>0</output></label>
+        </div>
+        <div class="prog-line" id="bProg" hidden><i></i></div>
+        <div class="readout" id="bOut"></div>
+      </div>
+      <div class="card guide-card"><div id="bMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: sag, correction, networks, and ten seeds</summary><div class="body">
+      <p><b>Why the pot hits the edge.</b> The controller is the same as in Lab 1, but gravity compensation assumes an empty arm. To support the extra weight \(m g\), a spring with stiffness \(K\) stretches by</p>
+      <div class="formula">\[ \Delta y = \frac{m g}{K} = \frac{1.2 \cdot 9.81}{300} \approx 3.9\ \text{cm}, \]</div>
+      <p>where \(m\) is the pot mass and \(g\) is gravitational acceleration. The path clears the shelf edge by 3.5 cm, so the sag consumes the entire margin. Here the controller pulls the gripper toward a path point 8 cm ahead; otherwise it would fail to lift the pot at all.</p>
+      <p><b>What the correction learns.</b> The network outputs the difference between the torque of an operator who knows the weight and the controller torque in the same state. Most of that difference is the pot's weight converted to joint torques through the Jacobian, \(J^{\mathsf T}(q)\,(0,\ m g)\), plus the torque needed to accelerate and brake the extra mass. This is a smooth function of the joint angles and is easy to learn from a few examples.</p>
+      <p><b>Networks and data.</b> Both networks have the same 7 → 32 → 32 → 2 architecture with leaky ReLU. They receive the sines and cosines of the joint angles, joint velocities, and shelf target, then output two torques. For every demonstration count, they train for 1,500 Adam steps on batches of 64 at a learning rate of 0.003. The residual network's final layer starts at zero; the network from scratch starts with random weights. Each demonstration lasts 3.5 s and is sampled every 20 ms, producing 176 pairs. The shelf target ranges from 55 to 75 cm, and the same recording noise as in Lab 1 is added to the torques. A placement succeeds if the pot does not hit the edge, comes to rest within 1.5 cm of its target, and lands with no more than 25 N of force.</p>
+      <p id="residSeeds"><b>Ten seeds.</b> Without a correction, the controller places no pots on any seed because sag is seed-independent. With one demonstration, the correction places 8–10 of 10 pots; with two or more, it places 9–10. The network from scratch places 0–1 with one demonstration and 1–9 with 32; its result varies sharply from seed to seed.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px" id="residAfter">
+      <p>The controller without correction hits the shelf edge in all ten tests, 1.5 s after the start as it carries the pot over the board. With a correction learned from one demonstration, 8 of 10 pots land on the shelf; the other two stop 1.6 and 2.0 cm from the target. With two demonstrations, all 10 succeed. The network from scratch places none after one demonstration and only 5 of 10 after 32. The correction does not have to learn lifting and carrying—the controller already does that. It only needs to learn the missing weight.</p>
+      <p>The papers show the same relationship. In Silver et al.'s simulation, a residual policy reached 90% success with an order of magnitude fewer steps than learning from scratch. In a task where noisy sensors reduced the original controller to about 15%, the residual rose to roughly 80%, while learning from scratch never achieved meaningful success. Johannink et al. (Siemens, UC Berkeley, and Hamburg University of Technology, 2018) trained a correction to an impedance controller on a real Sawyer arm inserting a block between two upright blocks. When the blocks were tilted by up to 20°, the hand-built controller succeeded in 2 of 20 trials, while the residual succeeded in 15; training took about three hours of robot time.</p>
+      <p>A correction repairs what the model does not know. Yet both the controller and the network above it receive a target from elsewhere: some component must find the pot and decide where to place it. How do systems that perform such tasks in real homes divide the work?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="systems">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">2</span> Systems</div>
+      <h2>How OK-Robot, AnyGrasp, and RT-Trajectory divide the work</h2>
+      <p>The labs keep the task fixed, while a real home brings new objects, places, and requests every time. <strong>OK-Robot</strong> (Liu et al., New York University and Meta, 2024) follows “pick up A and put it in B” instructions in homes it has never seen. It combines ready-made open models with classical modules, without a single fine-tuning step. The robot is a Hello Robot Stretch with a wheeled base, an arm with a two-finger gripper, and a depth camera on its head.</p>
+      <p>First, an iPhone records a video of the home. OWL-ViT and Segment Anything find and segment objects in the frames; CLIP maps each object to a vector; and the system places everything in a voxel map with 5 cm cells. Given a request such as “blue mug,” the map finds the voxel whose vector best matches the text vector. Classical methods take over from there: A* from Lesson 0.4 plans the base path on a 10 × 10 cm obstacle grid. Near the object, the depth camera captures it and <strong>AnyGrasp</strong> proposes grasp poses. The arm does not plan a path at all: it approaches the grasp in a straight line through four preset points, using progressively smaller steps. A simple finite-state machine connects the modules and performs no error detection.</p>
+    </div>
+    <figure class="card flow-card">
+      <canvas data-anim="okrobot" width="720" height="380" role="img" aria-label="OK-Robot diagram: home scan, map with CLIP vectors, A* base path, AnyGrasp pose, straight-line arm approach, and release; below the modules are the shares of trials lost during object search and grasping before and after decluttering"></canvas>
+      <figcaption class="muted-s">The diagram shows how OK-Robot is assembled. Orange marks neural networks; blue marks classical maps, path search, and hand-designed motion. Arrows carry the task from one module to the next. Below are the shares of all attempts that failed during object search and grasping in cluttered homes and after decluttering (Figure 6 in the paper). Click the diagram to pause it.</figcaption>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>The authors ran 171 pick-and-drop trials in ten homes. The system completed 58.5%; after the homes were decluttered, it completed 82.4%. The authors estimate this at nearly 1.8 times prior work; for comparison, the winner of the NeurIPS 2023 competition on this task achieved 33%. Grasping caused the most failures: 25% of attempts failed there in cluttered homes and 13% after decluttering. Search caused another 15% of failures when the map could not retrieve the requested object; after decluttering this fell to 4%. The authors identify the weak points: AnyGrasp selects a grasp from one image and was not designed for Stretch's gripper, while the unplanned straight-line arm path collides with nearby objects. They also make the point that matters for Part 8: even if every module succeeds at least 80% of the time, the entire chain may still remain below 60%. Lesson 8.3 examines how the reliability of a long task multiplies across steps.</p>
+      <p>AnyGrasp (Fang et al., Shanghai Jiao Tong University, 2023) is an example of a task a network handles better than rules. From a single depth camera's point cloud, it proposes many grasp poses for a two-finger gripper in 100 ms. Trained on 144 objects, it cleared bins containing more than 300 unseen objects with 93.3% success—on par with people at 93.9%. Classical methods execute the selected pose: a UR5 motion planner brings the gripper to a point 10 cm before the pose and then to the pose itself. In OK-Robot's lab comparisons, AnyGrasp picked objects almost 50% more often than the next-best method, a simple rule-based top-down grasp.</p>
+      <p><strong>RT-Trajectory</strong> (Gu et al., Google DeepMind, 2023) uses a different kind of target: a path sketch. A curve is drawn over the camera frame to show where the gripper should move. Red encodes time, green encodes height, and circles mark where to close and open the gripper. A person can draw the sketch, it can be recovered from human video, or a language model can write it as in Code as Policies from Lesson 2.3. A learned policy, not a classical controller, executes the sketch. It is built like RT-1 from Lesson 3.1, but receives the sketch instead of text; like RT-1, it outputs gripper motion rather than motor torque. It trained on 73,000 demonstrations, whose sketches were reconstructed afterward from the gripper motion. Across seven new skills it succeeded 67% of the time, compared with 16.7% for RT-1 with a text instruction and 11.1% for RT-2.</p>
+      <p>These systems answer two separate questions. First, what form should the target take: a point as in Lab 1, a grasp pose as in AnyGrasp, or a path sketch as in RT-Trajectory? Second, who should execute it? In OK-Robot and AnyGrasp, classical path search, arm planning, and control do the execution. In RT-Trajectory, another learned policy executes the sketch. The dual systems from Lesson 3.7 are similar: Helix's fast network outputs targets 200 times per second—desired wrist poses and finger flexion—not motor torques. If either a network or a classical method can implement each layer of Ada's system, which should receive which layer?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="layers">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 3</div>
+    <h2>Assign the system layers</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>In OK-Robot, every system component is either a neural network or a classical method. We divide Ada's “pick up the object” task from Lab 1 into the same four layers. <strong>Perception</strong> finds the requested object in the camera strip. <strong>Grasp selection</strong> decides exactly where to hold it. <strong>Path planning</strong> guides the gripper to that point without hitting other objects. The <strong>controller</strong> converts the path into motor torques. A network or a classical method can implement every layer:</p>
+      <ul class="layer-list">
+        <li><b>Perception.</b> As in the “where to pick” maps from Lesson 2.1, the network scores every camera cell for whether it contains the requested object. It trained on 3,000 scenes with cups, bowls, and sponges of different sizes. The classical method finds contiguous regions taller than 8 mm and compares them with templates: a 7–11 cm cup, a 12–18 cm bowl with a depression in the middle, or a 2–4.5 cm sponge.</li>
+        <li><b>Grasp selection.</b> From a camera crop around the object, the network names a grasp point. It trained on the same scenes, where bowls were always grasped at the near rim. The classical rule grasps from above at the object's center, 2 cm below its top.</li>
+        <li><b>Path planning.</b> From the camera and grasp point, the network names the height above the target at which the transfer should end. It trained on planner paths from scenes with no tall objects. The classical planner checks the gripper and both arm links against the obstacle map, raising the point above the target until the path is clear.</li>
+        <li><b>Controller.</b> From joint angles, velocities, and the point ahead on the path, the network outputs torques 50 times per second. It trained on 100 demonstrations from the impedance controller. The classical alternative is the Lab 1 controller itself.</li>
+      </ul>
+      <p>There are five scenes: a cup; a 13 cm tall mug; a bowl; a 26 cm vase on the path to a cup; and, as in Lab 1, a 40 N downward push after the gripper reaches a cup. A scene passes if the gripper stops inside the green box, hits nothing, and presses the table with no more than 20 N.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="l-board" id="cBoard" aria-label="Who implements each layer: a network or classical methods"></div>
+        <p class="cv-note">Click or drag a layer to assign it to the other side. Orange layers are implemented by networks; blue layers use classical methods.</p>
+        <div class="l-tabs" id="cTabs" role="group" aria-label="Test scenes"></div>
+        <canvas id="cCv" width="600" height="460" class="c-cv" role="img" aria-label="Side view of Ada's arm picking up an object in the selected scene, including the detected object, grasp point, and path"></canvas>
+        <p class="cv-note">Ada's arm and the table in the selected scene are shown from the side. The arm and annotation colors identify the layer owner: orange for the network, blue for classical methods. The bars below the table are the camera, and the triangle above them marks where perception found the object. The cross is the point chosen by grasp selection, the green box is the true grasp region, and the dashed line is the path. A red cross means the arm hit an object; a red arrow shows the table's force on the gripper.</p>
+        <div class="prog-line" id="cProg" hidden><i></i></div>
+        <div class="readout" id="cOut"></div>
+      </div>
+      <div class="card guide-card"><div id="cMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: layer networks and rules, training, and ten seeds</summary><div class="body">
+      <p><b>Perception.</b> The network receives the 24 camera cells and a command: cup, bowl, or sponge (the tall mug also counts as a cup). It outputs a score for each cell, and the highest-scoring cell is selected; training uses cross-entropy. In the training scenes, the requested category appears randomly 45 to 80 cm from the shoulder: a 7–14 cm cup, a 12–17 cm bowl, or a 2.5–4 cm sponge. Half the scenes contain another object to the side, including an 18–28 cm vase. The classical method treats contiguous cells taller than 8 mm as objects; a bowl exposes its bottom 2 cm above the table, creating the depression.</p>
+      <p><b>Grasp selection.</b> The network receives nine camera cells around the detected cell and outputs a grasp point. During training, the detected cell is deliberately shifted one cell in a random direction so that the network must locate the center itself. The correct point for a cup or sponge is at the top center, 1.5–2 cm below the top; for a bowl, it lies on the 8 mm near rim.</p>
+      <p><b>Path planning.</b> The path is a polyline from the start to a point above the target, then down. At 1 cm intervals, the planner checks the gripper and both links: inverse kinematics supplies joint angles, and no link may approach an obstacle closer than 1.2–1.5 cm. Camera cells taller than 1.5 cm and farther than 6 cm from the target count as obstacles. If the path hits one, the point above the target is raised by 2 cm and checked again. The path network has architecture 26 → 16 → 16 → 1. It receives the camera and grasp point, then outputs the height above the target at which the transfer should end. It trained on 800 planner paths.</p>
+      <p><b>Controller.</b> This network has architecture 8 → 32 → 32 → 2. It receives joint angles, velocities, and the direction toward a point 5 cm ahead on the path, then outputs two torques. It trained on 100 impedance-control demonstrations over random paths, with the same noise as Lab 1. All networks use leaky ReLU and Adam: 1,500 steps for perception and grasp selection, 800 for path planning, and 2,000 for control.</p>
+      <p id="layersSeeds"><b>Ten seeds.</b> Across seeds 1–10, every design has the same outcome in every scene: all-classical passes three of five; all-neural also passes three; the best design passes all five. Replacing any one layer in the best design causes the same scene to fail on all ten seeds. Under the push toward the table, the neural controller presses with 51–137 N; impedance control presses with 0–13 N.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px" id="layersAfter">
+      <p>Classical methods fail two scenes: their templates do not include the tall mug, and they would grasp the empty center of the bowl. The networks fail two others: the path network, trained without tall objects, sends the arm straight through the vase; under the push, the neural controller strikes the table with 51 N. The design that passes all five scenes assigns perception and grasp selection to networks, and path planning and control to classical methods. It draws the same boundary as OK-Robot: networks answer “what and where,” while classical methods answer “how to get there and with how much force.”</p>
+      <p>This is a rule of thumb, not a law. The RT-Trajectory authors compared their learned policy with a classical executor that follows the same sketch through inverse kinematics. Sketches recovered from human-hand video are uneven. When classical methods followed them literally, they picked up the object in 42% of trials; the learned policy achieved 100%. Sketches written as code by a language model are smooth and precise because they were designed for inverse kinematics. On those sketches, classical methods opened a drawer more often: 71% versus 60%. This does not contradict the lab. An uneven sketch is an imprecise target; executing it requires reading the frame to infer where the arm should really reach, which is again a “what and where” problem. The authors say exactly that: the sketch is coarse enough for the policy to interpret using the scene. Classical methods execute a precise target more reliably.</p>
+      <p>Notice what the classical guarantees depend on. The planner avoids the vase because the camera sees it. The controller limits force because it knows the stiffness and the arm's weight. Classical methods cannot protect against what they do not see or know. Which of these ideas remains in systems from 2025–2026?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="today">
+  <div class="prose">
+    <div class="kicker"><span class="num">3</span> Today</div>
+    <h2>Where networks meet classical control in 2026</h2>
+    <p>In the dual systems from Lesson 3.7, networks still output targets. In Helix, a 7-billion-parameter vision-language model reasons 7–9 times per second, while an 80-million-parameter fast network outputs desired wrist poses and finger positions 200 times per second. GR00T N1 runs its two levels at 10 and 120 Hz. Large models have also learned to name targets for classical methods directly: in Lesson 2.1, Gemini Robotics-ER marked points and grasps on a frame; AnyGrasp outputs grasp poses for an arm planner; and RT-Trajectory shows that a path sketch can be a target too.</p>
+    <p>But the boundary is moving downward. In Helix 02 (January 2026), a third level appeared below the fast network: a 10-million-parameter network that sends joint-actuator commands 1,000 times per second while managing whole-body balance and contact. It trained entirely in simulation across more than 200,000 parallel environments and replaced 109,504 lines of hand-written C++. The network entered the 1 kHz loop where manual rules had proliferated—but doing so required vastly more simulated experience than Ada's 100 demonstrations.</p>
+    <p>Residual policies fit systems that already have a good controller with an inaccurate model. Johannink et al. emphasize that their method needs only a conventional motion controller, which ships with most robots. The correction learns what that controller does not know and does not spend data relearning what it already does well.</p>
+  </div>
+</section>
+
+<section class="section alt" id="quiz">
+  <div class="prose">
+    <div class="kicker"><span class="num">4</span> Quiz</div>
+    <h2>Eight common misconceptions</h2>
+    <div class="quiz" id="quizBox"></div>
+    <p class="score" id="quizScore" style="margin-top:14px"></p>
+  </div>
+</section>
+
+<section class="section" id="finale">
+  <div class="prose">
+    <div class="kicker"><span class="num">5</span> Summary</div>
+    <h2>Lesson takeaways</h2>
+    <ol class="takeaways" id="takeaways">
+      <li><span>Networks and classical methods have complementary strengths: the network answers <strong>what and where</strong>, while classical methods answer <strong>how to get there and with how much force</strong>. The network therefore usually outputs a target, while inverse kinematics, path planning, and impedance control execute it.</span></li>
+      <li><span>A target error remains a target error, while a torque error <strong>compounds inside the control loop</strong>. In Lab 1, two well-trained same-size networks missed by 0.6 and 3.2 cm on average. Under a push toward the table, the controller pressed with 16 N; the torque network, with 155 N.</span></li>
+      <li><span>A <strong>residual policy</strong> adds a network output—initially zero—to the controller command. It learns only what the model lacks: after one demonstration the correction placed 8 of 10 pots on the shelf, while the network from scratch placed none.</span></li>
+      <li><span>In Lab 3, the design “networks for perception and grasp selection; classical methods for path and control” passed all five scenes. OK-Robot divides work the same way. Choose the target representation separately from its executor: on uneven sketches from human video, RT-Trajectory's learned executor picked objects more often than classical inverse kinematics, 100% versus 42%; on precise language-model sketches, classical methods opened a drawer more reliably, 71% versus 60%.</span></li>
+      <li><span>Module reliabilities multiply. OK-Robot completed 58.5% of tasks in cluttered homes and 82.4% after decluttering; the authors warn that modules each above 80% can still produce a system below 60%.</span></li>
+      <li><span>Classical methods guarantee only what they know: a planner avoids obstacles on its map, and a controller limits force for a given target. They do not check <strong>where</strong> the network puts that target.</span></li>
+    </ol>
+    <h3 style="margin-top:40px">Open questions</h3>
+    <details class="card pad open-q"><summary>When should a network replace the controller?</summary><p>When hand-built rules become too numerous and experience can be gathered in simulation. In Helix 02, a 10-million-parameter network runs 1,000 times per second and replaced 109,504 lines of C++, but trained across more than 200,000 parallel simulation environments. The Lab 1 torque network had 100 demonstrations—not enough for predictable behavior beyond them. The remaining question is how to ensure that such a network will not output a dangerous torque in a position absent from training. That is one topic of Lesson 8.2.</p></details>
+    <details class="card pad open-q"><summary>How can we know that a correction will not make the controller worse?</summary><p>A zero final layer guarantees this only before training. Silver et al. observed an early dip in residual-policy performance before it quickly recovered. Johannink et al. also identify an advantage: learning from scratch explores a wider region of space than learning a correction, which can be dangerous on a real robot. The correction can be bounded in magnitude and tested on a rig before deployment around people, but that is a test—not a guarantee. Lesson 8.2 examines how to obtain a guarantee.</p></details>
+    <h3 style="margin-top:34px">Paper guide</h3>
+    <p><a href="https://arxiv.org/abs/2401.12202" target="_blank" rel="noopener">P. Liu, Y. Orru, J. Vakil et al., “OK-Robot: What Really Matters in Integrating Open-Knowledge Models for Robotics,” 2024</a>.</p>
+    <ul class="links">
+      <li><strong>Read closely</strong><span>Section II: the VoxelMap, A* path search, AnyGrasp selection, the four-point arm approach, and release. Figures 4 and 6 and the failure analysis show where attempts are lost and what changes after decluttering.</span></li>
+      <li><strong>Safe to skim</strong><span>The weight tuning in the base-position objective and the table of every trial across homes.</span></li>
+      <li><strong>Question to keep in mind</strong><span>OK-Robot follows the same straight-line grasp trajectory every time and sometimes hits nearby objects. Would you replace it with a learned policy or a planner—and what would that require from perception?</span></li>
+    </ul>
+    <p style="margin-top:18px">Other works in this lesson: <a href="https://arxiv.org/abs/1812.06298" target="_blank" rel="noopener">Residual Policy Learning</a> (Silver, Allen, Tenenbaum, Kaelbling, 2018)—a correction to any controller; <a href="https://arxiv.org/abs/1812.03201" target="_blank" rel="noopener">Residual Reinforcement Learning for Robot Control</a> (Johannink et al., 2018)—an impedance correction on a real arm; <a href="https://arxiv.org/abs/2212.08333" target="_blank" rel="noopener">AnyGrasp</a> (Fang et al., 2023)—grasp poses from a point cloud; and <a href="https://arxiv.org/abs/2311.01977" target="_blank" rel="noopener">RT-Trajectory</a> (Gu et al., 2023)—a path sketch as a target.</p>
+    <h3 style="margin-top:34px">Resources</h3>
+    <ul class="links">
+      <li><a href="https://ok-robot.github.io" target="_blank" rel="noopener">OK-Robot</a><span>Project page with home videos and code</span></li>
+      <li><a href="https://rt-trajectory.github.io/" target="_blank" rel="noopener">RT-Trajectory</a><span>Project page with sketches from people and a language model</span></li>
+      <li><a href="https://k-r-allen.github.io/residual-policy-learning/" target="_blank" rel="noopener">Residual Policy Learning</a><span>Videos and code from Silver et al.</span></li>
+      <li><a href="https://manipulation.csail.mit.edu/" target="_blank" rel="noopener">Robotic Manipulation</a><span>Russ Tedrake's MIT course: kinematics and grasp poses in Chapter 3, grasp selection in Chapter 5, planning in Chapter 6, and force and impedance control in Chapter 8</span></li>
+    </ul>
+    <div class="bridge-note"><p>Classical methods made the network's motion precise and limited contact force. But they execute any target the network names: if the network places the gripper inside a hot kettle, impedance control will take the arm there smoothly.</p><p class="bridge-to"><!--if:8-2-bezopasnost.html--><a href="8-2-bezopasnost.html"><!--/if-->Lesson 8.2 · Safety: a safeguard on top of a neural policy<!--if:8-2-bezopasnost.html--></a><!--/if--></p></div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Lesson 8.1 of “Modern Robotics and Physical AI.” The lab networks train in the browser with a fixed seed on the same demonstrations; a 1 ms simulation computes the arm and table; paper results come from the primary sources.
+</footer>
+<div class="tooltip" id="tooltip" role="tooltip"></div>
+<script>
+/*@@JS@@*/
+</script>
+</body>
+</html>

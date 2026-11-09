@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>8.2 Safety — Modern Robotics and Physical AI</title>
+<meta name="description" content="Lesson 8.2 of Modern Robotics and Physical AI: a safety filter on top of a neural policy, control barrier functions, an approach-rate constraint and a small optimization problem at every step, shields for discrete actions, the cost of conservatism, and the limits of what a filter can protect against.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<script>
+  (function () { try { var t = localStorage.getItem('mr-theme'); if (t) document.documentElement.dataset.theme = t; else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme = 'dark'; } catch (e) {} })();
+</script>
+<style>
+/*@@CSS@@*/
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html#program" title="Back to the course syllabus"><div>Modern Robotics and Physical AI<small>Lesson 8.2 · Safety</small></div></a>
+    <nav class="toc" aria-label="Lesson sections">
+      <a href="#why">Why</a>
+      <a href="#barrier">Barrier</a>
+      <a href="#qp">One command</a>
+      <a href="#duel">One hundred runs</a>
+      <a href="#alpha">Parameter α</a>
+      <a href="#shield">Shields</a>
+      <a href="#holes">Unknowns</a>
+      <a href="#limits">Guarantees</a>
+      <a href="#today">Today</a>
+      <a href="#quiz">Quiz</a>
+      <a href="#finale">Takeaways</a>
+    </nav>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Toggle theme">◐</button>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main>
+
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="kicker"><span class="num">8.2</span> Part 8 · From prototype to product</div>
+    <h1>Safety: <span class="amp">a safeguard on top of a neural policy</span></h1>
+    <p class="lead">A well-trained policy avoids the kettle almost every time. In a home shared with people, that is not enough: a rare mistake is still dangerous. In this lesson we will add an independent safety filter on top of the policy. It measures the margin to an obstacle and changes only the part of a command that violates a constraint. Across the same one hundred runs, we will see both the benefit and the limit of the filter: it protects only against what it can observe and describe.</p>
+    <p class="ada-note"><svg class="ada-ico" viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="10" width="48" height="42" rx="18" fill="#f4efe6" stroke="#3d3c38" stroke-width="3"/><rect x="15" y="19" width="34" height="22" rx="10" fill="#1f2430"/><ellipse cx="25" cy="30" rx="4" ry="5.5" fill="#eb6834"/><ellipse cx="39" cy="30" rx="4" ry="5.5" fill="#eb6834"/></svg><span>Ada is the wheeled domestic humanoid used throughout the course labs. Meet her in <a href="0-1-dve-paradigmy.html#ada">Lesson 0.1</a>.</span></p>
+    <div class="hero-meta"><span>≈ 55 minutes</span><span>3 labs, an interactive, and a quiz</span><span id="heroMis">goal-based missions</span></div>
+    <div class="hero-list">
+      <div><b>ONE COMMAND</b>Drag the arrow to choose where Ada wants to go, then see which nearest safe velocity the safeguard selects</div>
+      <div><b>ONE HUNDRED MATCHED RUNS</b>Compare a trained policy with the same policy plus a safeguard at exactly the same kettle locations</div>
+      <div><b>FROM CONSERVATIVE TO AGGRESSIVE</b>Find a setting that brakes too late and one that barely lets Ada move</div>
+      <div><b>WHAT THE SAFEGUARD DOES NOT KNOW</b>Misestimate the kettle position and add a laundry basket that is missing from the map, then see what remains of the guarantee</div>
+    </div>
+    <p style="margin-top:28px"><a class="btn primary" href="#why">Start the lesson ↓</a></p>
+  </div>
+</section>
+
+<section class="recall-sec" id="recall" aria-label="Warm-up on the previous lesson">
+  <div class="wrap"><div class="card recall" data-recall></div></div>
+  <script type="application/json" id="recallData">{"n": "8.1", "title": "Classical methods in the control loop", "href": "8-1-klassika-v-konture.html", "q": [{"q": "Two networks for the same device were trained on the same demonstrations: one outputs motor torques, the other a target for an impedance controller. What happened when the arm was pushed toward the table?", "o": ["Both pressed the gripper into the table in the same way because the push was identical", "The controller-driven arm pressed with 16 N and returned to the cup; the torque-network arm struck the table with 155 N", "The torque network responded faster because it was closer to the motors"], "a": 1, "e": "The controller responded to the push with its spring-and-damper equation: shoulder torque rose by 27 N·m. The torque network had never seen that velocity in the demonstrations and increased torque by only 7 N·m.", "sec": "target", "secTitle": "One task, two networks: torque or target"}, {"q": "The controller does not know the saucepan's weight, so it clips the shelf edge. What does the residual policy do?", "o": ["It relearns the entire controller with a smaller network", "It adds a network output, initially zero, to the controller command: the network learns only what the model does not know", "It selects the controller stiffness by itself"], "a": 1, "e": "With one demonstration, the correction placed 8 of 10 saucepans on the shelf; a network trained from scratch placed none. With 32 demonstrations, the network from scratch placed 5 of 10.", "sec": "residual", "secTitle": "Residual policy: the network learns only the correction"}, {"q": "Which configuration passed all five scenes in the “Assign the system layers” lab?", "o": ["Networks at every layer", "Networks for perception and grasp selection; classical methods for the path and controller", "Classical methods at every layer"], "a": 1, "e": "The classical stack did not recognize the tall mug and would have grasped the bowl around its middle; the networks drove the arm through the vase and struck the table when pushed. But classical control guarantees only what it knows: it does not check where the network places the target.", "sec": "layers", "secTitle": "Assign the system layers"}]}</script>
+</section>
+
+<section class="section alt" id="why">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">1</span> Why</div>
+      <h2>Almost always is not a guarantee</h2>
+      <p>In Lesson 8.1, a neural network set the target and a classical controller executed it precisely. But the controller will execute a target placed inside the kettle just as precisely. Execution accuracy says nothing about whether the command itself is safe.</p>
+      <p>A policy that avoids the kettle in 99 cases out of 100 may hit it on the hundredth. “Almost always” may be enough for a demonstration, but not for a home shared with people. Safety is a mandatory constraint here, not a metric that can be traded for speed or average success.</p>
+      <p>In the labs, Ada again drives from the living room to the kitchen table. The kettle appears in a new location on every run, and the camera estimates its position with a small error. The policy was trained on 300 avoidance demonstrations. When the space on the two sides is nearly equal, some demonstrations go left and others go right. That is where regression is most likely to fail.</p>
+      <p>A separate filter receives the proposed velocity and the current kettle position. Its job is narrower: it does not choose a route, but rejects unsafe commands. This separation lets us evaluate safety independently of whichever policy comes before the filter.</p>
+      <p>Ames and coauthors divide system requirements into two kinds in their 2019 survey: <strong>safety</strong> means that “something bad never happens,” while <strong>liveness</strong> means that “something good eventually happens.” Not hitting the kettle is a safety requirement; reaching the table is a liveness requirement. A policy handles both at once and guarantees neither. The lesson separates them: the policy solves the task, while a policy-agnostic module monitors safety alone.</p>
+      <p>Hsu and coauthors call such a module a <strong>safety filter</strong>: an automated process that monitors a running system and intervenes when necessary, changing its command to prevent a catastrophic failure. The filter is designed without knowing the task and should intervene as rarely as possible—only when a command truly leads to danger. The authors call this the separation principle: the task policy does not reason about safety, and the safety filter does not reason about the task. The same filter can therefore sit on top of any policy, including a learned one.</p>
+      <p>These filters are fast enough for a high-rate loop. In the Ames survey, the small optimization problem for a modified Segway ran on a BeagleBone Black board in 0.4 ms on average. Without the filter, a strong push tipped the machine over; with the filter, its command changed before execution.</p>
+    </div>
+    <figure class="card flow-card">
+      <canvas data-anim="loop" width="720" height="340" role="img" aria-label="Diagram: the camera estimates the positions of Ada and the kettle; the policy outputs a velocity command; at every step the safety filter passes or modifies it before sending it to the wheeled base. On the plan, Ada drives toward the kettle; the orange arrow is the policy command and the blue arrow is the filtered command."></canvas>
+      <figcaption class="muted-s">The diagram shows where the filter sits. The blocks trace one command step, repeated 10 times per second: the camera estimates the positions of Ada and the kettle; the policy (orange, trained from demonstrations) outputs a velocity; and the filter (blue, a classical module) passes or changes that velocity before sending it to the wheeled base. The top-down plan shows the same process. Ada drives straight toward the kettle, while the blue dashed circle marks the boundary she may not cross. The orange arrow is the policy command; the blue arrow is the filtered command. Far from the kettle the arrows coincide. Near the boundary, the filter removes the component directed toward the kettle. Click the diagram to pause it.</figcaption>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>This is the safeguard promised in Lesson 0.1 under “What should we entrust to each approach?”: neural networks handle the open world; rules provide guarantees. A filter needs two things to make a guarantee: a measure of danger that can be computed at every step, and a rule for changing an unsafe command. We begin with the measure. How do we turn “do not hit the kettle” into a number?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="barrier">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">2</span> Barrier</div>
+      <h2>Margin to the kettle: the barrier function and its derivative</h2>
+      <p>On the plan, Ada is a circle with an 18 cm radius and the kettle is a circle with a 13 cm radius. They touch when their centers are less than 31 cm apart. Add a 5 cm margin and call every position where Ada's center is more than 36 cm from the kettle center safe. The <strong>barrier function</strong> \(h\) tells us how much margin remains: the distance between the centers minus 36 cm. If \(h\) is positive, Ada is inside the safe set; if it is zero, she is on its boundary; if it is negative, she is beyond the boundary. The Ames survey defines the <strong>safe set</strong> in exactly this way: all states where \(h \ge 0\). Safety means never leaving it. If a run starts inside the set, it remains inside. The authors call this forward invariance.</p>
+      <p>The margin alone tells us little. Thirty centimeters is ample if Ada moves sideways, but not if she rushes straight at the kettle. The filter therefore examines how quickly the margin changes. That rate is the derivative \(\dot h\). If Ada moves straight toward the kettle at 60 cm/s, the margin shrinks by 60 cm each second: \(\dot h = -60\). If she follows a circle around the kettle, the margin does not change: \(\dot h = 0\). If she moves away, it grows. Thus, \(\dot h\) depends on only one component of velocity: the component directed toward the kettle.</p>
+      <p>The filter rule is that the margin may shrink no faster than \(\alpha \cdot h\). When the margin is large, Ada may approach quickly. The closer she gets to the boundary, the slower she must approach. On the boundary she may not approach at all, although she may move sideways or backward. The number \(\alpha\), measured in 1/s, controls how sharply the filter tightens the leash. With \(\alpha = 2\) and a 30 cm margin, Ada may approach at up to 60 cm/s; with a 10 cm margin, only 20 cm/s.</p>
+    </div>
+    <figure class="card flow-card">
+      <canvas data-anim="barrier" width="720" height="360" role="img" aria-label="Diagram: at left, the kettle is seen from above with equal-margin rings. Ada drives toward it and her velocity is decomposed into a component toward the kettle and a sideways component. At right, margin over time initially falls in a straight line; the filter then limits the rate and the margin approaches zero without crossing it."></canvas>
+      <figcaption class="muted-s">The diagram shows what the filter sees. On the plan, rings around the kettle mark equal margins. The solid blue ring is the boundary of the safe set (\(h = 0\), with Ada's center 36 cm from the kettle center); dashed rings mark \(h = 20\) and \(h = 40\) cm; the red area inside represents contact. Ada approaches slightly off-center. The orange arrow is her filtered velocity and the gray dashed arrow is the component directed toward the kettle, equal to \(-\dot h\). The graph shows margin over time: orange with the filter at \(\alpha = 2\), gray dashed without it. Blue shading marks what the rule \(\dot h \ge -\alpha h\) forbids from the current point. Without the filter, the margin becomes negative. With it, the margin initially shrinks almost as quickly, then meets the allowed rate and approaches zero without crossing it while Ada slides along the boundary. Click the diagram to pause it.</figcaption>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>Now write the idea as equations. Let \(p\) be Ada's center on the plan, \(c\) the camera's estimate of the kettle center, \(D = 36\) cm the sum of the radii and the margin, and \(u\) the velocity vector Ada will receive on this step:</p>
+    </div>
+    <div class="formula">\[ \begin{gathered} h(p) = \lVert p - c \rVert - D, \qquad \dot h = n \cdot u, \quad n = \frac{p - c}{\lVert p - c \rVert}, \\ \dot h \;\ge\; -\alpha\, h(p). \end{gathered} \]</div>
+    <div class="prose" style="margin:0;max-width:820px">
+      <p>Here \(n\) is the unit vector from the kettle to Ada, and the dot product \(n \cdot u\) gives the velocity component directed away from the kettle (with the opposite sign, toward it). If the last inequality holds at every step, the margin cannot become negative. In the worst case it decays as \(h_0 e^{-\alpha t}\), where \(h_0\) is the initial margin, and only approaches zero. Ames and coauthors prove a stronger result: for compact sets, the condition \(\dot h \ge -\alpha(h)\), with any increasing function \(\alpha\) that equals zero at \(h = 0\), is necessary and sufficient for the safe set to remain invariant. The linear \(\alpha h\) is the simplest case. A function \(h\) for which such a command exists at every point is called a <strong>control barrier function</strong> (CBF). A precursor was Nagumo's 1942 theorem, which required \(\dot h \ge 0\) only on the boundary; the barrier function extends the condition across the entire safe set.</p>
+      <p>The condition constrains one velocity component: approach toward the kettle. The policy, however, outputs a complete command with both forward and sideways motion. How can we turn it into a velocity that satisfies the condition while changing the policy's intent as little as possible?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="qp">
+  <div class="wrap">
+    <div class="lab-badge"><i>🧩</i> Interactive</div>
+    <h2>One filter command: the nearest safe velocity</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>At every step, the filter solves the same problem: among all velocities for which the margin shrinks no faster than \(\alpha h\), choose the one nearest the policy command. The velocity plane makes this easiest to see. Every point in the plane is a possible velocity for Ada; upward means forward along the route and rightward means motion to the right. The condition \(\dot h \ge -\alpha h\) divides the plane with a straight line. Velocities on one side approach the kettle too quickly; velocities on the other are allowed. If the policy command is already allowed, the filter leaves it unchanged. Otherwise, it selects the nearest allowed point—the foot of the perpendicular from the command to the line.</p>
+      <p>The top-down plan shows Ada beside the kettle; you can drag her with a mouse or finger. The velocity plane appears next to it. You can also drag the tip of the orange arrow, which is the policy command. The blue arrow shows what the filter will pass through.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="qp-grid" id="qScene">
+          <figure class="qp-pane"><canvas id="qMap" width="400" height="360" role="img" aria-label="Top-down view of the kettle and Ada: the safe-set boundary, contact boundary, policy command, and filtered command"></canvas><figcaption>Top-down plan, 2 × 1.8 m</figcaption></figure>
+          <figure class="qp-pane"><canvas id="qVel" width="400" height="360" role="img" aria-label="Ada's velocity plane: allowed velocities, constraint boundary, policy command, and nearest allowed velocity"></canvas><figcaption>Velocity plane, cm/s</figcaption></figure>
+        </div>
+        <p class="cv-note">On the plan, the gray circle with a spout is the kettle; the blue dashed line is the safe-set boundary (Ada's center 36 cm from the kettle center); the red dashed line is contact at 31 cm; and the thin gray line runs from the kettle center to Ada. In the velocity plane, the center means that Ada is stationary. The large gray circle limits speed to 90 cm/s, blue shading marks forbidden velocities, and the blue line is the constraint boundary. The orange arrow is the policy command and the blue arrow is the filtered command; the same arrows start at Ada on the plan.</p>
+        <div class="ctl-row" id="wrapQAlpha">
+          <label class="hd-range"><span>α, 1/s</span><input id="qAlpha" type="range" min="0" max="6" step="1" value="3"><output>2</output></label>
+        </div>
+        <div class="readout" id="qOut"></div>
+      </div>
+      <div class="card guide-card"><div id="qMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: the optimization problem and its one-line solution</summary><div class="body">
+      <p><b>Problem.</b> There is one constraint, linear in \(u\), and the objective is a squared distance. This is a quadratic program (QP) with one constraint, and its solution is explicit. If \(n \cdot u_{\text{ref}} \ge -\alpha h\), the answer is \(u_{\text{ref}}\) itself. Otherwise, the command receives exactly enough of vector \(n\) to reach the boundary:</p>
+      <div class="formula">\[ u^\ast = u_{\text{ref}} + \lambda\, n, \qquad \lambda = \max\bigl(0,\; -\alpha h - n \cdot u_{\text{ref}}\bigr). \]</div>
+      <p>Ames and coauthors state this directly: with no constraints on the input itself, the problem has one inequality and a closed-form solution. The part of the command along the boundary—sideways relative to the kettle—does not change. Only the component along \(n\) changes.</p>
+      <p><b>Speed does not increase.</b> Zero velocity is allowed because \(h \ge 0\) implies \(-\alpha h \le 0\). Projecting onto a convex set that contains zero cannot move a point farther from zero: \(\lVert u^\ast \rVert \le \lVert u_{\text{ref}} \rVert\). The filter can only remove part of the velocity; it cannot accelerate Ada.</p>
+      <p><b>Several objects.</b> Every object known to the filter adds another line in the velocity plane, and allowed velocities must lie on the correct side of all lines at once. The closest point in this polygon is either the command itself, a point on one line, or the intersection of two lines. The lesson engine checks these candidates and chooses the closest allowed one, solving the problem exactly without iteration.</p>
+      <p><b>Time step.</b> The filter solves the problem 10 times per second, and Ada follows a constant command between solutions. Because \(h\) is convex, over a step \(\Delta t\) the margin decreases no more than the linear estimate predicts: \(h(p + u \Delta t) \ge h(p) + \Delta t\, n \cdot u \ge (1 - \alpha \Delta t)\, h(p)\). If \(\alpha \Delta t &lt; 1\), the right-hand side is nonnegative. This is the condition \(\alpha(a) &lt; a / \Delta t\) from Corollary 1.2 in the Hsu survey.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px" id="qpAfter">
+      <p>Ames and coauthors express what the filter did in the diagram as a quadratic program that finds the smallest correction to the command—a CBF-QP:</p>
+    </div>
+    <div class="formula">\[ u^\ast = \arg\min_{u}\; \tfrac12 \lVert u - u_{\text{ref}} \rVert^2 \quad \text{subject to} \quad n \cdot u \;\ge\; -\alpha\, h(p). \]</div>
+    <div class="prose" style="margin:0;max-width:820px">
+      <p>Here \(u_{\text{ref}}\) is the policy command, \(u^\ast\) is what the wheeled base receives, and \(\arg\min\) is the value of \(u\) with the smallest distance to the policy command. The authors call the correction minimally invasive: the existing controller changes only as much as the guarantee requires. This also shows what the filter does not do. It neither searches for the safest velocity nor plans a route around the kettle. If the policy stubbornly commands motion into the kettle, the filter removes all approach velocity and Ada stops at the boundary. What happens over complete runs in which the policy sometimes heads straight for the kettle?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="duel">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 1</div>
+    <h2>One hundred runs without and with the filter</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>Ada's policy trains in the browser on 300 demonstrations in a few seconds, then completes a series of 100 runs. Each run has its own kettle position and its own camera and wheel errors. At left, Ada follows the policy alone; at right, the same policy runs through a filter with \(\alpha = 2\) and a 5 cm margin. The runs are paired: the same kettle locations, camera errors, and wheel noise. A run ends at the table, on contact with the kettle, or after 15 seconds.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="duo" id="dDuo">
+          <figure class="pane"><figcaption class="pane-head"><b class="c-pol">Policy</b><span id="dSubL">no safeguard</span></figcaption><canvas id="dCvL" width="600" height="400" role="img" aria-label="Top-down view of the house: the selected run without a filter and the kettle positions across all one hundred runs"></canvas><div class="pane-stat" id="dStatL"></div></figure>
+          <figure class="pane"><figcaption class="pane-head"><b class="c-fil">Policy + filter</b><span id="dSubR">α = 2, 5 cm margin</span></figcaption><canvas id="dCvR" width="600" height="400" role="img" aria-label="Top-down view of the house: the same run with the safety filter and the kettle positions across all one hundred runs"></canvas><div class="pane-stat" id="dStatR"></div></figure>
+        </div>
+        <p class="cv-note">The house is shown from above through a 3.4 m-wide central strip: the living-room start is at the bottom, the kitchen is at the top, a dashed circle near the table is the goal, and a thin dashed line is the direct route. The kettle is drawn at its location in the selected run; the line traces Ada's path and Ada appears at its endpoint. A green check means she arrived, a red cross means she touched the kettle, and a gray dot means 15 seconds elapsed. Small dots mark all one hundred kettle locations; red dots are locations that produced contact on that panel. On the right panel, the blue dashed circle around the kettle is the safe-set boundary and blue path segments mark steps where the filter changed the command.</p>
+        <div class="d-board"><canvas id="dBoard" width="640" height="150" role="img" aria-label="Board of one hundred runs: in each cell, the upper half is the outcome without the filter and the lower half is the outcome with the filter; click to select a run"></canvas></div>
+        <p class="cv-note" id="dBoardNote">Each cell on the series board is one run, ordered left to right and top to bottom. The upper half shows the outcome without the filter and the lower half with it: green means reached the goal, red means contact, and gray means the 15-second limit expired. Click a cell to show that run on both panels.</p>
+        <div class="prog-line" id="dProg" hidden><i></i></div>
+        <div class="readout" id="dOut"></div>
+      </div>
+      <div class="card guide-card"><div id="dMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: policy, filter, wheeled base, and ten-seed check</summary><div class="body">
+      <p><b>World.</b> The house and kettle come from Lessons 1.3 and 1.5. Ada is a circle with an 18 cm radius, the kettle a circle with a 13 cm radius, and contact occurs when their centers are less than 31 cm apart. The start is at the bottom of the living room and the goal is by the kitchen table, 312 cm away in a straight line. The kettle is placed randomly: \(x\) is within 60 cm of the route, \(y\) is between 200 and 290 cm—between the start and the doorway—and outside the furniture. A step lasts 0.1 s, Ada moves forward at 60 cm/s, and each run has a 15 s limit.</p>
+      <p><b>Demonstrations.</b> A teacher program drives Ada as the operator did in Lesson 1.3. It moves her sideways from the route, leaves a 22 cm margin around the kettle, then returns after passing it. It chooses the left side with probability \(1/(1 + e^{-d_k/2})\), where \(d_k\) is the kettle's offset from the route in centimeters. With a 2 cm leftward offset, it goes right roughly three times out of four; with a 10 cm offset, almost always. The dataset contains 300 runs and about 16,000 observation–offset pairs.</p>
+      <p><b>Policy.</b> This is a 3 → 32 → 32 → 1 tanh network like the one in Lesson 1.3, but with three inputs: remaining distance to the kettle along the route, kettle offset from the route, and the kettle's longitudinal position. All come from the camera estimate, with a 2 cm error on each axis at every step. The network outputs Ada's lateral position for the next step. It minimizes MSE for 2,500 Adam steps with batches of 64 examples. A controller drives Ada toward that position with lateral velocity up to 90 cm/s.</p>
+      <p><b>Filter.</b> At every step the filter solves the CBF-QP from the interactive with \(D = 31 + 5\) cm and the kettle position from the same camera estimate seen by the policy. It changes both lateral and forward velocity.</p>
+      <p><b>Wheeled base.</b> Velocity follows the command with acceleration limited to 300 cm/s²; lateral position receives 0.5 cm of noise per step. The filter does not know about the acceleration limit: its model assumes that velocity equals the command.</p>
+      <p><b>Matched runs.</b> Each run draws its kettle location, camera errors, and wheel noise from separate seeded generators, one number per step. Thus, at step \(t\), the errors are identical with and without the filter even after the paths diverge.</p>
+      <p><b>Identical in every browser.</b> The engine builds exponential, logarithm, tanh, sine, and cosine from additions, multiplications, and divisions, as in Lessons 5.2–5.6. Browser implementations differ in the last digit, and training would amplify that difference.</p>
+      <p id="duelSeeds"><b>Ten seeds.</b> The seed controls the demonstrations, initial weights, and its own set of 100 runs. Across seeds 1–10, Ada without a filter touches the kettle in 1–13 runs out of 100, always when the kettle is within 7 cm of the route centerline. With the filter, no seed produces contact; 0–3 runs out of 100 time out, and mean completion time rises by 0.01–0.33 s.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px" id="duelAfter">
+      <p>Without the filter, Ada touched the kettle in 7 of 100 runs. The straight path intersected the kettle in 53 runs, and the policy avoided almost all of them. Every contact occurred when the kettle stood within 4.1 cm of the route centerline. The teacher had gone left around some such kettles and right around others; regression averaged the two routes, as in Lesson 1.3. With the filter, the same runs produce no contact even though both the policy and the camera errors are unchanged.</p>
+      <p>The price is time and one timeout. The filter changed the command on 9% of steps, and mean completion time rose from 5.20 to 5.39 s. On runs 80 and 95, Ada followed the boundary around the kettle and took 11.9 and 11.3 s. On run 75 she never arrived: the policy kept pulling her onto a straight path through the kettle, the filter refused to cross the boundary, and the two commands balanced. What determines how early the filter intervenes and how often it stops Ada this way?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="alpha">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 2</div>
+    <h2>Parameter α: from a conservative filter to an aggressive one</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>The lesson's filter has one setting: \(\alpha\). A small \(\alpha\) makes it conservative, limiting approach to the kettle far from the boundary. A large \(\alpha\) makes it aggressive: it stays silent until almost the last moment, then brakes. This lab uses the same 100 runs and highlights run 80, one in which the unfiltered policy drives straight into the kettle. Its approach appears in a phase plane: horizontal position is the margin to the boundary and vertical position is approach speed. In this plane, the filter rule becomes the line “approach speed = \(\alpha \cdot\) margin”; everything below the line is allowed.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="al-grid" id="aScene">
+          <figure class="qp-pane"><canvas id="aPhase" width="560" height="420" role="img" aria-label="Phase plane for run 80: horizontal margin to the boundary, vertical approach speed, allowed region below the α times margin line, and trajectories without and with the filter"></canvas><figcaption>Run 80: margin and approach speed</figcaption></figure>
+          <figure class="qp-pane"><canvas id="aMap" width="600" height="400" role="img" aria-label="Top-down view of the house: Ada's path on run 80 without the filter and with the selected α"></canvas><figcaption>Run 80 on the plan</figcaption></figure>
+        </div>
+        <p class="cv-note">Phase plane: horizontal position is the margin to the safe-set boundary in cm (\(h\); zero is the boundary and the red vertical line at −5 cm is contact). Vertical position is Ada's approach speed toward the kettle center in cm/s. The blue line is \(\alpha h\); blue shading marks what the rule forbids. Points show run 80 every 0.1 s: gray without the filter and blue with the selected \(\alpha\). Blue points may briefly cross the line because the filter sees a noisy kettle position and the base cannot change velocity instantly. The plan shows the same run from above through the central strip of the house: gray without the filter and blue with it.</p>
+        <div class="a-chart"><canvas id="aChart" width="640" height="230" role="img" aria-label="Results of one hundred runs for each α: contacts, timeouts, and mean completion time"></canvas></div>
+        <p class="cv-note">The chart summarizes the 100-run series for every tested \(\alpha\): a red bar shows kettle contacts and a gray bar shows runs that did not finish within 15 s. The two counts appear above the bars, separated by a slash; mean completion time appears below the \(\alpha\) label. The first pale bar is the unfiltered series for comparison.</p>
+        <div class="ctl-row" id="wrapAAlpha">
+          <label class="hd-range"><span>α, 1/s</span><input id="aAlpha" type="range" min="0" max="6" step="1" value="3"><output>2</output></label>
+        </div>
+        <div class="prog-line" id="aProg" hidden><i></i></div>
+        <div class="readout" id="aOut"></div>
+      </div>
+      <div class="card guide-card"><div id="aMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: why an aggressive filter acts too late, and what the papers say</summary><div class="body">
+      <p><b>Filter model and real base.</b> The filter assumes that Ada's velocity equals the command immediately. The real base accelerates and brakes at no more than 300 cm/s². Canceling 60 cm/s takes 0.2 s and about 6 cm of travel. An aggressive filter starts braking when the margin is \(h \approx 60/\alpha\) cm. At \(\alpha = 16\), this is less than 4 cm, too late for the base to stop.</p>
+      <p><b>Time step.</b> The filter acts every 0.1 s. The Hsu survey requires \(\alpha \Delta t &lt; 1\) for this filter, so \(\alpha &lt; 10\) when \(\Delta t = 0.1\) s. Otherwise Ada can cross the boundary in a single step even with an instantaneous base. \(\alpha = 16\) violates this condition as well.</p>
+      <p><b>Higher relative degree.</b> Ames and coauthors identify relative degree one as the main limitation of their condition: the command must change \(\dot h\) directly. If the command sets acceleration while the margin depends on position, the degree is two, and the authors construct exponential barrier functions for such systems. Our acceleration-limited base is exactly this case. A conservative \(\alpha\) hides the mismatch; an aggressive one exposes it.</p>
+      <p id="alphaSeeds"><b>Ten seeds.</b> No seed produces contact for \(\alpha\) from 1 to 2. At \(\alpha = 4\), there are 0–1 contacts per seed; at \(\alpha = 8\), 0–3; at \(\alpha = 16\), 0–6. At \(\alpha = 0.25\), there are no contacts, but 1–9 runs out of 100 time out and successful runs take 8.14–8.53 s on average instead of 5.2 s.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px" id="alphaAfter">
+      <p>At \(\alpha = 0.25\), there is no contact, but the filter changes 68% of commands. Ada slows down on every detour, successful runs take 8.32 s on average, and 5 runs time out. This is conservatism. At \(\alpha = 16\), contact returns in 3 runs—fewer than the 7 without the filter, but no longer a guarantee. The phase plane shows why: run 80 stays near 60 cm/s almost to the boundary; the filter commands a stop in the final centimeters, but the base can remove at most 30 cm/s per step.</p>
+      <p>Between the extremes, \(\alpha\) from 1 to 4 yields no contact in this series, at most one timeout, and completion times of 5.34–5.58 s. Choosing \(\alpha\) is a tradeoff between caution and trust in the model: the more aggressive the filter, the more accurate its base model must be. This works for a velocity command that can be rotated or shortened slightly. What if the policy's actions are discrete?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="shield">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">3</span> Shields</div>
+      <h2>Shields: the same safeguard for discrete actions</h2>
+      <p>A barrier function works with a continuous command—a velocity vector that can be rotated or shortened slightly. Many policies instead use discrete actions such as “forward,” “left,” “stop,” or “open the valve.” A discrete action cannot receive a small correction; it can only be replaced. For this case, Alshiekh and coauthors proposed a <strong>shield</strong> in 2017: a program synthesized before training from a formal safety specification, which then decides which actions are allowed at every step.</p>
+      <p>The specification is written in temporal logic, a language for statements such as “something bad must never happen.” One example in the paper says that the water level in a tank must never fall below one liter. To check one step ahead, the shield needs a simplified model of the environment—an abstraction that predicts where each action may lead. The authors require this abstraction to be conservative with respect to the real environment. Like a barrier-function filter, the shield should intervene as little as possible: it forbids an action only when that action could violate safety.</p>
+      <p>A shield may sit in either of two places. In preemptive shielding, it removes every unsafe action before the agent chooses, leaving only safe options. In post-posed shielding, the agent chooses freely and the shield replaces its action if and only if that action is unsafe. In the latter case, the agent may not even know it is being protected, so the shield can work with an already-trained policy. If unsafe actions receive only a penalty during training, there is no guarantee that the final policy has eliminated them; the shield must therefore remain active after training.</p>
+    </div>
+    <figure class="card flow-card">
+      <canvas data-anim="shield" width="720" height="360" role="img" aria-label="Diagram: Ada and a kettle on a grid; the agent chooses discrete actions; a preemptive shield leaves only safe actions, while a post-posed shield replaces an unsafe action with a safe one"></canvas>
+      <figcaption class="muted-s">The diagram shows two placements for a shield. The grid is the same top-down house, divided into cells; cells where Ada would touch the kettle are red. Ada has five actions: forward, left, right, backward, and stay. A preemptive shield crosses out unsafe actions before the choice, and the agent (orange) chooses among the remainder. A post-posed shield acts later: the agent chooses “forward,” into the kettle, and the shield (blue) replaces it with the nearest safe action in the agent's preference order. Click the diagram to pause it.</figcaption>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>The authors tested shields on four tasks. In 9 × 9 and 15 × 9 grid worlds, a robot had to visit colored cells in order without hitting walls or a moving opponent; in the first world, it also could not remain on a bomb for more than two consecutive steps. The agent used tabular Q-learning, and the shields were synthesized in 2 and 0.6 s. Only unshielded agents received negative reward, while shielded agents learned faster. In a car task on a 480 × 480-pixel field, an unshielded DQN agent was still crashing at the end of training; a shielded agent never did. In Seaquest, the agent learned from screen frames while the shield treated it as a black box. Agent quality did not change, but the safety rules were never violated. The authors identify the main drawback directly: a shield needs at least an approximate model of which actions are dangerous in which states.</p>
+      <p>A shield and a barrier-function filter implement the same idea for different command spaces: specify danger in advance and change the policy command as little as possible at every step. Both need a model. The shield needs an environment abstraction; the filter needs a function \(h\) and a model of how commands change the margin. How strongly does the guarantee depend on what the filter knows about the world?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="holes">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 3</div>
+    <h2>The filter guarantees only what it knows</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>The filter's guarantee is conditional: if the kettle position is correct and no other obstacles exist, Ada will not leave the safe set. We will test what happens when those conditions fail. A camera error may be systematic rather than random—for example, poor calibration may make the kettle appear farther away than it is. An object missing from both the demonstrations and the filter map may also appear on the floor: a laundry basket in the living room. The policy and the 100 runs are unchanged, and \(\alpha = 2\). Choose what is wrong with the world and the filter's margin, then run the series. Results accumulate in the log below the scene.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <canvas id="hMap" width="600" height="400" role="img" aria-label="Top-down view of the house: the actual kettle, the filter's estimated kettle, the laundry basket, and Ada's path on the selected run"></canvas>
+        <p class="cv-note" id="hMapNote">The house is shown from above. A solid kettle marks its real location; a pale dashed kettle marks where the camera sees it; and the blue dashed line marks the safe-set boundary around that estimate. The woven circle left of the route is a laundry basket. A blue dashed boundary appears around it when the basket is on the filter's map. The line traces Ada's selected run: a green check means reached the goal, a red cross means contact, and a gray dot means the 15-second limit expired. Small dots mark all one hundred kettle locations; red dots mark locations that produced contact.</p>
+        <div class="ctl-row" id="wrapHErr">
+          <div class="ctl"><span class="ctl-l">Camera error</span><div class="seg" id="hErr" role="group" aria-label="Systematic error in the estimated kettle position"><button type="button" data-v="0" aria-pressed="true">none</button><button type="button" data-v="10" aria-pressed="false">10 cm</button><button type="button" data-v="20" aria-pressed="false">20 cm</button></div></div>
+        </div>
+        <div class="ctl-row" id="wrapHMargin">
+          <div class="ctl"><span class="ctl-l">Filter margin</span><div class="seg" id="hMargin" role="group" aria-label="Filter margin beyond contact"><button type="button" data-v="5" aria-pressed="true">5 cm</button><button type="button" data-v="15" aria-pressed="false">15 cm</button><button type="button" data-v="25" aria-pressed="false">25 cm</button></div></div>
+        </div>
+        <div class="ctl-row" id="wrapHBox">
+          <div class="ctl"><span class="ctl-l">Basket</span><div class="seg" id="hBox" role="group" aria-label="Laundry basket on the floor"><button type="button" data-v="none" aria-pressed="true">none</button><button type="button" data-v="hidden" aria-pressed="false">present, off map</button><button type="button" data-v="known" aria-pressed="false">present, on map</button></div></div>
+        </div>
+        <div class="h-log-wrap"><table class="h-log" id="hLog"><thead><tr><th>Camera</th><th>Margin</th><th>Basket</th><th>Contacts</th><th>Timeouts</th><th>Time</th></tr></thead><tbody></tbody></table><p class="h-log-empty" id="hLogEmpty">The log is empty: choose the conditions and start a series with the mission button.</p></div>
+        <div class="prog-line" id="hProg" hidden><i></i></div>
+        <div class="readout" id="hOut"></div>
+      </div>
+      <div class="card guide-card"><div id="hMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: what is wrong and why the filter knows only about the kettle</summary><div class="body">
+      <p><b>Camera error.</b> A constant offset along the route is added to the kettle-position estimate, making the kettle appear 10 or 20 cm farther from the start. The previous random 2 cm error remains at every step. Both the policy and the filter see the offset because they share one camera. The policy begins its detour slightly later, while the filter guards a circle around a location where the kettle is not.</p>
+      <p><b>Basket.</b> The basket is an 18 cm-radius circle in the living room, 50 cm left of the route. It was absent from the demonstrations and is invisible to the policy. “On the filter map” means that the filter receives its position with the same 2 cm error and constructs a second barrier function, giving the optimization problem two constraints.</p>
+      <p><b>Contacts.</b> Contacts with either the kettle or the basket count, and a run ends on contact.</p>
+      <p id="holesSeeds"><b>Ten seeds.</b> With a 10 cm camera error and a 5 cm margin, there are 0–10 contacts per seed. A 15 cm margin removes contact across all ten seeds, but 1–8 runs out of 100 time out. With a 20 cm error, a 15 cm margin is insufficient (2–11 contacts), while 25 cm is sufficient again. Ada touches an unmapped basket in 18–31 runs without the filter and 21–33 with a filter that knows only about the kettle. No seed reduces basket contact, and 8 of 10 increase it. When the basket is on the map, no seed produces contact, but 11–24 runs out of 100 time out.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px" id="holesAfter">
+      <p>With a 10 cm camera error and a 5 cm margin, there are 5 contacts; without the filter there would be 8. The filter guards the wrong location. A 15 cm margin covers this error and removes contact, but 4 runs time out instead of one. With a 20 cm error, a 15 cm margin is no longer enough: 10 contacts, the same as without the filter. Ada touches the unmapped basket in 27 runs—more often than without the filter (24)—because steering her away from the kettle sometimes directs her straight into the basket.</p>
+      <p>Adding the basket to the map removes contact, but 21 of 100 runs end with Ada stopped between the kettle and the basket. The filter guarantees exactly what it knows: its model, its position estimate, and its map. Calibration, perception, and map completeness must come from elsewhere. What exactly is required, and how do surveys and standards describe it?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="limits">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">4</span> Guarantees</div>
+      <h2>A guarantee relative to a model: what else a product needs</h2>
+      <p>All three labs make the same point: a filter guarantees safety under the conditions built into it. Hsu and coauthors state this directly. A safety guarantee is not absolute safety, but a description of the conditions under which a system will avoid a specified class of catastrophic failures. These conditions are called an operational design domain (ODD), a term the authors take from SAE J3016. Ada's filter has this ODD: the wheeled base can execute the command in time, camera error does not exceed the margin, and every obstacle appears on the map.</p>
+      <p>In their 2021 safe-learning survey, Brunke and coauthors divide guarantees into three levels. At level III, a constraint always holds; at level II, it holds with a specified probability; at level I, safety is only encouraged—for example, through a penalty in the reward, as in the reinforcement-learning lessons. They place filters and barrier functions in the group of methods that certify a learned controller after training. Such methods typically provide level II or III, but only within the model assumptions. If the barrier-function derivative is itself learned with error, a filter may pass a command it incorrectly judges safe.</p>
+      <p>This is why a product needs engineering around the filter. The base model is validated on the real robot; if it is more complex than “velocity equals command,” the barrier function must match that model. Ames and coauthors developed exponential barrier functions precisely for systems in which commands change acceleration. The margin is chosen from measured perception error. A separate perception system supplies the obstacle map, and its errors are the hardest part. Hsu and coauthors write that occlusions and sensor failures can seriously threaten operation, and call the connection between guarantees, camera input, and learned representations an important open problem.</p>
+      <p>Some requirements come from standards rather than an engineer. Three ISO documents are especially relevant for robots. Their full text is not publicly available, so the table lists only each title and scope.</p>
+      <div class="num-table" role="table" aria-label="Robot safety standards: title and scope">
+        <div class="num-row num-h" role="row"><span role="columnheader">Standard</span><span role="columnheader">Title</span><span role="columnheader">Scope</span></div>
+        <div class="num-row" role="row"><span role="cell"><b>ISO 10218-1</b> and <b>10218-2</b>, 2025 edition</span><span role="cell">Robotics — Safety requirements: Industrial robots; Industrial robot applications and robot cells</span><span role="cell">safety requirements for industrial robots and their integration into work cells</span></div>
+        <div class="num-row" role="row"><span role="cell"><b>ISO/TS 15066</b>, 2016</span><span role="cell">Robots and robotic devices — Collaborative robots</span><span role="cell">safety of industrial robots working near people; the foreword to ISO 10218-1:2025 says these requirements have now moved into ISO 10218</span></div>
+        <div class="num-row" role="row"><span role="cell"><b>ISO 13482</b>, 2014</span><span role="cell">Robots and robotic devices — Safety requirements for personal care robots</span><span role="cell">safe design, protective measures, and information for personal-care robots: mobile servant robots, physical assistant robots, and person-carrier robots</span></div>
+      </div>
+      <p class="cv-note">Standard titles and scopes follow the abstracts on iso.org. As of the access date, the new edition of ISO 13482 titled “Robotics — Safety requirements for service robots” had not yet been published.</p>
+      <p>Under this classification, Ada is closest to the mobile servant robot in ISO 13482. Engineers decide how to meet such requirements for a neural-network-controlled robot, and a safety filter is one of their tools. It turns “the policy almost always avoids the obstacle” into a testable condition with known assumptions.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="today">
+  <div class="prose">
+    <div class="kicker"><span class="num">5</span> Today</div>
+    <h2>A safeguard as a separate system layer</h2>
+    <p>The core idea that persists in 2025–2026 systems is the separation principle from the Hsu survey: the task policy does not reason about safety, and the filter does not reason about the task. A team can fine-tune or replace the policy without proving safety again, as long as the filter and its assumptions remain unchanged. The survey also explains how a filter can support training. With it, an ordinary reinforcement-learning algorithm can explore and update the policy without damaging the robot. This addresses the difficulty that forced Ada to learn from logs in Lesson 5.6: every new real-robot trial carries a collision risk. Brunke and coauthors demonstrated the idea in safe-control-gym. An MPSC filter on top of an undertrained PPO policy kept the system within its constraints and intervened most often near their boundaries.</p>
+    <p>The largest open questions appear where the filter lacks a model. Barrier functions and shields rely on known geometry and dynamics, neither of which is exact for a domestic robot with a camera and neural perception. Filters based on learned safety estimates scale better, but, as Hsu and coauthors note, no longer provide guarantees. Probabilistic guarantees are possible only when training and deployment share the same data distribution. Standards are changing as well: ISO 10218 received a new edition in 2025 and absorbed collaborative-robot requirements, while a replacement for ISO 13482 is in preparation for service robots.</p>
+  </div>
+</section>
+
+<section class="section" id="quiz">
+  <div class="prose">
+    <div class="kicker"><span class="num">6</span> Quiz</div>
+    <h2>Eight common misconceptions</h2>
+    <div class="quiz" id="quizBox"></div>
+    <p class="score" id="quizScore" style="margin-top:14px"></p>
+  </div>
+</section>
+
+<section class="section alt" id="finale">
+  <div class="prose">
+    <div class="kicker"><span class="num">7</span> Takeaways</div>
+    <h2>Lesson takeaways</h2>
+    <ol class="takeaways">
+      <li><span>A learned policy fails rarely and unpredictably. Without a safeguard, Ada touched the kettle in 7 of 100 runs—each time when it stood almost on the route centerline and the demonstrations went left around some such kettles and right around others.</span></li>
+      <li><span>The <strong>barrier function</strong> \(h\) is the margin to the safe-set boundary. The rule \(\dot h \ge -\alpha h\) means that the margin may shrink no faster than \(\alpha h\), and approach is forbidden altogether on the boundary.</span></li>
+      <li><span>At every step, a <strong>safety filter</strong> solves a small optimization problem: it finds the velocity nearest the policy command that satisfies the rule. It changes only approach toward the obstacle and works on top of any policy. In the same 100 runs, the filter eliminated contact.</span></li>
+      <li><span>Conservatism costs time; aggressiveness costs the guarantee. At \(\alpha = 0.25\), successful runs took 8.32 s instead of 5.39 s and 5 runs timed out. At \(\alpha = 16\), contact returned in 3 runs because the filter began braking after the base could no longer stop in time, and the condition \(\alpha \Delta t &lt; 1\) was violated.</span></li>
+      <li><span>The filter guarantees only what it knows. With a 10 cm camera error and a 5 cm margin, there were 5 contacts. Ada touched an unmapped basket 27 times. With the basket on the map there was no contact, but 21 of 100 runs timed out.</span></li>
+      <li><span>A <strong>shield</strong> applies the same idea to discrete actions. From a specification synthesized in advance, it removes unsafe actions before the agent chooses or replaces an unsafe action afterward.</span></li>
+    </ol>
+    <h3 style="margin-top:40px">Open questions</h3>
+    <details class="card pad open-q"><summary>Where does a barrier function come from when the world is visible only through a camera?</summary><p>The lesson's filter knew the geometry: it represented the kettle as a circle and took its center from the camera estimate. A domestic robot faces obstacles of arbitrary shape, some occluded by other objects, and perception is a neural network. Hsu and coauthors call the connection between guarantees, camera input, and learned representations an important open problem. Filters built on learned safety estimates scale better but provide no guarantee. Probabilistic guarantees are possible only when training and deployment share the same data distribution.</p></details>
+    <details class="card pad open-q"><summary>How can a filter avoid obstructing the task?</summary><p>The filter and policy are decoupled, and Brunke and coauthors warn that behavior may become suboptimal when a learned controller repeatedly tries to violate a constraint—exactly what happened to Ada near the basket. In their CLF-CBF QP, Ames and coauthors relax the goal, not safety. Hsu and coauthors show another route: if reinforcement learning includes the filter's effect in the reward, the policy reaches the boundary less often and interventions become less frequent. How to combine this with policies trained from demonstrations remains open.</p></details>
+    <h3 style="margin-top:34px">Paper guide</h3>
+    <p><a href="https://arxiv.org/abs/1903.11199" target="_blank" rel="noopener">A. D. Ames, S. Coogan, M. Egerstedt, G. Notomista, K. Sreenath, P. Tabuada, “Control Barrier Functions: Theory and Applications,” 2019</a>.</p>
+    <ul class="links">
+      <li><strong>Read closely</strong><span>Section II.B: the safe set, Definitions 1–2, Remark 4 on the special case \(\alpha(r) = r\), and Theorem 2. Section II.C: the CBF-QP as the smallest correction to a command, and the CLF-CBF QP, where the goal is relaxed for safety. Section V.C: the Segway on which a barrier function acts as a safety filter.</span></li>
+      <li><strong>Can be skimmed</strong><span>Section III on constructing barrier functions under actuator limits and the derivations in Section IV if you do not need the formal proof; Section V.D on long-duration autonomy for a robot group on a first reading.</span></li>
+      <li><strong>Question to keep in mind</strong><span>Why does the CLF-CBF QP add a slack variable to the stability condition rather than the safety condition? What does that imply for Ada stopped beside the basket?</span></li>
+    </ul>
+    <p style="margin-top:18px">Other papers in this lesson: <a href="https://arxiv.org/abs/2309.05837" target="_blank" rel="noopener">the safety-filter survey</a> (Hsu, Hu, Fisac, 2023) for the filter definition, separation principle, discrete time, and perception; <a href="https://arxiv.org/abs/2108.06266" target="_blank" rel="noopener">the safe-learning survey in robotics</a> (Brunke et al., 2021) for guarantee levels and three method families; and <a href="https://arxiv.org/abs/1708.08611" target="_blank" rel="noopener">shielding for reinforcement learning</a> (Alshiekh et al., 2017).</p>
+    <h3 style="margin-top:34px">Resources</h3>
+    <ul class="links">
+      <li><a href="https://github.com/utiasDSL/safe-control-gym" target="_blank" rel="noopener">safe-control-gym</a><span>Brunke and coauthors' benchmark: constrained cart-pole and quadrotor tasks, safe-learning methods, and filters</span></li>
+      <li><a href="https://github.com/safe-rl/safe-rl-shielding" target="_blank" rel="noopener">safe-rl-shielding</a><span>Shield implementation from the Alshiekh paper</span></li>
+    </ul>
+    <div class="bridge-note"><p>The safety filter prevents a collision but does not help Ada finish the task. With the basket on the map, 21 of 100 runs ended with Ada stopped at a boundary. A robot, however, is measured by the fraction of tasks it completes.</p><p class="bridge-to"><!--if:8-3-nadezhnost.html--><a href="8-3-nadezhnost.html"><!--/if-->Lesson 8.3 · Reliability: how a long task moves from 90% to 99.9%<!--if:8-3-nadezhnost.html--></a><!--/if--></p></div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Lesson 8.2 of Modern Robotics and Physical AI. The lab policy trains in the browser with a fixed seed; filtered and unfiltered runs are matched; paper results follow the original sources.
+</footer>
+<div class="tooltip" id="tooltip" role="tooltip"></div>
+<script>
+/*@@JS@@*/
+</script>
+</body>
+</html>

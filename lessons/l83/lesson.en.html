@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>8.3 Reliability — Modern Robotics and Physical AI</title>
+<meta name="description" content="Lesson 8.3 of the Modern Robotics and Physical AI course: why a long robot task succeeds less often than each of its steps, when retries help, how failure detectors turn silent failures into signaled ones (REFLECT, AHA, Sentinel), how KnowNo asks for help with a task-completion guarantee, and how many consecutive successful runs support a 99% reliability claim. Make one hundred lattes with two versions of Ada, tune an alarm threshold over a full workday, and test the rule of three on repeated runs.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<script>
+  (function () { try { var t = localStorage.getItem('mr-theme'); if (t) document.documentElement.dataset.theme = t; else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.dataset.theme = 'dark'; } catch (e) {} })();
+</script>
+<style>
+/*@@CSS@@*/
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html#program" title="Course outline"><div>Modern Robotics and Physical AI<small>Lesson 8.3 · Reliability</small></div></a>
+    <nav class="toc" aria-label="Lesson sections">
+      <a href="#chain">Chain</a>
+      <a href="#latte">One hundred lattes</a>
+      <a href="#loud">Failures</a>
+      <a href="#detectors">Detectors</a>
+      <a href="#threshold">Threshold</a>
+      <a href="#askhelp">KnowNo</a>
+      <a href="#runs">Runs</a>
+      <a href="#today">Today</a>
+      <a href="#quiz">Quiz</a>
+      <a href="#finale">Summary</a>
+    </nav>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Toggle theme">◐</button>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main>
+
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="kicker"><span class="num">8.3</span> Part 8 · From prototype to product</div>
+    <h1>Reliability: <span class="amp">how a long task moves from 90% to 99.9%</span></h1>
+    <p class="lead">One successful video says nothing about a month of operation. Errors accumulate in a long task: even reliable steps can produce a weak end-to-end result. A retry helps only when the robot notices the failure. We will examine the sequence “detect — stop — retry — call a human” and test it on one hundred identical orders. Finally, we will calculate how many successful runs are needed before promising a customer that failures are rare.</p>
+    <div class="hero-meta"><span>≈ 50 minutes</span><span>3 labs and a quiz</span><span id="heroMis">goal-driven missions</span></div>
+    <div class="hero-list">
+      <div><b>ONE HUNDRED LATTES</b>Make one hundred lattes with two versions of Ada on the same orders: one continues after every error, while the other checks each step and retries a failed one</div>
+      <div><b>ALARM THRESHOLD</b>Decide when Ada stops and calls a human, then count spoiled lattes and calls over a full workday</div>
+      <div><b>HOW MANY RUNS</b>Find how many successful lattes in a row support the claim that Ada fails less than once in one hundred attempts</div>
+    </div>
+    <p style="margin-top:28px"><a class="btn primary" href="#chain">Start lesson ↓</a></p>
+  </div>
+</section>
+
+<section class="recall-sec" id="recall" aria-label="Recall from the previous lesson">
+  <div class="wrap"><div class="card recall" data-recall></div></div>
+  <script type="application/json" id="recallData">{"n": "8.2", "title": "Safety", "href": "8-2-bezopasnost.html", "q": [{"q": "The policy commands Ada to drive straight into the kettle. What does the safety filter do?", "o": ["It stops Ada and waits for a new command", "It takes the velocity closest to the command for which the clearance to the kettle shrinks no faster than α·h: it suppresses only the closing component", "It plans a detour itself"], "a": 1, "e": "With 15 cm of clearance and α = 2, a 60 cm/s command toward the kettle becomes 30 cm/s in the same direction. On the same 100 runs there were no contacts with the filter and seven without it.", "sec": "qp", "secTitle": "One filter step: the nearest safe velocity"}, {"q": "Why not simply make α larger so that the filter intervenes less often?", "o": ["You can: the guarantee does not depend on α", "An aggressive filter brakes at the last moment, while a real base cannot stop instantly; α·Δt must also remain below 1", "A large α makes Ada slower"], "a": 1, "e": "At α = 16, three contacts returned. At α = 0.25 there were no contacts, but successful runs took 8.32 s instead of 5.39 s, and five runs did not reach the goal.", "sec": "alpha", "secTitle": "Parameter α: from cautious to aggressive filtering"}, {"q": "The laundry basket was added to the filter map. Is the task solved?", "o": ["Yes: there are no more contacts", "There are no contacts, but the policy still pulls Ada through the basket, so 21 of 100 runs end in a stop: the filter prevents a collision but does not complete the task", "No: contacts with the basket remain"], "a": 1, "e": "Without the basket on the map, Ada hit it in 27 of 100 runs. The filter guarantees only what it knows and turns contacts into stops, while a product still needs completed tasks.", "sec": "holes", "secTitle": "A filter guarantees only what it knows"}]}</script>
+</section>
+
+<section class="section alt" id="chain">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">1</span> Chain</div>
+      <h2>Long tasks: step reliabilities multiply</h2>
+      <p>A video of Ada making a latte shows one successful run. A buyer needs a different answer: what share of a month's orders will finish without error, and how often will a person need to intervene? The <strong>task success rate</strong> is the number of fully completed tasks divided by the number of runs.</p>
+      <p>The filter from Lesson 8.2 kept Ada from hitting the kettle, but it did not carry her to the goal on behalf of the policy. A safe stop is better than a collision, yet it is still an unfinished task for the product. Safety and reliability are therefore measured separately.</p>
+      <p class="ada-note"><svg class="ada-ico" viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="10" width="48" height="42" rx="18" fill="#f4efe6" stroke="#3d3c38" stroke-width="3"/><rect x="15" y="19" width="34" height="22" rx="10" fill="#1f2430"/><ellipse cx="25" cy="30" rx="4" ry="5.5" fill="#eb6834"/><ellipse cx="39" cy="30" rx="4" ry="5.5" fill="#eb6834"/></svg><span>Ada is the wheeled domestic humanoid used throughout the course labs. Meet her in <a href="0-1-dve-paradigmy.html#ada">Lesson 0.1</a>.</span></p>
+      <p>Ada makes a latte in eight steps: pick up a cup, place it under the coffee machine, brew espresso, pick up the milk, froth it, pour it into the cup, pick up the latte, and place it on the table. The task succeeds only if all eight steps succeed. Suppose each step succeeds 95% of the time and the steps are independent. Then the task success probability is the product of the step probabilities: \(0.95^8 \approx 0.66\). Only two cups out of three finish without error, even though every individual step looks almost flawless.</p>
+      <p>The effect grows with task length. At 99% reliability per step, a chain of 100 steps succeeds only 37% of the time. For the whole chain to succeed 99% of the time, each step must be roughly 99.99% reliable.</p>
+      <p>This calculation is optimistic because it treats the steps as independent. In reality, one error can change the next state and make another failure more likely. A long task must therefore be tested end to end rather than having its reliability inferred only from short skills.</p>
+    </div>
+    <figure class="card flow-card">
+      <canvas data-anim="funnel" width="720" height="320" role="img" aria-label="Diagram: one hundred latte orders pass through eight steps from left to right; some cups drop out at each step and about two thirds remain at the end; below, the same process is shown for a 100-step task at 99% reliability per step"></canvas>
+      <figcaption class="muted-s">The diagram shows one hundred orders passing through eight latte steps from left to right. The width of the green band represents how many orders remain error-free, and the number above it is their expected count. A step succeeds 95% of the time, so about one in twenty remaining orders fails at each step and the stack of red squares below the step grows. The lower row shows a 100-step task at 99% reliability per step; ticks under the band mark every five steps. The numbers are expected values from the formula, not one simulated run. Click the diagram to pause it.</figcaption>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>Lesson 0.1 promised that Part 8 would return to silent failures at product scale. The scale is this: if one thousand families buy Ada and each makes three lattes per day, a 66% success rate means about one thousand spoiled cups every day. Which will raise the latte success rate more: making every step more reliable or teaching Ada to recover from her errors?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="latte">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 1</div>
+    <h2>One hundred lattes: step reliability, retries, and detected errors</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>Two versions of Ada make lattes for the same one hundred orders. Every attempt at every step has a random number shared by both versions: if a step fails for Ada on the left, the same attempt fails for Ada on the right. The left Ada does not check for errors and continues after any failure. The right Ada checks whether every step succeeded. When she detects an error, she performs a <strong>retry</strong>—she repeats the same step, but no more than twice. If the retries also fail, Ada stops and calls a human.</p>
+      <p>As in Lesson 0.1, we call a failure that Ada reports herself signaled, and one that passes unnoticed silent. Ada does not detect every failed step: the <strong>detection rate</strong> is the share of failed attempts she recognizes. An undetected error becomes a silent failure: Ada finishes the latte and serves a spoiled cup.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="duo" id="lDuo">
+          <figure class="pane"><figcaption class="pane-head"><b>No checking</b><span id="lSubL">does not check for errors</span></figcaption><canvas id="lCvL" width="400" height="430" role="img" aria-label="One hundred latte orders for Ada on the left: a 10 by 10 grid of cups, with color showing the outcome; below are the eight steps and the number of failed attempts at each one"></canvas><div class="pane-stat" id="lStatL"></div></figure>
+          <figure class="pane"><figcaption class="pane-head"><b>Check and retry</b><span id="lSubR">detects 90% of errors, up to 2 retries</span></figcaption><canvas id="lCvR" width="400" height="430" role="img" aria-label="One hundred latte orders for Ada on the right on the same orders: a 10 by 10 grid of cups, with color showing the outcome; below are the eight steps and the number of failed attempts at each one"></canvas><div class="pane-stat" id="lStatR"></div></figure>
+        </div>
+        <p class="cv-note">Each circle is one order; the orders form a 10 × 10 grid read by rows from left to right. A green circle is a latte with no errors. A green circle with a yellow ring means that an error occurred, Ada detected it, and a retry repaired the step. An orange circle with an exclamation mark is a signaled failure: Ada stopped and called a human. A red circle with a cross is a silent failure: Ada served a spoiled latte. Below the grid are the eight latte steps in order, from “pick up cup” to “place on table”; the number under each step is its count of failed attempts.</p>
+        <div class="ctl-row">
+          <label class="hd-range" id="wrapLP"><span>Step reliability</span><input id="lP" type="range" min="0" max="7" step="1" value="1"><output>95%</output></label>
+          <label class="hd-range" id="wrapLD"><span>Errors detected</span><input id="lD" type="range" min="0" max="100" step="1" value="90"><output>90%</output></label>
+          <div class="ctl" id="wrapLR"><span class="ctl-l">Retries</span><div class="seg" id="lR" role="group" aria-label="Number of retries allowed for a step"><button type="button" data-v="0" aria-pressed="false">0</button><button type="button" data-v="1" aria-pressed="false">1</button><button type="button" data-v="2" aria-pressed="true">2</button><button type="button" data-v="3" aria-pressed="false">3</button></div></div>
+          <div class="ctl" id="wrapLN"><span class="ctl-l">Task steps</span><div class="seg" id="lN" role="group" aria-label="Number of steps in the task"><button type="button" data-v="8" aria-pressed="true">8, latte</button><button type="button" data-v="20" aria-pressed="false">20</button><button type="button" data-v="50" aria-pressed="false">50</button><button type="button" data-v="100" aria-pressed="false">100, cleanup</button></div></div>
+        </div>
+        <div class="readout" id="lOut"></div>
+      </div>
+      <div class="card guide-card"><div id="lMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: the retry formula and our one hundred orders</summary><div class="body">
+      <p>Let \(p\) be the probability that an attempt at a step succeeds, \(d\) the share of errors detected, and \(R\) the number of retries allowed. The step ultimately succeeds if the first attempt succeeds, or if it fails, the error is detected, and the second attempt succeeds, and so on through \(R\) retries:</p>
+      <div class="formula">\[\begin{gathered} p_{\text{step}} = p\,\bigl(1 + qd + (qd)^2 + \dots + (qd)^R\bigr), \\ q = 1 - p. \end{gathered}\]</div>
+      <p>A silent failure at a step occurs when an attempt fails and the error is not detected: \(q(1-d)\bigl(1 + qd + \dots + (qd)^R\bigr)\). A signaled failure occurs when all \(R+1\) attempts fail and every error is detected: \((qd)^{R+1}\). The three probabilities sum to one. If the steps are independent, an \(n\)-step task succeeds with probability \(p_{\text{step}}^{\,n}\). At \(p = 0.95\), \(d = 0.9\), and \(R = 2\), we get \(p_{\text{step}} \approx 0.9947\), so the task succeeds about 95.8% of the time.</p>
+      <p>The orders on the scene are simulated rather than replaced by the formula. Every attempt at every step of every order receives its own random number from an integer hash with a fixed seed; the attempt fails when the number is at least \(p\). A second number decides whether Ada detected the error. Both versions therefore receive the same orders, and raising step reliability can only remove errors, never create new ones. In our sample, <span id="lSeedBase">67</span> of 100 lattes succeeded without checking, against the formula's mean of 66.3. The sample is random, so other seeds differ: <span id="lSeeds">across 40 order sets with seeds 1 through 40, 55–76 lattes succeeded without checking and 92–99 with checking and two retries</span>.</p>
+      <p>The main assumption is that the steps are independent. Real errors can be related: a poorly grasped cup makes a milk spill more likely. The product of probabilities then becomes optimistic, and reliability must be measured end to end, over complete runs.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px" id="latteAfter">
+      <p>Without checking, 95% reliability per step produced <span data-n="base">67</span> successful lattes out of 100, almost exactly two thirds as the formula predicts. Reaching 99 out of 100 through step reliability alone requires every step to succeed 99.9% of the time—one error per thousand motions. With checking and two retries, Ada made <span data-n="retry">95</span> lattes at the same 95% reliability per step: retries saved <span data-n="saved">28</span> orders. The remaining <span data-n="silent">5</span> were spoiled silently; in each one, Ada missed an error, and she cannot retry an error she did not detect. To make 99 of 100 lattes at 95% reliability per step, Ada must detect at least 98% of her errors.</p>
+      <p>A retry is inexpensive: a step takes seconds. Detecting that a step failed is the difficult part. How does Ada recognize her errors, and what happens when she does not?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="loud">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">2</span> Failures</div>
+      <h2>Signaled and silent failures: a retry helps only after detection</h2>
+      <p>In Lab 1, retries saved only the orders in which Ada detected the error. Lesson 0.1 introduced the same distinction. The rule-based Ada failed to find the cup one evening but stopped and reported the failure: this is a signaled failure. The neural network confidently drove toward a bowl instead of the turquoise cup: this is a silent failure. Reliability literature calls the two cases signaled and unsignaled failures.</p>
+      <p>A signaled failure costs less because someone knows about it: the step can be retried, handed to a human, or at least prevented from serving a spoiled latte. A silent failure reaches the customer as a spoiled drink. The main way to improve the reliability of a long task is therefore to turn silent failures into signaled ones by checking the outcome after every step. A program or model that performs this check at run time is a <strong>failure detector</strong> or runtime monitor.</p>
+      <p>Silent failures are common in neural policies. The KnowNo authors write that language-model planners are prone to confident hallucinations—plausible but incorrect answers. The Sentinel authors note that even the strongest generative policies will eventually encounter conditions in which their behavior becomes unpredictable and prediction errors compound in states induced by the policy itself. Neither model reports its own mistake.</p>
+    </div>
+    <figure class="card flow-card">
+      <canvas data-anim="monitor" width="720" height="380" role="img" aria-label="Diagram: after each step, a detector checks the result; if the step succeeded, Ada proceeds; if the detector raises an alarm, Ada retries and calls a human after two failed retries; if the detector misses the error, a silent failure sends a spoiled latte to the customer"></canvas>
+      <figcaption class="muted-s">The diagram shows what happens after each step. Orange marks Ada's actions; blue marks the detector check. The cup passes through four cases in turn: the step succeeds and the detector stays quiet; the step fails, the detector raises an alarm, and a retry repairs it; the first attempt and both retries fail, so Ada calls a human—a signaled failure; and the step fails while the detector stays quiet—a silent failure that sends a spoiled latte to the table. A red cup with a cross means the step failed. Click the diagram to pause it.</figcaption>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>Inner Monologue in Lesson 2.3 already used such a detector: after every skill, the system appended “success — yes” or “success — no” to the language model's prompt. The same lesson showed that the detector itself can be wrong: it said “yes” after a failed step, and the plan diverged from the kitchen state. What kinds of detectors are available, and what can each one see?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="detectors">
+  <div class="wrap">
+    <div class="prose" style="margin:0;max-width:820px">
+      <div class="kicker"><span class="num">3</span> Detectors</div>
+      <h2>Failure detectors: from scales to vision-language models</h2>
+      <p>The simplest detector checks the physical result of a step. Scales under the cup reveal whether milk was poured; a force sensor in the gripper reports whether Ada is holding the cup; the coffee machine reports whether it brewed the espresso. These checks are fast and rarely wrong, but they see only what they were designed to see. Scales cannot distinguish frothed milk from cold milk, and they will not notice that the cup is beside the coffee spout until the coffee spills.</p>
+      <p><strong>REFLECT</strong> (Liu, Bahety, and Song, 2023) uses larger models to check any step. It turns depth-camera, microphone, and robot-state recordings into a three-level summary: what appears in each frame, which events occurred, and how each subtask ended. GPT-4 then uses the summary to find where and why execution failed and proposes a recovery plan. One example from the paper has a robot trying to place a mug in a coffee machine that already contains another cup. Sound helps: the authors note that a dropped object is easier to identify by sound, and removing audio reduces accuracy on execution failures by about 20%. Across 100 simulated failures, the recovery plan succeeded about 80% of the time.</p>
+      <p><strong>AHA</strong> (Duan et al., 2024) is a vision-language model (VLM; Lesson 3.2) based on LLaVA-v1.5-13B and fine-tuned to answer whether a subtask succeeded; after a failure it explains the reason in words: the gripper did not close, the object slipped, the rotation was wrong, or the wrong object was selected. Its FailGen data generator perturbs successful demonstrations in simulation by omitting gripper closure, releasing an object early, or shifting keyframes. This produced more than 49,000 image–question pairs across 79 tasks. AHA outperformed the next-best model, GPT-4o with in-context examples, by 10.3%; feeding its answers into three LLM/VLM-based systems raised their task success by 21.4% on average. Yet on real failures from the REFLECT dataset, AHA correctly decided whether the subtask succeeded only 64% of the time: an image-based detector also makes errors.</p>
+      <p><strong>Sentinel</strong> (Agia et al., 2024) monitors a generative policy—for example the diffusion policy from Lesson 1.5—during motion. The authors divide failures into two categories. In an <strong>erratic failure</strong>, the policy changes its mind at every step, consecutive actions are inconsistent, and the robot may hit its surroundings, so the failure must be detected quickly. In a <strong>task progression failure</strong>, the policy confidently and consistently does the wrong thing, such as placing an object in the wrong location; detection can take longer.</p>
+      <p>Sentinel uses STAC, a temporal-action-consistency check, for the first category. The policy emits action chunks (Lesson 1.7), and adjacent chunks predict actions for some of the same future times. STAC compares these overlapping predictions and accumulates their disagreement along the run; the score rises quickly when the chunks cease to agree. The threshold is the 95th percentile of that score over 50 successful runs. A <strong>false alarm</strong> is an alarm on a run that actually succeeded, so under familiar conditions this threshold keeps their rate near 5%. For the second category, a vision-language model watches video sampled at about one frame per second twice during a run, reasons step by step, and answers “ok” or “failure.” GPT-4o took 14 seconds on average—too slow for erratic failures. Sentinel stops the robot if either check raises an alarm.</p>
+      <p>Together, the two detectors find 18% more failures than either one alone and over 97% of previously unknown diffusion-policy failures. On task progression failures, STAC alone detects 44%, while STAC plus the VLM detects 93%, at the cost of a seven-percentage-point increase in false alarms. On a real mobile manipulator pushing a chair to a table, Sentinel classified 95% of runs correctly. Detectors err in both directions: they miss failures and raise false alarms. The Sentinel authors state plainly that a system that raises alarms frequently is impractical. Where should the line between alarm and silence be drawn?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="threshold">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 2</div>
+    <h2>Detector threshold: false alarms, misses, and human time</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>Ada works for a full day: 300 lattes with eight steps each, for 2,400 checks. A step fails 1.5% of the time. Half the failures are obvious: a cup slips or milk spills. The other half are subtle: too little milk, milk that was not frothed, or a cup beside the spout. After each step, the detector returns a score from 0 to 1 that expresses its confidence that the step failed. If the score is at or above the threshold, Ada stops and calls a human. This is an <strong>intervention</strong>, as in Lesson 1.2: the human repairs a failed step, while an alarm on a successful step is false and wastes the person's time. A failed step that receives no alarm becomes a silent failure and produces a spoiled latte.</p>
+      <p>There are two detectors. The sensors—a scale under the cup and a force sensor in the gripper—detect obvious failures confidently, while subtle failures look almost like successful steps. A vision-language model sees subtle failures in a camera frame, but raises more alarms on successful steps and is less reliable on fast, obvious failures, as in Sentinel. We sample detector scores from fixed distributions with a fixed seed: they are an illustration, not trained models.</p>
+      <p>Human workload is measured by <strong>mean time between interventions</strong> (MTBI): the average time the robot operates from one human call to the next. In our setting, a latte takes Ada three minutes, so the full day lasts 15 hours.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <canvas id="tHist" width="640" height="360" role="img" aria-label="Two histograms of detector scores over a workday: successful steps above and failed steps below, split into obvious and subtle failures; the vertical line is the alarm threshold"></canvas>
+        <p class="cv-note" id="tHistNote">The horizontal axis is the detector's “step failed” score from 0 to 1. The upper histogram shows successful steps in gray; the lower histogram shows failed steps, with obvious failures in orange and subtle ones in red. Bar height is the number of checks that received that score during the day; the upper histogram uses the square root of the count so that isolated false alarms remain visible. The vertical line is the threshold and can be dragged with a mouse or finger: everything to its right counts as an alarm. False alarms appear in the upper right, while missed failures appear in the lower left.</p>
+        <div class="ctl-row">
+          <div class="ctl" id="wrapTDet"><span class="ctl-l">Detector</span><div class="seg" id="tDet" role="group" aria-label="Choose a detector"><button type="button" data-v="sens" aria-pressed="true">sensors</button><button type="button" data-v="vlm" aria-pressed="false">camera VLM</button><button type="button" data-v="both" aria-pressed="false">both, OR</button></div></div>
+          <label class="hd-range" id="wrapTT"><span>Alarm threshold</span><input id="tT" type="range" min="1" max="19" step="1" value="10"><output>0.50</output></label>
+        </div>
+        <div class="t-tiles" id="tTiles"></div>
+        <canvas id="tDay" width="640" height="110" role="img" aria-label="Workday timeline: 300 lattes over 15 hours, with human calls and spoiled lattes marked"></canvas>
+        <p class="cv-note">The timeline shows the 15-hour workday from left to right and its 300 lattes. Blue marks above are human calls for real failures; gray marks are false alarms. Red marks below are spoiled lattes that reached customers.</p>
+        <div class="readout" id="tOut"></div>
+      </div>
+      <div class="card guide-card"><div id="tMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: score distributions, the workday, and threshold selection</summary><div class="body">
+      <p><b>Workday.</b> Ada makes 300 lattes with eight steps each. Every step fails with probability 0.015; a failed step is subtle with probability 0.5 and otherwise obvious. Our day contains <span id="tCounts">36 failures: 15 obvious and 21 subtle</span>. All randomness comes from the same integer hash with a fixed seed as in Lab 1.</p>
+      <p><b>Scores.</b> A score is the mean plus a spread times an approximately normal value—the sum of four uniform values—clipped to the interval from 0 to 1. For the sensors, a successful step receives 0.15 ± 0.07, an obvious failure 0.85 ± 0.08, and a subtle failure 0.20 ± 0.08. For the vision-language model, the corresponding scores are 0.22 ± 0.095, 0.55 ± 0.15, and 0.64 ± 0.12. Occasionally a detector malfunctions and emits a random value between 0 and 1: the sensors on 0.2% of checks (a table bump) and the camera model on 0.8% (glare on the cup or a person's hand in view). In “both” mode, the larger of the two scores is used, so an alarm is raised when either detector fires.</p>
+      <p><b>Counting.</b> A score at or above the threshold is an alarm. Every alarm calls a human; a false alarm is an alarm on a successful step, and a miss is a failed step without an alarm. A latte is spoiled if it contains at least one miss. MTBI is 15 hours divided by the number of calls.</p>
+      <p><b>Where the threshold comes from.</b> Here we move the threshold while looking at a day that has already ended. In practice the threshold is chosen in advance from separate recordings. Sentinel uses the 95th percentile of scores on successful runs: this keeps the false-alarm rate below 5% on similar runs, but promises nothing about misses. A claim about misses requires recordings of both successful and failed attempts, and the Sentinel authors note that their method provides no formal failure-detection guarantee. The next section shows how KnowNo selects a threshold with a task-completion guarantee.</p>
+      <p id="thrSeeds"><b>Twenty days.</b> Our day is only one sample. Across days with seeds 1 through 20, the sensors at a threshold of 0.5 produce 12–25 spoiled lattes. Reducing the count to at most three requires a sensor threshold of 0.05–0.15 and 1,207–2,229 human calls per day. Both detectors at a threshold of 0.5 produce 0–5 spoiled lattes and 33–60 calls; they raise more false alarms than the sensors alone on all 20 days, and they satisfy both criteria in Mission 3 on 16 of 20 days.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px" id="thresholdAfter">
+      <p>At a threshold of 0.5, the sensors raised <span data-n="sensA">16</span> alarms over the day, including <span data-n="sensF">1</span> false alarm, and missed almost every subtle failure: <span data-n="sensS">20</span> spoiled lattes reached customers. Reducing that count to at most three required a sensor threshold of <span data-n="lowT">0.10</span>; a human was then called <span data-n="lowA">1800</span> times in one day—once every <span data-n="lowM">30 seconds</span>. A threshold cannot repair a detector that cannot see subtle failures: on its scale they overlap successful steps. With both detectors combined through OR at a threshold of 0.5, only <span data-n="bothS">2</span> lattes were spoiled, but a human was called <span data-n="bothA">48</span> times, <span data-n="bothF">14</span> of them unnecessarily: the detectors' false alarms accumulate.</p>
+      <p>Even a perfect detector cannot reduce calls below the number of failures—<span data-n="fails">36</span> on our day. A detector turns silent failures into signaled ones but does not remove them. Fewer calls require more reliable steps or retries, as in Lab 1. We also tuned the threshold after seeing how the day ended. Can it be selected in advance while retaining a guarantee?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="askhelp">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">4</span> Asking for help</div>
+      <h2>KnowNo: the robot asks when it is uncertain</h2>
+      <p>The detector in Lab 2 inspected the result of a step. A robot can fail earlier, while deciding what to do. The <strong>KnowNo</strong> paper (Ren et al., 2023) uses the request “place the bowl in the microwave.” It is ambiguous when two bowls are on the table, and putting a metal bowl in a microwave can damage the appliance or start a fire. Instead of guessing, the robot must know when it does not know and ask which bowl to take.</p>
+      <p>KnowNo uses a language model as its planner, as SayCan did in Lesson 2.3. The model proposes four semantically different options for the next step; a fifth option, “an option not listed here,” is added, and the same model answers with the letter of the correct option. The probability of each letter is that option's score. KnowNo then decides which scores to trust with <strong>conformal prediction</strong>, a way to choose a threshold from labeled examples so that the correct answer enters a set with a specified probability.</p>
+      <p>First, the system collects a calibration set of work-like scenarios in which a person labeled the correct option. The paper used 400 examples, and labeling the multi-step scenarios took about four hours. For each example, it records the model's score for the correct option and chooses a threshold that places the correct option at or above it in a fraction \(1-\varepsilon\) of examples; \(\varepsilon\) is the acceptable error rate chosen by the user. At run time, the <strong>prediction set</strong> contains every option at or above the threshold. If the set has one option, the robot executes it. If it has more, the robot asks a person which option to choose, and the model turns the set into a natural-language question.</p>
+    </div>
+    <figure class="card flow-card">
+      <canvas data-anim="knowno" width="720" height="310" role="img" aria-label="KnowNo diagram: a language model proposes and scores options; a threshold found from calibration examples selects a prediction set; with one option the robot acts, and with two it asks a human"></canvas>
+      <figcaption class="muted-s">The diagram shows how KnowNo decides whether to act or ask. The request and the objects on the table appear on the left; the model's options and scores are in the middle; and the blue line is the calibration threshold. Options at or above the threshold form the prediction set. In the first example, the set contains both the plastic and metal bowls, so the robot asks a human. In the second, the request is unambiguous, the set has one option, and the robot acts. The first example's scores and threshold of 0.21 come from Figure 1 of the paper; the second example is illustrative. Click the diagram to pause it.</figcaption>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>The guarantee is this: if work scenarios come from the same distribution as the calibration scenarios, task completion is at least \(1-\varepsilon\). It holds for any language model; a weaker model simply asks for help more often. But this is a marginal guarantee over scenarios: it does not promise success on every particular request and says nothing about scenarios unlike the calibration set. The authors give other conditions as well: the full scene must be grounded for the model in text, proposed actions must execute successfully, and the human must answer correctly.</p>
+      <p>On a tabletop UR5 task at \(\varepsilon = 0.25\), KnowNo produced a correct plan in 76% of trials and completed the task in 74%, against a 75% target; without human help, only 41% of plans were correct. It requested help on 58% of steps, compared with 72% for Simple Set, an accumulated-confidence threshold tuned to the same plan success rate. In an office kitchen at \(\varepsilon = 0.15\), a mobile manipulator produced a correct plan in 87% of cases versus 62% without help, and asked for help on 67% of requests versus 81% for Simple Set: many requests were ambiguous or unsafe. It completed 76% of tasks because low-level actions themselves succeeded only about 86% of the time, an uncertainty KnowNo does not model. Across experiments, KnowNo required 10–24% less help than prior methods under the same guarantee.</p>
+    </div>
+    <details class="deep"><summary>Under the hood: conformal prediction in KnowNo</summary><div class="body">
+      <p>Let \(\hat f(x)_y\) be the score the model assigns to option \(y\) in scenario \(x\). In a calibration set of \(N\) scenarios, let \(y_1, \dots, y_N\) be the correct options. For each example, compute a nonconformity score—how low the model scored the correct answer—and take its quantile:</p>
+      <div class="formula">\[\begin{gathered} \kappa_i = 1 - \hat f(x_i)_{y_i}, \\ \hat q = \text{quantile at level } \tfrac{\lceil (N+1)(1-\varepsilon) \rceil}{N} \text{ of } \kappa_1, \dots, \kappa_N. \end{gathered}\]</div>
+      <p>In a new scenario, the prediction set contains all options whose score is at least \(1 - \hat q\):</p>
+      <div class="formula">\[ C(x) = \bigl\{\, y : \hat f(x)_y \ge 1 - \hat q \,\bigr\}, \qquad P\bigl(y_{\text{correct}} \in C(x)\bigr) \ge 1 - \varepsilon. \]</div>
+      <p>The probability is over the calibration set and the new scenario together: the guarantee is marginal, and calibration and work scenarios must be independent and identically distributed. The robot is wrong only when the correct option is absent from the set. With one option it acts; with more, it asks, and the human chooses the correct one. The task completion rate is therefore at least \(1-\varepsilon\) if the rest of execution is error-free. In a multi-step task, the score for the whole sequence is the lowest score among its steps, and the robot asks for help at every step whose set is not a singleton. A smaller \(\varepsilon\) lowers the threshold, enlarges the sets, and produces more questions.</p>
+      <p>The same idea—a quantile threshold over individual examples—also underlies the Sentinel threshold from Section 3. Sentinel takes a quantile over successful runs and controls the false-alarm rate rather than the planning-error rate.</p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px">
+      <p>KnowNo's guarantee rests on calibration; the Lesson 8.2 filter rests on a world model; and detectors rest on recordings of successful and failed attempts. A “99% reliable” claim in a robot's description rests on trials. How many successful runs are needed before the claim is credible?</p>
+    </div>
+  </div>
+</section>
+<section class="section alt" id="runs">
+  <div class="wrap">
+    <div class="lab-badge"><i>🔬</i> Lab 3</div>
+    <h2>How many successful runs support a reliability claim?</h2>
+    <div class="prose lab-intro" style="margin:0;max-width:820px">
+      <p>The simplest reliability test is a sequence of consecutive runs: Ada makes \(n\) lattes, and the test passes only if none fails. The question is how often this test is passed by a version of Ada whose true reliability is below the claim we want to make. If such a version rarely passes, a passed test carries evidence.</p>
+      <p>The scene shows 40 independent tests of the same Ada, one row per test. Ada makes lattes until the first failure or until she reaches \(n\) successes. We set Ada's true reliability; in practice it is unknown, which is why the test is needed. The chart below shows the share of length-\(n\) tests passed at different true reliability levels.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <canvas id="rRows" width="640" height="400" role="img" aria-label="Forty tests of Ada: each bar shows consecutive lattes until the first failure; bars that reach the vertical test-length line are passed tests"></canvas>
+        <p class="cv-note" id="rRowsNote">Each of the forty tests occupies one row. The bar length is the number of consecutive lattes Ada completed without error; a red cross or red cell marks the first failure that stopped the test. The vertical line marks test length \(n\). Green bars reached the line and passed. While the test length is at most 50 lattes, every cell in a bar is one latte.</p>
+        <div class="ctl-row">
+          <label class="hd-range" id="wrapRN"><span>Test length</span><input id="rN" type="range" min="0" max="15" step="1" value="1"><output>20</output></label>
+          <div class="ctl" id="wrapRP"><span class="ctl-l">True reliability</span><div class="seg small" id="rP" role="group" aria-label="Ada's true reliability"><button type="button" data-v="0.95" aria-pressed="true">95%</button><button type="button" data-v="0.99" aria-pressed="false">99%</button><button type="button" data-v="0.999" aria-pressed="false">99.9%</button><button type="button" data-v="0.9995" aria-pressed="false">99.95%</button></div></div>
+        </div>
+        <canvas id="rCurve" width="640" height="260" role="img" aria-label="Chart: share of length-n tests passed as a function of Ada's true reliability"></canvas>
+        <p class="cv-note">The horizontal axis is Ada's true reliability—90%, 99%, 99.9%, and 99.99%—on a logarithmic failure-rate scale. The vertical axis is the share of length-\(n\) tests passed without a single error. The dashed line marks 5%: if Ada at a given reliability passes less often, a passed test supports the claim that her reliability is higher, with 95% confidence. The circle marks the Ada shown on the scene.</p>
+        <div class="readout" id="rOut"></div>
+      </div>
+      <div class="card guide-card"><div id="rMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: the rule of three and its assumptions</summary><div class="body">
+      <p>Suppose Ada fails on a fraction \(f\) of runs, independently from one run to the next. The probability of passing a test of \(n\) runs with no failure is \((1-f)^n\). We can claim with 95% confidence that the failure rate is below \(f\) when a version of Ada with that failure rate would pass the test no more than 5% of the time:</p>
+      <div class="formula">\[\begin{gathered} (1-f)^n \le 0.05 \;\Longleftrightarrow\; n \ge \frac{\ln 0.05}{\ln(1-f)} \approx \frac{3}{f}, \\ \ln 0.05 \approx -3.0, \quad \ln(1-f) \approx -f. \end{gathered}\]</div>
+      <p>This is the <strong>rule of three</strong>: after \(n\) consecutive successful runs with no failure, the failure rate is below roughly \(3/n\) with 95% confidence. A 99% reliability claim requires about 300 successful runs—299 exactly; 99.9% requires about 3,000—2,995 exactly. Twenty consecutive successes show only that the failure rate is probably below 14%.</p>
+      <p>The rule has two assumptions. Runs must be independent, and their conditions must match those of future users. Three hundred lattes in one kitchen with one cup support 99% only for that kitchen and cup. The rule also says nothing when failures occur; a different estimate is then required, and Lesson 8.4 examines it together with comparisons between models.</p>
+      <p>The scene simulates these sequences. Every latte in every test receives its own random number from the same seeded hash, and the latte succeeds when the number is below the true reliability. Raising reliability can therefore only lengthen the bars. <span id="runSeeds">Across 20 other sequence sets, a version of Ada with 95% reliability passed a 20-latte test 9–21 times out of 40, while a version with 99% reliability passed a 300-latte test 0–4 times.</span></p>
+    </div></details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px" id="runsAfter">
+      <p>Ada, who fails one latte in twenty, passed the 20-latte test in <span data-n="m1">15</span> of 40 cases—36% by the formula. Twenty consecutive successes do not distinguish 95% from 99%. For Ada with 99% reliability to pass no more than 5% of the time, the test must contain 300 consecutive lattes: she then passes 4.9% of tests, and <span data-n="m2">2</span> of the 40 scene tests passed. Claiming 99.9% requires 2,995 consecutive lattes—about 150 hours at three minutes each, more than six uninterrupted days. Even a version twice as reliable, at 99.95%, passes such a test only 22% of the time: a strict test rejects many good versions too.</p>
+      <p>A product's reliability is therefore not established by one pre-release sequence. It is measured throughout operation through completed-task rate, interventions, and time between them. How do systems from 2025–2026 measure it?</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="today">
+  <div class="prose">
+    <div class="kicker"><span class="num">5</span> Today</div>
+    <h2>Reliability in systems from 2025–2026</h2>
+    <p>Physical Intelligence measures the reliability of π*0.6 from Lesson 3.8 with two quantities: success rate and throughput—the number of successful tasks per hour, which combines speed with success. Its coffee policy prepares several drinks, including lattes; evaluation uses a double espresso from portafilter to serving, and an attempt succeeds only when every step finishes within 200 seconds without a critical error such as dropping the portafilter or spilling coffee. Learning from the system's own experience with operator corrections (RECAP) more than doubled throughput on the hardest tasks and roughly halved the failure rate; the robot made espresso for 13 hours straight. The authors also state that the system is not fully autonomous: people label rewards, intervene, and reset episodes, and an intervention during autonomous operation is a disruptive event.</p>
+    <p>One hundred successes out of one hundred, as SERL achieved on three tasks in Lesson 5.3, support reliability above 97% under the rule of three, not 100%. For a policy trained on a real robot for tens of minutes, this is strong evidence. A product that makes thousands of lattes per day needs a different testing scale, supplied by the deployed robots themselves.</p>
+    <p>Failure detectors increasingly use vision-language models. AHA learns from demonstrations corrupted in simulation; Sentinel combines a fast action-consistency check with a slow VLM; and KnowNo turns a language model's uncertainty into a question for a person with a guarantee. Detected failures then become data: the flywheel from Lesson 4.6 labels them and returns them to training, as RECAP does with operator corrections. A detector, a retry, and a person called by an alarm do not make an individual step more reliable, but they turn silent failures into signaled ones, and signaled failures into data for the next policy version.</p>
+  </div>
+</section>
+
+<section class="section alt" id="quiz">
+  <div class="prose">
+    <div class="kicker"><span class="num">6</span> Check yourself</div>
+    <h2>Eight common misconceptions</h2>
+    <div class="quiz" id="quizBox"></div>
+    <p class="score" id="quizScore" style="margin-top:14px"></p>
+  </div>
+</section>
+
+<section class="section" id="finale">
+  <div class="prose">
+    <div class="kicker"><span class="num">7</span> Summary</div>
+    <h2>Lesson takeaways</h2>
+    <ol class="takeaways">
+      <li><span>A long task is a chain of steps, and for independent steps their reliabilities <strong>multiply</strong>: eight steps at 95% produce about 66% error-free lattes, and one hundred steps at 99% produce 37%. Without checks, the scene produced <span data-n="base">67</span> successful lattes out of 100.</span></li>
+      <li><span>A <strong>retry</strong> repairs only detected errors. With checking and two retries at the same 95% reliability per step, Ada made <span data-n="retry">95</span> lattes; reaching 99 of 100 requires her to detect at least 98% of her errors.</span></li>
+      <li><span>A <strong>failure detector</strong> turns silent failures into signaled ones but does not remove them; every alarm means human intervention. The threshold trades false alarms for misses, and it cannot fix a detector that cannot see a failure category: the sensors missed <span data-n="sensS">20</span> subtle failures in one day.</span></li>
+      <li><span>Different detectors see different failures. Action-consistency checks catch erratic failures quickly; vision-language models catch task-progression failures slowly. Sentinel combines them with OR and detects more than 97% of failures, but their false alarms accumulate.</span></li>
+      <li><span><strong>KnowNo</strong> selects a threshold from calibration examples and asks for help when its prediction set contains more than one option. Its task completion rate is at least \(1-\varepsilon\) on average over scenarios similar to the calibration set.</span></li>
+      <li><span>Reliability claims require sequences: under the <strong>rule of three</strong>, \(n\) consecutive successful runs support a failure rate below roughly \(3/n\). Claiming 99% requires 300 lattes and 99.9% roughly 3,000.</span></li>
+    </ol>
+    <h3 style="margin-top:40px">Open questions</h3>
+    <details class="card pad open-q"><summary>Step errors are related: a poorly grasped cup makes a milk spill more likely. What remains of the product formula?</summary><p>The product of step probabilities becomes only a rough estimate. Related errors may cluster in some runs and be nearly absent in others. Long-task reliability must therefore be measured end to end, while per-step probabilities help locate the weak stage. The same concern applies to retries: if a step failed because the cup is misaligned, retrying with the same cup may fail again, so the independent-attempt formula overstates the benefit.</p></details>
+    <details class="card pad open-q"><summary>A detector was calibrated in one kitchen. What happens to false alarms and misses in a new one?</summary><p>Both KnowNo's guarantee and Sentinel's threshold depend on work scenarios resembling the calibration set. The Sentinel authors note that a vision-language model's monitoring quality degrades on unfamiliar images, and calibrating from demonstrations instead of successful policy runs noticeably increased their false-alarm rate. A new kitchen therefore requires recalibration, and there is still no clear answer for detecting when the operating conditions have changed too far.</p></details>
+    <h3 style="margin-top:34px">Paper guide</h3>
+    <p><a href="https://arxiv.org/abs/2307.01928" target="_blank" rel="noopener">A. Z. Ren et al., “Robots That Ask For Help: Uncertainty Alignment for Large Language Model Planners,” CoRL 2023</a>.</p>
+    <ul class="links">
+      <li><strong>Read closely</strong><span>Section 2 and Figures 1–2: how planning becomes a choice among options. Sections 3.1–3.2: conformal prediction, Proposition 1, and why the robot fails only when the correct option is absent from the set. Tables 1 and 2: success and help rates on real robots.</span></li>
+      <li><strong>Safe to skim</strong><span>The proof of the multi-step guarantee in Section 3.3 and the prompt and scenario appendices, unless you plan to reproduce the experiments.</span></li>
+      <li><strong>Question to keep in mind</strong><span>Why does the guarantee hold for any language model, and what becomes worse with a weaker one? What happens if work requests are harder than the calibration requests?</span></li>
+    </ul>
+    <p style="margin-top:18px">Other papers in this lesson: <a href="https://arxiv.org/abs/2410.04640" target="_blank" rel="noopener">Sentinel</a> (Agia et al., 2024), which checks action consistency and uses a VLM to monitor generative policies; <a href="https://arxiv.org/abs/2306.15724" target="_blank" rel="noopener">REFLECT</a> (Liu, Bahety, and Song, 2023), which summarizes robot experience and explains failures with a language model; and <a href="https://arxiv.org/abs/2410.00371" target="_blank" rel="noopener">AHA</a> (Duan et al., 2024), a vision-language model trained on corrupted demonstrations.</p>
+    <h3 style="margin-top:34px">Resources</h3>
+    <ul class="links">
+      <li><a href="https://robot-help.github.io" target="_blank" rel="noopener">KnowNo</a><span>Project page with videos of robots asking questions and the prompts</span></li>
+      <li><a href="https://robot-reflect.github.io/" target="_blank" rel="noopener">REFLECT</a><span>Project page with the RoboFail dataset and example explanations</span></li>
+    </ul>
+    <div class="bridge-note"><p>This lesson supported one Ada's reliability claim with sequences containing no failure. Usually failures do occur, and several models are available: a new policy version succeeded in a few more trials out of one hundred than the current one. Does that make it better, and how many trials support the claim?</p><p class="bridge-to">Lesson 8.4 · Quality assurance: how to evaluate a system before release</p></div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Lesson 8.3 of the Modern Robotics and Physical AI course. Lab orders, workdays, and run sequences are computed in the browser with fixed seeds; detector scores in Lab 2 are illustrative; paper figures come from the primary sources.
+</footer>
+<div class="tooltip" id="tooltip" role="tooltip"></div>
+<script>
+/*@@JS@@*/
+</script>
+</body>
+</html>

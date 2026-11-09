@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>8.4 Quality assurance — Modern Robotics and Physical AI</title>
+<meta name="description" content="Lesson 8.4 of Modern Robotics and Physical AI: how to evaluate a new robot policy before release, build a test matrix, compare versions from matched starts, account for confidence intervals, and apply release gates. Three labs cover condition slices, paired trials, and release decisions.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<script>(function(){try{var t=localStorage.getItem('mr-theme');if(t)document.documentElement.dataset.theme=t;else if(window.matchMedia('(prefers-color-scheme: dark)').matches)document.documentElement.dataset.theme='dark';}catch(e){}})();</script>
+<style>/*@@CSS@@*/</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html#program" title="Course outline"><div>Modern Robotics and Physical AI<small>Lesson 8.4 · Quality assurance</small></div></a>
+    <nav class="toc" aria-label="Lesson sections">
+      <a href="#contract">Plan</a>
+      <a href="#outcome">Outcome</a>
+      <a href="#sets">Sets</a>
+      <a href="#matrix">Matrix</a>
+      <a href="#protocol">Protocol</a>
+      <a href="#paired">Pairs</a>
+      <a href="#uncertainty">Uncertainty</a>
+      <a href="#report">Report</a>
+      <a href="#stopping">Sample size</a>
+      <a href="#gates">Gates</a>
+      <a href="#release">Release</a>
+      <a href="#levels">Levels</a>
+      <a href="#today">Today</a>
+      <a href="#quiz">Quiz</a>
+      <a href="#finale">Takeaways</a>
+    </nav>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Toggle theme">◐</button>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main>
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="kicker"><span class="num">8.4</span> Part 8 · From prototype to product</div>
+    <h1>Quality assurance: <span class="amp">how to evaluate a system before release</span></h1>
+    <p class="lead">The new policy makes more lattes on average, but drops transparent cups more often. Should we release it or keep the current version? One aggregate percentage is not enough. We will run both versions from matched starts, break the results down by condition, and quantify uncertainty. The decision will follow release gates set before testing—not the team's desire to ship the candidate.</p>
+    <div class="hero-meta"><span>≈ 45 minutes</span><span>3 labs and a quiz</span><span id="heroMis">goal-driven missions</span></div>
+    <div class="hero-list">
+      <div><b>BREAK DOWN THE AVERAGE</b>Run the same pair of policies on the production mix, an even mix, and a stress test; find the regression hidden by the aggregate result</div>
+      <div><b>COMPARE MATCHED STARTS</b>Change the number of trials and the comparison design; read the confidence interval for the difference, not just two percentages</div>
+      <div><b>SET THE RELEASE RULE</b>Check aggregate success, rare conditions, safety, and latency; release only a candidate that meets every requirement</div>
+    </div>
+    <p style="margin-top:28px"><a class="btn primary" href="#contract">Start the lesson ↓</a></p>
+  </div>
+</section>
+
+<section class="recall-sec" id="recall" aria-label="Warm-up from the previous lesson">
+  <div class="wrap"><div class="card recall" data-recall></div></div>
+  <script type="application/json" id="recallData">{"n":"8.3","title":"Reliability","href":"8-3-nadezhnost.html","q":[{"q":"Each of the eight steps in making a latte succeeds 95% of the time. How many of 100 lattes will be completed without a single error?","o":["About 95","About 80","About two thirds: the reliabilities of independent steps multiply"],"a":2,"e":"0.95⁸ ≈ 0.66: in the lab without checks, 67 of 100 lattes were completed. At 99% per step, a 100-step task succeeds only 37% of the time.","sec":"chain","secTitle":"Long tasks: step reliabilities multiply"},{"q":"A failure detector checks Ada after every step. What does it change?","o":["It makes every step more reliable","It turns silent failures into visible ones: fewer lattes are spoiled, but every alarm calls a person, and false alarms add more calls","Nothing, if the threshold is 0.5"],"a":1,"e":"At a threshold of 0.5, the detectors missed nearly all subtle failures—20 spoiled lattes in one day. Combining two detectors with OR left 2 spoiled lattes, but caused 48 calls, 14 of them false alarms.","sec":"threshold","secTitle":"Detector threshold: false alarms, misses, and human time"},{"q":"Ada has made 300 lattes in a row without an error. What can we claim?","o":["That she never makes mistakes","With 95% confidence, the failure rate is below roughly 1%: by the rule of three, 3/300","That her reliability is exactly 99.7%"],"a":1,"e":"A 99%-reliable Ada passes this check only 4.9% of the time. Demonstrating 99.9% takes roughly 3,000 consecutive successful runs, and the result applies only to the conditions that were tested.","sec":"runs","secTitle":"How many successful runs support a reliability claim?"}]}</script>
+</section>
+
+<section class="section alt" id="contract">
+  <div class="wrap">
+    <div class="prose" style="margin:0 0 22px;max-width:820px">
+      <div class="kicker"><span class="num">1</span> Evaluation plan</div>
+      <h2>The success rate depends on the test conditions</h2>
+      <p>The new policy made 85 of 100 lattes; the current policy made 79. The candidate appears ready to ship. But the conclusion changes if 70 trials used an ordinary kitchen and a new object appeared only twice: the average then mostly describes the familiar condition. In Lesson 8.3, a series answered “how often does this version fail under the stated conditions?” Now we need two more answers: were both versions tested under the same conditions, and is the average hiding a weak spot?</p>
+      <p class="ada-note"><svg class="ada-ico" viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="10" width="48" height="42" rx="18" fill="#f4efe6" stroke="#3d3c38" stroke-width="3"/><rect x="15" y="19" width="34" height="22" rx="10" fill="#1f2430"/><ellipse cx="25" cy="30" rx="4" ry="5.5" fill="#eb6834"/><ellipse cx="39" cy="30" rx="4" ry="5.5" fill="#eb6834"/></svg><span>Ada is the wheeled domestic humanoid used throughout the course labs. Meet her in <a href="0-1-dve-paradigmy.html#ada">Lesson 0.1</a>.</span></p>
+      <p>A <strong>test matrix</strong> lists not only tasks but also conditions: lighting, clutter, familiar and novel objects, starting poses, and the duration of continuous operation. Every cell gets a number of runs and a success rule. The matrix is fixed before testing; otherwise, once the results arrive, it is easy to remove an inconvenient condition or add favorable repeats.</p>
+      <p>A full Cartesian product quickly becomes infeasible. Ten tasks, five objects, four camera positions, and three lighting levels already create 600 cells before accounting for robots and initial poses. The matrix is therefore risk-driven: it covers the ordinary task stream, isolates critical boundaries, and combines factors that jointly change behavior. If transparency is a known weakness, for example, a novel transparent object under side lighting matters more than ten colors of a familiar cup.</p>
+      <p>The production mix and the stress test serve different purposes. The production mix weights conditions roughly as they will occur in operation and estimates average performance. The stress test deliberately overrepresents a rare condition so that we collect enough evidence about it. Reports keep them separate: a stress-test percentage is not the expected household success rate, just as two rare runs in a production mix cannot establish that a risk has been tested.</p>
+      <p>For safety, production frequency may be the wrong weight altogether. A dangerous collision is rare but costly, so the matrix assigns a minimum number of dedicated scenarios and a separate gate instead of waiting for one to appear in ordinary tasks. Lesson 8.2 placed a filter over the policy; Lesson 8.4 checks that a new version neither bypasses that filter nor introduces a risk the filter does not recognize.</p>
+      <p>The matrix does not claim to enumerate an open world. It makes coverage explicit: the team can show which risks were tested, where evidence is sparse, and what remains unknown. That is more precise than a universal-looking “92% success” measured on a finite set of scenes. The next release begins from those boundaries instead of an empty checklist.</p>
+      <p>A candidate passes through four operations: the same matrix, comparable starts, uncertainty estimation, and release gates. If any one is missing, a polished percentage still cannot answer the release question.</p>
+    </div>
+    <figure class="card flow-card">
+      <canvas data-anim="qa-flow" width="720" height="430" role="img" aria-label="Quality-assurance animation on one persistent canvas: the current policy and candidate act from the same scene on the left; paired outcomes accumulate and the interval for their difference narrows in the center; release gates stop a candidate with regressions, unsafe actions, or high latency on the right"></canvas>
+      <figcaption>One scene produces a pair of outcomes; pairs produce an interval for the difference; release is allowed only after all four predefined gates pass.</figcaption>
+    </figure>
+    <div class="prose" style="margin:22px 0 0;max-width:820px"><p>The first risk appears before any statistics: the wrong mix of conditions can reverse the conclusion about the same pair of policies. By how much?</p></div>
+  </div>
+</section>
+
+<section class="section" id="outcome">
+  <div class="prose">
+    <div class="kicker"><span class="num">2</span> Success rule</div>
+    <h2>Define success before the run</h2>
+    <p>The matrix tells us where to run a policy, but we still have to turn the outcome into a number. For “put the cup in the dishwasher,” touching the cup with the gripper is not enough: the door must be open, the cup must end up inside, the robot must not knock over the neighboring plate, and the task must finish within the time limit. If one trial ends at contact and another after checking the final state, their percentages are not comparable.</p>
+    <p>Every task therefore has a <strong>success rule</strong>: an observable final outcome, a time limit, and conditions that invalidate a trial. The primary metric is usually binary—the task either succeeded or failed. Intermediate signals remain diagnostic: did the arm reach the object, did the grasp close, and at which step did the failure occur? They help repair the system but do not replace the user-facing outcome with partial credit.</p>
+    <p>The protocol also states how to handle test-rig faults. If the camera disconnects before the first motion, the trial may be marked invalid and repeated. If the policy itself pushes the object out of reach, that is a failure, not a reason to discard an inconvenient run. Record the distinction before testing; otherwise poor outcomes can easily become “hardware problems” after someone reviews the video.</p>
+    <p>Evaluation can fail too. A human may miss a contact, while a learned success classifier may mistake a cup beside a bin for one inside it. Ambiguous videos are therefore labeled blind to the policy version, annotator agreement is checked, and the automatic detector is validated on a hand-labeled sample. AutoEval does not reduce evaluation to one classifier: a reset policy and programmatic safety checks run alongside it, while the report keeps episode video, duration, and interventions.</p>
+    <p>A shared success rule makes outcomes comparable. Yet another source of overfitting remains: if the team repeatedly inspects the final scenarios and fixes the policy specifically for them, evaluation gradually becomes training. How do we separate everyday development from the release exam?</p>
+  </div>
+</section>
+
+<section class="section alt" id="sets">
+  <div class="prose">
+    <div class="kicker"><span class="num">3</span> Test sets</div>
+    <h2>Known failures and the final test set stay separate</h2>
+    <p>During development, engineers need fast feedback. A few short smoke tests ask whether the system runs at all: do the weights load, does an image arrive, can the arm complete a simple grasp? Next comes the <strong>regression suite</strong>: specific scenarios in which an earlier version already failed. If the policy drops the same cup under side lighting again, the release stops regardless of its average result.</p>
+    <p>The regression suite is deliberately visible to the team. Its purpose is not to measure generalization but to prevent an old defect from returning. Once fixed, every confirmed failure becomes a permanent test with exact initial states, an expected outcome, and a link to the incident record. The suite grows with the product and turns field experience into reproducible trials.</p>
+    <p>Final evaluation needs a different layer: a <strong>holdout set</strong>. Its scenarios are not used to select a checkpoint, threshold, or prompt. Otherwise the team begins optimizing for a known exam even if the weights were never trained directly on those data. The holdout is opened less often, before release decisions, and refreshed after repeated use: the old set has already influenced development and is no longer independent.</p>
+    <p>Keeping everything hidden is difficult in robotics: real test rigs are expensive and tasks must remain reproducible. The boundary is therefore organizational. Developers can access one set of scenarios; the evaluation team holds another. The version, success rules, and release gates are frozen before execution. Simulation and world models can cover especially rare or dangerous conditions first, but every result names its source and critical conclusions are confirmed on the real system.</p>
+    <p>The three sets answer different questions. Smoke tests catch gross breakage, regression tests prevent known failures from returning, and the holdout measures performance on scenarios the candidate was not tuned for. The test matrix complements them by allocating runs across familiar and rare conditions.</p>
+  </div>
+</section>
+
+<section class="section" id="matrix">
+  <div class="wrap">
+    <div class="lab-badge">🔬 Lab 1</div>
+    <h2>One kitchen, two versions, different conditions</h2>
+    <div class="prose lab-intro">
+      <p>The current policy and the candidate see the same scene, while the kitchen changes: ordinary light, dim light, nearby objects, or a novel transparent cup. Choose a test plan and watch a representative pair from each condition. After 100 runs, compare both the aggregate result and all four slices.</p>
+      <p class="lab-note">Teaching simulation: the engine defines the probabilities for four conditions, and the browser computes every outcome with a fixed seed. Only the allocation of 100 trials across conditions changes.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="matrix-tools"><div><span class="ctl-l">Test plan</span><div class="seg plan-selector" id="mPlan" role="group" aria-label="Test plan"><button type="button" data-v="traffic" aria-pressed="true"><b>Production mix</b><span>matches task traffic</span></button><button type="button" data-v="balanced" aria-pressed="false"><b>Even mix</b><span>25 per condition</span></button><button type="button" data-v="stress" aria-pressed="false"><b>Stress test</b><span>60 novel objects</span></button></div></div><div class="run-counter"><span>Runs</span><b id="mCounter">0 / 100</b></div></div>
+        <canvas class="lab-canvas" id="mCv" width="760" height="410" role="img" aria-label="The current policy and candidate perform the same task under four kitchen conditions"></canvas>
+        <div class="matrix-slices" id="mSlices" aria-label="Results by condition"></div>
+        <div class="scene-result" id="mResult">Choose a plan and run the trials.</div>
+      </div>
+      <div class="card guide-card"><div id="mMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: why the average changes when the policies do not</summary>
+      <div class="deep-body"><p>Aggregate success is a weighted average across conditions: \(\hat p=\sum_s n_s\hat p_s/\sum_s n_s\). In the production mix, 70 of 100 trials use the ordinary kitchen, so a rare novel object barely affects the total. The even mix does not represent real task traffic, but it makes slice differences visible. A product needs both reports: the production-mix result and separate mandatory conditions.</p><p>Each pair shares the difficulty of its start and adds a small amount of independent policy noise. Both policies therefore run in the same scene, but their outcomes are not copied from each other.</p></div>
+    </details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px"><p>On the production mix, the candidate leads by <span data-m="traffic-diff">8</span> percentage points. With equal numbers of trials, it trails by <span data-m="balanced-diff">3</span>, while the novel-object row falls by <span data-m="novel-diff">20</span> points. An aggregate percentage is not lying—it answers a question about the chosen mix. The mistake begins when that answer is generalized to conditions that were barely present.</p><p>The matrix protects the composition of the evaluation. But even with the right composition, two versions may receive starts of different difficulty. How do we remove that difference?</p></div>
+  </div>
+</section>
+
+<section class="section alt" id="protocol">
+  <div class="prose">
+    <div class="kicker"><span class="num">4</span> Protocol</div>
+    <h2>Change one factor and record everything else</h2>
+    <p>A test matrix cannot rescue a comparison if the camera, gripper, and success rule all changed with the policy. The result then describes the entire new system, not the model. That may be a valid question—product versions are compared end to end—but it cannot be reported as “the new algorithm added six points.” Before a run, the team records exactly what constitutes the candidate: a weights file, inference configuration, detector threshold, controller version, or complete system image.</p>
+    <p>The <strong>evaluation protocol</strong> fixes everything that can affect the outcome: the software image and model versions, weights checksum, robot and gripper, camera calibration, battery charge, operator procedure for resetting the scene, time limit, and success-evaluator version. For a generative policy, record the seed or seed set if it affects the trajectory. For a cloud model, record the service version and request time; otherwise an unnoticed remote update can mix two policies within one series.</p>
+    <p>The initial state must be reproducible without being artificially perfect. Mark admissible regions for objects on the table, choose positions from them in advance, and save those positions with the scenario. Before each episode, an operator restores the scene from the procedure or a reset policy does it. If the reset increasingly leaves the cup tilted, its error leaks into the candidate's score; this is why AutoEval reports motor-fault recovery and human interventions separately.</p>
+    <p>Version order matters too. If every run of the current policy comes first and every candidate run second, the latter block may inherit hot actuators, a depleted battery, or a more experienced operator. A paired protocol alternates order within scenarios: current policy first in one pair, candidate first in the next. The same state is restored between runs, and, where possible, the video evaluator is blind to the version name.</p>
+    <p>The unit of independent observation is not always one episode. One hundred consecutive trials on the same robot in the same kitchen share lighting, calibration, and hardware state, so their errors are correlated. Runs on another robot or another day add new variation. The report therefore keeps robot, day, and scenario identifiers, and a rigorous analysis accounts for clustering. A bare “100 trials” can create a false sense of sample size.</p>
+    <p>A minimal episode record contains the scenario, version, initial state, outcome, failure reason, latency, intervention, and a link to video or logs. That is enough to recompute the aggregate, open any slice, and understand every exclusion. An aggregate without raw records cannot be audited, and the next release cannot turn a discovered failure into a regression scenario.</p>
+    <p>This protocol lets us claim exactly what changed. It does not, however, make a short series precise: even from matched starts, some pairs will agree while others diverge by chance. How does pairing use that structure?</p>
+  </div>
+</section>
+
+<section class="section" id="paired">
+  <div class="prose">
+    <div class="kicker"><span class="num">5</span> Comparable starts</div>
+    <h2>Compare versions from matched starts</h2>
+    <p>If the current policy receives an upright cup while the candidate receives one at the edge of its reach, the outcome difference mixes model quality with start difficulty. Random sampling reduces this imbalance only with many trials; in a short evaluation, it may outweigh the policy difference.</p>
+    <p>A <strong>paired trial</strong> gives both versions the same scenario: object poses, instruction, lighting, and robot state. Version order alternates so actuator heat, battery charge, and time in the shift do not favor one side. We then count not only two success rates, but also discordant pairs: cases where only the candidate succeeds and cases where only the current version succeeds. Pairs in which both succeed or both fail reveal absolute task difficulty but do not distinguish the versions.</p>
+    <p>Pairing is especially useful when scenario difficulty varies widely. If both policies nearly always grasp a central cup and often drop one near the edge, the shared difficulty cancels within each pair. But if the candidate changes the environment for the next run—by scratching the object or heating an actuator, for example—the simple pair is no longer independent. We must randomize order, restore the state fully, or model that carryover as a separate factor.</p>
+    <p>In the Gemini Robotics with Veo report, real and simulated trials were paired across 80 scene–instruction combinations. This made it possible to check not only absolute percentages but also the ranking of eight policy versions. Pairing cannot repair a poor matrix, but it removes some start-to-start variance from the comparison.</p>
+    <p>Matched starts make the comparison more precise, but they do not turn 20 trials into proof. How do we show how much uncertainty remains?</p>
+  </div>
+</section>
+
+<section class="section alt" id="uncertainty">
+  <div class="wrap">
+    <div class="lab-badge">🔬 Lab 2</div>
+    <h2>Accumulate pairs until the conclusion is stable</h2>
+    <div class="prose lab-intro">
+      <p>Both policies face a mix of four conditions. Run trials in batches: each new pair adds two executions from the same scene, and the interval for their difference gradually narrows. Then break the pairing and see how unmatched starts create a large but poorly explained gap.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="uncertainty-tools"><div><span class="ctl-l">Comparison design</span><div class="seg" id="uMode" role="group" aria-label="Comparison design"><button type="button" data-v="paired" aria-pressed="true">Matched starts</button><button type="button" data-v="unpaired" aria-pressed="false">Different starts</button></div></div><div class="batch-controls"><button class="btn" id="uReset" type="button">Reset</button><button class="btn primary" id="uAdd" type="button">+20 trials</button><span><b id="uCount">0</b> per version</span></div></div>
+        <canvas class="lab-canvas" id="uPlot" width="760" height="430" role="img" aria-label="Two policies on matched or different starts, a stream of outcomes, and an interval for the difference"></canvas>
+        <div class="pair-strip" id="uPairs" aria-label="First twenty paired outcomes"></div>
+        <div class="scene-result" id="uResult">Run the first batch of trials.</div>
+      </div>
+      <div class="card guide-card"><div id="uMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: Wilson interval and paired difference</summary>
+      <div class="deep-body"><p>For \(k\) successes in \(n\) trials, we show a Wilson interval. At \(z=1.96\), its center and half-width are</p><div class="formula">\[\frac{\hat p+z^2/(2n)}{1+z^2/n}\;\pm\;\frac{z\sqrt{\hat p(1-\hat p)/n+z^2/(4n^2)}}{1+z^2/n}.\]</div><p>In a paired comparison, every trial has \(d_i=-1,0,1\): the current version wins, the outcomes match, or the candidate wins. The interval for the difference is centered on \(\bar d\) using the spread of those values. This is a teaching-level normal approximation; with few discordant pairs, use McNemar's exact test.</p></div>
+    </details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px"><p>Across the first 40 paired starts, the difference is <span data-u="d40">2.5</span> points, but the 95% interval runs from roughly <span data-u="lo40">−6.1</span> to <span data-u="hi40">11.1</span>: these data are also compatible with a small candidate loss. By 200 starts, the interval lies entirely above zero. Different starts may show a large gain sooner by chance, but that does not make the conclusion more stable—the tasks themselves changed.</p><p>Statistics tell us whether an improvement is detectable in this matrix. They do not yet tell us whether to release the system: success can rise alongside unsafe actions or latency.</p></div>
+  </div>
+</section>
+
+<section class="section" id="report">
+  <div class="prose">
+    <div class="kicker"><span class="num">6</span> Report</div>
+    <h2>Separate the result, uncertainty, and failure causes</h2>
+    <p>A point estimate of 82% is an observation from specific runs, not a permanent property of the policy. Another sample from the same matrix will produce a nearby number. A confidence interval describes the scale of that variation under the chosen statistical model. It does not mean that, after calculation, “the true success rate lies inside with 95% probability.” Rather, if we repeated the entire protocol, 95% of the intervals produced by this procedure would cover the fixed true rate.</p>
+    <p>The interval captures only the randomness included in the calculation. It will not widen on its own because of incorrect labels, a shifted camera, holdout leakage, or a new kitchen absent from the matrix. A narrow interval around a biased measurement remains a precise answer to the wrong question. The report therefore states its scope beside the statistics: which robots, days, spaces, and evaluator versions were included, and which conditions the conclusion does not cover.</p>
+    <p>This distinction separates statistical uncertainty from systematic error. More independent runs and a paired protocol reduce the first. To find the second, change equipment and conditions, label blind, audit excluded trials, and compare the automatic evaluator with humans. If the product must work with two cameras, test both: 1,000 episodes with one camera do not cover systematic error in the other.</p>
+    <p>For a release decision, an interval for the difference matters more than two separate intervals for success rates. Overlapping intervals for two versions do not prove there is no difference, while requiring non-overlap is overly conservative. Paired outcomes are dependent, and the calculation must preserve that dependence. The lab therefore builds an interval from −1, 0, and 1 for each pair instead of subtracting two independent errors.</p>
+    <p>The report's first screen should answer the question set before the test: aggregate performance for the current policy and candidate on the production mix, the difference with its interval, and the decision from every release gate. The next layer shows matrix slices and their run counts. A slice without a denominator misleads: “100% on novel objects” may mean one success in one trial.</p>
+    <p>Binary success is insufficient for diagnosis. For every failure, save the task stage and type: object not found, incorrect grasp, object slipped, time limit exceeded, safety filter triggered, or intervention required. Do not combine these categories into an alternative aggregate score. They explain where a version improved or regressed and which scenario belongs in the regression suite.</p>
+    <p>The report explicitly shows invalid and missing trials. If 106 of 120 planned pairs were completed, readers should see fourteen reasons: rig failure, missing video, failed reset, or safety stop. Removing unsuccessful episodes without reasons creates bias. If the cause is policy behavior, the trial remains a failure; if independent equipment caused it, repeat the trial under the prespecified rule.</p>
+    <p>Finally, the report separates facts from decisions. “The candidate is 5.0 percentage points higher, with an interval from 2.8 to 7.2” is a fact from the synthetic lab. “Allow release” follows from prespecified metrics and thresholds. This structure lets another engineer change a gate and recompute the decision without rerunning the trials or rewriting their outcomes.</p>
+    <p>Even a careful report can arise by chance if a series stops whenever an intermediate result looks favorable. How do we constrain that choice in advance?</p>
+  </div>
+</section>
+
+<section class="section alt" id="stopping">
+  <div class="prose">
+    <div class="kicker"><span class="num">7</span> Sample size</div>
+    <h2>Set the number of runs in advance</h2>
+    <p>An interval narrows roughly as \(1/\sqrt n\): halving statistical variation takes about four times as many runs. A small improvement of a few percentage points therefore requires far more trials than a large regression. There is no universal number that is “enough for a robot”; sample size depends on the expected difference, required precision, and correlation between paired outcomes.</p>
+    <p>Write the plan before execution: the primary metric, acceptable decision error, number of pairs, and stopping rule. If we inspect the result every twenty trials and stop the first time the interval rises above zero, the chance of a spurious “improvement” exceeds the stated 5%. An ordinary 95% interval does not account for dozens of interim looks. Use either a fixed sample size or a prespecified sequential method corrected for repeated inspection.</p>
+    <p>The same problem appears with many slices. If twenty conditions are tested separately at the 5% level, even identical policies will sometimes show one striking difference by chance. Slices are necessary for diagnosis and mandatory risks, but the team identifies in advance which ones drive the release decision and adjusts the statistical procedure for multiple comparisons. Mark the rest as signals for the next test, not finished evidence.</p>
+    <p>The lab stopped at 120 pairs because its synthetic sequence has a fixed design. This is a teaching result, not a product recipe. A real plan first defines the minimum meaningful improvement and acceptable risk of an incorrect release, then calculates sample size or runs a pilot to estimate variation.</p>
+    <p>The statistical plan constrains chance, but release is an engineering decision with several metrics. Which results must be mandatory, and which can be monitored after release?</p>
+  </div>
+</section>
+
+<section class="section" id="gates">
+  <div class="prose">
+    <div class="kicker"><span class="num">8</span> Release gates</div>
+    <h2>An average improvement does not override mandatory constraints</h2>
+    <p>A candidate may complete tasks more often yet sometimes contact a person, issue a command too late, or fail under one important condition. These quantities cannot be averaged into a single score: one extra percentage point of success does not compensate for an unsafe action. Before testing, the team therefore records <strong>release gates</strong>—separate conditions that must all pass.</p>
+    <p>Our teaching release rule has four gates: aggregate success is no lower than the current version; no important condition loses more than five percentage points; the designated suite contains no unsafe actions; and p95 latency is at most 400 ms. These thresholds illustrate the method; they are not industry standards. A real product derives them from task risk, system requirements, and what the test rig can measure.</p>
+    <p>A gate must specify a metric, condition, evaluation volume, and action on failure. Otherwise “check safety” can mean anything, and the threshold is easy to move after seeing the result. What happens when we apply one rule to two candidates?</p>
+    <p>Not every metric becomes a mandatory gate. A <strong>release gate</strong> addresses a risk that must stop a version: an unsafe action, a material regression on a key task, or a latency-budget violation. An observed metric provides context and may become a gate later, once its measurement and acceptable threshold are reliable. If dozens of noisy metrics become hard gates, almost every candidate will fail one of them by chance.</p>
+    <p>Assign an action to every failure in advance. A regression in a known scenario returns the version to development; an evaluator error pauses the decision for manual review; an independent rig fault triggers a protocol-defined repeat. “An engineer will look and decide” preserves the same freedom to fit the answer that the matrix and fixed sample size were meant to remove.</p>
+  </div>
+</section>
+
+<section class="section alt" id="release">
+  <div class="wrap">
+    <div class="lab-badge">🔬 Lab 3</div>
+    <h2>Put the candidate through four gates</h2>
+    <div class="prose lab-intro">
+      <p>Candidate A raises average success substantially, but performs worse on the novel object, acts unsafely twice, and responds more slowly. Candidate B improves the average by less but passes the other checks. Enable the mandatory gates and apply the same rule to both versions.</p>
+      <p class="lab-note">The numbers in this lab are a predefined teaching example. They demonstrate release-gate logic and are not results from AutoEval or Gemini Robotics.</p>
+    </div>
+    <div class="lab">
+      <div class="card scene-card">
+        <div class="release-tools"><div><span class="ctl-l">Version</span><div class="seg" id="rCandidate" role="group" aria-label="Release candidate"><button type="button" data-v="fast" aria-pressed="true">Candidate A</button><button type="button" data-v="stable" aria-pressed="false">Candidate B</button></div></div><fieldset class="gate-list" id="rGates"><legend>Mandatory gates</legend><label><input type="checkbox" value="overall" checked><span>Overall success</span></label><label><input type="checkbox" value="slice"><span>Novel object</span></label><label><input type="checkbox" value="safety"><span>Safety</span></label><label><input type="checkbox" value="latency"><span>Latency</span></label></fieldset></div>
+        <canvas class="lab-canvas" id="rCv" width="760" height="420" role="img" aria-label="A candidate passes four quality gates before the release door"></canvas>
+        <div class="gate-path" id="rPath" aria-live="polite"></div>
+        <div class="scene-result" id="rResult">Evaluate the candidate against the selected gates.</div>
+      </div>
+      <div class="card guide-card"><div id="rMis"></div></div>
+    </div>
+    <details class="deep"><summary>Under the hood: gates, monitoring, and rollback</summary>
+      <div class="deep-body"><p>Mandatory gates are joined by logical AND: release is allowed only if \(g_1\land g_2\land\dots\land g_m=1\). Metrics that cannot yet support a reliable threshold do not disappear; they remain in the report and monitoring. After the test rig, a candidate may enter shadow mode or a limited rollout with a predefined stop signal and rollback to the current version. Those operational mechanisms are a separate topic; here, the key is to fix the decision rule and rollback plan before seeing the result.</p></div>
+    </details>
+    <div class="prose" style="margin:22px 0 0;max-width:820px"><p>A single aggregate-success gate admits Candidate A. The full gate set stops it for three reasons, while Candidate B passes all four. Gates do not select the most attractive number; they separate improvement from an unacceptable tradeoff.</p><p>Running every check manually is expensive. How can we expand coverage without presenting simulation as a real robot?</p></div>
+  </div>
+</section>
+
+<section class="section" id="levels">
+  <div class="wrap"><div class="prose" style="margin:0 0 22px;max-width:820px">
+    <div class="kicker"><span class="num">9</span> Evaluation levels</div>
+    <h2>Start with cheap checks, then use the real robot</h2>
+    <p>A candidate takes several exams, not one. Ordinary software tests come first: tensor shapes, command ranges, weight loading, and behavior when a frame is missing. These tests are fast and reproducible, but they cannot tell us whether the arm will pick up a cup because they contain neither physical contact nor observation error.</p>
+    <p>The next level replays recorded observations. Past episode logs are fed to the policy to check commands, latency, detector triggers, and numerical stability. This test finds inference changes but remains open-loop: a new action does not change the next frame. Lesson 7.5 described this distinction as closed-loop policy evaluation. Recovering from a state caused by the policy's own mistake requires a closed loop.</p>
+    <p>A simulator or world model closes the loop and expands the matrix cheaply. It can introduce a dangerous object, change the background, and run thousands of variants. Yet the environment model also makes errors: contact, a transparent object, or an unusual trajectory may be reproduced incorrectly. Label each result by source—“simulation,” “video world model,” or “real robot”—and do not combine them into one percentage without separate validation.</p>
+    <p>Testing on the real robot begins with smoke tests and safe scenarios, followed by paired trials over the full matrix. Safety tests use physical limits, an emergency stop, and a nearby person; the system should not discover an unsafe action for the first time on an unprotected rig. Discrepancies flow back down the stack: a new real failure becomes a regression scenario, while a simulator error becomes a calibration task.</p>
+    <p>Even a successful test rig cannot reproduce an entire home. Before a broad rollout, use a limited stage: the candidate receives a small share of tasks and the current version remains available for rollback. Set the stop signal, allowable intervention count, and rollback procedure in advance. A limited rollout follows testing and probes residual risk in real traffic that no matrix can enumerate completely.</p>
+    <p>The ordering saves expensive attempts. A tensor-shape defect should not occupy a robot, and a physical guarantee should not rest only on a log or video model. In the diagram below, select a level to see what evidence it adds and which risk remains. We can then examine how modern systems automate the most expensive operations: scene reset, success evaluation, and condition expansion.</p>
+  </div>
+  <div class="card qa-stack-card"><div class="qa-stack-head"><div><b>Evidence ladder before release</b><span>Each level adds a new kind of feedback without replacing the previous one</span></div><span class="qa-stack-axis">cheaper and more controlled → closer to the product</span></div><canvas id="qaStack" width="1120" height="360" role="img" aria-label="Interactive evaluation ladder from software tests to a limited rollout"></canvas><div class="qa-stack-detail" id="qaStackDetail" aria-live="polite"></div></div>
+  </div>
+</section>
+
+<section class="section alt" id="today">
+  <div class="prose">
+    <div class="kicker"><span class="num">10</span> Today</div>
+    <h2>Automation expands evaluation coverage</h2>
+    <p>Robot evaluation is expensive for more than arm motion. After every attempt, someone must restore the objects, determine success, detect equipment failure, and stop unsafe motion. In AutoEval, a separate reset policy, a success classifier, and programmatic safety checks perform these operations. One rig ran about 850 episodes in 24 hours with three human interventions and saved more than 99% of operator time; the authors still call manual real-robot evaluation the gold standard.</p>
+    <p>The scale of manual evaluation appears in AutoEval's OpenVLA example: comparison with baselines required more than 2,500 runs across four robot setups at three institutions and over 100 hours of human labor. This is not a recommended sample size for every policy; it is the cost of one published protocol spanning several tasks and systems. Automation makes that protocol faster to repeat for every ablation, but it becomes part of the measurement apparatus and must itself be validated.</p>
+    <p>AutoEval records more than the final success rate. Its report includes episode video, duration, motor-recovery events, and intervention frequency. Such a log matters because a binary classifier neither explains a failure nor guarantees that its own judgment is correct. The authors note a limitation: the current system supports binary success, although long tasks benefit from partial stages and failure types.</p>
+    <p>A long AutoEval run exposed another matrix axis: performance declined after roughly eight hours, which the authors associated with actuator overheating. Short independent trials would not have revealed it. Quality assurance evaluates the complete system—policy, reset, sensors, actuators, and operating duration—because the user receives them together.</p>
+    <p>Veo World Simulator expands the matrix differently: it generates new backgrounds, distractor objects, and manipulated objects, then rolls the policy out in a video world model. Researchers checked the conclusions against more than 1,600 real trials of eight policy versions on five tasks. The model predicted version ranking and relative degradation in unfamiliar conditions well, but its absolute success rates were lower than the real ones. Simulation therefore finds weak spots and reduces costly runs, while the final gate is still checked on a real robot.</p>
+    <p>The nominal portion of that study used 80 scene–instruction combinations. Out-of-distribution tests changed the background, small and large distractors, and the manipulated object separately. This structure matters more than one large number because it shows which variation axis hurts a specific checkpoint. Here too, the evaluator is not the system under test: a video model may reproduce contact incorrectly, so the authors compare relative ranking with real paired trials.</p>
+    <p>This lesson evaluated one system before release using a fixed matrix, paired starts, intervals, and mandatory gates. The next question is broader: how do different labs agree on tasks and evaluation protocols so that models can be compared with one another?</p>
+  </div>
+</section>
+
+<section class="section" id="quiz">
+  <div class="prose">
+    <div class="kicker"><span class="num">11</span> Check yourself</div>
+    <h2>Eight questions about evaluating a version</h2>
+    <div class="quiz" id="quizBox"></div>
+    <p class="score" id="quizScore" style="margin-top:14px"></p>
+  </div>
+</section>
+
+<section class="section alt" id="finale">
+  <div class="prose">
+    <div class="kicker"><span class="num">12</span> Summary</div>
+    <h2>Lesson takeaways</h2>
+    <ol class="takeaways">
+      <li><span>A <strong>test matrix</strong> fixes tasks, conditions, and run counts, while the success rule defines the observable final outcome, time limit, and reasons to invalidate a trial. An aggregate percentage is meaningful only alongside them.</span></li>
+      <li><span>Smoke tests catch gross failures, the regression suite prevents known defects from returning, and the <strong>holdout set</strong> evaluates scenarios the candidate was not tuned for.</span></li>
+      <li><span>Break averages down by important conditions. In the lab, the candidate gained 8 points on the production mix but lost 20 on the novel object.</span></li>
+      <li><span>A <strong>paired trial</strong> gives the current version and candidate identical initial states. Discordant pairs show where changing the version truly changed the outcome.</span></li>
+      <li><span>A <strong>confidence interval</strong> shows which differences are compatible with the observations. Set the number of runs and stopping rule in advance so the test cannot end at a lucky point.</span></li>
+      <li><span>Join <strong>release gates</strong> with AND: higher average success does not compensate for a regression, unsafe action, or latency violation. Automation and simulation expand evaluation, but critical conclusions are confirmed on the real system.</span></li>
+    </ol>
+    <h3 style="margin-top:40px">Open questions</h3>
+    <details class="card pad open-q"><summary>How should we choose matrix conditions when we do not yet know where the policy will fail?</summary><p>Start from product requirements, logs from the previous version, and systematic variation axes: task, object, lighting, camera position, clutter, and operating duration. Then add discovered failures as regression scenarios. No matrix fully covers an open world, so release must be followed by monitoring and safe rollback.</p></details>
+    <details class="card pad open-q"><summary>What if an important condition is too rare for hundreds of real trials?</summary><p>Give it a dedicated stress test, reproduce it in simulation or a world model, and confirm it with a smaller number of real trials. Keep the reports separate: the stress-test result answers a question about that condition; the production mix estimates average task traffic.</p></details>
+    <h3 style="margin-top:34px">Paper guide</h3>
+    <p><a href="https://arxiv.org/abs/2503.24278" target="_blank" rel="noopener">Z. Zhou et al., “AutoEval: Autonomous Evaluation of Generalist Robot Manipulation Policies in the Real World,” 2025</a>.</p>
+    <ul class="links">
+      <li><strong>Read closely</strong><span>Section 3: the success classifier, reset policy, and safety checks. Section 4: the protocol for comparison with manual real-robot evaluation. Section 5.3 and Figure 9: the long autonomous run.</span></li>
+      <li><strong>Safe to skim</strong><span>Reset-policy training details and appendices on rig configuration, unless you are building an automated evaluation cell.</span></li>
+      <li><strong>Question to keep in mind</strong><span>Which success-classifier errors would change the release decision? How can you separate a policy regression from robot heating and camera drift?</span></li>
+    </ul>
+    <p style="margin-top:18px">Another source for this lesson: <a href="https://arxiv.org/abs/2512.10675" target="_blank" rel="noopener">Gemini Robotics Team, “Evaluating Gemini Robotics Policies in a Veo World Simulator”</a>—nominal, OOD, and safety evaluations in a video world model, validated against a real robot.</p>
+    <h3 style="margin-top:34px">Resources</h3>
+    <ul class="links">
+      <li><a href="https://auto-eval.github.io/" target="_blank" rel="noopener">AutoEval</a><span>Project page with the rig design, reports, and run videos</span></li>
+      <li><a href="https://veo-robotics.github.io/" target="_blank" rel="noopener">Veo World Simulator for Robotics</a><span>Examples of nominal, unfamiliar, and safety scenarios</span></li>
+    </ul>
+    <div class="bridge-note"><p>Quality assurance asks whether a specific candidate can ship in a specific product. Comparing models from different teams is harder: it requires shared tasks, matched evaluation protocols, and a clear account of what each test suite measures.</p><p class="bridge-to"><a href="8-5-benchmarki.html">Next: 8.5 · Benchmarks: how models are measured and compared →</a></p></div>
+  </div>
+</section>
+</main>
+
+<footer>Lesson 8.4 of Modern Robotics and Physical AI. All lab outcomes are computed in the browser with a fixed seed; the policies and release gates are synthetic and explicitly separate from published results.</footer>
+<div class="tooltip" id="tooltip" role="tooltip"></div>
+<script>/*@@JS@@*/</script>
+</body>
+</html>
