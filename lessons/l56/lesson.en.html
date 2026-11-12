@@ -163,7 +163,89 @@
       <p id="duelSeeds"><b>Ten seeds.</b> The lab uses a single seed: it sets both the logs and the initial weights. Across seeds 1–10, naive Q-learning never makes it on any of them, and its promise at the start ranges from 39 to 1,051. IQL makes it in 16–20 drives out of 20, BC in 14–19, CQL in 8–20, BCQ in 12–17. In average return, IQL beats the best operator on 10 seeds out of 10 and BC on 10. CQL with \(\alpha = 1\) beats BC in return on only 3 seeds out of 10: it sticks to the logs but plays it too safe.</p>
     </div></details>
     <div class="prose" style="margin:22px 0 0;max-width:820px" id="duelAfter">
-      <p>The careful and the hasty operators collect almost the same on average: +0.51 and +0.45 per drive. The first always makes it but takes 15 seconds; the second gets there in 9 seconds but crashes in 18 drives out of 40, and all of these crashes happen in the kitchen, where the turn can't be made at that speed. BC copies the most frequent logged action at every point. In the hallway and the living room, the logged drives were more often slow, and in the kitchen, fast: all 40 of the hasty operator's drives got that far. So BC drives slowly where it could go fast, and fast where the hasty operator crashed: 14 of its 20 drives succeed, all six crashes happen in the kitchen, and its return is −0.08. Naive Q-learning never made it: at the start, its Q-function promised 93.0, and the outcome was −3.92. CQL promises 11.2 at the same start against −0.45 in reality. That is also more than what came out, but without a collapse: CQL makes it in 17 drives out of 20, though slowly. IQL makes it in 18 of 20 in 10.9 seconds and collects +1.98, more than any operator. In the hallway and the living room, it chooses the fast speed in about 60% of decisions, and in the kitchen in 9%: it goes fast where the hasty operator got through and slows down where the crashes happened.</p>
+      <p>The careful and the hasty operators collect almost the same on average, but reach that result in different ways:</p>
+      <div class="card" style="margin:18px 0;padding:8px 12px;overflow:hidden">
+      <table style="width:100%;border-collapse:collapse;table-layout:fixed;font-size:14px;line-height:1.5">
+      <caption style="text-align:left;padding:8px 0;font-weight:650">Operators: results from their own logs</caption>
+      <thead><tr>
+      <th scope="col" style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">Metric</th>
+      <th scope="col" style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">Careful</th>
+      <th scope="col" style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">Hasty</th>
+      </tr></thead>
+      <tbody>
+      <tr>
+      <th scope="row" style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">Average undiscounted return</th>
+      <td style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">+0.51</td>
+      <td style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">+0.45</td>
+      </tr>
+      <tr>
+      <th scope="row" style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">Successful drive time</th>
+      <td style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">15 s</td>
+      <td style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">9 s</td>
+      </tr>
+      <tr>
+      <th scope="row" style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">Crashes</th>
+      <td style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">None: always makes it</td>
+      <td style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">18 drives out of 40</td>
+      </tr>
+      </tbody></table>
+      </div>
+      <p>All of the hasty operator's crashes happen in the kitchen, where the turn can't be made at that speed. All 40 of their drives reach the kitchen, so the logs for that section contain many fast actions. In the hallway and the living room, the logged drives were more often slow.</p>
+      <p>BC copies the most frequent logged action at every point. It therefore drives slowly where it could go fast, and fast where the hasty operator crashed. IQL chooses the speed differently: it takes the fast option in about 60% of decisions in the hallway and living room, but in 9% in the kitchen. It uses the hasty operator's fast sections and slows down where the crashes happened.</p>
+      <div class="card" style="margin:18px 0;padding:8px 12px;overflow:hidden">
+      <table style="width:100%;border-collapse:collapse;table-layout:fixed;font-size:14px;line-height:1.5">
+      <caption style="text-align:left;padding:8px 0;font-weight:650">Policies on 20 evaluation drives</caption>
+      <thead><tr>
+      <th scope="col" style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">Policy</th>
+      <th scope="col" style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">Successful drives</th>
+      <th scope="col" style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">Outcome</th>
+      </tr></thead>
+      <tbody>
+      <tr>
+      <th scope="row" style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">BC</th>
+      <td style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">14 of 20</td>
+      <td style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">All six crashes are in the kitchen; average undiscounted return −0.08</td>
+      </tr>
+      <tr>
+      <th scope="row" style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">Naive Q-learning</th>
+      <td style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">0 of 20</td>
+      <td style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">Never makes it</td>
+      </tr>
+      <tr>
+      <th scope="row" style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">CQL</th>
+      <td style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">17 of 20</td>
+      <td style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">Makes it, though slowly</td>
+      </tr>
+      <tr>
+      <th scope="row" style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">IQL</th>
+      <td style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">18 of 20</td>
+      <td style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">In 10.9 s; average undiscounted return +1.98, more than any operator</td>
+      </tr>
+      </tbody></table>
+      </div>
+      <p>Successful drives do not yet mean that the Q-function estimates return accurately. Let's compare its promise at the start with the actual <strong>discounted return</strong> from the same drives:</p>
+      <div class="card" style="margin:18px 0;padding:8px 12px;overflow:hidden">
+      <table style="width:100%;border-collapse:collapse;table-layout:fixed;font-size:14px;line-height:1.5">
+      <caption style="text-align:left;padding:8px 0;font-weight:650">Predicted and actual return: averages over starts</caption>
+      <thead><tr>
+      <th scope="col" style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">Policy</th>
+      <th scope="col" style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">Q promise at the start</th>
+      <th scope="col" style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">Actual discounted return</th>
+      </tr></thead>
+      <tbody>
+      <tr>
+      <th scope="row" style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">Naive Q-learning</th>
+      <td style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">93.0</td>
+      <td style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">−3.92</td>
+      </tr>
+      <tr>
+      <th scope="row" style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">CQL</th>
+      <td style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">11.2</td>
+      <td style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">−0.45</td>
+      </tr>
+      </tbody></table>
+      </div>
+      <p>Both Q-functions promise more than the policies achieve. CQL overestimates less, and its policy now reaches the kitchen on most evaluation drives.</p>
       <p>The numbers at the start are averaged over the drives. To understand where the promise of 93 comes from, we need to look inside the Q-function at a single point on the route: which actions it considers best and how many such actions were in the logs.</p>
     </div>
   </div>

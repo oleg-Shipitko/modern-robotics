@@ -26,6 +26,15 @@
       ]
     },
     {
+      "v": "6.4",
+      "date": "2026-11-12",
+      "title": "Clearer explanations throughout the course",
+      "items": [
+        "The Russian and English versions of lessons 1.1, 1.8, 2.2, 3.2, 3.5, 5.6, and 6.3 have been edited: dense explanations are split by idea, causal connections are easier to follow, and comparisons are presented in tables.",
+        "Formulas, numerical results, links, and lab behavior are preserved. The same editorial pass is ready for lessons 7.5 and 8.8, which will appear with their parts as scheduled."
+      ]
+    },
+    {
       "v": "6.3",
       "date": "2026-11-09",
       "title": "Explanations for correct answers in card-sorting tasks",

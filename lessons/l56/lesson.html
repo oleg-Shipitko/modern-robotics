@@ -163,7 +163,89 @@
       <p id="duelSeeds"><b>Десять зёрен.</b> В лаборатории зерно одно: оно задаёт и логи, и начальные веса. На зёрнах 1–10 наивное Q-обучение не доезжает ни разу на всех десяти, а его обещание на старте составляет от 39 до 1051. IQL доезжает в 16–20 поездках из 20, BC — в 14–19, CQL — в 8–20, BCQ — в 12–17. По средней отдаче IQL больше лучшего оператора на 10 зёрнах из 10 и больше BC — на 10. CQL с \(\alpha = 1\) обходит BC по отдаче лишь на 3 зёрнах из 10: он держится логов, но осторожничает.</p>
     </div></details>
     <div class="prose" style="margin:22px 0 0;max-width:820px" id="duelAfter">
-      <p>Аккуратный и торопливый операторы в среднем набирают почти поровну: +0,51 и +0,45 за поездку. Первый всегда доезжает, но тратит 15 секунд, второй доезжает за 9 секунд, но в 18 поездках из 40 врезается, и все эти аварии случаются на кухне: на скорости он не вписывается в поворот. BC в каждой точке копирует самое частое действие логов. В прихожей и гостиной чаще ехали медленно, а на кухне — быстро: туда доезжали все 40 поездок торопливого. Поэтому BC едет медленно там, где можно быстро, и быстро там, где торопливый врезался: у него удачны 14 поездок из 20, все шесть аварий — на кухне, а отдача равна −0,08. Наивное Q-обучение не доехало ни разу: на старте его Q-функция обещала 93,0, а вышло −3,92. CQL на том же старте обещает 11,2 против −0,45 на деле. Это тоже больше, чем вышло, но уже без провала: CQL доезжает в 17 поездках из 20, хотя и медленно. IQL доезжает в 18 из 20 за 10,9 секунды и набирает +1,98 — больше, чем любой оператор. В прихожей и гостиной он выбирает быструю скорость примерно в 60% решений, а на кухне — в 9%: он едет быстро там, где торопливый не врезался, и медленно там, где врезался.</p>
+      <p>Аккуратный и торопливый операторы в среднем набирают почти поровну, но приходят к этому результату по-разному:</p>
+      <div class="card" style="margin:18px 0;padding:8px 12px;overflow:hidden">
+      <table style="width:100%;border-collapse:collapse;table-layout:fixed;font-size:14px;line-height:1.5">
+      <caption style="text-align:left;padding:8px 0;font-weight:650">Результаты операторов по их записям</caption>
+      <thead><tr>
+      <th scope="col" style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">Показатель</th>
+      <th scope="col" style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">Аккуратный</th>
+      <th scope="col" style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">Торопливый</th>
+      </tr></thead>
+      <tbody>
+      <tr>
+      <th scope="row" style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">Средняя отдача без дисконта</th>
+      <td style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">+0,51</td>
+      <td style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">+0,45</td>
+      </tr>
+      <tr>
+      <th scope="row" style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">Время успешной поездки</th>
+      <td style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">15 с</td>
+      <td style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">9 с</td>
+      </tr>
+      <tr>
+      <th scope="row" style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">Столкновения</th>
+      <td style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">Нет: всегда доезжает</td>
+      <td style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">18 поездок из 40</td>
+      </tr>
+      </tbody></table>
+      </div>
+      <p>Все аварии торопливого происходят на кухне: на скорости он не вписывается в поворот. До кухни доходят все его 40 поездок, поэтому в логах этого участка много быстрых действий. В прихожей и гостиной, напротив, чаще ехали медленно.</p>
+      <p>BC в каждой точке копирует самое частое действие логов. Поэтому он едет медленно там, где можно быстро, и быстро там, где торопливый врезался. IQL выбирает скорость иначе: в прихожей и гостиной — быструю примерно в 60% решений, на кухне — в 9%. Он использует быстрые участки торопливого и замедляется там, где происходили столкновения.</p>
+      <div class="card" style="margin:18px 0;padding:8px 12px;overflow:hidden">
+      <table style="width:100%;border-collapse:collapse;table-layout:fixed;font-size:14px;line-height:1.5">
+      <caption style="text-align:left;padding:8px 0;font-weight:650">Политики на 20 проверочных поездках</caption>
+      <thead><tr>
+      <th scope="col" style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">Политика</th>
+      <th scope="col" style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">Успешные поездки</th>
+      <th scope="col" style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">Что получилось</th>
+      </tr></thead>
+      <tbody>
+      <tr>
+      <th scope="row" style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">BC</th>
+      <td style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">14 из 20</td>
+      <td style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">Все шесть аварий — на кухне; средняя отдача без дисконта −0,08</td>
+      </tr>
+      <tr>
+      <th scope="row" style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">Наивное Q-обучение</th>
+      <td style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">0 из 20</td>
+      <td style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">Ни разу не доехало</td>
+      </tr>
+      <tr>
+      <th scope="row" style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">CQL</th>
+      <td style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">17 из 20</td>
+      <td style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">Доезжает, хотя и медленно</td>
+      </tr>
+      <tr>
+      <th scope="row" style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">IQL</th>
+      <td style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">18 из 20</td>
+      <td style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">За 10,9 с; средняя отдача без дисконта +1,98 — больше, чем у любого оператора</td>
+      </tr>
+      </tbody></table>
+      </div>
+      <p>Успех поездок ещё не означает, что Q-функция точно оценивает отдачу. Сравним её обещание на старте с фактической отдачей <strong>с дисконтом</strong> в тех же поездках:</p>
+      <div class="card" style="margin:18px 0;padding:8px 12px;overflow:hidden">
+      <table style="width:100%;border-collapse:collapse;table-layout:fixed;font-size:14px;line-height:1.5">
+      <caption style="text-align:left;padding:8px 0;font-weight:650">Оценка и фактическая отдача: средние по стартам</caption>
+      <thead><tr>
+      <th scope="col" style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">Политика</th>
+      <th scope="col" style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">Обещание Q на старте</th>
+      <th scope="col" style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">На деле, с дисконтом</th>
+      </tr></thead>
+      <tbody>
+      <tr>
+      <th scope="row" style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">Наивное Q-обучение</th>
+      <td style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">93,0</td>
+      <td style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">−3,92</td>
+      </tr>
+      <tr>
+      <th scope="row" style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">CQL</th>
+      <td style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">11,2</td>
+      <td style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">−0,45</td>
+      </tr>
+      </tbody></table>
+      </div>
+      <p>Обе Q-функции обещают больше, чем получается. У CQL завышение меньше, и политика уже доезжает до кухни в большинстве проверочных поездок.</p>
       <p>Числа на старте усреднены по поездкам. Чтобы понять, откуда берётся обещание 93, нужно заглянуть внутрь Q-функции в отдельной точке маршрута: какие действия она считает лучшими и сколько таких действий было в логах.</p>
     </div>
   </div>

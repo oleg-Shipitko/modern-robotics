@@ -114,8 +114,61 @@
       <p>Image tokens and word tokens live in different spaces: the encoder has its own width and its own meaning for the axes, and the language model has its own embedding table that all of its attention is tuned to. Training a single network from scratch that reads both would mean rebuilding both the knowledge of the world from text and vision from images.</p>
       <p><strong>LLaVA</strong> (Liu et al., University of Wisconsin–Madison and Microsoft Research, 2023) takes both parts ready-made. The image encoder of CLIP from lesson 2.1, in its ViT-L/14 version, handles vision, and its weights are frozen. The Vicuna model handles language. Between them sits a <strong>projector</strong>: a trainable matrix \(W\) that maps each output token of the encoder to a vector of the same dimension as the language model's word embeddings. After the projector, the image tokens are simply placed in the sequence before the question tokens, and the language model reads them with ordinary attention, without telling them apart from words. The authors describe this stage as training “a compatible visual tokenizer for the frozen LLM”.</p>
       <p>Training goes in two stages. In the first, both the encoder and the language model are frozen, and only the projector is trained, on 595,000 image–caption pairs filtered from the CC3M dataset: the model learns to produce the caption from the image. In the second, the projector and the language model are fine-tuned together on 158,000 instructions that a text-only GPT-4 wrote from the captions and bounding boxes of COCO images. Among them are 58,000 conversations, 23,000 detailed descriptions and 77,000 answers with reasoning. The encoder stays frozen throughout. All the training ran on eight A100 GPUs, and on a synthetic set of questions the result came to 85.1% of GPT-4's score; without the second stage, the ability to follow instructions dropped by more than 50 points. In LLaVA-1.5, from the same year, the linear projector was replaced with a two-layer MLP, and the encoder was taken at a resolution of 336 px.</p>
-      <p><strong>PaliGemma</strong> (Beyer, Steiner, Pinto, Kolesnikov, Wang et al., Google DeepMind, 2024) is built the same way from open parts: the SigLIP-So400m encoder with 400M parameters, trained contrastively with a sigmoid loss, the Gemma-2B language model, and a linear projector between them initialized to zeros. In total it has under 3B parameters. <strong>Contrastive learning</strong> pulls the representations of a matching image–caption pair together and pushes the representations of mismatched pairs apart. Related images and words therefore end up close together in one space; we covered the principle in more detail <a href="2-1-transporter-i-cliport.html#words">in lesson 2.1</a>. The image is resized to a square of 224, 448 or 896 pixels and gives 256, 1024 or 4096 tokens; they come first, followed by the beginning-of-text token, the prompt and a newline as a separator, then the answer. The attention is <strong>prefix attention</strong>: the image and prompt tokens see each other in full, in both directions, so the image can “peek” at the question, while the answer tokens are generated autoregressively and see only what comes before them. The authors also tried the ordinary causal mask from lesson 1.6, on the prompt and on the image: both work worse. The loss is computed only on the answer tokens.</p>
-      <p>Unlike LLaVA, PaliGemma freezes nothing, even in the first multimodal stage: the encoder is fine-tuned together with the language model on a billion examples at 224 px, with a slow warm-up of its learning rate so that the gradients of the not-yet-aligned language model don't ruin its features. According to the authors' ablation, after transfer to tasks there's no difference between a frozen and a trainable encoder, but on tasks about where objects are, perplexity is noticeably better without freezing. With a frozen language model the result is much worse, and any part trained from scratch instead of starting from a ready checkpoint makes the result collapse. They compared projectors too: with all weights trained, the linear one scored 77.2 points and the MLP 77.1. Then the resolution is raised to 448 on 50M examples and to 896 on 10M, and the three base models are fine-tuned for a specific task.</p>
+      <p><strong>PaliGemma</strong> (Beyer, Steiner, Pinto, Kolesnikov, Wang et al., Google DeepMind, 2024) follows the same design using open parts. The SigLIP-So400m encoder with 400M parameters handles vision, and Gemma-2B handles language. A linear projector initialized to zeros connects them. The model has under 3B parameters in total.</p>
+      <p>The encoder is trained contrastively with a sigmoid loss. <strong>Contrastive learning</strong> pulls the representations of a matching image–caption pair together and pushes the representations of mismatched pairs apart. Related images and words therefore end up close together in one space; we covered the principle in more detail <a href="2-1-transporter-i-cliport.html#words">in lesson 2.1</a>.</p>
+      <p>Before entering the model, the image is resized to a square. Its size determines the number of image tokens:</p>
+      <div class="card" style="margin:18px 0;padding:8px 12px;overflow:hidden">
+      <table style="width:100%;border-collapse:collapse;table-layout:fixed;font-size:14px;line-height:1.5">
+      <caption style="text-align:left;padding:8px 0;font-weight:650">PaliGemma input resolutions</caption>
+      <thead><tr>
+      <th scope="col" style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">Image side, pixels</th>
+      <th scope="col" style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">Image tokens</th>
+      </tr></thead>
+      <tbody>
+      <tr>
+      <th scope="row" style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">224</th>
+      <td style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">256</td>
+      </tr>
+      <tr>
+      <th scope="row" style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">448</th>
+      <td style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">1024</td>
+      </tr>
+      <tr>
+      <th scope="row" style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">896</th>
+      <td style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">4096</td>
+      </tr>
+      </tbody></table>
+      </div>
+      <p>The image tokens come first. They are followed by the beginning-of-text token, the prompt and a newline as a separator, then the answer.</p>
+      <p>The attention is <strong>prefix attention</strong>: the image and prompt tokens see each other in full, in both directions, so the image can “peek” at the question. The answer tokens are generated autoregressively and see only what comes before them. The authors also tried the ordinary causal mask from lesson 1.6, on the prompt and on the image: both work worse. The loss is computed only on the answer tokens.</p>
+      <p>Unlike LLaVA, PaliGemma freezes nothing, even in the first multimodal stage: the encoder is fine-tuned together with the language model. Its learning rate warms up slowly so that the gradients of the not-yet-aligned language model don't ruin its features. The resolution is then raised, and the three resulting base models are fine-tuned for a specific task.</p>
+      <div class="card" style="margin:18px 0;padding:8px 12px;overflow:hidden">
+      <table style="width:100%;border-collapse:collapse;table-layout:fixed;font-size:14px;line-height:1.5">
+      <caption style="text-align:left;padding:8px 0;font-weight:650">PaliGemma training stages</caption>
+      <thead><tr>
+      <th scope="col" style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">Stage</th>
+      <th scope="col" style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">Resolution, px</th>
+      <th scope="col" style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">Examples</th>
+      </tr></thead>
+      <tbody>
+      <tr>
+      <th scope="row" style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">First multimodal stage</th>
+      <td style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">224</td>
+      <td style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">1 billion</td>
+      </tr>
+      <tr>
+      <th scope="row" style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">Higher resolution</th>
+      <td style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">448</td>
+      <td style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">50M</td>
+      </tr>
+      <tr>
+      <th scope="row" style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">Higher resolution</th>
+      <td style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">896</td>
+      <td style="text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line);overflow-wrap:anywhere">10M</td>
+      </tr>
+      </tbody></table>
+      </div>
+      <p>According to the authors' ablation, after transfer to tasks there's no difference between a frozen and a trainable encoder, but on tasks about where objects are, perplexity is noticeably better without freezing. With a frozen language model the result is much worse. Training any part from scratch instead of starting from a ready checkpoint makes the result drop sharply. They compared projectors too: with all weights trained, the linear one scored 77.2 points and the MLP 77.1.</p>
       <p>Both models follow the same recipe: a ready-made encoder, a ready-made language model and a trainable bridge between them. To see what exactly happens on this bridge, let's build such a model in miniature and train it right here. Will a ready-made encoder work better than an encoder trained together with everything else?</p>
     </div>
   </div>
