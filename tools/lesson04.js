@@ -1,4 +1,4 @@
-// Проверка урока 0.4: все миссии пяти лабораторий и калькулятора проходятся программно,
+// Проверка урока 0.4: все миссии лабораторий и калькулятора проходятся программно,
 // сортировка и квиз, тёмная тема, телефон 390 px. Скриншоты — в shots/l04-*.png.
 // Анимированные схемы (shared/anim.js, l04/anim-l04.js): цикл фильтра Калмана, фильтр частиц по шагам и один шаг SLAM —
 // подписи в канвасе, не налезают и не мельче 9,6 px на 8–10 моментах, на ширинах 1440, 1280, 1024, 768, 720, 640, 390 и 360;
@@ -35,6 +35,7 @@ function M(p, root) {
 const setRange = (p, sel, v) => p.eval(`(() => { const e = document.querySelector(${J(sel)}); e.value = ${J(String(v))}; e.dispatchEvent(new Event('input', { bubbles: true })); })()`);
 const setCheck = (p, sel, v) => p.eval(`(() => { const e = document.querySelector(${J(sel)}); e.checked = ${v}; e.dispatchEvent(new Event('change', { bubbles: true })); })()`);
 const scrollTo = (p, sel) => p.eval(`document.querySelector(${J(sel)}).scrollIntoView({ block: 'center', behavior: 'instant' })`);
+const MAP_LAB = '#slam .lab:not(#slamRayLab)';
 /** Перетаскивание мышью по канвасу: from и to — доли ширины и высоты. */
 async function mouseDrag(p, sel, from, to, steps) {
   const r = await p.eval(`(() => { const e = document.querySelector(${J(sel)}); e.scrollIntoView({ block: 'center', behavior: 'instant' }); const b = e.getBoundingClientRect(); return { x: b.left, y: b.top, w: b.width, h: b.height }; })()`);
@@ -167,24 +168,59 @@ async function desktop() {
   console.log('    после перетаскивания:', J(await p.eval('window.__l04.PfLab.api.state().place')));
   await pf.act(); ok(await pf.done(), 'частицы М2 в спальне'); await pf.report('М2');
   await p.shotEl(out('l04-particles-twin.png'), '#particles .lab', 6);
-  await pf.next(); await pf.bet('Нет'); await pf.act(); await pf.report('М3'); console.log('    ставка:', await pf.betMarks());
-  await pf.next(); await pf.act(); console.log('    М4 без флажка:', await pf.crit());
-  await setCheck(p, '#pfAug', true); await pf.act(); ok(await pf.done(), 'частицы М4'); await pf.report('М4');
+  const scanCheck = await p.eval(`(() => {
+    const X = window.__l04.PfLab, before = Array.from(X.st.W.pf.x);
+    const detail = document.querySelector('#pfScanDetails');
+    const optional = !detail.open; detail.open = true;
+    const buttons = [...document.querySelectorAll('#pfCloudButtons button')];
+    let viewed = 0;
+    buttons.forEach(b => { b.click(); if (/Расхождение скана/.test(document.querySelector('#pfScanInfo').textContent)) viewed++; });
+    const same = before.every((v, i) => v === X.st.W.pf.x[i]); detail.open = false;
+    return { optional, count: buttons.length, viewed, same };
+  })()`);
+  ok(scanCheck.optional && scanCheck.count > 0 && scanCheck.viewed === scanCheck.count && scanCheck.same, 'просмотр сканов каждого облака необязателен и не меняет частицы');
+  await pf.next();
+  ok(await p.eval('window.__l04.PfLab.st.failureLast.err > 400'), 'нехватка частиц: 600 частиц дали большой промах');
+  await setRange(p, '#pfFailureN', 2); await pf.act();
+  ok(await pf.done(), 'нехватка частиц: 20000 частиц находят позу по тому же скану');
+  await pf.report('М3');
+  ok(await p.eval('!document.querySelector("#pfScanDetails").open'), 'поиск не заставляет открывать сопоставление сканов');
+  await pf.next(); await pf.bet('Нет'); await pf.act(); await pf.report('М4'); console.log('    ставка:', await pf.betMarks());
+  await pf.next(); await pf.act(); console.log('    М5 без флажка:', await pf.crit());
+  await setCheck(p, '#pfAug', true); await pf.act(); ok(await pf.done(), 'частицы М5'); await pf.report('М5');
   await p.shotEl(out('l04-particles.png'), '#particles .lab', 6);
   await pf.next(); await sleep(1500); console.log('    свободный режим, t =', await p.eval('window.__l04.PfLab.st.W.t'));
   await mouseDrag(p, '#pfCv', [0.5, 0.5], [0.85, 0.5]);
 
+  console.log('— Реальная поза и оценка: стена и угол');
+  const sr = M(p, '#slamRayMis'); await scrollTo(p, '#slamRayLab');
+  await setRange(p, '#srAngle', 1); await setRange(p, '#srRange', 3);
+  const gap3 = await p.eval('window.__l04.SlamRayLab.api.state().gap');
+  await setRange(p, '#srRange', 4);
+  const gap4 = await p.eval('window.__l04.SlamRayLab.api.state().gap');
+  ok(await sr.done(), 'стена М1: одинаковая ошибка курса проверена на 3 и 4 метрах');
+  ok(Math.abs(gap3 - 2 * 3 * Math.sin(Math.PI / 360)) < 1e-9 && Math.abs(gap4 / gap3 - 4 / 3) < 1e-9, 'смещение стены соответствует геометрии точного лидара и неверной оценки курса');
+  await sr.next(); await setRange(p, '#srPath', 6);
+  ok(await sr.done(), 'стена М2: показана накопленная ошибка оценки после возвращения');
+  await sr.next();
+  const cornerBefore = await p.eval('window.__l04.SlamRayLab.api.state().rms');
+  await p.click('#srAuto');
+  const matched = await p.eval('window.__l04.SlamRayLab.api.state()');
+  ok(cornerBefore > .1 && matched.rms < .01 && Math.hypot(matched.estimatedPose.x, matched.estimatedPose.y) < .01 && Math.abs(matched.estimatedPose.angle) < .1, 'совпадение с прошлой картой исправляет x/y и поворот оценки');
+  await p.click('#srWrite'); ok(await sr.done(), 'SLAM: новый участок стены записан только после совмещения');
+  await p.shotEl(out('l04-slam-corner.png'), '#slamRayLab', 6);
+
   console.log('— Карта');
-  const mp = M(p, '#mapMis'); await scrollTo(p, '#slam .lab');
+  const mp = M(p, '#mapMis'); await scrollTo(p, MAP_LAB);
   await mp.bet('Ничего'); await mp.act(); await mp.report('М1'); ok(await mp.done(), 'карта М1');
-  await p.shotEl(out('l04-map-exact.png'), '#slam .lab', 6);
+  await p.shotEl(out('l04-map-exact.png'), MAP_LAB, 6);
   await mp.next(); await mp.bet('Стены поплывут'); await mp.act(); await mp.report('М2'); console.log('    ставка:', await mp.betMarks()); ok(await mp.done(), 'карта М2');
-  await p.shotEl(out('l04-map-odo.png'), '#slam .lab', 6);
+  await p.shotEl(out('l04-map-odo.png'), MAP_LAB, 6);
   await mp.next(); await mp.act(); console.log('    М3 без флажка:', await mp.crit(), '|', await mp.text());
   await setCheck(p, '#mapSlam', true); await mp.act(); ok(await mp.done(), 'карта М3'); await mp.report('М3');
   await mouseDrag(p, '#mapCv', [0.5, 0.5], [0.35, 0.5]);
   console.log('    шторка:', await p.eval('window.__l04.MapLab.st.curtain'));
-  await p.shotEl(out('l04-map-slam.png'), '#slam .lab', 6);
+  await p.shotEl(out('l04-map-slam.png'), MAP_LAB, 6);
   await mp.next();
 
   console.log('— Дейкстра и A*');
@@ -254,7 +290,7 @@ async function desktop() {
   }
   await p.shotEl(out('l04-kalman-dark.png'), '#kalman .lab', 6);
   await p.shotEl(out('l04-particles-dark.png'), '#particles .lab', 6);
-  await p.shotEl(out('l04-map-dark.png'), '#slam .lab', 6);
+  await p.shotEl(out('l04-map-dark.png'), MAP_LAB, 6);
   await p.shotEl(out('l04-astar-dark.png'), '#astar .lab', 6);
   await p.shotEl(out('l04-rrt-dark.png'), '#rrt .lab', 6);
   await schemeWidths(p, [1280, 1024, 768, 720, 640]);
@@ -285,7 +321,8 @@ async function phone() {
   await m.shotEl(out('l04-m-astar.png'), '#astar .lab', 4);
   const r = M(m, '#rrtMis'); await scrollTo(m, '#rrt .lab'); await r.bet('На одной и той же'); await r.act(); ok(await r.done(), 'телефон: RRT М1');
   await m.shotEl(out('l04-m-rrt.png'), '#rrt .lab', 4);
-  await m.shotEl(out('l04-m-map.png'), '#slam .lab', 4);
+  await m.shotEl(out('l04-m-map.png'), MAP_LAB, 4);
+  await m.shotEl(out('l04-m-slam-corner.png'), '#slamRayLab', 4);
   await m.shotEl(out('l04-m-dims.png'), '#dims .dim-card', 4);
   await m.eval('document.querySelectorAll("#todaySeg button")[2].click()');
   await m.shotEl(out('l04-m-today.png'), '#today .stack-card', 4);

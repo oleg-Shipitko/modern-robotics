@@ -225,6 +225,60 @@ const PfLab = (() => {
   const KID = { x: 290, y: 330, th: -Math.PI / 2 };
   const st = { W: null, n: 600, aug: false, mode: 'idle', busy: false, place: { x: 300, y: 120, th: 0 }, edit: false, showP: true, free: false, paused: false, last: null, info: '' };
   let ctl = null;
+  // The English page keeps its original controls and five missions.
+  const extended = !!$('#pfScanCv');
+  let cloudChoice=null;
+  const failureCounts=[600,2000,20000];
+  function bigClouds(){return st.W&&st.W.k>0&&st.last?st.last.cl.map((cl,i)=>({cl,i})).filter(v=>v.cl.w>=.08):[];}
+  function chooseCloud(i){
+    if(!extended||!bigClouds().some(v=>v.i===i))return;
+    cloudChoice=i;$('#pfScanDetails').open=true;draw();
+  }
+  function cloudAt(p){let pick=null,dist=Infinity;for(const{cl,i}of bigClouds()){const d=Math.hypot(p.x-cl.x,p.y-cl.y);if(d<=30&&d<dist){pick=i;dist=d;}}return pick;}
+  function tapCloud(p){const i=cloudAt(p);if(i!==null)chooseCloud(i);}
+  function cloudDiagnostic(){
+    const w=st.W,cl=st.last&&st.last.cl[cloudChoice];if(cloudChoice===null||!w||!w.scanMeasured||!cl||!cl.pose)return null;
+    const expected=HS.scan(cl.pose.x,cl.pose.y,cl.pose.th,PF.NB,PF.RMAX),measured=w.scanMeasured;
+    return{cl,pose:cl.pose,expected,measured,rms:Math.sqrt(expected.reduce((v,x,i)=>v+(x-measured[i])**2,0)/PF.NB)};
+  }
+  function drawInspectedCloud(c,k,P){
+    if(!extended||!$('#pfScanDetails').open)return;const d=cloudDiagnostic();if(!d)return;
+    c.save();c.strokeStyle=P.e2e;c.setLineDash([4,3]);c.lineWidth=1;c.globalAlpha=.35;
+    for(let i=0;i<PF.NB;i++){const a=d.pose.th+2*Math.PI*i/PF.NB;c.beginPath();c.moveTo(d.pose.x,d.pose.y);c.lineTo(d.pose.x+Math.cos(a)*d.expected[i],d.pose.y+Math.sin(a)*d.expected[i]);c.stroke();}
+    c.globalAlpha=1;c.lineWidth=2;c.beginPath();c.arc(d.cl.x,d.cl.y,29,0,Math.PI*2);c.stroke();c.setLineDash([]);c.beginPath();c.arc(d.pose.x,d.pose.y,4,0,Math.PI*2);c.stroke();c.restore();
+  }
+  function updateScanViewer(){
+    if (!extended) return;
+    $('#wrapFailureN').hidden=!(ctl&&ctl.index===2);
+    const buttons=$('#pfCloudButtons'),items=bigClouds();
+    const html=items.map(({cl,i})=>'<button type="button" class="btn sm" data-cloud="'+i+'" aria-pressed="'+(cloudChoice===i)+'">Облако '+(i+1)+' · '+fmt1(cl.w*100,0)+'%</button>').join('');
+    setOut(buttons,html||'<span class="cv-note">Запусти опыт: здесь появятся видимые крупные облака.</span>');
+    if(!$('#pfScanDetails').open)return;
+    const d=cloudDiagnostic(),{c,k}=HeroKit.fit($('#pfScanCv'),600,190),P=pal();c.fillStyle=P.bg;c.fillRect(0,0,600,190);
+    if(!d){$('#pfScanInfo').textContent='Выбери крупный синий круг на карте или кнопку облака. Сравнение не влияет на работу фильтра.';return;}
+    const left=45,right=578,bottom=153,x=i=>left+(right-left)*i/(PF.NB-1),y=v=>bottom-133*v/PF.RMAX;
+    for(const v of[0,100,200]){c.strokeStyle=P.grid;c.lineWidth=1;c.beginPath();c.moveTo(left,y(v));c.lineTo(right,y(v));c.stroke();HeroKit.label(c,k,(v/100)+' м',left-7,y(v),{align:'right',px:10,color:P.ink3,halo:false});}
+    for(const i of[0,6,12,18,23])HeroKit.label(c,k,(i*15)+'°',x(i),171,{px:10,color:P.ink3,halo:false});
+    for(const[a,col,dash]of[[d.measured,P.ink,false],[d.expected,P.e2e,true]]){c.strokeStyle=col;c.lineWidth=2;c.setLineDash(dash?[5,3]:[]);c.beginPath();for(let i=0;i<PF.NB;i++)i?c.lineTo(x(i),y(a[i])):c.moveTo(x(i),y(a[i]));c.stroke();}c.setLineDash([]);
+    $('#pfScanInfo').textContent='Облако '+(cloudChoice+1)+': '+fmt1(d.cl.w*100,0)+'% веса. Расхождение скана его самой весомой частицы: '+fmt1(d.rms,1)+' см. '+(d.rms>12?'Сканы заметно различаются: это плохое совпадение.':'Близкие сканы поддерживают эту версию, но не доказывают единственность места.');
+  }
+  function beginFailure(){
+    const restore=ctl&&ctl.ctx.done[2];st.free=false;st.edit=false;st.showP=true;st.info='';st.failureTriedSmall=false;st.failureImproved=false;
+    fresh({n:600,start:'global',at:{x:20,y:100,th:0}});
+    HS.scan(st.W.s.x,st.W.s.y,st.W.s.th,PF.NB,PF.RMAX,st.W.z);
+    const pool=PF.create(20000,5);PF.scatter(pool);st.failurePool={x:pool.x,y:pool.y,th:pool.th};$('#pfFailureN').value=restore?2:0;$('#pfFailureN').nextElementSibling.textContent=fmt1(failureCounts[+$('#pfFailureN').value],0);
+    evaluateFailure(600);if(restore)evaluateFailure(20000);
+  }
+  function evaluateFailure(n){
+    const w=st.W,p=PF.create(n,5);p.x.set(st.failurePool.x.subarray(0,n));p.y.set(st.failurePool.y.subarray(0,n));p.th.set(st.failurePool.th.subarray(0,n));w.pf=p;
+    PF.weigh(p,w.z);w.scanMeasured=Array.from(w.z);w.k=1;st.last=w.measure();cloudChoice=null;
+    const lead=st.last.cl[0],best=lead&&lead.pose,expected=best&&HS.scan(best.x,best.y,best.th,PF.NB,PF.RMAX);
+    const rms=expected?Math.sqrt(expected.reduce((v,x,i)=>v+(x-w.z[i])**2,0)/PF.NB):Infinity;
+    st.failureTriedSmall=st.failureTriedSmall||n===600;st.failureImproved=st.failureImproved||(n>600&&st.last.err<25&&rms<10);
+    st.failureLast={n,err:st.last.err,rms};draw();return st.failureLast;
+  }
+  async function runFailure(){await new Promise(r=>setTimeout(r,30));return evaluateFailure(failureCounts[+$('#pfFailureN').value]);}
+
   function fresh(o) { st.W = PF.world(Object.assign({ n: st.n, augment: st.aug }, o)); st.last = st.W.measure(); }
   function draw() {
     const { c, k } = HeroKit.fit($('#pfCv'), W, H), P = pal(), Wd = st.W;
@@ -246,12 +300,13 @@ const PfLab = (() => {
         c.globalAlpha = 1;
         const L = st.last; if (L && L.cl && Wd.k > 0) for (const cl of L.cl) { if (cl.w < 0.08) continue; c.strokeStyle = P.cl; c.lineWidth = 2; c.beginPath(); c.arc(cl.x, cl.y, 26, 0, 7); c.stroke(); HeroKit.label(c, k, fmt1(cl.w * 100, 0) + ' %', cl.x, cl.y - 38, { color: P.cl, px: 12, weight: 800, haloColor: P.bg }); }
       }
+      drawInspectedCloud(c,k,P);
       drawAda(c, s.x, s.y, s.th, HS.R, st.mode === 'placing' ? P.e2e : P.ink, 1);
       if (st.edit && !st.showP) HeroKit.label(c, k, 'перетащи Аду', s.x, s.y - 34, { color: P.ink2, px: 11, weight: 650, haloColor: P.bg });
     }
     const info = st.info || (st.free ? (st.paused ? 'пауза' : 'Ада едет сама') : '');
     if (info) HeroKit.label(c, k, info, 10 * k, 14 * k, { align: 'left', mono: true, px: 11, color: P.ink3, haloColor: P.bg });
-    out();
+    out();updateScanViewer();
   }
   function out() {
     const el = $('#pfOut'), L = st.last, Wd = st.W;
@@ -308,8 +363,8 @@ const PfLab = (() => {
   function setN(idx) { $('#pfN').value = idx; st.n = NS[idx]; $('#pfN').nextElementSibling.textContent = st.n; }
   const api = {
     reset() { st.free = false; st.edit = false; setAug(false); setN(2); st.place = { x: 300, y: 120, th: 0 }; fresh({ start: 'global' }); draw(); },
-    state: () => ({ aug: st.aug, place: Object.assign({}, st.place) }),
-    runGlobal, runTwin, runKid, setAug,
+    state: () => ({failureTriedSmall:!!st.failureTriedSmall,failureImproved:!!st.failureImproved, aug: st.aug, place: Object.assign({}, st.place) }),
+    runGlobal, runTwin, runKid, setAug, runFailure,
     place(x, y) { st.place = { x, y, th: 0 }; if (st.W) { st.W.s = { x, y, th: 0 }; } draw(); },
   };
   const pc = (v) => fmt1(v * 100, 0) + ' %';
@@ -328,6 +383,7 @@ const PfLab = (() => {
       fail: (r) => `Фильтр нашёл Аду: ошибка ${fmt1(r.err, 0)} см. Это место ни на что не похоже.`,
       hint: 'Ищи место, которое лидар не отличит от другого. В доме есть две одинаковые комнаты. Встань подальше от их дверей: через дверь видно, что за ней.',
       explain: (r) => `${r.big >= 2 ? `Фильтр переключается между ${r.big} местами.` : `Фильтр уверенно выбрал не то место: ошибка ${fmt1(r.err / 100, 1)} м.`} С 24 лучами на 2,5 м сканы в одинаковых местах почти совпадают, и по одному скану места не различить. Пока Ада стоит, это не исправить: помогает только движение, как в первой миссии. Такие места есть в любом доме: одинаковые двери, коридоры, углы.` },
+    {short:'Неудача',title:'Не двойник, а неудача поиска',text:'Большая ошибка бывает и без одинаковых сканов. Частицы случайны: при малом числе среди них может не оказаться достаточно близкого места и поворота. Тогда фильтр выберет лучшее из неверных предположений. Здесь Ада неподвижна, а 600 частиц уже дали промах. Увеличь число частиц и повтори поиск. Скан тот же; просмотр сканов облаков — по желанию.',controls:['failureN'],onEnter:()=>beginFailure(),action:{label:'Повторить поиск',run:X=>X.runFailure()},criteria:[{label:'Число частиц увеличено, ошибка оценки меньше 25 см',test:r=>r.n>600&&r.err<25},{label:'Скан ведущей частицы облака расходится меньше чем на 10 см',test:r=>r.rms<10}],summary:r=>fmt1(r.n,0)+' частиц → ошибка оценки '+fmt1(r.err,0)+' см',fail:()=> 'Увеличь число частиц ещё. Близость места недостаточна: нужен подходящий поворот. Больше частиц повышает шанс успеха, но не гарантирует его.',explain:()=> 'Это не двойник: неверное место давало другой скан. Малый набор пропустил нужную позу. Среди дополнительных случайных частиц нашлась более близкая версия. Мы сохранили прежние частицы и добавили новые; каждый набор проверен заново по одному и тому же скану, без подсказки настоящих координат. Больше частиц требует больше вычислений.'},
     { short: 'Похищение', title: 'Задача похищенного робота', text: 'Фильтр уверенно ведёт Аду по кухне. Через 2 секунды её поднимут и перенесут в гостиную, к зарядке. Колёса в это время не крутятся, и одометрия ничего не заметит.', controls: [],
       onEnter: (X) => { st.free = false; st.edit = false; st.showP = true; st.info = ''; X.setAug(false); fresh({ start: 'known', wps: WPK }); draw(); },
       bet: { q: 'найдёт ли фильтр Аду за 10 секунд после похищения?', options: ['Да, сразу', 'Да, за несколько секунд', 'Нет'], answer: (r) => (r.errEnd < 25 ? (r.rec != null && r.rec <= 0.5 ? 0 : 1) : 2) },
@@ -353,17 +409,25 @@ const PfLab = (() => {
     $('#pfScatter').addEventListener('click', () => { if (!st.W) return; PF.scatter(st.W.pf); st.last = st.W.measure(); draw(); });
     HeroKit.drag($('#pfCv'), W, H, {
       hit: (p) => { if (!st.edit || st.mode !== 'idle' || !st.W) return null; const s = st.W.s; return Math.hypot(p.x - s.x, p.y - s.y) < 34 ? 'ada' : null; },
-      start: () => { st.busy = true; },
+      tap:extended?tapCloud:null, tapCursor:'pointer',
+      start: (obj,p) => { st.busy = true;st.scanDragStart={x:p.x,y:p.y}; },
       move: (o, p) => { const x = Math.max(20, Math.min(W - 20, p.x)), y = Math.max(20, Math.min(H - 20, p.y)); st.W.s = { x, y, th: st.W.s.th }; draw(); },
-      end: () => {
-        st.busy = false; let s = st.W.s;
+      end: (obj,p) => {
+        st.busy=false;if(extended&&st.scanDragStart&&Math.hypot(p.x-st.scanDragStart.x,p.y-st.scanDragStart.y)<3&&cloudAt(p)!==null){tapCloud(p);return;}
+        cloudChoice=null;st.W.scanMeasured=null;let s=st.W.s;
         if (!HS.freeAt(s.x, s.y)) { const q = nearestFree(s.x, s.y); s = { x: q[0], y: q[1], th: s.th }; }
         if (st.free) st.W.kidnap(s.x, s.y, s.th); else { st.place = { x: s.x, y: s.y, th: 0 }; st.W.s = { x: s.x, y: s.y, th: 0 }; }
         draw(); if (ctl) ctl.update();
       },
     });
+    if (extended) {
+    $('#pfCloudButtons').addEventListener('click',e=>{const b=e.target.closest('button[data-cloud]');if(b)chooseCloud(+b.dataset.cloud);});
+    $('#pfScanDetails').addEventListener('toggle',draw);
+    $('#pfFailureN').addEventListener('input',e=>{e.target.nextElementSibling.textContent=fmt1(failureCounts[+e.target.value],0);});
+    legend('#pfScanLegend',[['измерено лидаром Ады','var(--ink)'],['ожидалось по карте','var(--e2e)','dash']]);
+    }
     setN(2); fresh({ start: 'global' });
-    ctl = Missions.mount('#pfMis', missions, api, { controls: { aug: '#wrapAug', n: '#wrapPn', btns: '#wrapPfBtns' } });
+    ctl = Missions.mount('#pfMis', missions.filter(m => extended || !(m.controls || []).includes('failureN')), api, { controls: { aug: '#wrapAug', n: '#wrapPn', btns: '#wrapPfBtns', failureN:'#wrapFailureN' } });
     draw(); redrawOn(draw); HeroKit.loop($('#pfCv'), freeTick);
     return ctl;
   }
@@ -813,10 +877,12 @@ function initQuiz() { renderQuiz('#quizBox', window.L4_QUIZ, '#quizScore'); }
   const safe = (name, fn) => { try { fn(); } catch (e) { console.error('[урок] ошибка в', name, e); } };
   const start = () => {
     safe('theme', initTheme); safe('nav', initNav); safe('flow', initFlow);
-    safe('kf', () => { mis.kf = KfLab.init(); }); safe('pf', () => { mis.pf = PfLab.init(); }); safe('map', () => { mis.map = MapLab.init(); });
+    safe('kf', () => { mis.kf = KfLab.init(); }); safe('pf', () => { mis.pf = PfLab.init(); }); safe('slamRay', () => { if (typeof SlamRayLab !== 'undefined') mis.slamRay = SlamRayLab.init(); }); safe('map', () => { mis.map = MapLab.init(); });
     safe('grid', () => { mis.grid = GridLab.init(); }); safe('dim', () => { mis.dim = DimCalc.init(); }); safe('rrt', () => { mis.rrt = RrtLab.init(); });
     safe('today', () => Today.init()); safe('sort', () => { mis.sort = initMethodSort(); }); safe('quiz', initQuiz);
-    window.__l04 = { mis, SPEED, KfLab, PfLab, MapLab, GridLab, DimCalc, RrtLab }; window.__lessonReady = true;
+    window.__l04 = { mis, SPEED, KfLab, PfLab, MapLab, GridLab, DimCalc, RrtLab };
+    if (typeof SlamRayLab !== 'undefined') window.__l04.SlamRayLab = SlamRayLab;
+ window.__lessonReady = true;
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();

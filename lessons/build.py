@@ -30,7 +30,7 @@ LESSONS = {
         '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/drive-core.js', 'shared/drive-lab.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'l12/anim-l12.js', 'l12/ui-l12.js'],
     }),
     'l04': ('0-4-otsenka-sostoyaniya-i-planirovanie.html', ['l01/lesson.css', 'shared/lab.css', 'l04/l04.css'], {
-        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'l04/engine.js', 'l04/data-l04.js', 'shared/anim.js', 'l04/anim-l04.js', 'l04/ui-l04.js'],
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'l04/engine.js', 'l04/data-l04.js', 'shared/anim.js', 'l04/anim-l04.js', 'l04/slam-ray.js', 'l04/ui-l04.js'],
     }),
     'l13': ('1-3-multimodalnost-deystviy.html', ['l01/lesson.css', 'shared/lab.css', 'l13/l13.css'], {
         '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/kettle-core.js', 'shared/kettle-draw.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'l13/modes.js', 'l13/ui-l13.js'],
@@ -225,7 +225,7 @@ PUB = {pathlib.Path(p['file']).name for p in published(CFG)}  # опублико
 LANG = os.environ.get('MR_LANG', 'ru')
 assert LANG in ('ru', 'en'), f'MR_LANG={LANG}: язык сборки — ru или en'
 EN = LANG == 'en'
-RU_ONLY_JS = {'l02/gear-experiments.js', 'l03/jac-l03.js'}
+RU_ONLY_JS = {'l02/gear-experiments.js', 'l03/jac-l03.js', 'l04/slam-ray.js'}
 STRICT = '--strict' in sys.argv
 LESSON_SRC = 'lesson.en.html' if EN else 'lesson.html'
 OUT_DIR = root.parent / 'site' / ('en/lessons' if EN else 'lessons')

@@ -184,7 +184,7 @@
         const id = out.length, st = [k]; lab[k] = id; let w = 0, mx = 0, my = 0;
         while (st.length) { const q = st.pop(); w += cw[q]; mx += sx[q]; my += sy[q]; const qx = q % nx, qy = (q / nx) | 0;
           for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const ax = qx + dx, ay = qy + dy; if (ax < 0 || ay < 0 || ax >= nx || ay >= ny) continue; const a = ay * nx + ax; if (lab[a] < 0 && cw[a] >= TH) { lab[a] = id; st.push(a); } } }
-        out.push({ w, x: mx / w, y: my / w });
+        let bi=-1;for(let j=0;j<pf.n;j++){const cx=clamp(Math.floor(pf.x[j]/C),0,nx-1),cy=clamp(Math.floor(pf.y[j]/C),0,ny-1);if(lab[cy*nx+cx]===id&&(bi<0||pf.w[j]>pf.w[bi]))bi=j;}out.push({w,x:mx/w,y:my/w,pose:bi<0?null:{x:pf.x[bi],y:pf.y[bi],th:pf.th[bi]}});
       }
       out.sort((a, b) => b.w - a.w);
       return out;
@@ -223,7 +223,7 @@
         const od = drive(), pf = W.pf;
         move(pf, od.dd + randn(rs) * 0.4, od.dth + randn(rs) * 0.01);
         H.scan(W.s.x, W.s.y, W.s.th, NB, RMAX, z); for (let b = 0; b < NB; b++) z[b] = Math.min(RMAX, z[b] + randn(rs) * 3);
-        const lik = weigh(pf, z);
+        const lik = weigh(pf, z); W.scanMeasured=Array.from(z);
         surprise(lik);
         const cl = clusters(pf), best = cl[0] || { w: 0, x: 0, y: 0 };
         W.last = { t: W.t, cl: cl.slice(0, 5), err: Math.hypot(best.x - W.s.x, best.y - W.s.y), sp: spread(pf, best), neff: neff(pf), best, lik, pinj: W.pinj };
@@ -250,7 +250,7 @@
         for (let i = 0; i < n; i++) {
           move(pf, 0, 0);
           H.scan(W.s.x, W.s.y, W.s.th, NB, RMAX, z); for (let b = 0; b < NB; b++) z[b] = Math.min(RMAX, z[b] + randn(rs) * 3);
-          surprise(weigh(pf, z)); r = measure(); if (neff(pf) < pf.n / 2 || W.pinj > 0) resample(pf, W.pinj);
+          surprise(weigh(pf, z)); W.scanMeasured=Array.from(z); r = measure(); if (neff(pf) < pf.n / 2 || W.pinj > 0) resample(pf, W.pinj);
           W.t += DT; W.k++;
         }
         W.last = Object.assign({ t: W.t }, r); return W.last;

@@ -147,11 +147,15 @@
         <canvas id="pfCv" width="600" height="400" role="img" aria-label="План дома Ады сверху: настоящая Ада, лучи лидара и облака частиц — гипотезы о том, где она"></canvas>
         <div class="cv-legend" id="pfLegend"></div>
         <div class="readout" id="pfOut"></div>
+        <p class="scan-note">При желании нажми крупный синий круг, чтобы сравнить его скан с измерением Ады.</p>
         <div class="ctl-row">
+          <label class="hd-range" id="wrapFailureN" hidden><span>Частиц в опыте</span><input id="pfFailureN" type="range" min="0" max="2" step="1" value="0"><output>600</output></label>
           <label class="opt" id="wrapAug"><input type="checkbox" id="pfAug"> подмешивать случайные частицы, когда скан перестал совпадать с картой</label>
           <label class="hd-range" id="wrapPn"><span>Частиц</span><input id="pfN" type="range" min="0" max="4" step="1" value="2"><output>600</output></label>
           <span class="btn-row" id="wrapPfBtns"><button class="btn sm" type="button" id="pfPlay">Пауза</button><button class="btn sm" type="button" id="pfScatter">Раскидать частицы</button></span>
         </div>
+
+        <details id="pfScanDetails"><summary>Сопоставить сканы · необязательно</summary><div id="pfCloudButtons"></div><canvas id="pfScanCv" width="600" height="190" role="img" aria-label="Измеренный скан Ады и ожидаемый скан частицы выбранного облака"></canvas><div id="pfScanLegend" class="cv-legend"></div><p id="pfScanInfo" class="readout"></p><p class="scan-note">Можно нажать любой крупный синий круг. Для расчёта берём самую весомую частицу этого облака: у неё есть и место, и поворот. Центр круга обозначает группу частиц. По горизонтали — направление относительно корпуса, по вертикали — расстояние. Просмотр не меняет фильтр.</p></details>
       </div>
       <div class="card guide-card"><div id="pfMis"></div></div>
     </div>
@@ -184,10 +188,29 @@
   <div class="wrap">
     <div class="lab-badge"><i>🔬</i> Лаборатория 3</div>
     <h2>Карта по лидару и SLAM</h2>
-    <p class="lead lab-intro">Ада впервые в доме, и карты у неё нет. Без карты фильтру частиц не с чем сравнивать скан.</p>
-    <p class="lead lab-intro">Значит, карту надо построить лидаром. Ада объезжает дом и отмечает лучи: вдоль луча пусто, в конце — препятствие. Так получается <strong>сетка занятости</strong>: карта из клеток по 5 см, где каждая клетка хранит, насколько она похожа на стену.</p>
-    <p class="lead lab-intro">Почему это трудно? Чтобы нанести луч на карту, надо знать, откуда Ада смотрела. А чтобы знать, где Ада, нужна карта. Делать оба дела сразу приходится в задаче <strong>SLAM</strong>, одновременной локализации и построения карты.</p>
-    <p class="lead lab-intro">Сначала дадим построению настоящую позу Ады, потом позу по колёсам, а потом научим Аду поправлять позу по самой карте.</p>
+    <p class="lead lab-intro">Хотим, чтобы Ада запомнила новый дом и потом нашла путь в кухню. В прошлой лаборатории мы дали ей готовую карту, а теперь её нет. Лидар сообщает только расстояния и направления <strong>относительно корпуса</strong>; набор лучей — <strong>скан</strong>. Одного скана хватает на видимый кусочек комнаты, но не на план всего дома.</p>
+    <p class="lead lab-intro">Сканы складываем в <strong>сетку занятости</strong>: карту из клеток, в каждой — вероятность препятствия. Вдоль луча отмечаем свободное место, на отражении — препятствие, за ним — неизвестность. В карте дома ниже клетки имеют сторону 5 см.</p>
+    <p class="lead lab-intro">Попробуем соединять сканы, считая перемещение по колёсам — по <strong>одометрии</strong>. Если оценка положения или поворота Ады по колёсам ошибочна, даже точные измерения стены попадут на план не туда. Сама Ада при этом может ехать нормально. Сначала увидим эту проблему на одной стене, затем исправим способ построения карты.</p>
+    <p class="lead lab-intro">Готового плана нет: первый скан становится началом карты. Следующие сканы совмещаем с уже записанными стенами — так уточняем положение и поворот Ады, затем дополняем карту. Это <strong>SLAM</strong>: одновременная оценка положения робота и построение карты.</p>
+    <div class="lab" id="slamRayLab">
+      <div class="card scene-card">
+        <canvas id="slamRayCv" width="600" height="400" role="img" aria-label="Один скан стены: как ошибка курса смещает точки на карте"></canvas>
+        <div class="cv-legend" id="slamRayLegend"></div>
+        <div class="readout" id="slamRayOut"></div>
+        <div class="ctl-row slam-ray-controls">
+          <label class="hd-range" id="srRangeWrap"><span>До стены</span><input id="srRange" type="range" min="2" max="4" step="0.1" value="3"><output>3 м</output></label>
+          <label class="hd-range" id="srAngleWrap"><span>Ошибка оценки курса</span><input id="srAngle" type="range" min="0" max="8" step="0.5" value="0"><output>0°</output></label>
+          <label class="hd-range" id="srPathWrap"><span>Пройдено за объезд</span><input id="srPath" type="range" min="0" max="12" step="1" value="0"><output>0 м</output></label>
+          <label class="hd-range" id="srCorrectionWrap"><span>Поправка курса</span><input id="srCorrection" type="range" min="-12" max="12" step="0.2" value="0"><output>0°</output></label>
+          <label class="hd-range" id="srXWrap"><span>Поправка x →</span><input id="srX" type="range" min="-60" max="60" step="1" value="0"><output>0 см</output></label>
+          <label class="hd-range" id="srYWrap"><span>Поправка y ↑</span><input id="srY" type="range" min="-60" max="60" step="1" value="0"><output>0 см</output></label>
+          <button class="btn sm" type="button" id="srWrite" hidden disabled>Записать скан в карту</button>
+          <button class="btn sm" type="button" id="srAuto" hidden>Подобрать x, y и курс по скану</button>
+        </div>
+        <p class="cv-note" id="slamRayNote">Изолируем одну причину: координаты Ады и дальности считаем точными, ошибается только курс. Точки и лучи показаны без увеличения.</p>
+      </div>
+      <div class="card guide-card"><div id="slamRayMis"></div></div>
+    </div>
     <div class="lab">
       <div class="card scene-card">
         <canvas id="mapCv" width="600" height="400" role="img" aria-label="Карта дома, которую строит Ада: серое — неизвестно, светлое — свободно, тёмное — препятствие"></canvas>
