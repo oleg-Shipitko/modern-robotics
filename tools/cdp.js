@@ -6,7 +6,12 @@ const os = require('os');
 const path = require('path');
 const http = require('http');
 
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const CHROME = process.env.CHROME_PATH || [
+  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  path.join(process.env.PROGRAMFILES || 'C:/Program Files', 'Google/Chrome/Application/chrome.exe'),
+  path.join(process.env['PROGRAMFILES(X86)'] || 'C:/Program Files (x86)', 'Google/Chrome/Application/chrome.exe'),
+  '/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser',
+].find((f) => fs.existsSync(f));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function getJSON(url) {
@@ -34,10 +39,11 @@ class Conn {
 
 async function launch(opts) {
   opts = opts || {};
+  if (!CHROME) throw new Error('Chrome не найден; укажите путь в CHROME_PATH');
   const port = 9300 + Math.floor(Math.random() * 500);
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rc-chrome-'));
   const args = ['--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${dir}`, '--no-first-run', '--no-default-browser-check', '--disable-gpu', '--hide-scrollbars', '--allow-file-access-from-files', `--window-size=${opts.w || 1440},${opts.h || 1000}`];
-  const proc = spawn(CHROME, args, { stdio: 'ignore' });
+  const proc = spawn(CHROME, args, { stdio: 'ignore', windowsHide: true });
   let ver = null;
   for (let i = 0; i < 60 && !ver; i++) { await sleep(150); try { ver = await getJSON(`http://127.0.0.1:${port}/json/version`); } catch (e) { /* ждём */ } }
   if (!ver) throw new Error('Chrome не запустился');
@@ -78,6 +84,7 @@ async function launch(opts) {
           const params = { format: 'png', captureBeyondViewport: !!clip };
           if (clip) params.clip = Object.assign({ scale: 1 }, clip);
           const r = await S('Page.captureScreenshot', params);
+          fs.mkdirSync(path.dirname(file), { recursive: true });
           fs.writeFileSync(file, Buffer.from(r.data, 'base64'));
           return file;
         },
