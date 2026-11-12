@@ -407,5 +407,8 @@
  "лучший план": "best plan",
  "пройденный путь": "path so far",
  "20 шагов": "20 controller",
- "регулятора": "steps"
+ "регулятора": "steps",
+ "локоть": "elbow",
+ "захват": "gripper",
+ "Попадание за ${nWord(st.moves, 'движение', 'движения', 'движений')}. Одно и то же положение захвата дают два набора углов: θ₁ = ${dg(st.qFirst[0])}, θ₂ = ${dg(st.qFirst[1])} и θ₁ = ${dg(st.q[0])}, θ₂ = ${dg(st.q[1])}. Это два решения обратной задачи. Справа их находит формула.": "Hit in ${nWord(st.moves, 'move', 'moves', 'moves')}. The same gripper position comes from two sets of angles: θ₁ = ${dg(st.qFirst[0])}, θ₂ = ${dg(st.qFirst[1])} and θ₁ = ${dg(st.q[0])}, θ₂ = ${dg(st.q[1])}. These are the two solutions of the inverse problem. On the right, the formula finds them."
 }

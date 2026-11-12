@@ -21,7 +21,7 @@ LESSONS = {
         '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/actuator-core.js', 'l02/engine-l02.js', 'shared/missions.js', 'shared/cards.js', 'l02/actuators.js', 'shared/anim.js', 'l02/sensors.js', 'l02/ui-l02.js', 'l02/gear-experiments.js'],
     }),
     'l03': ('0-3-kinematika-i-upravlenie.html', ['l01/lesson.css', 'shared/lab.css', 'l03/l03.css'], {
-        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/arm-core.js', 'shared/mpc-core.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'l03/anim-l03.js', 'l03/ui-l03.js'],
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/arm-core.js', 'shared/mpc-core.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'l03/anim-l03.js', 'l03/jac-l03.js', 'l03/ui-l03.js'],
     }),
     'l11': ('1-1-behavior-cloning.html', ['l01/lesson.css', 'shared/lab.css', 'l11/l11.css'], {
         '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/drive-core.js', 'shared/drive-lab.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'l11/anim-l11.js', 'l11/ui-l11.js'],
@@ -225,7 +225,7 @@ PUB = {pathlib.Path(p['file']).name for p in published(CFG)}  # опублико
 LANG = os.environ.get('MR_LANG', 'ru')
 assert LANG in ('ru', 'en'), f'MR_LANG={LANG}: язык сборки — ru или en'
 EN = LANG == 'en'
-RU_ONLY_JS = {'l02/gear-experiments.js'}
+RU_ONLY_JS = {'l02/gear-experiments.js', 'l03/jac-l03.js'}
 STRICT = '--strict' in sys.argv
 LESSON_SRC = 'lesson.en.html' if EN else 'lesson.html'
 OUT_DIR = root.parent / 'site' / ('en/lessons' if EN else 'lessons')

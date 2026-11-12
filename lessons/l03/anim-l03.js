@@ -138,6 +138,7 @@
       if (o.ghost) {
         const g = fk(o.ghost), gj = m(g.x1, g.y1), ge = m(g.x, g.y);
         A.line(c, [b, gj, ge], A.alpha(P.out, 0.85), 2.4, [5, 5]);
+        drawGripper(c,{x:ge[0],y:ge[1]},{x:gj[0],y:gj[1]},P.out,true);
       }
       // основание
       c.beginPath(); c.rect(b[0] - 16, b[1] + 8, 32, 12); c.fillStyle = P.surf2; c.fill(); A.hatchBox(c, b[0] - 16, b[1] + 8, b[0] + 16, b[1] + 20, P); c.strokeStyle = P.ink3; c.lineWidth = 1.2; c.strokeRect(b[0] - 16, b[1] + 8, 32, 12);
@@ -159,6 +160,7 @@
         }
       });
       A.circle(c, e[0], e[1], 5, P.ink);
+      drawGripper(c,{x:e[0],y:e[1]},{x:j[0],y:j[1]},P.ink,false);
       return { b, j, e };
     }
     /** Полоса времени: метки политики (раз в 20 мс) и регулятора (раз в 1 мс), курсор — время робота. */
