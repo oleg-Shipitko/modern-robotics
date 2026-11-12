@@ -545,6 +545,9 @@ const MapLab = (() => {
 const GridLab = (() => {
   const G = E4.Grid, NX = G.NX, NY = G.NY, CW = 10, W = NX * CW, H = NY * CW;
   const TRAP = (() => { const t = []; for (let j = 3; j <= 14; j++) t.push([17, j]); for (let i = 13; i <= 17; i++) { t.push([i, 3]); t.push([i, 14]); } return t; })();
+  const priorityLabel = $('#gPriority'), priorityDefault = priorityLabel && priorityLabel.innerHTML;
+  const extended = !!$('#searchGraphCv');
+  const LOSS_WALLS = [[18,2],[18,3],[18,4],[18,5],[18,6],[18,7],[18,8],[18,9],[18,10],[18,11],[18,12]];
   const BASE = G.base(), WALLK = new Uint8Array(NX * NY);
   G.BLOCKS.slice(0, 6).forEach(([i0, j0, i1, j1]) => { for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) WALLK[j * NX + i] = 1; });
   const st = { user: new Uint8Array(NX * NY), eps: 1, s: Object.assign({}, G.START), t: Object.assign({}, G.GOAL), d: null, a: null, opt: null, anim: null, edit: false, moveEnds: false, shown: false };
@@ -573,18 +576,21 @@ const GridLab = (() => {
     setOut(el, `раскрыто <b>${shown}</b> ${plural(shown, 'клетка', 'клетки', 'клеток')}${(!st.anim || shown >= res.order.length) ? ` · путь <b>${res.path ? cellsM(res.cost) + ' м' : 'не найден'}</b>` : ''}`);
   }
   function draw() {
+    if(priorityLabel && st.priorityEps!==st.eps){st.priorityEps=st.eps;priorityLabel.innerHTML=st.eps===1?priorityDefault:'раскрывает по g + '+fmtF(st.eps,1)+'·h';}
     const n = !st.shown ? 0 : st.anim ? st.anim.n : null;
     drawPane('#gCvD', st.d, n); drawPane('#gCvA', st.a, n); stat('#gStatD', st.d); stat('#gStatA', st.a);
     const free = G.free(grid()), ratio = st.a.path && st.opt.path ? st.a.cost / st.opt.cost : 1;
     setOut($('#gOut'), `Свободных клеток: ${free}. ${st.eps !== 1 ? `Вес эвристики ε = ${fmtF(st.eps, 1)}: путь A* длиннее кратчайшего на <b>${fmt1((ratio - 1) * 100, 1)} %</b>.` : 'Эвристика не переоценивает остаток пути, поэтому путь A* кратчайший.'}`);
   }
   async function run() {
+    $('#gEps').disabled=true;$('#gClear').disabled=true;
     compute(); const N = Math.max(st.d.order.length, st.a.order.length); st.anim = { n: 0 }; st.shown = true;
     await drive(N / 2.6, () => { st.anim.n++; }, () => st.anim.n >= N, draw);
-    st.anim = null; draw();
+    st.anim = null;$('#gEps').disabled=false;$('#gClear').disabled=false; draw();
     return state();
   }
-  function state() { return { d: st.d.expanded, a: st.a.expanded, path: !!st.a.path, len: st.a.path ? st.a.cost * G.CELL / 100 : 0, ratio: st.a.path && st.opt.path ? st.a.cost / st.opt.cost : Infinity, eps: st.eps, free: G.free(grid()), user: st.user.reduce((x, y) => x + y, 0) }; }
+  function state() { return { d:st.d.expanded,a:st.a.expanded,path:!!st.a.path,len:st.a.path?st.a.cost*G.CELL/100:0,optLen:st.opt.path?st.opt.cost*G.CELL/100:0,ratio:st.a.path&&st.opt.path?st.a.cost/st.opt.cost:Infinity,eps:st.eps,free:G.free(grid()),user:st.user.reduce((x,y)=>x+y,0),s:{...st.s},t:{...st.t},dPath:st.d.path?[...st.d.path]:null,aPath:st.a.path?[...st.a.path]:null,baseline:st.lossBaseline?{...st.lossBaseline}:null}; }
+
   function refresh() { compute(); draw(); if (ctl) ctl.update(); }
   function setEps(v) { st.eps = Math.round(v * 10) / 10; $('#gEps').value = st.eps; $('#gEps').nextElementSibling.textContent = fmtF(st.eps, 1); }
   function setWalls(list) { st.user.fill(0); for (const [i, j] of list) st.user[j * NX + i] = 1; }
@@ -611,6 +617,13 @@ const GridLab = (() => {
       criteria: [{ label: 'A* раскрыл меньше 100 клеток', test: (r, s) => s.a < 100 }, { label: 'Путь длиннее кратчайшего не больше чем на 6 %', test: (r, s) => s.ratio <= 1.06 }],
       hint: 'Двигай ползунок под сценой и смотри на счётчик A*. Жадность помогает не везде.',
       explain: (s) => `При ε = ${fmtF(s.eps, 1)} A* раскрыл ${nWord(s.a, 'клетку', 'клетки', 'клеток')} вместо 160, а путь длиннее кратчайшего на ${fmt1((s.ratio - 1) * 100, 1)} %. Это взвешенный A*: раскрывает меньше, но гарантия слабее — путь не длиннее ε × кратчайший. При ε от 1,1 до 1,3 клеток уже меньше, а путь ещё кратчайший. При ε больше 3,4 жадность перестаёт помогать: A* глубже уходит в ловушку.` },
+    { short:'Цена жадности',title:'Быстрее найти — дольше ехать?',text:'Добавили одну перегородку. При ε = 1 A* находит кратчайший путь. Увеличим вес до 5: подсказка сильнее тянет поиск прямо к цели, хотя стену всё равно придётся обойти. Сначала сделай прогноз, затем сравни длины путей. После опыта верни ползунок к 1: изменится только порядок поиска.',controls:['eps'],
+      onEnter:(X)=>{st.edit=false;st.moveEnds=false;st.shown=true;st.s={...G.START};st.t={...G.GOAL};X.setWalls(LOSS_WALLS);X.setEps(1);st.lossBaseline={expanded:st.a.expanded,len:st.a.cost*G.CELL/100};},
+      bet:{q:'на этой карте при ε = 5 путь A*…',options:['останется кратчайшим','станет длиннее','исчезнет: пройти нельзя'],answer:()=>1},
+      action:{label:'Сравнить ε = 1 и ε = 5',run:async(X)=>{X.setEps(5);return await X.run();}},
+      criteria:[{label:'Найден путь при ε = 5',test:(r)=>!!r&&r.path&&r.eps===5},{label:'Путь оказался длиннее кратчайшего больше чем на 20 %',test:(r)=>!!r&&r.ratio>1.2}],
+      summary:(r)=>'ε = 1: '+m(r.baseline.len)+' / '+r.baseline.expanded+' клеток · ε = 5: '+m(r.len)+' / '+r.a+' клеток',
+      explain:(r)=>'При ε = 1 A* нашёл '+m(r.baseline.len)+' за '+r.baseline.expanded+' проверок. При ε = 5 — <b>'+m(r.len)+'</b> за '+r.a+': проверок меньше, но ехать на <b>'+fmt1((r.ratio-1)*100,1)+' %</b> дальше. Сильный вес сначала тянет поиск вправо к цели, вплотную к перегородке; найденный путь потом идёт вверх вдоль неё. Обычный A* раньше выбирает диагональ к обходу. Слева Дейкстра подтверждает кратчайшую длину. Верни ε к 1 и сравни форму пути. Больше вес — не значит лучше: выигрыш в вычислениях может стоить длины маршрута.' },
     { short: 'Свободно', title: 'Свободный режим', text: 'Рисуй и стирай стены, двигай вес эвристики. Аду и цель тоже можно перетаскивать.', final: true,
       onEnter: () => { st.edit = true; st.moveEnds = true; st.shown = true; draw(); },
       action: { label: 'Искать путь с анимацией', run: (X) => X.run() } },
@@ -643,7 +656,7 @@ const GridLab = (() => {
     $('#gEps').addEventListener('input', (e) => { setEps(+e.target.value); refresh(); });
     $('#gClear').addEventListener('click', () => { st.user.fill(0); refresh(); });
     compute();
-    ctl = Missions.mount('#gMis', missions, api, { controls: { eps: '#wrapEps', clear: '#wrapGClear' } });
+    ctl = Missions.mount('#gMis', missions.filter((m, i) => extended || i !== 3), api, { controls: { eps: '#wrapEps', clear: '#wrapGClear' } });
     draw(); redrawOn(draw);
     return ctl;
   }
@@ -878,11 +891,11 @@ function initQuiz() { renderQuiz('#quizBox', window.L4_QUIZ, '#quizScore'); }
   const start = () => {
     safe('theme', initTheme); safe('nav', initNav); safe('flow', initFlow);
     safe('kf', () => { mis.kf = KfLab.init(); }); safe('pf', () => { mis.pf = PfLab.init(); }); safe('slamRay', () => { if (typeof SlamRayLab !== 'undefined') mis.slamRay = SlamRayLab.init(); }); safe('map', () => { mis.map = MapLab.init(); });
-    safe('grid', () => { mis.grid = GridLab.init(); }); safe('dim', () => { mis.dim = DimCalc.init(); }); safe('rrt', () => { mis.rrt = RrtLab.init(); });
+    safe('searchGraph', () => { if (typeof SearchGraphLab !== 'undefined') SearchGraphLab.init(); }); safe('grid', () => { mis.grid = GridLab.init(); }); safe('dim', () => { mis.dim = DimCalc.init(); }); safe('rrt', () => { mis.rrt = RrtLab.init(); });
     safe('today', () => Today.init()); safe('sort', () => { mis.sort = initMethodSort(); }); safe('quiz', initQuiz);
-    window.__l04 = { mis, SPEED, KfLab, PfLab, MapLab, GridLab, DimCalc, RrtLab };
+    window.__l04 = { mis, SPEED, KfLab, PfLab, MapLab, GridLab, DimCalc, RrtLab, Grid:E4.Grid };
     if (typeof SlamRayLab !== 'undefined') window.__l04.SlamRayLab = SlamRayLab;
- window.__lessonReady = true;
+    if (typeof SearchGraphLab !== 'undefined') { window.__l04.SearchGraphLab = SearchGraphLab; window.__l04.graph = SearchGraphLab.api; } window.__lessonReady = true;
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();

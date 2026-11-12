@@ -238,6 +238,26 @@ async function desktop() {
   await setRange(p, '#gEps', '3'); ok(await g.done(), 'A* М3 при ε = 3'); await g.report('М3');
   await p.shotEl(out('l04-astar.png'), '#astar .lab', 6);
   await g.next();
+  await g.bet('станет длиннее'); await g.act();
+  const loss = await p.eval('window.__l04.GridLab.api.state()');
+  ok(await g.done(), 'A* М4: большой вес действительно удлинил путь');
+  ok(loss.eps === 5 && loss.ratio > 1.2 && loss.a < loss.baseline.expanded && Math.abs(loss.optLen - loss.baseline.len) < 1e-9, 'взвешенный A*: меньше раскрытий, путь длиннее при неизменной карте');
+  await g.report('М4'); await g.next();
+  ok((await g.kicker()).toLowerCase().includes('свободный'), 'A*: свободный режим теперь пятый');
+
+  const graph = await p.eval(`(() => {
+    const A = window.__l04.graph, d = A.run('dijkstra'), a = A.run('astar');
+    let sample = null;
+    for (let t = 0; t < A.data().duration; t += .07) {
+      const f = A.frameAt(t), edge = f.edges[1];
+      if (edge && edge.edge[1] !== 'T') { sample = { t, candidate: edge.edge[1], h: A.heuristic(edge.edge[1]) }; break; }
+    }
+    const s = A.seek(sample.t); A.play(); const plays = A.state().playing; A.pause();
+    return { d: { cost: d.cost, expanded: d.closed.length }, a: { cost: a.cost, expanded: a.closed.length }, sample, view: s.hView, plays, paused: !A.state().playing };
+  })()`);
+  ok(graph.d.cost === 8 && graph.a.cost === 8 && graph.a.expanded < graph.d.expanded, 'граф: Дейкстра и A* находят один кратчайший путь разным порядком');
+  ok(graph.view.from === graph.sample.candidate && Math.abs(graph.view.h - graph.sample.h) < 1e-9 && graph.plays && graph.paused, 'A*: пунктир h и число относятся к проверяемому кандидату; пауза и запуск работают');
+  await p.shotEl(out('l04-search-graph.png'), '#searchGraphIntro', 6);
 
   console.log('— Размерность');
   const d = M(p, '#dimMis'); await scrollTo(p, '#dims .dim-card');
@@ -323,6 +343,7 @@ async function phone() {
   await m.shotEl(out('l04-m-rrt.png'), '#rrt .lab', 4);
   await m.shotEl(out('l04-m-map.png'), MAP_LAB, 4);
   await m.shotEl(out('l04-m-slam-corner.png'), '#slamRayLab', 4);
+  await m.shotEl(out('l04-m-search-graph.png'), '#searchGraphIntro', 4);
   await m.shotEl(out('l04-m-dims.png'), '#dims .dim-card', 4);
   await m.eval('document.querySelectorAll("#todaySeg button")[2].click()');
   await m.shotEl(out('l04-m-today.png'), '#today .stack-card', 4);
