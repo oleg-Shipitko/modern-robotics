@@ -72,9 +72,9 @@
     </div>
     <div class="duo">
       <div class="card scene-card">
-        <h3 class="duo-h">Углы → поза</h3>
+        <h3 class="duo-h">Углы → положение</h3>
         <canvas id="fkCv" width="420" height="420" class="sq-cv" role="img" aria-label="Рука из двух звеньев, вид сверху, её углы и цель для захвата"></canvas>
-        <p class="cv-note">Вид сверху на руку Ады из двух звеньев. Плечо закреплено в центре, на конце руки — захват. Перекрестие отмечает цель, например чашку. Захват достаёт только до точек между двумя пунктирными окружностями.</p>
+        <p class="cv-note">Вид сверху. Кружки — плечо и локоть, скоба на конце — захват, перекрестие — цель. θ₁ — поворот плеча; θ₂ — сгиб локтя: при 0° рука прямая. Пунктирные окружности ограничивают досягаемость.</p>
         <div class="fk-ctl">
           <label class="hd-range"><span>Плечо θ₁</span><input id="fkQ1" type="range" min="-180" max="180" step="1" value="30"><output>30°</output></label>
           <label class="hd-range"><span>Локоть θ₂</span><input id="fkQ2" type="range" min="-170" max="170" step="1" value="75"><output>75°</output></label>
@@ -84,7 +84,7 @@
         <div class="duo-mis" id="fkMis"></div>
       </div>
       <div class="card scene-card">
-        <h3 class="duo-h">Поза → углы</h3>
+        <h3 class="duo-h">Положение → углы</h3>
         <canvas id="ikCv" width="420" height="420" class="sq-cv" role="img" aria-label="Цель для захвата и все положения руки, которые до неё достают"></canvas>
         <div class="cv-legend" id="ikLegend"></div>
         <div class="readout" id="ikOut"></div>
@@ -117,11 +117,44 @@
     </div>
     <div class="lab lab-narrow">
       <div class="card scene-card">
-        <canvas id="jacCv" width="420" height="420" class="sq-cv" role="img" aria-label="Рука, эллипс скоростей захвата и его сплющивание у края досягаемости"></canvas>
-        <div class="readout" id="jacOut"></div>
-        <canvas id="jacPlot" width="420" height="190" class="plot-cv jac-plot" role="img" aria-label="График: округлость эллипса в зависимости от расстояния между плечом и захватом"></canvas>
+        <canvas id="jacCv" width="420" height="320" class="sq-cv" role="img" aria-label="Рука робота: вклады суставов и эллипс доступных скоростей движения захвата"></canvas>
         <div class="cv-legend" id="jacLegend"></div>
-        <p class="muted-s plot-cap">По горизонтали — расстояние от плеча до захвата, м. По вертикали — округлость эллипса: короткая ось, делённая на длинную.</p>
+        <div class="readout" id="jacOut" aria-live="off"></div>
+        <details id="jacBudget" class="jm-budget" hidden><summary>Общий лимит суставов: 10°/с — как считаем?</summary><p>Можно вращать один сустав на 10°/с, оставив другой неподвижным. Или оба — примерно на 7,07°/с. В обоих случаях √(ω₁² + ω₂²) = 10°/с, где ω₁ и ω₂ — скорости плеча и локтя. Именно этот общий лимит сохраняем при сравнении А и Б.</p></details>
+        <div class="jm-controls" id="jacPresetControls">
+          <button class="btn sm" id="jacShoulder" type="button">Только плечо</button>
+          <button class="btn sm" id="jacElbow" type="button">Только локоть</button>
+          <button class="btn sm primary" id="jacTogether" type="button">Оба вместе</button>
+        </div>
+        <div class="jm-controls" id="jacAxisControls" hidden>
+          <button class="btn sm" id="jacA" type="button">Движение по А</button>
+          <button class="btn sm" id="jacB" type="button">Движение по Б</button>
+        </div>
+        <div id="jacDirectionControls" hidden>
+          <label class="hd-range"><span>Направление от А к Б</span><input id="jacDirection" type="range" min="0" max="90" value="0" step="1"><output id="jacDirectionOut">0°</output></label>
+        </div>
+        <div id="jacBendControls" hidden>
+          <label class="hd-range"><span>Сгиб локтя</span><input id="jacBend" type="range" min="0" max="90" value="90" step="1"><output id="jacBendOut">90°</output></label>
+          <p class="cv-note">0° — прямая рука; 90° — согнутая.</p>
+        </div>
+        <div class="jm-controls">
+          <button class="btn sm" id="jacPlay" type="button">Повторить движение</button>
+          <button class="btn sm" id="jacStart" type="button">В начало движения</button>
+        </div>
+        <p class="cv-note" id="jacSceneNote"></p>
+        <div id="jacNumbers">
+          <h3 class="duo-h">Якобиан в начальном положении</h3>
+          <p class="cv-note">Матрица <b>J</b> — та же таблица вкладов: столбцы — <b>плечо и локоть</b>, строки — движение <b>по x и по y</b>. Числа показывают вклад сустава, вращающегося на +1°/с. Плюс — вправо или вверх, минус — влево или вниз.</p>
+          <div class="jac-equation" role="group" aria-label="Матрица Якоби, умноженная на скорости суставов, даёт скорость движения захвата">
+            <div class="jac-factor"><span class="jac-symbol">J</span><div class="jac-bracket jac-matrix" role="math" aria-label="Матрица Якоби: первая строка по x, вторая по y; столбцы плечо и локоть"><span id="j00"></span><span id="j01"></span><span id="j10"></span><span id="j11"></span></div><span class="jac-unit">см/град</span></div>
+            <span class="jac-op">×</span>
+            <div class="jac-factor"><span class="jac-symbol">ω</span><div class="jac-bracket" role="math" aria-label="Скорости вращения плеча и локтя"><span id="jacOmega1"></span><span id="jacOmega2"></span></div><span class="jac-unit">°/с</span></div>
+            <span class="jac-op">≈</span>
+            <div class="jac-factor"><span class="jac-symbol">v</span><div class="jac-bracket" role="math" aria-label="Скорость движения захвата по x и по y"><span id="jacVx"></span><span id="jacVy"></span></div><span class="jac-unit">см/с</span></div>
+          </div>
+          <p class="cv-note"><b>ω</b> — скорости вращения плеча и локтя, сверху вниз. Умножаем каждый столбец J на скорость своего сустава и складываем по строкам: <b>v = J · ω</b> — скорость движения захвата по x и y, тоже сверху вниз. Числа на экране округлены.</p>
+          <p class="readout" id="jacPredict"></p>
+        </div>
       </div>
       <div class="card guide-card"><div id="jacMis"></div></div>
     </div>

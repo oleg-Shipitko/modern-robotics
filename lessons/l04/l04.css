@@ -84,3 +84,24 @@
 .scheme-fig figcaption { margin-top: 8px; }
 .scheme-fig canvas[data-layout="n"] { max-width: 460px; margin: 0 auto; }
 @media (max-width: 520px) { .scheme-fig { padding: 10px 10px 8px; } }
+
+/* Scan comparison, wall matching, and the graph search scheme. */
+#particles [hidden]{display:none!important}#pfScanDetails{border-top:1px solid var(--line);margin-top:16px;padding-top:12px}#pfScanDetails summary{cursor:pointer;font-weight:600;font-size:14px}#pfCloudButtons{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}#pfScanCv{width:100%;height:auto;aspect-ratio:60/19;border:1px solid var(--line);border-radius:12px;display:block}#particles .scan-note{font-size:12px;line-height:1.6;color:var(--ink-3)}#pfCloudButtons .btn[aria-pressed=true]{background:var(--ink);color:var(--surface)}@media(max-width:900px){#particles .lab{grid-template-columns:minmax(0,1fr)}#particles .scene-card,#particles .m-top,#particles .m-bottom{min-width:0}}
+#slam [hidden]{display:none!important}
+#slamRayCv{width:100%;height:auto;aspect-ratio:3/2;display:block;border:1px solid var(--line);border-radius:12px}
+#slam .slam-ray-controls{display:grid;gap:12px;margin-top:16px}
+#slam .slam-ray-controls .hd-range{display:grid;grid-template-columns:170px minmax(0,1fr) 55px;width:100%}
+#slam .slam-ray-controls input{min-width:0;width:100%}
+#slam .slam-ray-controls output{min-width:0;text-align:right}
+#slam .slam-ray-controls .btn{justify-self:start}
+#slam .slam-check{margin-top:24px}
+#slam .slam-cycle{padding-left:24px;margin:16px 0 20px}
+#slam .slam-cycle li{padding-left:4px;margin:10px 0;line-height:1.7}
+@media(max-width:900px){#slam .lab{grid-template-columns:minmax(0,1fr)}#slam .scene-card,#slam .m-top,#slam .m-bottom{min-width:0}}
+@media(max-width:500px){#slam .slam-ray-controls .hd-range{grid-template-columns:minmax(0,1fr) 55px}#slam .slam-ray-controls .hd-range>span{grid-column:1/-1}}
+
+/* The same scheme-fig and Anim UI as the original SLAM illustration. */
+#searchGraphCv{cursor:pointer;touch-action:pan-y}
+#searchGraphCv:focus-visible{outline:3px solid var(--classic);outline-offset:3px}
+
+#astar [hidden]{display:none!important}#astar .scene-card,#astar .guide-card{min-width:0}@media(max-width:900px){#astar .lab{grid-template-columns:minmax(0,1fr)}}.astar-local-nav{display:flex;gap:14px;align-items:center}.astar-local-nav a{font-size:13px}@media(max-width:700px){.astar-local-nav{display:none!important}}

@@ -169,3 +169,29 @@ html[lang="en"] .scale-sort .c-zones::after { content: 'faster →'; }
 #bodySvg .b-wheel { fill: var(--ink-2); }
 #bodySvg .b-hub { fill: var(--surface); }
 #bodySvg .b-zone.sel .b-wheel { fill: var(--e2e); }
+
+/* Laboratory 1: rope, geared arm and landing leg. */
+#ropeLab .scene-card{min-width:0}
+#ropeCv{display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:12px;margin-top:14px}
+#ropeLab .rope-actions{display:flex;flex-wrap:wrap;gap:8px}
+#ropeLab [hidden]{display:none!important}
+#ropeLab .g-out{min-height:84px}
+#ropeLab .mini-res .v{white-space:nowrap}
+#ropeLab #ropeMotion{white-space:normal;text-align:right}
+#ropeLab .rope-energy{padding-top:16px;margin-top:14px;border-top:1px solid var(--line)}
+#ropeLab .rope-energy-label{display:flex;justify-content:space-between;gap:12px;font-size:12.5px;line-height:1.5;margin:9px 0 4px}
+#ropeLab .rope-energy-label strong{white-space:nowrap;font-variant-numeric:tabular-nums}
+#ropeLab .rope-energy-track{height:9px;border-radius:5px;background:var(--bg-2);overflow:hidden}
+#ropeLab .rope-energy-track>div{height:100%;border-radius:5px;transition:width .15s}
+#ropeLab .rope-energy .readout{margin-top:10px}
+
+#armLoadCv{display:block;width:100%;height:auto;aspect-ratio:640/590;border:1px solid var(--line);border-radius:12px;touch-action:none}
+#armLoadLab .guide-card>*,#armLoadLab .mini-res>*{min-width:0}
+
+#legsCv{display:block;width:100%;height:auto;aspect-ratio:640/470;border:1px solid var(--line);border-radius:12px;touch-action:none}
+#legsLab .guide-card>*{min-width:0}
+#legsLab .legs-actions{display:flex;gap:8px;flex-wrap:wrap}
+#legsLab [hidden]{display:none!important}
+#legsLab .mini-res .hd{line-height:1.45}
+
+#gear .gear-unit+.gear-unit{margin-top:38px}#gear .gear-unit>.prose.lab-intro{margin:0 0 22px;max-width:820px}

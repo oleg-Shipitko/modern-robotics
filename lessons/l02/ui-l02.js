@@ -1009,7 +1009,7 @@ function initQuiz() {
   const safe = (name, fn) => { try { fn(); } catch (e) { console.error('[урок] ошибка в', name, e); } };
   const start = () => {
     safe('theme', initTheme); safe('nav', initNav);
-    safe('body', () => Body.init()); safe('arm', () => ArmLab.init()); safe('gear', () => GearLab.init());
+    safe('body', () => Body.init()); safe('arm', () => ArmLab.init()); safe('gear', () => { if ($('#gearCv')) GearLab.init(); });
     safe('types', () => TypesSort.init()); safe('actanim', () => ActAnim.init()); safe('imu', () => ImuLab.init()); safe('ladder', () => Ladder.init());
     safe('act', () => ActLab.init()); safe('quiz', initQuiz);
     Object.assign(L02, { Body, ArmLab, GearLab, TypesSort, ImuLab, Ladder, ActLab });

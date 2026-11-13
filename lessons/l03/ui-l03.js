@@ -33,6 +33,14 @@ function setOut(el, html) { if (el.dataset.h !== html) { el.innerHTML = html; el
 const redrawOn = (fn) => { App.on('theme', fn); App.on('resize', fn); };
 
 /* ---------- рисование руки и мишени ---------- */
+function drawGripper(c,e,j,color,ghost){
+  const dx=e.x-j.x,dy=e.y-j.y,len=Math.hypot(dx,dy)||1,u={x:dx/len,y:dy/len},v={x:-dy/len,y:dx/len};
+  c.save();c.strokeStyle=color;c.lineWidth=2;c.lineCap='round';c.lineJoin='round';
+  c.setLineDash(ghost?[3,3]:[]);if(ghost)c.globalAlpha*=.6;
+  for(const side of [-1,1]){c.beginPath();c.moveTo(e.x-6*u.x,e.y-6*u.y);c.lineTo(e.x-6*u.x+side*7*v.x,e.y-6*u.y+side*7*v.y);c.lineTo(e.x+7*u.x+side*7*v.x,e.y+7*u.y+side*7*v.y);c.stroke();}
+  c.restore();
+}
+
 function drawArm(c, q, map, P, o) {
   o = o || {}; const p = Arm.fk(q), b = map(0, 0), j = map(p.x1, p.y1), e = map(p.x, p.y), col = o.color || P.ink;
   c.save(); c.lineCap = 'round'; c.lineJoin = 'round'; c.strokeStyle = col;
@@ -42,7 +50,7 @@ function drawArm(c, q, map, P, o) {
     for (const [pt, r] of [[b, 6.5], [j, 5]]) { c.beginPath(); c.arc(pt.x, pt.y, r, 0, 7); c.fillStyle = P.surf; c.fill(); c.lineWidth = 2; c.strokeStyle = col; c.stroke(); }
     c.beginPath(); c.arc(e.x, e.y, 5.5, 0, 7); c.fillStyle = col; c.fill();
   }
-  c.restore(); return e;
+  c.restore(); drawGripper(c,e,j,col,!!o.ghost); return e;
 }
 function crosshair(c, x, y, P, col) { c.strokeStyle = col || P.ink; c.lineWidth = 1.8; c.beginPath(); c.arc(x, y, 9, 0, 7); c.stroke(); c.beginPath(); c.moveTo(x - 15, y); c.lineTo(x - 5, y); c.moveTo(x + 5, y); c.lineTo(x + 15, y); c.moveTo(x, y - 15); c.lineTo(x, y - 5); c.moveTo(x, y + 5); c.lineTo(x, y + 15); c.stroke(); }
 function missLine(c, a, b, P) { c.setLineDash([2, 4]); c.strokeStyle = P.bad; c.lineWidth = 1.6; c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); c.stroke(); c.setLineDash([]); }
@@ -85,7 +93,7 @@ function snapRing(w, tol) {
   for (const R of [RMAX, RMIN]) if (Math.abs(r - R) < tol) return { x: w.x * R / r, y: w.y * R / r };
   return w;
 }
-const clampRing = (w, lo, hi) => { const r = Math.hypot(w.x, w.y) || 1e-9, f = r > hi ? hi / r : r < lo ? lo / r : 1; return { x: w.x * f, y: w.y * f }; };
+const clampRing = (w, lo, hi) => { const r = Math.hypot(w.x, w.y); if(r<1e-9)return {x:lo,y:0}; const f = r > hi ? hi / r : r < lo ? lo / r : 1; return { x: w.x * f, y: w.y * f }; };
 /** Проигрывание кадров с шагом dt мс. Конец — по таймеру, даже если сцена ушла с экрана. */
 function playback(n, dt, onEnd) {
   const pl = { t0: performance.now(), n, dt, i: 0, done: false };
@@ -116,6 +124,16 @@ function axes(c, k, P, box, xt, yt, x, y) {
   for (const [v, t, al] of xt) HeroKit.label(c, k, t, x(v), ly, { align: al || 'center', px: 10.5, mono: true, color: P.ink3, halo: false });
 }
 
+function drawTeachingArm(c,q,map,P,o){
+ o=o||{};const e=drawArm(c,q,map,P,o);if(o.ghost)return e;
+ const p=Arm.fk(q),j=map(p.x1,p.y1),dx=e.x-j.x,dy=e.y-j.y,len=Math.hypot(dx,dy)||1,v={x:-dy/len,y:dx/len};
+ const k=420/(c.canvas.getBoundingClientRect().width||420),label=(t,x,y)=>HeroKit.label(c,k,t,Math.max(38,Math.min(382,x)),Math.max(14,Math.min(406,y)),{px:11,weight:650,color:P.ink3,haloColor:P.bg});
+ // Labels use canvas coordinates under HeroKit.fit's original transform.
+ label('локоть',j.x-Math.sin(q[0])*23,j.y-Math.cos(q[0])*23);
+ label('захват',e.x+v.x*27,e.y+v.y*27);
+ return e;
+}
+
 /* ---------- 1. Углы → поза: попади в цель ---------- */
 const FK = (() => {
   const A = Arm, T = [{ x: -0.485, y: 0.527 }, { x: 0.55, y: -0.25 }, { x: 0.55, y: -0.25 }];
@@ -127,12 +145,12 @@ const FK = (() => {
     const { c, k, P } = topBase($('#fkCv')), p = measure(), b = TOP.map(0, 0), j = TOP.map(p.x1, p.y1), g = TOP.map(tgt().x, tgt().y), hit = st.dist < 0.03;
     c.beginPath(); c.arc(g.x, g.y, 0.03 * TOP.S, 0, 7); c.fillStyle = hit ? P.good : P.ink2; c.globalAlpha = hit ? 0.5 : 0.35; c.fill(); c.globalAlpha = 1;
     crosshair(c, g.x, g.y, P, hit ? P.good : P.ink);
-    if (st.k === 2 && st.qFirst) drawArm(c, st.qFirst, TOP.map, P, { ghost: true });
+    if (st.k === 2 && st.qFirst) drawTeachingArm(c, st.qFirst, TOP.map, P, { ghost: true });
     c.strokeStyle = P.ink3; c.lineWidth = 1; c.setLineDash([3, 4]);
     c.beginPath(); c.moveTo(b.x, b.y); c.lineTo(b.x + 74, b.y); c.stroke();
     c.beginPath(); c.moveTo(j.x, j.y); c.lineTo(j.x + Math.cos(st.q[0]) * 62, j.y - Math.sin(st.q[0]) * 62); c.stroke(); c.setLineDash([]);
     arcAngle(c, k, P, b, 0, st.q[0], 36, 'θ₁'); arcAngle(c, k, P, j, st.q[0], st.q[0] + st.q[1], 28, 'θ₂');
-    drawArm(c, st.q, TOP.map, P);
+    drawTeachingArm(c, st.q, TOP.map, P);
     topLabels(c, k, P, st.q[0], g);
     setOut($('#fkOut'), `Захват: x = ${fmt1(p.x, 2)} м, y = ${fmt1(p.y, 2)} м · ${hit ? '<b>в цели</b>' : `до цели <b>${fmt1(st.dist * 100, 0)} см</b>`} · движений ползунками: <b>${st.moves}</b>`);
   }
@@ -157,7 +175,7 @@ const FK = (() => {
     { short: 'Другой локоть', title: 'Та же цель, локоть в другую сторону', text: 'В ту же цель можно попасть и с локтем, согнутым в другую сторону. Попади так ещё раз. Пунктиром — рука из прошлой попытки.', onEnter: enter(2),
       criteria: [inTarget, { label: 'Локоть согнут в другую сторону', test: (r, s) => !!st.qFirst && Math.sign(s.q[1]) !== Math.sign(st.qFirst[1]) && Math.abs(s.q[1]) > rad(3) }],
       hint: 'Переведи θ₂ через ноль на угол с другим знаком, потом снова разверни руку плечом.',
-      explain: () => `Попадание за ${nWord(st.moves, 'движение', 'движения', 'движений')}. Одну и ту же позу захвата дают два набора углов: θ₁ = ${dg(st.qFirst[0])}, θ₂ = ${dg(st.qFirst[1])} и θ₁ = ${dg(st.q[0])}, θ₂ = ${dg(st.q[1])}. Это два решения обратной задачи. Справа их находит формула.` },
+      explain: () => `Попадание за ${nWord(st.moves, 'движение', 'движения', 'движений')}. Одно и то же положение захвата дают два набора углов: θ₁ = ${dg(st.qFirst[0])}, θ₂ = ${dg(st.qFirst[1])} и θ₁ = ${dg(st.q[0])}, θ₂ = ${dg(st.q[1])}. Это два решения обратной задачи. Справа их находит формула.` },
   ];
   function init() {
     $('#fkQ1').addEventListener('input', sync); $('#fkQ2').addEventListener('input', sync);
@@ -179,13 +197,13 @@ const IK = (() => {
     const { c, k, P } = topBase($('#ikCv')), sols = ikSols(goal.x, goal.y), r = Math.hypot(goal.x, goal.y), g = TOP.map(goal.x, goal.y);
     let txt;
     if (!sols.length) {
-      const far = r > RMAX; drawArm(c, [Math.atan2(goal.y, goal.x), far ? 0 : Math.PI], TOP.map, P, { color: P.ink3 });
+      const far = r > RMAX; drawTeachingArm(c, [Math.atan2(goal.y, goal.x), far ? 0 : Math.PI], TOP.map, P, { color: P.ink3 });
       txt = far ? '<b>Решений нет:</b> цель дальше, чем достаёт рука.' : '<b>Решений нет:</b> цель ближе, чем рука может сложиться.';
     } else if (sols.length === 1) {
-      drawArm(c, sols[0], TOP.map, P);
+      drawTeachingArm(c, sols[0], TOP.map, P);
       txt = r > 0.5 ? `<b>Одно решение:</b> рука вытянута, θ₁ = ${dg(sols[0][0])}, θ₂ = 0°.` : `<b>Одно решение:</b> рука сложена, θ₁ = ${dg(sols[0][0])}, θ₂ = 180°.`;
     } else {
-      drawArm(c, sols[1], TOP.map, P, { ghost: true }); drawArm(c, sols[0], TOP.map, P);
+      drawTeachingArm(c, sols[1], TOP.map, P, { ghost: true }); drawTeachingArm(c, sols[0], TOP.map, P);
       txt = `<b>Два решения:</b> θ₁ = ${dg(sols[0][0])}, θ₂ = ${dg(sols[0][1])} и θ₁ = ${dg(sols[1][0])}, θ₂ = ${dg(sols[1][1])}.`;
     }
     crosshair(c, g.x, g.y, P); topLabels(c, k, P, sols.length ? sols[0][0] : Math.atan2(goal.y, goal.x), g);
@@ -203,7 +221,7 @@ const IK = (() => {
   function init() {
     legend('#ikLegend', [['первое решение', 'var(--ink)'], ['второе решение', 'var(--ink-3)', true], ['границы досягаемости', 'var(--ink-3)', true]]);
     const set = (p) => { const w = clampRing(TOP.inv(p.x, p.y), 0, 0.98); goal = snapRing(w, 0.02); draw(); ctl.update(); };
-    HeroKit.drag($('#ikCv'), TOP.W, TOP.H, { hit: (p) => { const g = TOP.map(goal.x, goal.y); return Math.hypot(p.x - g.x, p.y - g.y) < 40 ? 'g' : null; }, move: (o, p) => set(p), tap: set, tapCursor: 'pointer' });
+    HeroKit.drag($('#ikCv'), TOP.W, TOP.H, { hit: (p) => { const g = TOP.map(goal.x, goal.y); return Math.hypot(p.x - g.x, p.y - g.y) < 40 ? 'g' : null; }, move: (o, p) => set(p), end: (o, p) => set(p), tap: set, tapCursor: 'pointer' });
     ctl = mountMissions('#ikMis', missions, api);
     draw(); redrawOn(draw);
     return ctl;
@@ -212,7 +230,8 @@ const IK = (() => {
 })();
 
 /* ---------- 2. Якобиан: кривая, которую строишь сам ---------- */
-const Jac = (() => {
+// Keep the original controller for the English lesson until its lab is translated.
+const Jac = typeof createJacLab === 'function' && document.getElementById('jacNumbers') ? createJacLab() : (() => {
   const A = Arm, SC = 0.32, PW = 420, PH = 190;
   const st = { ee: { x: 0.45, y: 0.3 }, pts: [], lastR: null, theory: false };
   let ctl = null;
@@ -384,7 +403,7 @@ const niceUp = (v, steps) => steps.find((s) => s >= v) || Math.ceil(v / 100) * 1
 
 /* ---------- Лаборатория 2: регулятор ---------- */
 const PdLab = (() => {
-  const A = Arm, W = 520, H = 340, S = 190, OX = 200, OY = 170, PW = 520, PH = 110, T = 4;
+  const A = Arm, W = 520, H = 340, S = 155, OX = 200, OY = 180, PW = 520, PH = 110, T = 4;
   const map = (x, y) => ({ x: OX + x * S, y: OY - y * S }), inv = (px, py) => ({ x: (px - OX) / S, y: (OY - py) / S });
   const st = { o: { mode: 'pd', Kp: 60, Kd: 0, comp: false }, s: A.ctlInit('pd'), play: null, fr: null, live: false, hist: [], pull: null, err: 0, last: null, runs: [] };
   let ctl = null;
@@ -421,6 +440,7 @@ const PdLab = (() => {
     const e = drawArm(c, st.s.q, map, P);
     c.beginPath(); c.roundRect(e.x - 9, e.y - 24, 18, 19, 3); c.fillStyle = P.surf; c.fill(); c.lineWidth = 2; c.strokeStyle = P.ink2; c.stroke();
     c.beginPath(); c.arc(e.x + 11, e.y - 15, 5, -Math.PI / 2, Math.PI / 2); c.stroke();
+    {const p=Arm.fk(st.s.q);drawGripper(c,e,map(p.x1,p.y1),P.ink,false);}
     if (st.pull) { const pp = map(st.pull.x, st.pull.y); c.strokeStyle = P.ink3; c.setLineDash([3, 3]); c.lineWidth = 1.6; c.beginPath(); c.moveTo(e.x, e.y); c.lineTo(pp.x, pp.y); c.stroke(); c.setLineDash([]); }
   }
   function plot() {
@@ -560,6 +580,7 @@ const ImpLab = (() => {
       const g = map(0.62, A.TABLE - 0.02 - st.err); crosshair(c, g.x, g.y, P, col);
       const e = drawArm(c, a.s.q, map, P, { color: col });
       c.fillStyle = col; c.globalAlpha = 0.55; c.fillRect(e.x - 14, e.y + 4, 28, 5); c.globalAlpha = 1;
+      {const p=Arm.fk(a.s.q);drawGripper(c,e,map(p.x1,p.y1),col,false);}
       forceArrow(c, k, P, e.x + dir * 24, e.y + 8, a.F);
       if (a.pull) { const pp = map(a.pull.x, a.pull.y); c.strokeStyle = P.ink3; c.setLineDash([3, 3]); c.lineWidth = 1.6; c.beginPath(); c.moveTo(e.x, e.y); c.lineTo(pp.x, pp.y); c.stroke(); c.setLineDash([]); }
     }

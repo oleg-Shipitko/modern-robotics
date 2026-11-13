@@ -18,10 +18,10 @@ LESSONS = {
         '/*@@UI@@*/': ['l01/ui-core.js', 'l01/ui-scene.js', 'l01/ui-lab1.js', 'l01/ui-lab2.js', 'l01/ui-labs.js', 'l01/ui-extras.js', 'l01/ui-main.js'],
     }),
     'l02': ('0-2-ustroystvo-robota.html', ['l01/lesson.css', 'shared/lab.css', 'l02/l02.css'], {
-        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/actuator-core.js', 'l02/engine-l02.js', 'shared/missions.js', 'shared/cards.js', 'l02/actuators.js', 'shared/anim.js', 'l02/sensors.js', 'l02/ui-l02.js'],
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/actuator-core.js', 'l02/engine-l02.js', 'shared/missions.js', 'shared/cards.js', 'l02/actuators.js', 'shared/anim.js', 'l02/sensors.js', 'l02/ui-l02.js', 'l02/gear-experiments.js'],
     }),
     'l03': ('0-3-kinematika-i-upravlenie.html', ['l01/lesson.css', 'shared/lab.css', 'l03/l03.css'], {
-        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/arm-core.js', 'shared/mpc-core.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'l03/anim-l03.js', 'l03/ui-l03.js'],
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/arm-core.js', 'shared/mpc-core.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'l03/anim-l03.js', 'l03/jac-l03.js', 'l03/ui-l03.js'],
     }),
     'l11': ('1-1-behavior-cloning.html', ['l01/lesson.css', 'shared/lab.css', 'l11/l11.css'], {
         '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/drive-core.js', 'shared/drive-lab.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'l11/anim-l11.js', 'l11/ui-l11.js'],
@@ -30,7 +30,7 @@ LESSONS = {
         '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/drive-core.js', 'shared/drive-lab.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'l12/anim-l12.js', 'l12/ui-l12.js'],
     }),
     'l04': ('0-4-otsenka-sostoyaniya-i-planirovanie.html', ['l01/lesson.css', 'shared/lab.css', 'l04/l04.css'], {
-        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'l04/engine.js', 'l04/data-l04.js', 'shared/anim.js', 'l04/anim-l04.js', 'l04/ui-l04.js'],
+        '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/missions.js', 'shared/cards.js', 'l04/engine.js', 'l04/data-l04.js', 'shared/anim.js', 'l04/anim-l04.js', 'l04/slam-ray.js', 'l04/search-graph.js', 'l04/ui-l04.js'],
     }),
     'l13': ('1-3-multimodalnost-deystviy.html', ['l01/lesson.css', 'shared/lab.css', 'l13/l13.css'], {
         '/*@@JS@@*/': ['l01/ui-core.js', 'shared/kit.js', 'shared/kettle-core.js', 'shared/kettle-draw.js', 'shared/missions.js', 'shared/cards.js', 'shared/anim.js', 'l13/modes.js', 'l13/ui-l13.js'],
@@ -225,6 +225,7 @@ PUB = {pathlib.Path(p['file']).name for p in published(CFG)}  # опублико
 LANG = os.environ.get('MR_LANG', 'ru')
 assert LANG in ('ru', 'en'), f'MR_LANG={LANG}: язык сборки — ru или en'
 EN = LANG == 'en'
+RU_ONLY_JS = {'l02/gear-experiments.js', 'l03/jac-l03.js', 'l04/slam-ray.js', 'l04/search-graph.js'}
 STRICT = '--strict' in sys.argv
 LESSON_SRC = 'lesson.en.html' if EN else 'lesson.html'
 OUT_DIR = root.parent / 'site' / ('en/lessons' if EN else 'lessons')
@@ -399,7 +400,14 @@ def glossarize(page, key):
         return page
     pats = sorted(((g, re.compile(r'(?<![\w-])(?:' + g['a'].replace(' ', r'(?:\s|&nbsp;)+') + r')(?![\w-])', re.I))
                    for g in GLOSSARY if (not g.get('only') or key in g['only']) and key not in g.get('except', [])), key=lambda x: -len(x[0]['a']))
-    used, out, section_ok, prose, skip, katex, bto = {}, [], False, 0, 0, 0, False
+    info = gl_info()
+    # Автор может явно выбрать место подсказки, например в лаборатории, где термин
+    # нужно объяснить рядом с опытом. Не вкладываем в такую подсказку автоподсказки.
+    explicit = re.findall(r'\bdata-gl="([\w-]+)"', page[a:b])
+    unknown = set(explicit) - info.keys()
+    assert not unknown, f'{key}: неизвестные термины data-gl: {", ".join(sorted(unknown))}'
+    used = dict.fromkeys(explicit, True)
+    out, section_ok, prose, skip, katex, gl_span, bto = [], False, 0, 0, 0, 0, False
     for part in re.split(r'(<[^>]+>)', page[a:b]):
         if part.startswith('<'):
             m = re.match(r'<(/?)([a-zA-Z0-9]+)', part)
@@ -407,6 +415,10 @@ def glossarize(page, key):
                 close, tag = m.group(1) == '/', m.group(2).lower()
                 if tag == 'section':
                     section_ok = not close and 'class="section' in part
+                elif gl_span:
+                    gl_span += -1 if (close and tag == 'span') else 1 if (tag == 'span' and not part.endswith('/>')) else 0
+                elif tag == 'span' and not close and 'data-gl=' in part:
+                    gl_span = 1
                 elif katex:
                     katex += -1 if (close and tag == 'span') else 1 if (tag == 'span' and not part.endswith('/>')) else 0
                 elif tag == 'span' and not close and 'katex' in part:
@@ -419,7 +431,7 @@ def glossarize(page, key):
                     skip += -1 if close else 1
             out.append(part)
             continue
-        if not (section_ok and prose > 0 and skip == 0 and katex == 0) or not part.strip():
+        if not (section_ok and prose > 0 and skip == 0 and katex == 0 and gl_span == 0) or not part.strip():
             out.append(part)
             continue
         spans = []
@@ -435,7 +447,6 @@ def glossarize(page, key):
         out.append(part)
     if not used:
         return page
-    info = gl_info()
     data = {gid: {**info[gid], 'here': info[gid]['k'] == key} for gid in used}
     tag = '<script type="application/json" id="glData">' + json.dumps(data, ensure_ascii=False).replace('</', '<\\/') + '</script>\n'
     return page[:a] + ''.join(out) + tag + page[b:]
@@ -469,7 +480,7 @@ def build(key):
     assert '/*@@CSS@@*/' in html
     html = html.replace('/*@@CSS@@*/', css)
     for marker, files in js_map.items():
-        js = '\n'.join(js_source(f, key) for f in files)
+        js = '\n'.join(js_source(f, key) for f in files if not (EN and f in RU_ONLY_JS))
         assert '</script' not in js, 'в JS не должно быть закрывающего тега script'
         assert marker in html, marker
         html = html.replace(marker, js)

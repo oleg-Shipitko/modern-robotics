@@ -187,19 +187,50 @@ async function desktop() {
   await p.eval('document.querySelector("#ikMis .g-restart").click()'); await sleep(100);
   check(await p.eval('window.__l03.mis.ik.index === 0 && window.__l03.IK.api.state().n === 2 && !window.__l03.mis.ik.ctx.done[0]'), 'ОК: «Начать заново» вернуло цель и первую миссию');
 
-  // --- якобиан: кривая
+  // --- якобиан: вклады суставов, общий лимит и эллипс скоростей
   await center(p, '#jacCv');
-  await dragTop(p, '#jacCv', [0.45, 0.3], [0.8, 0.55]);
-  check(await done(p, 'jac'), 'якобиан: сингулярность — ' + (await p.eval('document.querySelector("#jacOut").textContent')).slice(0, 70));
+  const jacState = () => p.eval('window.__l03.Jac.api.state()');
+  const jacMove = async (id) => { await p.click('#' + id); await p.waitFor('!window.__l03.Jac.api.state().running', 5000); };
+  const matrixVisible = () => p.eval('["j00","j01","j10","j11","jacOmega1","jacOmega2","jacVx","jacVy"].every((id) => document.getElementById(id).textContent.trim().length > 0) && !document.getElementById("jacNumbers").hidden');
+  await jacMove('jacShoulder');
+  const shoulder = await jacState();
+  await jacMove('jacElbow');
+  const elbow = await jacState();
+  await jacMove('jacTogether');
+  const together = await jacState();
+  check(shoulder.velocity[0] < 0 && shoulder.velocity[1] > 0 && elbow.velocity[0] > 0 && elbow.velocity[1] < 0,
+    'якобиан М1: суставы по отдельности двигают захват в обеих координатах');
+  check(await done(p, 'jac') && Math.abs(together.velocity[0]) < 1e-9 && together.velocity[1] > 0
+    && together.seen.every(Boolean) && await matrixVisible(), 'якобиан М1: боковые вклады компенсируются, остаётся движение вверх; матрица заполнена');
+  // Check displayed J·ω independently: multiply the rounded matrix values,
+  // allowing for two-decimal display rounding rather than testing exact strings.
+  const eq = await p.eval(`(() => {
+    const n = (id) => +document.getElementById(id).textContent.replace('−', '-').replace(',', '.');
+    const w = [n('jacOmega1'), n('jacOmega2')];
+    return [Math.abs(n('j00') * w[0] + n('j01') * w[1] - n('jacVx')),
+      Math.abs(n('j10') * w[0] + n('j11') * w[1] - n('jacVy'))];
+  })()`);
+  check(eq.every((e) => e < 0.1), 'якобиан: показанная матрица и скорости суставов дают показанную скорость движения захвата');
   await next(p, '#jacMis');
-  const pos = await p.eval('(() => { const s = window.__l03.Jac.api.state(); return s.r; })()');
-  const ang = Math.atan2(0.55, 0.8);
-  await dragTop(p, '#jacCv', [0.9 * Math.cos(ang), 0.9 * Math.sin(ang)], [0.36 * Math.cos(ang), 0.36 * Math.sin(ang)], 20);
-  check(await done(p, 'jac'), `якобиан: круглый эллипс — ` + (await p.eval('document.querySelector("#jacOut").textContent')).slice(0, 70));
+  await jacMove('jacA'); const axisA = await jacState();
+  await jacMove('jacB'); const axisB = await jacState();
+  check(await done(p, 'jac') && [axisA, axisB].every((s) => Math.abs(Math.hypot(...s.omega) - 10) < 1e-9)
+    && Math.hypot(...axisA.velocity) > Math.hypot(...axisB.velocity) * 2 && await matrixVisible(),
+    'якобиан М2: одинаковый лимит 10°/с даёт разные скорости по А и Б; матрица остаётся видимой');
   await next(p, '#jacMis');
-  await dragTop(p, '#jacCv', [0.36 * Math.cos(ang), 0.36 * Math.sin(ang)], [0.1 * Math.cos(ang), 0.1 * Math.sin(ang)], 10);
-  await dragTop(p, '#jacCv', [0.1 * Math.cos(ang), 0.1 * Math.sin(ang)], [0.9 * Math.cos(ang), 0.9 * Math.sin(ang)], 60);
-  check(await done(p, 'jac'), 'якобиан: вся кривая — ' + (await outText(p, '#jacMis')).slice(0, 90));
+  await setRange(p, 'jacDirection', 45); await bet(p, '#jacMis', 'По Б'); await go(p, '#jacMis', 'jac');
+  const between = await jacState(), norm = Math.hypot(...between.velocity);
+  check(await done(p, 'jac') && norm < Math.hypot(...axisA.velocity) && norm > Math.hypot(...axisB.velocity)
+    && Math.abs(Math.hypot(...between.omega) - 10) < 1e-9 && await matrixVisible(),
+    'якобиан М3: промежуточное направление лежит на эллипсе при том же лимите, ставка проверена');
+  await next(p, '#jacMis');
+  await setRange(p, 'jacBend', 0); await jacMove('jacA'); const straightA = await jacState();
+  await jacMove('jacB'); const straightB = await jacState();
+  check(Math.hypot(...straightA.velocity) > 0.1 && !straightB.available && Math.hypot(...straightB.velocity) < 1e-9,
+    'якобиан М4: прямая рука движется поперёк, но начальной скорости вдоль неё нет');
+  await setRange(p, 'jacBend', 30); await jacMove('jacB'); const bent = await jacState();
+  check(await done(p, 'jac') && bent.available && Math.hypot(...bent.velocity) > 0.001 && await matrixVisible(),
+    'якобиан М4: сгиб возвращает короткую ось и движение по Б; матрица обновляется');
   await p.shotEl(out('l03-jac.png'), '#jac .lab', 6);
 
   // --- лаборатория 1: две сети
@@ -260,7 +291,7 @@ async function desktop() {
   await go(p, '#pdMis', 'pd');
   // тянем захват мышью в свободном режиме
   await center(p, '#pdCv');
-  const ee = await p.eval('(() => { const q = window.__l03.PdLab.st.s.q, e = Arm.fk(q); return [200 + e.x * 190, 170 - e.y * 190]; })()');
+  const ee = await p.eval('(() => { const q = window.__l03.PdLab.st.s.q, e = Arm.fk(q); return [200 + e.x * 155, 180 - e.y * 155]; })()');
   const a0 = await cpt(p, '#pdCv', 520, ee[0], ee[1]), a1 = await cpt(p, '#pdCv', 520, ee[0] + 40, ee[1] + 50);
   await p.S('Input.dispatchMouseEvent', { type: 'mousePressed', x: a0.x, y: a0.y, button: 'left', clickCount: 1 });
   for (let i = 1; i <= 10; i++) { await p.S('Input.dispatchMouseEvent', { type: 'mouseMoved', x: a0.x + (a1.x - a0.x) * i / 10, y: a0.y + (a1.y - a0.y) * i / 10, button: 'left' }); await sleep(30); }

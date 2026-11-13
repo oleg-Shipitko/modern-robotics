@@ -38,7 +38,6 @@ function helpers(p) {
     // точки сцен в координатах страницы
     armPt: (wx, wy) => q(`(() => { const cv = document.querySelector("#armCv"), r = cv.getBoundingClientRect(), A = window.__l02.ArmLab; return { x: r.left + A.X(${wx}) / 520 * r.width, y: r.top + A.Y(${wy}) / 420 * r.height }; })()`),
     armJoint: (k) => q(`(() => { const st = window.__l02.ArmLab.st, L = st.n === 2 ? ArmK.L2 : ArmK.L3, pts = ArmK.fk(L, st.q), pt = ${k} < 0 ? pts[pts.length - 1] : pts[${k}]; const cv = document.querySelector("#armCv"), r = cv.getBoundingClientRect(), A = window.__l02.ArmLab; return { x: r.left + A.X(pt[0]) / 520 * r.width, y: r.top + A.Y(pt[1]) / 420 * r.height }; })()`),
-    gearTip: (i, th) => q(`(() => { const GL = window.__l02.GearLab, G = GL.G, ln = GL.st.lanes[${i}], a = ${th == null ? 'ln.link.th' : th}; const cv = document.querySelector("#gearCv"), r = cv.getBoundingClientRect(); const x = G.PIVX + Math.cos(a) * G.LEN, y = GL.pivY(${i}) + Math.sin(a) * G.LEN; return { x: r.left + x / G.W * r.width, y: r.top + y / G.H * r.height }; })()`),
   };
   return M;
 }
@@ -85,37 +84,72 @@ async function arm(p, M, shots) {
 }
 
 async function gear(p, M, shots) {
-  console.log('Лаборатория 1: редуктор и удар');
-  const R = '#gearGuide';
-  await M.scroll('#gearCv');
-  await M.bet(R, '6 : 1'); await M.act(R, 20000);
-  const o1 = await M.out(R); console.log('    толчок:', o1.slice(0, 150));
-  check(/52°/.test(o1) && /0,3 с/.test(o1) && /не сдвинулось/.test(o1), 'толчок: 6:1 — 52° до упора за 0,3 с, 100:1 — 0°');
-  await M.next(R);
-  await M.bet(R, 'При 100 : 1'); await M.act(R, 20000);
-  const o2 = await M.out(R); console.log('    удар:', o2.slice(0, 150));
-  check(/134 Н·м/.test(o2) && /608 Н·м/.test(o2), 'удар: 134 против 608 Н·м');
-  if (shots) await p.shotEl(out('l02-gear.png'), '#gear .lab', 6);
-  await M.next(R);
-  const RA = await p.eval('window.__l02.GearLab.RATIOS');
-  for (const n of [6, 30, 15]) { await M.setRange('#gearNA', RA.indexOf(n)); await M.act(R, 20000); console.log(`    колено ${n}:1 →`, await M.crit(R)); }
-  console.log('    журнал:', await M.log(R));
-  check((await M.crit(R)) === 'ok,ok', 'колено: 15:1 проходит оба критерия');
-  if (shots) await p.shotEl(out('l02-gear-knee.png'), '#gear .lab', 6);
-  console.log('    разбор:', (await M.out(R)).slice(0, 120));
-  await M.next(R); await sleep(200);
-  await M.scroll('#gearCv');
-  const up = -1.18;
-  await M.drag(await M.gearTip(0), await M.gearTip(0, up), { steps: 10, hold: 1500, until: 'window.__l02.GearLab.st.lanes[0].reached' });
-  await M.drag(await M.gearTip(1), await M.gearTip(1, up), { steps: 10, hold: 12000, until: 'window.__l02.GearLab.st.lanes[1].reached' });
-  check((await M.crit(R)) === 'ok,ok', 'обратимость: оба звена дотянуты до отметки');
-  console.log('    разбор:', (await M.out(R)).slice(0, 120));
-  await M.next(R);
-  await M.setRange('#gearNA', RA.indexOf(160)); await p.click('#gearHit');
-  await p.waitFor('window.__l02.GearLab.st.mode === "idle" && window.__l02.GearLab.st.lanes[0].imp != null', 20000);
-  const p160 = await p.eval('Math.round(window.__l02.GearLab.st.lanes[0].imp)');
-  check(p160 === 978, 'свободный режим: удар при 160:1 — ' + p160 + ' Н·м');
-  if (shots) await p.shotEl(out('l02-gear-free.png'), '#gear .lab', 6);
+  console.log('Лаборатория 1: верёвка, редуктор, рука и приземление');
+  await p.waitFor('window.RopeLab && window.ArmLoadLab && window.LegsLab');
+  await M.scroll('#ropeCv');
+  await M.segClick('#ropeModes', '1. Верёвка');
+  await M.setRange('#ropeForce', 8);
+  check(await p.eval('RopeLab.getState().h === 0 && RopeLab.getState().support === 2'), '8 Н тяги и 2 Н опоры уравновешивают вес 10 Н');
+  await M.setRange('#ropeForce', 12);
+  await p.waitFor('RopeLab.getState().h > 0.05', 6000);
+  check(await p.eval('RopeLab.getState().v > 0'), 'тяга 12 Н поднимает груз 1 кг');
+  await M.setRange('#ropeForce', 0);
+  await p.waitFor('RopeLab.getState().h === 0', 6000);
+  check(await p.eval('RopeLab.getState().v === 0'), 'при отпускании верёвки груз возвращается на опору');
+  await M.segClick('#ropeModes', '2. Мотор');
+  await p.click('#ropeLift'); await sleep(500);
+  check(await p.eval('RopeLab.getState().h === 0 && RopeLab.getState().active'), 'мотор включён, но напрямую не хватает момента');
+  await M.segClick('#ropeModes', '3. Редуктор');
+  await p.click('#ropeLift');
+  await p.waitFor('RopeLab.getState().h > 0.1', 5000);
+  check(await p.eval('RopeLab.getState().h > 0.1'), 'тот же мотор с передачей 4:1 поднимает груз');
+  check(await p.eval('!document.querySelector("#ropeEnergyVisual").hidden && document.querySelector("#ropeLoadWork").textContent.includes("0,50")'), 'расчёт за оборот показывает около 0,5 Дж вместо 2 Дж');
+  if (shots) await p.shotEl(out('l02-gear-rope.png'), '#ropeLab', 6);
+  await M.segClick('#ropeModes', '1. Верёвка'); await M.setRange('#ropeForce', 8);
+
+  await M.scroll('#armLoadCv');
+  await M.segClick('#armLoadMode', 'Редуктор 3 : 1');
+  await M.setRange('#armLoadDistance', 20);
+  await p.waitFor('ArmLoadLab.getState().q > 0.5', 6000);
+  const loadPoints = await p.eval(`(() => {
+    const s = ArmLoadLab.getState(), g = s.geometry, b = document.querySelector('#armLoadCv').getBoundingClientRect();
+    const pt = (r) => ({ x: b.left + (g.jx + r / 0.48 * g.L * Math.cos(s.q)) / g.W * b.width,
+      y: b.top + (g.py - r / 0.48 * g.L * Math.sin(s.q)) / g.H * b.height });
+    return { from: pt(s.r), to: pt(0.4) };
+  })()`);
+  await M.drag(loadPoints.from, loadPoints.to, { steps: 8 });
+  check(await p.eval('ArmLoadLab.getState().r > 0.35'), 'перетаскивание груза меняет расстояние до сустава');
+  await M.setRange('#armLoadDistance', 8);
+  await p.waitFor('ArmLoadLab.getState().q > 0.4', 6000);
+  check(await p.eval('ArmLoadLab.getState().N === 3'), 'с передачей 3:1 близкий груз поднят к цели');
+  if (shots) await p.shotEl(out('l02-gear-arm.png'), '#armLoadLab', 6);
+  await M.setRange('#armLoadDistance', 45);
+  await M.segClick('#armLoadMode', 'Напрямую');
+  await p.waitFor('ArmLoadLab.getState().q < 0', 6000);
+  check(await p.eval('ArmLoadLab.getState().r === 0.45 && ArmLoadLab.getState().N === 1'), 'тот же груз вдали от сустава опускает руку без редуктора');
+
+  await M.scroll('#legsCv');
+  await M.segClick('#legsMode', 'Толчок');
+  await p.click('#legsRun');
+  await p.waitFor('LegsLab.getState().t > 0.2', 6000);
+  const push = await p.eval('LegsLab.getState().states.map(s => s.maxq)');
+  check(push[0] > push[1] + 0.05, 'одинаковый толчок сильнее сгибает ногу с передачей 6:1');
+  await M.segClick('#legsMode', 'Приземление');
+  await M.setRange('#legsHeight', 12);
+  await p.click('#legsRun');
+  await p.waitFor('LegsLab.getState().t > 0.8', 7000);
+  const peaks = await p.eval('LegsLab.getState().states.map(s => s.peak)');
+  check(peaks[0] > 345 && peaks[0] < 355 && peaks[1] > 570 && peaks[1] < 580, 'приземление с 12 см: около 350 и 575 Н; больший редуктор усиливает первый удар');
+  if (shots) await p.shotEl(out('l02-gear-landing.png'), '#legsLab', 6);
+  await p.click('#legsReset');
+  check(await p.eval('LegsLab.getState().t === 0 && !LegsLab.getState().running && LegsLab.getState().states.every(s => s.peak === 0)'), 'сброс приземления очищает время и пики');
+
+  const glossary = await p.eval('(() => { const d = JSON.parse(document.querySelector("#glData").textContent); return [...document.querySelectorAll("#gear .gl")].every(e => !!d[e.dataset.gl]); })()');
+  check(glossary, 'у всех терминов лаборатории есть определения в глоссарии');
+  await M.scroll('#gear [data-gl="lab1-torque"]');
+  await p.eval('document.querySelector("#gear [data-gl=lab1-torque]").focus()');
+  check(await p.eval('!document.querySelector("#glPop").hidden && document.querySelector("#glPop").textContent.includes("Н·м")'), 'подсказка момента открывается с клавиатуры');
+  await p.eval('document.querySelector("#gear [data-gl=lab1-torque]").blur()');
 }
 
 async function sortCards(p, M, root, ctlPath, plan, real) {
@@ -247,12 +281,11 @@ async function act(p, M, shots) {
   await p.shotEl(out('l02-ladder.png'), '#ladder .ladder-card', 6);
   await act(p, M, true);
   console.log('Начать заново');
-  for (const [root, mod, n] of [['#gearGuide', 'GearLab', 5], ['#actGuide', 'ActLab', 6], ['#armGuide', 'ArmLab', 3], ['#imuGuide', 'ImuLab', 4]]) {
+  for (const [root, mod, n] of [['#actGuide', 'ActLab', 6], ['#armGuide', 'ArmLab', 3], ['#imuGuide', 'ImuLab', 4]]) {
     await M.scroll(root); await p.eval(`document.querySelector(${J(root + ' .g-restart')}).click()`); await sleep(150);
     const k = await M.kicker(root), open = await p.eval(`document.querySelectorAll(${J(root + ' .m-steps li.open')}).length`);
     check(k === `Миссия 1 из ${n}` && open === 1, `${mod}: заново — «${k}», открыта одна миссия`);
   }
-  check(await p.eval('window.__l02.GearLab.st.lanes[0].N === 6 && window.__l02.GearLab.st.lanes[1].N === 100'), 'редуктор после сброса: снова 6:1 и 100:1');
   check(await p.eval('window.__l02.ArmLab.st.n === 2 && !window.__l02.ArmLab.st.lamp'), 'рука после сброса: два сустава, без лампы');
   console.log('Квиз');
   await p.eval('document.querySelectorAll("#quizBox .q-card").forEach((c) => c.querySelector(".q-opt").click())');
@@ -280,17 +313,9 @@ async function act(p, M, shots) {
   const MM = helpers(m);
   await body(m, MM); await m.shotEl(out('l02-m-body.png'), '#io .body-card', 4); await m.shotEl(out('l02-m-cmp.png'), '#io .cmp-card', 4);
   await arm(m, MM, false); await m.shotEl(out('l02-m-arm.png'), '#dof .lab', 4);
-  const RG = '#gearGuide'; await MM.scroll('#gearCv'); await MM.bet(RG, '100 : 1'); await MM.act(RG, 20000); await MM.next(RG); await MM.bet(RG, 'Одинаково'); await MM.act(RG, 20000);
-  console.log('    удар на телефоне:', (await MM.out(RG)).slice(0, 90));
-  await m.shotEl(out('l02-m-gear.png'), '#gear .lab', 4);
-  check(await m.eval('window.__l02.GearLab.G.W') === 360, 'сцена редуктора на телефоне в узкой раскладке');
-  await MM.next(RG); const RAm = await m.eval('window.__l02.GearLab.RATIOS');
-  await MM.setRange('#gearNA', RAm.indexOf(12)); await MM.act(RG, 20000); check((await MM.crit(RG)) === 'ok,ok', 'телефон: колено 12:1 проходит');
-  await MM.next(RG); await MM.scroll('#gearCv');
-  await MM.drag(await MM.gearTip(0), await MM.gearTip(0, -1.18), { steps: 10, hold: 1500, until: 'window.__l02.GearLab.st.lanes[0].reached' });
-  await MM.drag(await MM.gearTip(1), await MM.gearTip(1, -1.18), { steps: 10, hold: 12000, until: 'window.__l02.GearLab.st.lanes[1].reached' });
-  check((await MM.crit(RG)) === 'ok,ok', 'телефон: оба звена дотянуты пальцем до отметки');
-  await m.shotEl(out('l02-m-gear-pull.png'), '#gear .lab', 4);
+  await gear(m, MM, false);
+  await m.shotEl(out('l02-m-gear.png'), '#legsLab', 4);
+  check(await m.eval('ArmLoadLab.getState().geometry.W') === 360, 'сцена руки на телефоне в узкой раскладке');
   const RI = '#imuGuide'; await MM.scroll('#imuCv'); await MM.bet(RI, 'Фильтр'); await MM.act(RI, 20000);
   await m.shotEl(out('l02-m-imu.png'), '#sensors .lab', 4);
   const lm = await sortCards(m, MM, '#ladderSort', 'Ladder', 'right', 2); check(/^10 из 10/.test(lm), 'телефон: шкала частот — ' + lm.slice(0, 30));
